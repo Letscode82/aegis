@@ -6,5 +6,7 @@ export const CSS=`@import url('https://fonts.googleapis.com/css2?family=Fraunces
 @keyframes p{0%,100%{opacity:1}50%{opacity:.35}}
 @keyframes bi{from{width:0}to{width:var(--w)}}
 @keyframes sp{to{transform:rotate(360deg)}}
+@keyframes typing{0%,100%{opacity:.25;transform:translateY(0)}50%{opacity:1;transform:translateY(-2px)}}
+@keyframes flash{0%{background:${C.emG}}100%{background:transparent}}
 *{scrollbar-width:thin;scrollbar-color:${C.br} transparent;box-sizing:border-box}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:${C.br};border-radius:3px}`;
