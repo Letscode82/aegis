@@ -1,0 +1,17 @@
+export const COMPLIANCE_INV=[
+{id:"INV-101",title:"LATAM Vendor Payment Irregularities",type:"Anti-bribery",region:"Brazil",sev:"Critical",status:"Active",detected:"2026-02-28",flaggedTx:14,lead:"J. Martinez",
+ workflow:[{label:"Detection",done:true},{label:"Triage",done:true},{label:"Evidence Collection",done:true},{label:"Interviews",active:true},{label:"Findings Report"},{label:"Remediation"}],
+ evidence:[{type:"Transaction records",count:14,source:"SAP ERP"},{type:"Email correspondence",count:89,source:"Exchange"},{type:"Vendor due diligence files",count:6,source:"SharePoint"}],
+ approvals:[{action:"Investigation launch",by:"Compliance Agent",date:"2026-02-28",status:"Approved",approver:"Chief Compliance Officer"},{action:"External forensic accountant",by:"CCO",date:"2026-03-05",status:"Approved",approver:"GC"},{action:"Voluntary self-disclosure assessment",by:"GC",date:"2026-03-10",status:"Pending",approver:"Board Audit Committee"}],
+ alerts:[{text:"3 additional suspicious payments identified — total now $2.4M",sev:"critical",time:"3 hours ago"},{text:"Interview with Regional Procurement Head scheduled March 15",sev:"info",time:"1 day ago"}]},
+{id:"INV-102",title:"Data Exfiltration — Former Employee",type:"IP Theft",region:"India",sev:"High",status:"Active",detected:"2026-03-05",flaggedTx:0,lead:"S. Patel",
+ workflow:[{label:"Detection",done:true},{label:"Triage",done:true},{label:"Forensic Analysis",active:true},{label:"Legal Action"},{label:"Remediation"}],
+ evidence:[{type:"DLP alerts",count:23,source:"CrowdStrike"},{type:"USB transfer logs",count:4,source:"Endpoint Mgmt"},{type:"Email with attachments",count:12,source:"Exchange"}],
+ approvals:[{action:"Forensic imaging of devices",by:"IT Security",date:"2026-03-06",status:"Approved",approver:"CISO"},{action:"TRO application",by:"India Legal",date:"2026-03-10",status:"Pending",approver:"GC"}],
+ alerts:[{text:"42 proprietary files confirmed exfiltrated to personal cloud",sev:"critical",time:"6 hours ago"}]},
+{id:"INV-103",title:"Insider Trading Suspicion — Q4 Earnings",type:"Securities Fraud",region:"USA",sev:"Critical",status:"Active",detected:"2026-03-01",flaggedTx:3,lead:"M. Rodriguez",
+ workflow:[{label:"Detection",done:true},{label:"Triage",done:true},{label:"Trading Analysis",active:true},{label:"SEC Coordination"},{label:"Remediation"}],
+ evidence:[{type:"Trading records",count:3,source:"Broker Feeds"},{type:"Calendar / meeting invites",count:18,source:"Exchange"},{type:"Chat messages",count:42,source:"Bloomberg Terminal"}],
+ approvals:[{action:"SEC voluntary notification",by:"Securities Counsel",date:"2026-03-10",status:"Pending",approver:"GC + Board Audit Committee"},{action:"Trading freeze — 2 employees",by:"Compliance",date:"2026-03-05",status:"Approved",approver:"GC"}],
+ alerts:[{text:"3 trades within 48hrs of material non-public info — pattern detected",sev:"critical",time:"1 day ago"},{text:"Bloomberg terminal logs show 2 employees accessed earnings data before release",sev:"critical",time:"12 hours ago"}]},
+];

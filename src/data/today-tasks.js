@@ -1,0 +1,15 @@
+export const TODAY_TASKS=[
+{time:"09:00",task:"Review Huawei sanctions re-screening results",module:"Contracts",priority:"Critical",owner:"Compliance Team",status:"Overdue"},
+{time:"09:30",task:"Approve expert witness engagement — LIT-324",module:"Litigation",priority:"High",owner:"Sarah Chen",status:"Pending Approval"},
+{time:"10:00",task:"EU AI Act remediation plan review",module:"Regulatory",priority:"Critical",owner:"AI Governance",status:"In Progress"},
+{time:"10:30",task:"LATAM investigation — interview prep",module:"Compliance",priority:"Critical",owner:"J. Martinez",status:"In Progress"},
+{time:"11:00",task:"Germany subsidiary annual return filing",module:"Governance",priority:"High",owner:"Germany Legal",status:"Overdue"},
+{time:"11:30",task:"CAC filing draft review — China data export",module:"Regulatory",priority:"Critical",owner:"China Legal",status:"In Progress"},
+{time:"13:00",task:"K&E rate increase review — Legal Ops",module:"Spend",priority:"Medium",owner:"Legal Ops",status:"Pending Approval"},
+{time:"13:30",task:"Board Audit Committee briefing prep — Huawei",module:"Contracts",priority:"Critical",owner:"GC Office",status:"Not Started"},
+{time:"14:00",task:"Settlement authority request — EU Antitrust",module:"Litigation",priority:"Critical",owner:"GC",status:"Pending Approval"},
+{time:"14:30",task:"IP exfiltration TRO application review",module:"Compliance",priority:"High",owner:"India Legal",status:"Pending Approval"},
+{time:"15:00",task:"Siemens IP clause renegotiation strategy",module:"Contracts",priority:"High",owner:"IP Team",status:"In Progress"},
+{time:"15:30",task:"Brazil board restructuring plan",module:"Governance",priority:"Medium",owner:"Brazil Legal",status:"Pending Approval"},
+{time:"16:00",task:"Weekly GC dashboard review",module:"Overview",priority:"Medium",owner:"Mark Williams, GC",status:"Scheduled"},
+];
