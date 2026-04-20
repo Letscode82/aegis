@@ -1,0 +1,17 @@
+export const BRAIN_QUERIES=[
+{q:"How did we handle unlimited indemnity clauses with German vendors last time?",
+ answer:"In Q3 2025, we renegotiated unlimited indemnity with Siemens (CTR-4119) and Bosch (CTR-4087). Both were capped at 2x annual contract value after 3 rounds of negotiation. Average negotiation time: 6 weeks. Template language stored in Playbook PB-2025-014.",
+ sources:["CTR-4119 (Siemens)","CTR-4087 (Bosch)","Playbook PB-2025-014","Email: Sarah Chen → GC, 2025-08-14"],confidence:96,category:"Contract Precedent"},
+{q:"What is our standard position on data localization requirements in China?",
+ answer:"Per Policy POL-PRIV-008 (updated Jan 2026): All personal data of Chinese citizens must be stored on servers within mainland China. Cross-border transfers require CAC security assessment (in progress — REG-003). We use AWS Beijing region for China ops. Budget approved: $2.1M for full localization.",
+ sources:["POL-PRIV-008","REG-003 (CAC Filing)","Board Memo BM-2025-Q4-Privacy","IT Architecture Doc"],confidence:98,category:"Policy & Regulatory"},
+{q:"What was the outcome of our last FCPA investigation?",
+ answer:"2023 — Eastern Europe procurement investigation. 18-month investigation by Gibson Dunn. Result: voluntary self-disclosure to DOJ, no prosecution (declination). Remediation: enhanced anti-bribery training, new vendor DD requirements in high-risk jurisdictions, compliance monitor for 12 months (completed Dec 2024). Total cost: $4.8M.",
+ sources:["INV-2023-007","DOJ Declination Letter 2024-03-15","Board Report Q1 2024","Gibson Dunn Final Report"],confidence:94,category:"Investigation Precedent"},
+{q:"Which law firms have we used for patent litigation in Delaware and what were the outcomes?",
+ answer:"3 matters in Delaware since 2022: (1) K&E — won summary judgment ($0 liability), (2) Fish & Richardson — settled at $4.2M (plaintiff asked $15M), (3) K&E — currently active (LIT-324, $12M exposure, 68% favorable). K&E average rate: $1,450/hr. Fish: $1,280/hr. Recommendation: K&E preferred for Delaware patent.",
+ sources:["LIT-2022-018","LIT-2023-044","LIT-324 (Active)","Firm Scorecard: K&E","Firm Scorecard: Fish & Richardson"],confidence:92,category:"Litigation Intelligence"},
+{q:"What is our board's risk appetite for regulatory settlements?",
+ answer:"Per Board Resolution BR-2024-009: settlements up to $10M can be approved by GC + CFO. $10M–$50M requires Audit Committee approval. >$50M requires full Board vote. Timeline: emergency Board sessions can be convened within 48 hours. Last >$50M decision: antitrust settlement (voted down in favor of litigation, 2023).",
+ sources:["BR-2024-009","Audit Committee Charter §4.2","Board Minutes 2023-06-15"],confidence:99,category:"Governance"},
+];
