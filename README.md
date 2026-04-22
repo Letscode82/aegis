@@ -32,8 +32,6 @@ aegis/
 ├── index.html                  Vite entry (loads src/main.jsx)
 ├── vite.config.js              Vite + @vitejs/plugin-react config
 ├── package.json
-├── reference/
-│   └── aegis-v7-aurora.jsx     Original v7.2 + v8 monolith (preserved verbatim)
 └── src/
     ├── main.jsx                Boot: installs storage polyfill, mounts <App/>
     ├── App.jsx                 Top-level shell: sidebar nav, routing, copilot mount
@@ -93,13 +91,21 @@ Grouped as they appear in the sidebar.
 
 ---
 
-## Reference monolith
+## Historical note
 
-`reference/aegis-v7-aurora.jsx` is the original 5,241-line single-file demo
-(v7.2 "Aurora" + v8 "Legal Intake" merged). It is preserved verbatim as the
-source of truth for behavior — every module in `src/` was extracted from it
-with `const → export const` and explicit imports, nothing more. When in
-doubt about a module's intended behavior, consult this file.
+The codebase was originally a single 5,241-line file (`aegis-v7-aurora.jsx`
+— v7.2 "Aurora" + v8 "Legal Intake" merged). It was split into the current
+`src/` tree in PR #1 via verbatim extraction (`const → export const` +
+explicit imports). The monolith was kept at `reference/aegis-v7-aurora.jsx`
+for a while, then retired once the refactor was stable. If you ever need
+the original as a behavioral reference, retrieve it from git history:
+
+```bash
+git show c92b054:reference/aegis-v7-aurora.jsx > /tmp/aegis-v7-aurora.jsx
+```
+
+(`c92b054` is the refactor commit; the initial commit `5ff9692` has the
+same content at the repo root.)
 
 ---
 

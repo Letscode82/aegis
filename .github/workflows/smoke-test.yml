@@ -1,0 +1,82 @@
+name: Production smoke test
+
+# Sends a trivial POST to /api/claude on the deployed production URL and
+# asserts a 200. Catches env-var regressions (ANTHROPIC_API_KEY missing
+# from Vercel production) and proxy breakage before users notice via a
+# broken Copilot.
+#
+# Configuration (one-time, per repo):
+#   Repo → Settings → Secrets and variables → Actions → Variables tab
+#     PRODUCTION_URL = https://your-vercel-production-domain  (no trailing slash)
+#
+# If PRODUCTION_URL is not set, the workflow fails fast with a clear
+# message — no silent passes.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    # Daily at 08:15 UTC — catches quiet breakage (e.g. key rotation
+    # that didn't make it to Vercel).
+    - cron: "15 8 * * *"
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check PRODUCTION_URL is configured
+        env:
+          URL: ${{ vars.PRODUCTION_URL }}
+        run: |
+          if [ -z "$URL" ]; then
+            echo "::error::PRODUCTION_URL repo variable is not set."
+            echo "Set it at: Settings → Secrets and variables → Actions → Variables → New repository variable"
+            echo "Example value: https://aegis.vercel.app"
+            exit 1
+          fi
+          echo "Target: $URL"
+
+      - name: Wait for Vercel deploy to settle
+        if: github.event_name == 'push'
+        run: sleep 90
+
+      - name: Poll /api/claude until 200 (max ~5 min)
+        env:
+          URL: ${{ vars.PRODUCTION_URL }}
+        run: |
+          # Minimal valid Anthropic Messages payload — max_tokens:5 keeps
+          # this test cheap. If the proxy + key work, Anthropic returns
+          # 200 with a content array.
+          PAYLOAD='{"model":"claude-sonnet-4-20250514","max_tokens":5,"messages":[{"role":"user","content":"ping"}]}'
+
+          for attempt in $(seq 1 20); do
+            status=$(curl -sS -o /tmp/body.json -w "%{http_code}" \
+              -X POST "$URL/api/claude" \
+              -H "content-type: application/json" \
+              -d "$PAYLOAD" || echo "000")
+
+            echo "Attempt $attempt: HTTP $status"
+
+            if [ "$status" = "200" ]; then
+              echo "::notice::Smoke test passed — /api/claude returned 200"
+              # Print a short excerpt so the log shows real AI came back
+              head -c 300 /tmp/body.json
+              echo
+              exit 0
+            fi
+
+            if [ "$status" = "500" ] && grep -q "not configured" /tmp/body.json 2>/dev/null; then
+              echo "::error::Proxy reports ANTHROPIC_API_KEY not configured in Vercel production env."
+              cat /tmp/body.json
+              exit 1
+            fi
+
+            sleep 15
+          done
+
+          echo "::error::Smoke test failed — /api/claude never returned 200 within the retry window"
+          echo "Last response body:"
+          cat /tmp/body.json || true
+          exit 1
