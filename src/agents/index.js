@@ -5,6 +5,7 @@ import { ContractReviewAgent } from "./contract-review";
 import { TrademarkAgent } from "./trademark";
 import { PolicyQAAgent } from "./policy-qa";
 import { buildRec } from "./build-rec";
+import { friendlyAIError } from "../ai/claude";
 import { appendAgentLog } from "../storage/agent-log";
 
 export { NDAAgent, FAQAgent, VendorIntakeAgent, ContractReviewAgent, TrademarkAgent, PolicyQAAgent };
@@ -39,12 +40,13 @@ export async function processTicketWithAgent(ticket,settings){
     await appendAgentLog({type:"recommendation-generated",ticketId:ticket.id,agentId:agent.id,confidence:rec.confidence,action:rec.suggestedAction});
     return {agent,recommendation:rec};
   }catch(e){
-    await appendAgentLog({type:"agent-error",ticketId:ticket.id,agentId:agent.id,error:String(e).slice(0,200)});
+    console.error(`[agent:${agent.id}] process failed:`,e);
+    await appendAgentLog({type:"agent-error",ticketId:ticket.id,agentId:agent.id,status:e&&e.status,error:String(e).slice(0,200)});
     // Produce a visible low-confidence recommendation so the ticket doesn't silently fail
     return {agent,recommendation:buildRec(agent.id,{
       confidence:0.25,suggestedAction:"flag-for-review",draftedResponse:"",
       reasoning:`Agent ${agent.name} encountered an error. Manual triage recommended.`,
-      concerns:["Agent processing failed — see audit log for details"],
+      concerns:[friendlyAIError(e)],
     })};
   }
 }

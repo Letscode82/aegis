@@ -1,6 +1,6 @@
 import { buildRec } from "./build-rec";
 import { matchAgentKB } from "./kb";
-import { callClaudeJSON } from "../ai/claude";
+import { callClaudeJSON, friendlyAIError } from "../ai/claude";
 
 export const FAQAgent={
   id:"faq-agent",
@@ -59,11 +59,12 @@ Respond with ONLY this JSON:
         alternativeTone:result.alternativeTone||null,
       });
     }catch(e){
+      console.error("[agent:faq] callClaudeJSON failed:",e);
       const fallback=`Hi ${name},\n\n${kb.answer}\n\nSource: ${kb.source}.\n\nReply if you have a specific situation that doesn't fit the standard answer.\n\n— AEGIS Legal Knowledge Graph`;
       return buildRec(this.id,{
         confidence:0.88,suggestedAction:"approve-and-send",draftedResponse:fallback,
         reasoning:`Direct KB match. Source: ${kb.source}. Claude API unavailable — used KB entry directly.`,
-        concerns:["Used raw KB answer — attorney may want to personalize."],
+        concerns:[friendlyAIError(e),"Used raw KB answer — attorney may want to personalize."],
         precedentLinks:[{id:`KB-${kb.source.replace(/\W+/g,"-")}`,title:kb.source}],
         mock:true,
       });

@@ -1,4 +1,4 @@
-import { callClaudeJSON } from "../ai/claude";
+import { callClaudeJSON, friendlyAIError } from "../ai/claude";
 import { classifyIntakeRegex } from "../ai/classify-regex";
 
 // Initial state template — fields Copilot tries to extract
@@ -95,8 +95,9 @@ Only include fieldsExtracted keys where you're pulling in a NEW or UPDATED value
       _error:null,
     };
   }catch(e){
+    console.error("[copilot] callClaudeJSON failed:",e);
     return {
-      message:"Sorry — the Copilot hit a snag. Can you try rephrasing, or switch to the structured form using the toggle above?",
+      message:friendlyAIError(e),
       fieldsExtracted:{},ready:false,readyReason:"copilot error",
       topicSwitchDetected:false,topicSwitchTo:null,
       _error:e.message,
