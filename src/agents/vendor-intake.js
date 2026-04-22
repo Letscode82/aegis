@@ -1,6 +1,6 @@
 import { buildRec } from "./build-rec";
 import { mockSanctionsCheck } from "./mocks";
-import { callClaudeJSON } from "../ai/claude";
+import { callClaudeJSON, friendlyAIError } from "../ai/claude";
 
 export const VendorIntakeAgent={
   id:"vendor-intake-agent",
@@ -75,12 +75,13 @@ Respond with ONLY this JSON:
         alternativeTone:result.alternativeTone||null,
       });
     }catch(e){
+      console.error("[agent:vendor-intake] callClaudeJSON failed:",e);
       const name=(ticket.from||"").split(" ")[0]||"there";
       return buildRec(this.id,{
         confidence:0.78,suggestedAction:"approve-and-send",
         draftedResponse:`Hi ${name},\n\nVendor screens complete${counterparty?` for ${counterparty}`:""}:\n\n✓ OFAC / EU / UN sanctions — CLEAR\n✓ Refinitiv World-Check — CLEAR\n✓ Anti-bribery (FCPA / UK Bribery Act) — CLEAR\n✓ DPA v3.1 applies\n\nApproved for onboarding.\n\n— AEGIS Vendor Intake`,
         reasoning:`All automated screens clear. Claude unavailable — used template response.`,
-        concerns:["Attorney may want to personalize for specific data-scope questions."],
+        concerns:[friendlyAIError(e),"Attorney may want to personalize for specific data-scope questions."],
         precedentLinks:[{id:"DPA-v3.1",title:"Standard DPA Template v3.1"}],
         mock:true,
       });

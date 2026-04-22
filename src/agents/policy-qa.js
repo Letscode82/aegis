@@ -1,6 +1,6 @@
 import { buildRec } from "./build-rec";
 import { matchPolicy } from "./policy-library";
-import { callClaudeJSON } from "../ai/claude";
+import { callClaudeJSON, friendlyAIError } from "../ai/claude";
 
 export const PolicyQAAgent={
   id:"policy-qa-agent",
@@ -72,11 +72,12 @@ Respond with ONLY this JSON:
         alternativeTone:result.alternativeTone||null,
       });
     }catch(e){
+      console.error("[agent:policy-qa] callClaudeJSON failed:",e);
       return buildRec(this.id,{
         confidence:0.78,suggestedAction:"approve-and-send",
         draftedResponse:`Hi ${name},\n\nPer ${policy.policy}: ${policy.answer}\n\nIf your specific situation doesn't fit the standard answer, reply and I'll loop in the right specialist.\n\n— AEGIS Policy Desk`,
         reasoning:`Policy match: ${policy.policy}. Claude unavailable — used policy text directly.`,
-        concerns:["Used raw policy text — attorney may want to personalize."],
+        concerns:[friendlyAIError(e),"Used raw policy text — attorney may want to personalize."],
         precedentLinks:[{id:`POLICY-${policy.policy.replace(/\W+/g,"-")}`,title:policy.policy}],
         mock:true,
       });

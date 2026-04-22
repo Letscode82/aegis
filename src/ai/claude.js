@@ -1,5 +1,7 @@
 export const CLAUDE_MODEL="claude-sonnet-4-20250514";
-export const CLAUDE_ENDPOINT="https://api.anthropic.com/v1/messages";
+// Client-side calls go through our serverless proxy (api/claude.js) so the
+// Anthropic API key stays on the server and CORS is avoided.
+export const CLAUDE_ENDPOINT="/api/claude";
 
 // Strip accidental markdown fences, then parse
 export function parseJSONLoose(text){
@@ -31,7 +33,10 @@ export async function callClaude(prompt,opts={}){
     });
     if(!resp.ok){
       const errBody=await resp.text().catch(()=>"");
-      throw new Error(`Claude API ${resp.status}: ${errBody.slice(0,200)}`);
+      const err=new Error(`Claude API ${resp.status}: ${errBody.slice(0,200)}`);
+      err.status=resp.status;
+      err.body=errBody;
+      throw err;
     }
     const data=await resp.json();
     const textBlock=(data.content||[]).find(b=>b.type==="text");
@@ -48,4 +53,14 @@ export async function callClaudeJSON(prompt,opts={}){
   catch(e){
     throw new Error(`JSON parse failed: ${e.message}. Raw (first 300): ${text.slice(0,300)}`);
   }
+}
+
+// User-facing translation of an AI call failure. Callers should also
+// console.error the raw error for debugging.
+export function friendlyAIError(err){
+  const status=err&&err.status;
+  const body=(err&&err.body)||"";
+  if(status===429) return "Too many AI requests right now — please wait a minute.";
+  if(status===500&&/not configured/i.test(body)) return "AI service is being configured. Please try again or use the structured form.";
+  return "AI assistant is unavailable right now. Please try again or use the structured form.";
 }
