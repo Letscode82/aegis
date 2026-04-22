@@ -9,8 +9,8 @@ name: Production smoke test
 #   Repo → Settings → Secrets and variables → Actions → Variables tab
 #     PRODUCTION_URL = https://your-vercel-production-domain  (no trailing slash)
 #
-# If PRODUCTION_URL is not set, the workflow fails fast with a clear
-# message — no silent passes.
+# If PRODUCTION_URL is not set or malformed, the workflow fails fast with
+# a clear message — no silent passes.
 
 on:
   push:
@@ -26,17 +26,44 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Check PRODUCTION_URL is configured
+      - name: Normalize and validate PRODUCTION_URL
+        id: url
         env:
-          URL: ${{ vars.PRODUCTION_URL }}
+          RAW_URL: ${{ vars.PRODUCTION_URL }}
         run: |
-          if [ -z "$URL" ]; then
-            echo "::error::PRODUCTION_URL repo variable is not set."
-            echo "Set it at: Settings → Secrets and variables → Actions → Variables → New repository variable"
+          # Show the value with bracket delimiters so trailing whitespace
+          # or invisible chars are visible in the log.
+          echo "Raw value: [${RAW_URL}]"
+
+          # Strip whitespace (leading, trailing, embedded newlines/CRs).
+          url=$(printf '%s' "$RAW_URL" | tr -d '[:space:]')
+
+          if [ -z "$url" ]; then
+            echo "::error::PRODUCTION_URL repo variable is not set (or is empty after whitespace strip)."
+            echo "Set it at: Settings → Secrets and variables → Actions → **Variables tab**"
+            echo "(Secrets tab won't work — 'vars.PRODUCTION_URL' only reads from the Variables tab.)"
             echo "Example value: https://aegis.vercel.app"
             exit 1
           fi
-          echo "Target: $URL"
+
+          # Auto-prepend https:// if the scheme is missing.
+          case "$url" in
+            http://*|https://*) ;;
+            *) url="https://$url" ;;
+          esac
+
+          # Strip trailing slash for predictable concatenation.
+          url="${url%/}"
+
+          # Final sanity check — must parse as http(s)://host[:port][/path]
+          if ! printf '%s' "$url" | grep -qE '^https?://[A-Za-z0-9._-]+(:[0-9]+)?(/.*)?$'; then
+            echo "::error::PRODUCTION_URL is malformed after normalization: [$url]"
+            echo "Expected format: https://your-domain.example.com"
+            exit 1
+          fi
+
+          echo "Normalized: $url"
+          echo "url=$url" >> "$GITHUB_OUTPUT"
 
       - name: Wait for Vercel deploy to settle
         if: github.event_name == 'push'
@@ -44,8 +71,10 @@ jobs:
 
       - name: Poll /api/claude until 200 (max ~5 min)
         env:
-          URL: ${{ vars.PRODUCTION_URL }}
+          URL: ${{ steps.url.outputs.url }}
         run: |
+          echo "Target: $URL/api/claude"
+
           # Minimal valid Anthropic Messages payload — max_tokens:5 keeps
           # this test cheap. If the proxy + key work, Anthropic returns
           # 200 with a content array.
@@ -55,13 +84,18 @@ jobs:
             status=$(curl -sS -o /tmp/body.json -w "%{http_code}" \
               -X POST "$URL/api/claude" \
               -H "content-type: application/json" \
-              -d "$PAYLOAD" || echo "000")
+              -d "$PAYLOAD" 2>/tmp/curl.err)
+            rc=$?
 
-            echo "Attempt $attempt: HTTP $status"
+            if [ "$rc" != "0" ]; then
+              echo "Attempt $attempt: curl exited $rc"
+              sed -n '1,3p' /tmp/curl.err
+            else
+              echo "Attempt $attempt: HTTP $status"
+            fi
 
             if [ "$status" = "200" ]; then
               echo "::notice::Smoke test passed — /api/claude returned 200"
-              # Print a short excerpt so the log shows real AI came back
               head -c 300 /tmp/body.json
               echo
               exit 0
@@ -78,5 +112,5 @@ jobs:
 
           echo "::error::Smoke test failed — /api/claude never returned 200 within the retry window"
           echo "Last response body:"
-          cat /tmp/body.json || true
+          cat /tmp/body.json 2>/dev/null || echo "(no body — curl never completed a request)"
           exit 1
