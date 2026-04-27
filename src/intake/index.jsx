@@ -14,6 +14,7 @@ import { useAgentSettings } from "../hooks/use-agent-settings";
 import { useCockpitState } from "../hooks/use-cockpit-state";
 import { useAgentLog } from "../hooks/use-agent-log";
 import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
+import { TicketSummaryButton, AskAuroraChat } from "../views/ai-features";
 
 // Type picker gate — shown at top of New Request tab
 // Splits simple vs complex request types into Form path vs Copilot path.
@@ -296,9 +297,12 @@ function CopilotChat({initialType,onFiled,onSwitchToForm,store,settings}){
 // Note: in the standalone demo file, we ship a compact v7-form-compatible version here so the file
 // runs alone. On splice, this replaces the existing NewRequestTab — the legacy form body moves
 // from v7 (lines 1512–1712) into <LegacyFormInner/> verbatim.
-function NewRequestV8({store,goToInbox,goToCockpit,settings}){
-  const[mode,setMode]=useState("picker"); // "picker" | "form" | "copilot"
-  const[initialType,setInitialType]=useState(null);
+function NewRequestV8({store,goToInbox,goToCockpit,settings,prefillDesc}){
+  // If we arrive with a pre-filled description (from "File a ticket" in
+  // Ask Aurora), skip the picker and go straight to the legacy form so
+  // the user sees their question already in the description box.
+  const[mode,setMode]=useState(prefillDesc?"form":"picker");
+  const[initialType,setInitialType]=useState(prefillDesc?"Other":null);
 
   const pickSimple=(type)=>{ setInitialType(type); setMode("form"); };
   const pickComplex=(type)=>{ setInitialType(type); setMode("copilot"); };
@@ -324,15 +328,15 @@ function NewRequestV8({store,goToInbox,goToCockpit,settings}){
       <span onClick={()=>setMode("picker")} style={{display:"inline-flex",alignItems:"center",gap:4,cursor:"pointer",fontSize:10.5,color:C.cy,padding:"3px 6px",fontFamily:M,letterSpacing:1,textTransform:"uppercase"}}>← Change path</span>
       <span onClick={()=>setMode("copilot")} style={{marginLeft:14,display:"inline-flex",alignItems:"center",gap:4,cursor:"pointer",fontSize:10.5,color:C.em,padding:"3px 6px",fontFamily:M,letterSpacing:1,textTransform:"uppercase"}}>⇄ Switch to Copilot</span>
     </div>
-    <LegacyFormInner store={store} initialType={initialType} goToInbox={goToInbox} settings={settings}/>
+    <LegacyFormInner store={store} initialType={initialType} initialDesc={prefillDesc} goToInbox={goToInbox} settings={settings}/>
   </div>;
 }
 
 // ── Compact v7-compatible form for the standalone demo.
 //    On integration with aegis-v7-aurora.jsx, this is replaced by the real v7.2 NewRequestTab
 //    (lines 1512–1712 in v7), just re-routed through the v8 addTicketAndRunAgent path.
-function LegacyFormInner({store,initialType,goToInbox,settings}){
-  const[form,setForm]=useState({from:"",dept:"Product",type:initialType||"Contract Review",desc:"",attach:0,urgency:"Standard"});
+function LegacyFormInner({store,initialType,initialDesc,goToInbox,settings}){
+  const[form,setForm]=useState({from:"",dept:"Product",type:initialType||"Contract Review",desc:initialDesc||"",attach:0,urgency:"Standard"});
   const[submitted,setSubmitted]=useState(false);
   const[createdTicket,setCreatedTicket]=useState(null);
   const[busy,setBusy]=useState(false);
@@ -557,6 +561,9 @@ function TicketDetailPanel({ticket}){
           {conv.map((m,i)=><ChatBubble key={i} role={m.role} d={i*15} meta={m.fieldsExtracted?`+ extracted: ${Object.keys(m.fieldsExtracted).join(", ")}`:null}>{m.content}</ChatBubble>)}
         </div>}
       </div>}
+
+      {/* AI: Summarize for me */}
+      <TicketSummaryButton ticket={ticket}/>
     </Card>
   </div>;
 }
@@ -1476,7 +1483,7 @@ function RoutingTab(){
 }
 
 // ── Self-Service (static KB) ─────────────────────────
-function SelfServeTab(){
+function SelfServeTab({onFileTicket}){
   const[q,setQ]=useState("");
   const[sel,setSel]=useState(null);
   const results=useMemo(()=>{
@@ -1501,6 +1508,9 @@ function SelfServeTab(){
         <div style={{fontSize:10,color:C.t4,marginTop:4,fontFamily:M}}>{s.sub}</div>
       </div>)}
     </div>
+
+    {/* Ask Aurora — AI chat above the static FAQ list */}
+    <AskAuroraChat onFileTicket={onFileTicket}/>
 
     <Card style={{marginBottom:14}}>
       <div style={{fontSize:11,fontWeight:600,color:C.tl,marginBottom:10,letterSpacing:1.2,fontFamily:M,textTransform:"uppercase"}}>◎ Ask Before You Ticket</div>
@@ -1554,6 +1564,7 @@ export function IntakeView(){
   const[tab,setTab]=useState("cockpit"); // default to Cockpit — v8 showcase
   const[sel,setSel]=useState(null);      // used by Inbox tab for drill-in
   const[showSettings,setShowSettings]=useState(false);
+  const[prefillDesc,setPrefillDesc]=useState(""); // pre-fill from Ask Aurora "File a ticket"
 
   const agentSettingsHook=useAgentSettings();
   const store=useTicketStore(agentSettingsHook.settings);
@@ -1609,14 +1620,14 @@ export function IntakeView(){
 
     {/* v8 tabs */}
     {tab==="cockpit"&&<CockpitTab store={store} cockpit={cockpit}/>}
-    {tab==="new"&&<NewRequestV8 store={store} goToInbox={()=>setTab("inbox")} goToCockpit={()=>setTab("cockpit")} settings={agentSettingsHook.settings}/>}
+    {tab==="new"&&<NewRequestV8 store={store} goToInbox={()=>setTab("inbox")} goToCockpit={()=>setTab("cockpit")} settings={agentSettingsHook.settings} prefillDesc={prefillDesc}/>}
 
     {/* v7.2 preserved tabs */}
     {tab==="inbox"&&<InboxTab store={store} sel={sel} setSel={setSel}/>}
     {tab==="kanban"&&<KanbanTab store={store}/>}
     {tab==="sla"&&<SLATab store={store}/>}
     {tab==="routing"&&<RoutingTab/>}
-    {tab==="selfserve"&&<SelfServeTab/>}
+    {tab==="selfserve"&&<SelfServeTab onFileTicket={(draft)=>{setPrefillDesc(draft||"");setTab("new");}}/>}
   </div>;
 }
 

@@ -10,6 +10,7 @@ import { OCM_FIRMS } from "../data/ocm";
 import { CYBER_INCIDENTS } from "../data/cyber";
 import { WORKFLOWS_BUILT } from "../data/workflows";
 import { TICKERS } from "../data/tickers";
+import { MissionControlBriefing, MatterRiskBadge, buildBriefingContext } from "./ai-features";
 
 export function BoardReportView(){
   const[activeSec,setActiveSec]=useState(1);
@@ -549,6 +550,8 @@ function CaseListFilteredView({cases}){
           </div>
         </div>
       </div>
+      {/* AI risk score — detailed view */}
+      <div style={{marginBottom:12}}><MatterRiskBadge matter={c} detailed/></div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
         {/* Legal Hold Custodians */}
         <div style={{background:C.cd,border:`1px solid ${C.br}`,padding:14}}>
@@ -634,7 +637,7 @@ function CaseListFilteredView({cases}){
           <div style={{fontSize:9,fontFamily:M,color:C.t3,letterSpacing:1,textTransform:"uppercase"}}>Exposure</div>
         </div>
       </div>
-      <div style={{display:"flex",gap:14,fontSize:10,fontFamily:M,color:C.t3,marginTop:6,paddingTop:6,borderTop:`1px solid ${C.br}22`}}>
+      <div style={{display:"flex",gap:14,fontSize:10,fontFamily:M,color:C.t3,marginTop:6,paddingTop:6,borderTop:`1px solid ${C.br}22`,alignItems:"center"}}>
         <span>◉ {c.hold.custodians.length} custodians</span>
         <span style={{color:c.hold.custodians.filter(x=>!x.ack).length>0?C.rd:C.gn}}>
           {c.hold.custodians.filter(x=>x.ack).length}/{c.hold.custodians.length} ack'd
@@ -642,6 +645,7 @@ function CaseListFilteredView({cases}){
         <span>▣ {c.hold.itSystems.length} systems</span>
         <span>▲ {c.alerts.length} alerts</span>
         <span>⏱ {c.nextDl} — {c.nextAct}</span>
+        <span style={{marginLeft:"auto"}} onClick={e=>e.stopPropagation()}><MatterRiskBadge matter={c}/></span>
       </div>
     </div>)}
   </div>;
@@ -680,6 +684,9 @@ export function MissionControlView(){
         </div>
       </div>
     </div>
+
+    {/* AI DAILY BRIEFING — auto-loads on first visit per session */}
+    <MissionControlBriefing context={buildBriefingContext({domains,posture:postureScore})}/>
 
     {/* LIVE TICKER */}
     <div style={{background:C.s1,border:`1px solid ${C.br}`,padding:"8px 14px",marginBottom:16,display:"flex",alignItems:"center",gap:12}}>
