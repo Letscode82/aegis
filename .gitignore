@@ -6,3 +6,17 @@ dist
 .env.*
 !.env.example
 *.log
+
+# Turborepo
+.turbo
+
+# Next.js
+.next
+out
+
+# TypeScript
+*.tsbuildinfo
+.next-types
+
+# Test output
+coverage
