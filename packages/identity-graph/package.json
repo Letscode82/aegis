@@ -1,0 +1,19 @@
+{
+  "name": "@aegis/identity-graph",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Person/Counterparty entity graph (stub — see README)",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": ["src"],
+  "scripts": {
+    "lint": "echo 'stub package'",
+    "typecheck": "echo 'stub package'",
+    "test": "echo 'stub package'",
+    "build": "echo 'stub package'"
+  }
+}
