@@ -2,3 +2,13 @@ packages:
   - "apps/*"
   - "packages/*"
   - "modules/*"
+
+# pnpm 10 blocks postinstall scripts by default. Prisma requires its
+# postinstall to download query-engine binaries; without it, prisma
+# generate fails and @prisma/client cannot be imported. Explicitly allow.
+allowBuilds:
+  '@prisma/client': true
+  '@prisma/engines': true
+  prisma: true
+  esbuild: false
+  unrs-resolver: false

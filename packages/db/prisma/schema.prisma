@@ -1,0 +1,1003 @@
+// AEGIS — Prisma schema
+// =====================
+//
+// One schema, all 11 modules. Modules attach to shared entities
+// (Counterparty, Person, Document, Obligation, Event, Tag) — they do not
+// re-implement them. This file is the architectural backbone of
+// Differentiator #1 (one brain across legal operations).
+//
+// Provider: PostgreSQL (local dev via docker-compose; prod via Neon).
+// Migrations live in prisma/migrations/. The generated client is emitted
+// to node_modules/@prisma/client.
+//
+// Sections (in order of dependency):
+//   1. Generator + datasource
+//   2. Shared platform — Organization, User, Role, AuditLog, Notification
+//   3. First-class shared entities — Counterparty, Person, Document,
+//      Obligation, Event, Tag, Tagging
+//   4. Matter Management — incl. Legal Hold sub-domain
+//   5. Legal Intake
+//   6. Spend & Counsel
+//   7. Privacy & Compliance Operations
+//   8. UserPreference — KV for UI prefs (cockpit state, agent settings)
+
+// ════════════════════════════════════════════════════════════════════
+// 1. Generator + datasource
+// ════════════════════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 2. Shared platform
+// ════════════════════════════════════════════════════════════════════
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  tier      String   @default("DEMO")
+  region    String   @default("US")
+  createdAt DateTime @default(now())
+
+  users          User[]
+  roles          Role[]
+  auditLogs      AuditLog[]
+  notifications  Notification[]
+  counterparties Counterparty[]
+  persons        Person[]
+  documents      Document[]
+  obligations    Obligation[]
+  events         Event[]
+  tags           Tag[]
+  matters        Matter[]
+  legalHolds     LegalHold[]
+  intakeTickets  IntakeTicket[]
+  vendors        Vendor[]
+  budgets        Budget[]
+  dsars          DataSubjectRequest[]
+  consents       ConsentRecord[]
+  ropas          DataProcessingActivity[]
+  incidents      PrivacyIncident[]
+
+  @@index([name])
+}
+
+model Role {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  permissions    Json     @default("[]")
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  users        User[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+model User {
+  id             String    @id @default(cuid())
+  organizationId String
+  email          String
+  name           String
+  roleId         String?
+  lastLoginAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role         Role?        @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  persons      Person[]
+  preferences  UserPreference[]
+
+  @@unique([organizationId, email])
+  @@index([organizationId])
+  @@index([roleId])
+}
+
+/// Append-only ledger of every state-changing action across the platform.
+/// Differentiator #3: every AI action that mutates state writes here.
+/// Modules MUST call logAudit() from @aegis/db on every mutation.
+model AuditLog {
+  id             String   @id @default(cuid())
+  organizationId String
+  actorId        String?  // null = system / non-user actor (agents, scheduler)
+  actorType      String   @default("USER") // USER | AGENT | SYSTEM
+  action         String   // dot.notation: matter.created, intake.recommendation.approved, …
+  resourceType   String   // polymorphic — Matter, IntakeTicket, etc.
+  resourceId     String
+  beforeJson     Json?
+  afterJson      Json?
+  metadata       Json?    // free-form context (ip, request id, agent confidence, …)
+  timestamp      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, timestamp(sort: Desc)])
+  @@index([organizationId, resourceType, resourceId])
+  @@index([organizationId, actorId])
+  @@index([organizationId, action])
+}
+
+model Notification {
+  id             String    @id @default(cuid())
+  organizationId String
+  recipientId    String    // User id
+  type           String    // dot.notation: hold.notice.sent, intake.escalation, …
+  payload        Json      @default("{}")
+  readAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, recipientId, readAt])
+  @@index([organizationId, createdAt(sort: Desc)])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 3. First-class shared entities
+// ════════════════════════════════════════════════════════════════════
+//
+// Every module attaches to these. They are NOT re-implemented inside
+// modules. New module-specific party / contact / file tables that
+// duplicate these entities are explicitly disallowed (PRODUCT.md).
+
+enum CounterpartyType {
+  COMPANY
+  INDIVIDUAL
+  LAW_FIRM
+  REGULATOR
+  OTHER
+}
+
+model Counterparty {
+  id                   String           @id @default(cuid())
+  organizationId       String
+  name                 String
+  type                 CounterpartyType
+  country              String?
+  parentId             String?          // entity-group hierarchy
+  sanctionsScreenedAt  DateTime?
+  metadata             Json             @default("{}")
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parent       Counterparty?  @relation("CounterpartyHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children     Counterparty[] @relation("CounterpartyHierarchy")
+
+  matters     Matter[]
+  vendors     Vendor[]
+  // Persons attached to this counterparty as contacts (Person.type = COUNTERPARTY_CONTACT,
+  // metadata.counterpartyId = this id). Not modeled as FK to keep Person polymorphic.
+
+  @@index([organizationId, name])
+  @@index([organizationId, type])
+  @@index([parentId])
+}
+
+enum PersonType {
+  EMPLOYEE
+  EXTERNAL_COUNSEL
+  CUSTODIAN
+  DATA_SUBJECT
+  COUNTERPARTY_CONTACT
+}
+
+/// Polymorphic identity. The same human can be Employee + Custodian
+/// + Data Subject simultaneously — model that as multiple Person rows
+/// linked by externalRef (or via @aegis/identity-graph in Step 7+),
+/// with `type` recording the primary role this row represents.
+model Person {
+  id             String     @id @default(cuid())
+  organizationId String
+  type           PersonType
+  userId         String?    // nullable — externals don't have a User
+  externalRef    String?    // e.g. workday:E12345 — used for cross-row identity resolution
+  name           String
+  email          String?
+  metadata       Json       @default("{}")
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  matterParties     MatterParty[]
+  holdNotices       HoldNotice[]
+  holdAttestations  HoldAttestation[]
+  intakeRequested   IntakeTicket[]    @relation("IntakeRequester")
+  timekeepers       Timekeeper[]
+  invoiceLineItems  InvoiceLineItem[]
+  dsarRequests      DataSubjectRequest[]
+  consentRecords    ConsentRecord[]
+
+  @@index([organizationId, email])
+  @@index([organizationId, externalRef])
+  @@index([organizationId, type])
+  @@index([userId])
+}
+
+enum DocumentOwnerType {
+  MATTER
+  CONTRACT
+  DSAR
+  COMPLIANCE
+  BOARD
+  INTAKE
+}
+
+/// Polymorphic — owner is identified by (ownerType, ownerId). No FK on
+/// owner; @aegis/documents will own the lifecycle and the lookup logic.
+model Document {
+  id               String            @id @default(cuid())
+  organizationId   String
+  name             String
+  mimeType         String
+  sizeBytes        Int
+  storageUrl       String
+  version          Int               @default(1)
+  parentDocumentId String?           // versioning: prior version
+  ownerType        DocumentOwnerType
+  ownerId          String
+  uploadedBy       String            // User id
+  uploadedAt       DateTime          @default(now())
+  encryptedAt      DateTime?
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parentDocument Document?    @relation("DocumentVersions", fields: [parentDocumentId], references: [id], onDelete: SetNull)
+  versions       Document[]   @relation("DocumentVersions")
+
+  @@index([organizationId, ownerType, ownerId])
+  @@index([organizationId, uploadedAt(sort: Desc)])
+  @@index([parentDocumentId])
+}
+
+enum ObligationSourceType {
+  CONTRACT
+  REGULATION
+  POLICY
+  PRIVACY_LAW
+}
+
+enum ObligationStatus {
+  OPEN
+  IN_PROGRESS
+  MET
+  BREACHED
+  WAIVED
+}
+
+/// "We owe X to Y by Z." Cuts across Contracts, Regulatory, Privacy,
+/// Governance — anyone with commitments to fulfill or attest to.
+model Obligation {
+  id             String                @id @default(cuid())
+  organizationId String
+  sourceType     ObligationSourceType
+  sourceId       String                // polymorphic — Contract id, Regulation id, …
+  description    String
+  dueDate        DateTime?
+  recurrence     String?               // RRULE string, or null for one-shot
+  ownerId        String?               // Person id (responsible party)
+  status         ObligationStatus      @default(OPEN)
+  metadata       Json                  @default("{}")
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status, dueDate])
+  @@index([organizationId, sourceType, sourceId])
+  @@index([organizationId, ownerId])
+}
+
+/// Append-only event log — feeds Matter timelines, Audit trails,
+/// Notification triggers, Knowledge Management's search index.
+/// Distinct from AuditLog: AuditLog records *who did what* for
+/// compliance; Event records *what happened* for product surfaces.
+model Event {
+  id                String   @id @default(cuid())
+  organizationId    String
+  type              String   // dot.notation: matter.opened, hold.attested, …
+  sourceType        String   // polymorphic
+  sourceId          String
+  actorId           String?  // User id (null for system events)
+  summary           String
+  payload           Json     @default("{}")
+  occurredAt        DateTime @default(now())
+  indexedForSearch  Boolean  @default(false)
+
+  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  matterTimelines MatterTimeline[]
+
+  @@index([organizationId, occurredAt(sort: Desc)])
+  @@index([organizationId, sourceType, sourceId])
+  @@index([organizationId, type])
+  @@index([organizationId, indexedForSearch])
+}
+
+model Tag {
+  id             String @id @default(cuid())
+  organizationId String
+  name           String
+  category       String // e.g. "risk", "domain", "stage"
+  color          String
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  taggings     Tagging[]
+  matterTags   MatterTag[]
+
+  @@unique([organizationId, category, name])
+  @@index([organizationId])
+}
+
+/// Polymorphic many-to-many — Tag attaches to anything by (taggedType, taggedId).
+/// MatterTag is a typed convenience join for Matter; same pattern can be
+/// reproduced per-entity if heavy querying is needed.
+model Tagging {
+  id         String @id @default(cuid())
+  tagId      String
+  taggedType String // polymorphic
+  taggedId   String
+
+  tag Tag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([tagId, taggedType, taggedId])
+  @@index([taggedType, taggedId])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 4. Matter Management — incl. Legal Hold sub-domain
+// ════════════════════════════════════════════════════════════════════
+//
+// Matter is the spine. Intake and Spend depend on it (cross-module API
+// calls in Steps 5 and 6). Legal Hold is a first-class capability of
+// Matter from day one — not a future feature.
+
+enum MatterType {
+  TRANSACTIONAL
+  LITIGATION
+  REGULATORY_INVESTIGATION
+  ADVISORY
+  IP
+  EMPLOYMENT
+  OTHER
+}
+
+enum MatterStatus {
+  OPEN
+  IN_PROGRESS
+  CLOSED
+  ARCHIVED
+}
+
+model Matter {
+  id              String       @id @default(cuid())
+  organizationId  String
+  title           String
+  type            MatterType
+  status          MatterStatus @default(OPEN)
+  openedAt        DateTime     @default(now())
+  closedAt        DateTime?
+  leadAttorneyId  String?      // Person id (Person.type = EMPLOYEE)
+  counterpartyId  String?
+  parentMatterId  String?
+  costCenterId    String?
+  description     String?
+  metadata        Json         @default("{}")
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  counterparty Counterparty? @relation(fields: [counterpartyId], references: [id], onDelete: SetNull)
+  parent       Matter?       @relation("MatterHierarchy", fields: [parentMatterId], references: [id], onDelete: SetNull)
+  children     Matter[]      @relation("MatterHierarchy")
+
+  parties     MatterParty[]
+  timelines   MatterTimeline[]
+  matterTags  MatterTag[]
+  legalHolds  LegalHold[]
+  invoices    Invoice[]
+  intakeTickets IntakeTicket[]
+
+  @@index([organizationId, status])
+  @@index([organizationId, type])
+  @@index([organizationId, openedAt(sort: Desc)])
+  @@index([counterpartyId])
+  @@index([parentMatterId])
+  @@index([leadAttorneyId])
+}
+
+enum MatterPartyRole {
+  LEAD_ATTORNEY
+  ATTORNEY
+  PARALEGAL
+  CLIENT_CONTACT
+  CUSTODIAN
+  EXPERT_WITNESS
+  OPPOSING_COUNSEL
+  OTHER
+}
+
+model MatterParty {
+  id        String          @id @default(cuid())
+  matterId  String
+  personId  String
+  role      MatterPartyRole
+  addedAt   DateTime        @default(now())
+
+  matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([matterId, personId, role])
+  @@index([matterId])
+  @@index([personId])
+}
+
+/// Materialized join from Matter to its Events (events are polymorphic;
+/// this gives Matter UI a fast indexed timeline without scanning events).
+model MatterTimeline {
+  id       String @id @default(cuid())
+  matterId String
+  eventId  String
+
+  matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  event  Event  @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([matterId, eventId])
+  @@index([matterId])
+}
+
+model MatterTag {
+  id       String @id @default(cuid())
+  matterId String
+  tagId    String
+
+  matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([matterId, tagId])
+  @@index([matterId])
+  @@index([tagId])
+}
+
+// ── Legal Hold (within Matter) ────────────────────────────────────
+
+enum LegalHoldStatus {
+  DRAFT
+  ISSUED
+  RELEASED
+}
+
+model LegalHold {
+  id             String          @id @default(cuid())
+  matterId       String
+  organizationId String
+  scope          String          // free-text scope description
+  status         LegalHoldStatus @default(DRAFT)
+  reason         String?
+  issuedAt       DateTime?
+  releasedAt     DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  matter       Matter       @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  notices             HoldNotice[]
+  attestations        HoldAttestation[]
+  preservationOrders  PreservationOrder[]
+
+  @@index([organizationId, status])
+  @@index([matterId])
+}
+
+model HoldNotice {
+  id                 String    @id @default(cuid())
+  holdId             String
+  custodianId        String    // Person id (Person.type = CUSTODIAN)
+  sentAt             DateTime  @default(now())
+  acknowledgedAt     DateTime?
+  escalatedAt        DateTime?
+  attestationCount   Int       @default(0)
+
+  hold      LegalHold @relation(fields: [holdId], references: [id], onDelete: Cascade)
+  custodian Person    @relation(fields: [custodianId], references: [id], onDelete: Cascade)
+
+  @@unique([holdId, custodianId])
+  @@index([holdId])
+  @@index([custodianId])
+}
+
+model HoldAttestation {
+  id          String   @id @default(cuid())
+  holdId      String
+  custodianId String
+  period      String   // e.g. "2026-Q2", "2026-04"
+  attestedAt  DateTime @default(now())
+  responseJson Json    @default("{}")
+
+  hold      LegalHold @relation(fields: [holdId], references: [id], onDelete: Cascade)
+  custodian Person    @relation(fields: [custodianId], references: [id], onDelete: Cascade)
+
+  @@index([holdId])
+  @@index([custodianId])
+}
+
+enum PreservationDataSource {
+  EMAIL
+  FILES
+  CHAT
+  ERP
+  OTHER
+}
+
+model PreservationOrder {
+  id                String                 @id @default(cuid())
+  holdId            String
+  dataSource        PreservationDataSource
+  dataSourceRef     String                 // e.g. mailbox name, file share path
+  preservationTier  String                 // "standard" | "enhanced" | …
+  ITConfirmedAt     DateTime?
+  createdAt         DateTime               @default(now())
+
+  hold LegalHold @relation(fields: [holdId], references: [id], onDelete: Cascade)
+
+  @@index([holdId])
+  @@index([dataSource])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 5. Legal Intake
+// ════════════════════════════════════════════════════════════════════
+//
+// Replaces the v8 demo's localStorage-backed ticket store. The polyfill
+// at modules/intake/src/storage/polyfill.js routes through API endpoints
+// that read/write these tables. Conservative AI governance (Differentiator
+// #3) is realised here: every AgentRecommendation review writes an
+// AuditLog entry, and the demo gates approve/edit/reject keyboard
+// shortcuts on a human attorney.
+
+enum IntakeSource {
+  FORM
+  COPILOT
+  EMAIL
+  SLACK
+  API
+}
+
+enum IntakeStatus {
+  AWAITING_TRIAGE
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  ESCALATED
+  CLOSED
+}
+
+model IntakeTicket {
+  id             String       @id // human-readable: "REQ-3501". Not cuid.
+  organizationId String
+  requesterId    String       // Person id (Person.type = EMPLOYEE)
+  matterId       String?      // optional — link to Matter created from this ticket
+  source         IntakeSource @default(FORM)
+
+  type           String       // "NDA Request", "Contract Question", …
+  priority       String       // "Critical" | "High" | "Medium" | "Low"
+  status         IntakeStatus @default(AWAITING_TRIAGE)
+  stage          String       @default("new") // "new" | "triaged" | "approved" | "closed"
+  description    String
+  department     String?      // requester's department (denormalised)
+  assignedTo     String?      // free-text routing: "Cockpit Queue", "Rachel Adams", …
+
+  slaHours       Int
+  slaStatus      String       // "On Track" | "At Risk" | "Breached"
+
+  /// Free-form blob from classifyIntakeRegex / classifyIntakeClaude.
+  /// Modeled fields would over-constrain — categories evolve.
+  aiTriageJson   Json?
+
+  /// Mirror of `workflow` array from v8 seed: [{label, done, active}]
+  workflowJson   Json         @default("[]")
+
+  /// Triage decision recorded when the attorney closes the ticket.
+  triagedBy      String?
+  triagedAt      DateTime?
+  triagedAction  String?      // "approved" | "rejected" | "reassigned" | …
+  agentProcessedAt DateTime?
+
+  submittedAt    DateTime     @default(now())
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requester    Person       @relation("IntakeRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  matter       Matter?      @relation(fields: [matterId], references: [id], onDelete: SetNull)
+
+  recommendations AgentRecommendation[]
+  conversation    IntakeConversation[]
+
+  @@index([organizationId, status])
+  @@index([organizationId, priority])
+  @@index([organizationId, submittedAt(sort: Desc)])
+  @@index([requesterId])
+  @@index([matterId])
+}
+
+enum AgentRecommendationStatus {
+  PENDING
+  APPROVED
+  EDITED
+  REJECTED
+}
+
+/// One ticket may have multiple recommendations over time (rerun on edit,
+/// agent escalation, etc.). The most recent one is the "current" rec.
+model AgentRecommendation {
+  id              String                    @id @default(cuid())
+  ticketId        String
+  agentId         String                    // "nda-agent", "faq-agent", …
+  confidence      Float
+  suggestedAction String                    // "approve-and-send", "flag-for-review", "escalate"
+  draftedResponse String                    // long text — full drafted reply
+  reasoning       String                    // why the agent recommends this
+  concerns        Json                      @default("[]") // string[]
+  citations       Json                      @default("[]") // [{id, title}]
+  shortFormReply  String?                   // optional one-liner
+  status          AgentRecommendationStatus @default(PENDING)
+  reviewedBy      String?                   // User id
+  reviewedAt      DateTime?
+  createdAt       DateTime                  @default(now())
+
+  ticket IntakeTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt(sort: Desc)])
+  @@index([status])
+  @@index([reviewedBy])
+}
+
+enum ConversationRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+/// Per-message log of the Copilot conversation that produced a ticket.
+/// Canonical source — IntakeTicket.aiTriageJson does NOT duplicate this.
+model IntakeConversation {
+  id               String           @id @default(cuid())
+  ticketId         String
+  role             ConversationRole
+  content          String
+  fieldsExtracted  Json?            // structured extraction snapshot
+  timestamp        DateTime         @default(now())
+
+  ticket IntakeTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, timestamp])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 6. Spend & Counsel
+// ════════════════════════════════════════════════════════════════════
+//
+// Vendors attach to Counterparty (a law firm IS a counterparty too).
+// Invoices attach to Matter. Step 6 will implement the cross-module
+// API: Matter.getMatterCostBasis() → Spend.getMatterSpendSummary().
+
+enum VendorType {
+  LAW_FIRM
+  COURT_REPORTER
+  EXPERT_WITNESS
+  ALSP
+  OTHER
+}
+
+model Vendor {
+  id                 String     @id @default(cuid())
+  organizationId     String
+  name               String
+  type               VendorType
+  counterpartyId     String?    // for law firms — link to the Counterparty record
+  ratesCard          Json       @default("{}") // { tier: rate } map
+  performanceScore   Float?
+  createdAt          DateTime   @default(now())
+  updatedAt          DateTime   @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  counterparty Counterparty? @relation(fields: [counterpartyId], references: [id], onDelete: SetNull)
+
+  invoices    Invoice[]
+  timekeepers Timekeeper[]
+
+  @@index([organizationId, type])
+  @@index([organizationId, name])
+  @@index([counterpartyId])
+}
+
+enum InvoiceStatus {
+  SUBMITTED
+  IN_REVIEW
+  APPROVED
+  REJECTED
+  PAID
+}
+
+model Invoice {
+  id           String        @id @default(cuid())
+  vendorId     String
+  matterId     String
+  amount       Float
+  currency     String        @default("USD")
+  periodStart  DateTime
+  periodEnd    DateTime
+  status       InvoiceStatus @default(SUBMITTED)
+  ledesData    Json?         // LEDES upload payload
+  submittedAt  DateTime      @default(now())
+  approvedBy   String?       // User id
+  approvedAt   DateTime?
+  rejectedReason String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
+
+  lineItems InvoiceLineItem[]
+
+  @@index([vendorId])
+  @@index([matterId])
+  @@index([status])
+  @@index([submittedAt(sort: Desc)])
+}
+
+enum InvoiceLineStatus {
+  PENDING
+  FLAGGED
+  ACCEPTED
+  REDUCED
+}
+
+model InvoiceLineItem {
+  id           String            @id @default(cuid())
+  invoiceId    String
+  timekeeperId String?
+  hours        Float
+  rate         Float
+  description  String
+  date         DateTime
+  status       InvoiceLineStatus @default(PENDING)
+  flaggedReason String?
+
+  invoice    Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  timekeeper Person? @relation(fields: [timekeeperId], references: [id], onDelete: SetNull)
+
+  @@index([invoiceId])
+  @@index([timekeeperId])
+  @@index([status])
+}
+
+enum BudgetScope {
+  MATTER
+  DEPARTMENT
+  ANNUAL
+}
+
+model Budget {
+  id              String      @id @default(cuid())
+  organizationId  String
+  scope           BudgetScope
+  scopeId         String      // Matter id, department name, or year
+  period          String      // e.g. "2026", "2026-Q2"
+  allocatedAmount Float
+  spentAmount     Float       @default(0)
+  currency        String      @default("USD")
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, scope, scopeId, period])
+  @@index([organizationId, scope])
+}
+
+model Timekeeper {
+  id           String  @id @default(cuid())
+  vendorId     String
+  personId     String  // Person.type = EXTERNAL_COUNSEL
+  title        String
+  defaultRate  Float
+  blendedRate  Float?
+
+  vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@unique([vendorId, personId])
+  @@index([vendorId])
+  @@index([personId])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 7. Privacy & Compliance Operations
+// ════════════════════════════════════════════════════════════════════
+//
+// DSAR is first-class. Data subjects are Persons (Person.type = DATA_SUBJECT).
+// Custodian/data-subject overlap detection is a job for @aegis/identity-graph
+// once that package ships (Step 7+).
+
+enum DSARRequestType {
+  ACCESS
+  CORRECTION
+  ERASURE
+  PORTABILITY
+  OBJECT
+  RESTRICT_PROCESSING
+}
+
+enum DSARStatus {
+  RECEIVED
+  VERIFYING
+  IN_PROGRESS
+  AWAITING_REVIEW
+  FULFILLED
+  REJECTED
+  WITHDRAWN
+}
+
+enum DSARVerificationStatus {
+  UNVERIFIED
+  IN_PROGRESS
+  VERIFIED
+  FAILED
+}
+
+model DataSubjectRequest {
+  id                  String                 @id @default(cuid())
+  organizationId      String
+  requesterPersonId   String
+  requestType         DSARRequestType
+  jurisdiction        String                 // ISO 3166-1 alpha-2 or region code
+  status              DSARStatus             @default(RECEIVED)
+  slaDeadline         DateTime
+  submittedAt         DateTime               @default(now())
+  completedAt         DateTime?
+  verificationStatus  DSARVerificationStatus @default(UNVERIFIED)
+  response            Json?                  // fulfillment payload or rejection reason
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requesterPerson  Person       @relation(fields: [requesterPersonId], references: [id], onDelete: Cascade)
+
+  dataLocations DSARDataLocation[]
+
+  @@index([organizationId, status])
+  @@index([organizationId, slaDeadline])
+  @@index([requesterPersonId])
+}
+
+model DSARDataLocation {
+  id                   String    @id @default(cuid())
+  requestId            String
+  system               String    // "Salesforce", "HRIS", "Marketing-DB", …
+  dataType             String    // "contact-info", "transaction-history", …
+  found                Boolean   @default(false)
+  redactionsRequired   Boolean   @default(false)
+  retrievedAt          DateTime?
+
+  request DataSubjectRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@unique([requestId, system, dataType])
+  @@index([requestId])
+}
+
+enum ConsentMechanism {
+  EXPLICIT
+  LEGITIMATE_INTEREST
+  CONTRACT
+  LEGAL_OBLIGATION
+  VITAL_INTEREST
+  PUBLIC_TASK
+}
+
+model ConsentRecord {
+  id                  String           @id @default(cuid())
+  organizationId      String
+  dataSubjectPersonId String
+  purpose             String
+  capturedAt          DateTime         @default(now())
+  withdrawnAt         DateTime?
+  mechanism           ConsentMechanism
+
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  dataSubjectPerson Person      @relation(fields: [dataSubjectPersonId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, dataSubjectPersonId])
+  @@index([organizationId, withdrawnAt])
+}
+
+/// Record of Processing Activities (Article 30 GDPR / Section 9 DPDPA).
+/// The systematic catalog of what data we process, why, on what basis,
+/// and where it goes. ROPA is the regulator-facing artifact; this table
+/// is its source of truth.
+model DataProcessingActivity {
+  id                       String   @id @default(cuid())
+  organizationId           String
+  name                     String
+  lawfulBasis              String   // free-form for jurisdiction flex
+  dataTypes                Json     @default("[]")
+  retentionPeriodDays      Int
+  dataSubjectCategories    Json     @default("[]")
+  systems                  Json     @default("[]")
+  transferredCountries     Json     @default("[]")
+  createdAt                DateTime @default(now())
+  updatedAt                DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+}
+
+enum PrivacyIncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum PrivacyIncidentStatus {
+  REPORTED
+  INVESTIGATING
+  CONTAINED
+  RESOLVED
+}
+
+model PrivacyIncident {
+  id                    String                  @id @default(cuid())
+  organizationId        String
+  severity              PrivacyIncidentSeverity
+  discoveredAt          DateTime
+  reportedAt            DateTime?
+  affectedRecordsCount  Int                     @default(0)
+  status                PrivacyIncidentStatus   @default(REPORTED)
+  regulatorNotified     Boolean                 @default(false)
+  mitigationSteps       Json                    @default("[]")
+  description           String?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@index([organizationId, severity])
+  @@index([organizationId, discoveredAt(sort: Desc)])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 8. UserPreference — KV for UI prefs
+// ════════════════════════════════════════════════════════════════════
+//
+// Cockpit position, agent on/off toggles, transient conversation drafts.
+// Not domain data — UI state. Keyed by (userId, key). Lives here rather
+// than as JSON on User so prefs can be evicted independently.
+
+model UserPreference {
+  id        String   @id @default(cuid())
+  userId    String
+  key       String   // e.g. "aegis:intake:cockpit-state:v1"
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@index([userId])
+}
