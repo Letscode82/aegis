@@ -13,8 +13,7 @@
   "scripts": {
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "test": "echo 'no tests yet' && exit 0",
-    "build": "echo 'no build step (source-only package)' && exit 0"
+    "test": "echo 'no tests yet' && exit 0"
   },
   "dependencies": {
     "react": "^18.3.1"

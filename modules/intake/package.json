@@ -13,11 +13,11 @@
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test": "echo 'no tests yet' && exit 0",
-    "build": "echo 'no build step (source-only package)' && exit 0",
     "dev": "echo 'use apps/web dev'"
   },
   "dependencies": {
     "@aegis/ai": "workspace:*",
+    "@aegis/db": "workspace:*",
     "@aegis/ui": "workspace:*",
     "react": "^18.3.1"
   },

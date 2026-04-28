@@ -13,7 +13,6 @@
   "scripts": {
     "lint": "echo 'stub package'",
     "typecheck": "echo 'stub package'",
-    "test": "echo 'stub package'",
-    "build": "echo 'stub package'"
+    "test": "echo 'stub package'"
   }
 }
