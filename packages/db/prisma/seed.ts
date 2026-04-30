@@ -29,6 +29,10 @@ import {
   MatterPartyRole,
   LegalHoldStatus,
   PreservationDataSource,
+  IntakeSource,
+  IntakeStatus,
+  AgentRecommendationStatus,
+  ConversationRole,
 } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -503,6 +507,11 @@ async function main() {
   const hold = await seedLegalHold(org.id, empMatter.id);
   console.log(`[seed] matters=3 legal_hold=${hold.id} (status=${hold.status})`);
 
+  const tk = await seedTickets(org.id);
+  console.log(
+    `[seed] tickets=${tk.ticketCount} recommendations=${tk.recCount} conversation_messages=${tk.convCount} auto_persons=${tk.autoPersonCount}`,
+  );
+
   console.log("[seed] done.");
 }
 
@@ -512,3 +521,231 @@ main()
     console.error("[seed] failed:", err);
     return prisma.$disconnect().finally(() => process.exit(1));
   });
+
+// ───────────────────────────────────────────────────────────────────
+// Section 4 — Intake tickets
+// ───────────────────────────────────────────────────────────────────
+//
+// Reads the existing v8 demo fixtures from modules/intake/src/seed at
+// runtime and translates them to IntakeTicket + AgentRecommendation
+// + IntakeConversation rows. Single source of truth for demo data.
+//
+// See CLAUDE.md "Documented exceptions" — the cross-package import
+// below is a deliberate, narrowly-scoped exception for dev tooling.
+
+type V8Ticket = {
+  id: string;
+  _source?: string;
+  _ageHours?: number;
+  from: string;
+  dept: string;
+  type: string;
+  priority: "Critical" | "High" | "Medium" | "Low";
+  status: string;
+  stage: string;
+  desc: string;
+  assigned: string;
+  sla: string;
+  slaHours: number;
+  slaStatus: "On Track" | "At Risk" | "Breached" | "Overdue";
+  workflow: Array<{ label: string; done?: boolean; active?: boolean }>;
+  aiTriage?: Record<string, unknown>;
+  agentRecommendation?: {
+    agentId: string;
+    confidence: number;
+    suggestedAction: string;
+    draftedResponse: string;
+    reasoning: string;
+    concerns?: string[];
+    precedentLinks?: Array<{ id: string; title: string }>;
+    alternativeTone?: string | null;
+  };
+  conversation?: Array<{
+    role: "user" | "assistant" | "system";
+    content: string;
+    ts?: number;
+    fieldsExtracted?: Record<string, unknown>;
+  }>;
+  triagedBy?: string | null;
+  triagedAt?: number | null;
+  triagedAction?: string | null;
+};
+
+async function loadV8Seeds(): Promise<V8Ticket[]> {
+  // eslint-disable-next-line import/no-restricted-paths -- Dev-only seed import. Architectural rule prohibits modules ↔ packages coupling at RUNTIME; this is a build-time seed script reading its own input. Do not use this pattern for runtime code.
+  const v72 = await import("../../../modules/intake/src/seed/v72-seed.js");
+  // eslint-disable-next-line import/no-restricted-paths -- Dev-only seed import. Architectural rule prohibits modules ↔ packages coupling at RUNTIME; this is a build-time seed script reading its own input. Do not use this pattern for runtime code.
+  const cockpit = await import("../../../modules/intake/src/seed/v8-cockpit-seed.js");
+  // eslint-disable-next-line import/no-restricted-paths -- Dev-only seed import. Architectural rule prohibits modules ↔ packages coupling at RUNTIME; this is a build-time seed script reading its own input. Do not use this pattern for runtime code.
+  const bulk = await import("../../../modules/intake/src/seed/v8-bulk-nda-seed.js");
+  return [
+    ...((v72 as { V72_SEED: V8Ticket[] }).V72_SEED ?? []),
+    ...((cockpit as { V8_COCKPIT_SEED: V8Ticket[] }).V8_COCKPIT_SEED ?? []),
+    ...((bulk as { V8_BULK_NDA_SEED: V8Ticket[] }).V8_BULK_NDA_SEED ?? []),
+  ];
+}
+
+const REQUESTER_BY_NAME: Record<string, string> = Object.fromEntries(
+  REQUESTERS.map((r) => [r.name, r.id]),
+);
+
+function mapStatus(raw: string): IntakeStatus {
+  const s = raw.toLowerCase();
+  if (s.includes("escalat")) return IntakeStatus.ESCALATED;
+  if (s.includes("approve")) return IntakeStatus.APPROVED;
+  if (s.includes("reject")) return IntakeStatus.REJECTED;
+  if (s.includes("complete") || s.includes("auto")) return IntakeStatus.CLOSED;
+  if (s.includes("review") || s.includes("assigned")) return IntakeStatus.IN_REVIEW;
+  return IntakeStatus.AWAITING_TRIAGE;
+}
+
+function mapSource(raw: string | undefined): IntakeSource {
+  if (raw === "copilot") return IntakeSource.COPILOT;
+  if (raw === "email") return IntakeSource.EMAIL;
+  if (raw === "slack") return IntakeSource.SLACK;
+  if (raw === "api") return IntakeSource.API;
+  return IntakeSource.FORM; // form, seed, or undefined → FORM
+}
+
+function mapConversationRole(raw: string): ConversationRole {
+  if (raw === "user") return ConversationRole.USER;
+  if (raw === "system") return ConversationRole.SYSTEM;
+  return ConversationRole.ASSISTANT;
+}
+
+// Some tickets (REQ-3506, 3503, 3403) link to matters seeded in §3.
+const TICKET_TO_MATTER: Record<string, string> = {
+  "REQ-3506": "m-snowflake-msa",
+  "REQ-3503": "m-saigon-vendor",
+  "REQ-3403": "m-emp-harassment",
+};
+
+async function ensureRequesterPerson(
+  orgId: string,
+  name: string,
+  dept: string,
+): Promise<string> {
+  const known = REQUESTER_BY_NAME[name];
+  if (known) return known;
+  // v72 includes a few names not in the pre-seeded REQUESTERS list.
+  // Auto-create with a deterministic id so re-runs upsert the same row.
+  const id = "p-auto-" + name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+  await prisma.person.upsert({
+    where: { id },
+    update: { name, metadata: { department: dept, autoCreatedBySeed: true } },
+    create: {
+      id,
+      organizationId: orgId,
+      type: PersonType.EMPLOYEE,
+      externalRef: "employee:" + id,
+      name,
+      email: id + "@aegis-demo.example",
+      metadata: { department: dept, autoCreatedBySeed: true },
+    },
+  });
+  return id;
+}
+
+async function seedTickets(orgId: string) {
+  const tickets = await loadV8Seeds();
+  let recCount = 0;
+  let convCount = 0;
+  let autoPersonCount = 0;
+
+  for (const t of tickets) {
+    // Resolve requester (auto-create unknown v72 names).
+    const beforePersonCount = await prisma.person.count({
+      where: { id: { startsWith: "p-auto-" } },
+    });
+    const requesterId = await ensureRequesterPerson(orgId, t.from, t.dept);
+    const afterPersonCount = await prisma.person.count({
+      where: { id: { startsWith: "p-auto-" } },
+    });
+    if (afterPersonCount > beforePersonCount) autoPersonCount++;
+
+    const submittedAt = new Date(
+      Date.now() - (t._ageHours ?? 1) * 3600 * 1000,
+    );
+    const matterId = TICKET_TO_MATTER[t.id] ?? null;
+
+    await prisma.intakeTicket.upsert({
+      where: { id: t.id },
+      update: {
+        type: t.type,
+        priority: t.priority,
+        status: mapStatus(t.status),
+        stage: t.stage,
+        description: t.desc,
+        slaHours: t.slaHours,
+        slaStatus: t.slaStatus,
+        aiTriageJson: (t.aiTriage ?? null) as never,
+        workflowJson: (t.workflow ?? []) as never,
+        triagedBy: t.triagedBy ?? null,
+        triagedAt: t.triagedAt ? new Date(t.triagedAt) : null,
+        triagedAction: t.triagedAction ?? null,
+      },
+      create: {
+        id: t.id,
+        organizationId: orgId,
+        requesterId,
+        matterId,
+        source: mapSource(t._source),
+        type: t.type,
+        priority: t.priority,
+        status: mapStatus(t.status),
+        stage: t.stage,
+        description: t.desc,
+        department: t.dept,
+        assignedTo: t.assigned,
+        slaHours: t.slaHours,
+        slaStatus: t.slaStatus,
+        aiTriageJson: (t.aiTriage ?? null) as never,
+        workflowJson: (t.workflow ?? []) as never,
+        submittedAt,
+        triagedBy: t.triagedBy ?? null,
+        triagedAt: t.triagedAt ? new Date(t.triagedAt) : null,
+        triagedAction: t.triagedAction ?? null,
+      },
+    });
+
+    // Idempotent rec/conversation: replace on every seed run. The
+    // ticket itself is upserted; only its dependent rows churn.
+    await prisma.agentRecommendation.deleteMany({ where: { ticketId: t.id } });
+    if (t.agentRecommendation) {
+      const r = t.agentRecommendation;
+      await prisma.agentRecommendation.create({
+        data: {
+          ticketId: t.id,
+          agentId: r.agentId,
+          confidence: r.confidence,
+          suggestedAction: r.suggestedAction,
+          draftedResponse: r.draftedResponse,
+          reasoning: r.reasoning,
+          concerns: (r.concerns ?? []) as never,
+          citations: (r.precedentLinks ?? []) as never,
+          shortFormReply: r.alternativeTone ?? null,
+          status: AgentRecommendationStatus.PENDING,
+        },
+      });
+      recCount++;
+    }
+
+    await prisma.intakeConversation.deleteMany({ where: { ticketId: t.id } });
+    if (Array.isArray(t.conversation)) {
+      for (const m of t.conversation) {
+        await prisma.intakeConversation.create({
+          data: {
+            ticketId: t.id,
+            role: mapConversationRole(m.role),
+            content: m.content,
+            fieldsExtracted: (m.fieldsExtracted ?? null) as never,
+            timestamp: new Date(m.ts ?? Date.now()),
+          },
+        });
+        convCount++;
+      }
+    }
+  }
+
+  return { ticketCount: tickets.length, recCount, convCount, autoPersonCount };
+}
