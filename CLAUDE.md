@@ -120,9 +120,17 @@ below are the **only** sanctioned crossings of the module ↔ packages
 boundary. Any new exception requires an entry in this table and a
 prose comment at the disable site explaining the rationale.
 
-| Site | Direction | Why allowed |
-|---|---|---|
-| `packages/db/prisma/seed.ts` | imports `modules/intake/src/seed/{v72-seed,v8-cockpit-seed,v8-bulk-nda-seed}.js` | Dev-only seed script reading its own input. Runs at `pnpm db:seed` time only — never bundled, never imported by app code. The v8 demo fixtures are the canonical demo dataset; duplicating them inside `packages/db` would create two sources of truth. |
+**Every exception requires either an explicit sunset condition OR a
+permanent justification. No exception is open-ended.** The "Sunset"
+column is the architectural commitment for retiring the cross-cutting
+import. If a new exception has neither a sunset nor a defensible
+permanent justification, it does not belong in this table — promote
+the shared bit into a package or add it to the module's `api.ts`.
+
+| Site | Direction | Why allowed | Sunset / permanent? |
+|---|---|---|---|
+| `packages/db/prisma/seed.ts` | imports `modules/intake/src/seed/{v72-seed,v8-cockpit-seed,v8-bulk-nda-seed}.js` | Dev-only seed script reading its own input. Runs at `pnpm db:seed` time only — never bundled, never imported by app code. The v8 demo fixtures are the canonical demo dataset; duplicating them inside `packages/db` would create two sources of truth. | **Sunset at Step 5.** The Intake `internal/api` split absorbs the v8 fixtures into the module's public surface; the seed will then read from `@aegis/intake/api` instead, ending the cross-package import. |
+| `packages/db/prisma/seed.ts` | imports `packages/auth/src/roles` via the relative path `../../auth/src/roles` | Same dev-only seed reads the canonical `ROLE_PERMISSIONS` bundles from `@aegis/auth`. A package-name import would create a turbo-detected cycle (`@aegis/auth` depends on `@aegis/db` at runtime). The relative path skips the `package.json` edge while still pointing at the single source of truth — duplicating the role bundles inside the seed would drift the moment a permission is added. | **Permanent.** Role definitions live in `@aegis/auth` by design; build-time tooling reaching them via relative path is the cleanest way to keep one source of truth without introducing a circular package dep. Revisit if the cycle goes away (e.g., if `@aegis/auth` ever stops depending on `@aegis/db`). |
 
 ### When this pattern is allowed
 - **Build-time / dev-only tooling.** Seed scripts, codegen, fixtures
@@ -132,6 +140,9 @@ prose comment at the disable site explaining the rationale.
   the existing location.
 - **Each crossing is per-line, with a prose justification.** No
   blanket disables. No file-level disable. No directory-level disable.
+- **The exception has a recorded sunset condition or permanent justification.**
+  "We'll fix it later" is not a sunset condition — name the step or
+  PR, or admit it's permanent and explain why.
 
 ### When this pattern is forbidden
 - **Runtime app code.** A page, an API route, a module file, a
@@ -143,10 +154,53 @@ prose comment at the disable site explaining the rationale.
   proper api.ts surface.** That is exactly the architecture this
   rule prevents. Add the public surface to the module's `api.ts`
   instead.
+- **Open-ended exceptions.** Without a sunset condition or a permanent
+  justification, the exception accrues entropy. Reject it.
 
 If you find yourself wanting a fourth exception, **stop and ask** —
 the right answer is almost always "promote the shared bit into a
 package" or "add it to the module's `api.ts`."
+
+---
+
+## Auto-create patterns are seed/dev only
+
+Several places in the codebase auto-create a missing reference rather
+than fail loudly. For example:
+
+- `packages/db/prisma/seed.ts` (`ensureRequesterPerson`) — creates a
+  `p-auto-{slug}` Person row when a v72 ticket's `from` name doesn't
+  match a pre-seeded requester.
+- `modules/intake/src/storage/server.ts` (`saveTicketsV8`) — same
+  fallback when the v8 polyfill receives a brand-new ticket from
+  Copilot whose requester isn't yet in the DB.
+
+**This pattern belongs in seed scripts and dev-mode fallbacks only.**
+Production migrations and runtime code MUST fail loud on missing
+references. The reasoning:
+
+- **Migrations** silently auto-creating missing rows obscure the
+  divergence between environments. A migration must be deterministic
+  given the same starting state.
+- **Runtime app code** auto-creating an entity to satisfy a foreign-key
+  constraint hides the real bug — usually upstream input validation
+  that should have rejected the request.
+- **Audit ledgers** for auto-created rows attribute the action to the
+  system actor, which masks the missing-data failure mode.
+
+The right pattern in production code is:
+
+```ts
+const requester = await prisma.person.findUnique({ where: { id: requesterId } });
+if (!requester) {
+  throw new Error(`Person ${requesterId} not found — input validation should have rejected this earlier.`);
+}
+```
+
+If you need an "auto-create" to make a new code path work, you almost
+certainly need an explicit upstream reference instead — a registration
+flow, a validation step, or a dedicated provisioning endpoint with its
+own audit trail.
 
 ---
 
@@ -192,10 +246,95 @@ agents take over so the demo still walks end-to-end.
 
 ---
 
-## Permission model (placeholder)
+## Permission model (canonical)
 
-Step 3 (PR #3) will replace this section with the canonical `Permission`
-enumeration. Until then, the demo runs as a single user with full access.
+The `Permission` enum in `@aegis/auth` is the single source of truth.
+Modules do **not** define their own permission strings — they pick from
+this list. Renaming an existing value is a breaking change against the
+seeded admin role and any production tenant; add new values, never
+repurpose existing ones.
+
+### The 37 canonical permissions
+
+| Domain | Permission | Purpose |
+|---|---|---|
+| Intake | `intake:create_ticket` | File a new intake ticket |
+|        | `intake:read_own_tickets` | Read tickets you filed |
+|        | `intake:read_all_tickets` | Read every ticket in the org |
+|        | `intake:approve_recommendation` | Approve an agent recommendation |
+|        | `intake:reject_recommendation` | Reject an agent recommendation |
+|        | `intake:close_ticket` | Mark a ticket closed |
+| Matter | `matter:read_all` | Read every matter in the org |
+|        | `matter:read_assigned` | Read matters where you're a party (resource-scoped) |
+|        | `matter:create` | Open a new matter |
+|        | `matter:update` | Edit a matter |
+|        | `matter:close` | Mark a matter closed |
+| Legal Hold | `matter:legal_hold:issue` | Issue a legal hold |
+|        | `matter:legal_hold:release` | Release a legal hold |
+|        | `matter:legal_hold:custodian_view` | Custodian-side hold view (resource-scoped) |
+| Contracts | `contracts:read_all` | Read every contract |
+|        | `contracts:create` | Draft a contract |
+|        | `contracts:approve` | Approve a contract |
+|        | `contracts:execute` | Execute (sign) a contract |
+| Spend | `spend:read_all` | Read every invoice |
+|        | `spend:read_matter_budget` | Read budget on assigned matter (resource-scoped) |
+|        | `spend:approve_invoice` | Approve an invoice |
+|        | `spend:reject_invoice` | Reject an invoice |
+| Privacy | `privacy:dsar:read` | Read DSARs |
+|        | `privacy:dsar:fulfill` | Fulfill a DSAR |
+|        | `privacy:dpia:read` | Read DPIAs |
+|        | `privacy:dpia:approve` | Approve a DPIA |
+|        | `privacy:incident:respond` | Respond to a privacy incident |
+| Knowledge | `knowledge:read_all` | Read all knowledge entries |
+|        | `knowledge:contribute` | Contribute knowledge entries |
+|        | `knowledge:moderate` | Moderate knowledge entries |
+| Regulatory | `regulatory:read` | Read regulatory items |
+|        | `regulatory:flag_obligation` | Flag a new regulatory obligation |
+| Governance | `governance:read` | Read governance materials |
+|        | `governance:attest` | Attest to a policy / committee item |
+| Audit | `audit:read_all` | Read the platform audit ledger |
+| Admin | `admin:manage_users` | Add / remove / edit users |
+|        | `admin:manage_roles` | Edit role permission sets |
+
+### The 8 canonical roles
+
+The default permission bundles are in
+[`packages/auth/src/roles.ts`](./packages/auth/src/roles.ts). Tenants
+may extend any role's permissions through the role-management UI in a
+later step; the catalog below is the starting point, not a ceiling.
+
+| Role | Default permissions | Typical user |
+|---|---|---|
+| `admin` | All 37 (superuser bundle) | Platform owner |
+| `gc` | All reads + most writes + audit + manage_users | General Counsel |
+| `attorney` | Reads + write within assigned matters | In-house attorneys |
+| `paralegal` | All reads + intake/matter writes; no spend approvals | Paralegals |
+| `legal_ops` | All reads + audit + budgets + governance attestations | Legal-ops staff |
+| `requester` | `intake:create_ticket`, `intake:read_own_tickets` | Filers from any business unit |
+| `external_counsel` | Read assigned matters, custodian view, matter budget | Outside firms |
+| `viewer` | All reads only | Auditors / observers |
+
+### Resource-scoped permissions
+
+Some permissions imply a scope check beyond the action grant. `canUserDo()`
+in `@aegis/auth` enforces both layers:
+
+| Permission | Scope check |
+|---|---|
+| `matter:read_assigned` | Caller is on the matter's `MatterParty` list |
+| `matter:legal_hold:custodian_view` | Caller is a party on the hold |
+| `intake:read_own_tickets` | Caller is the ticket's requester |
+| `spend:read_matter_budget` | Caller is on the matter's `MatterParty` list |
+
+Any other Permission is org-scope: action check is sufficient.
+
+### Where to call canUserDo
+
+Every gated UI affordance and every server-side mutation. UI checks
+(hide a button) and authoritative checks (block the API) both go
+through `canUserDo()` — no "trust the client" path. Use
+`assertUserCanDo()` server-side; it throws `AccessDeniedError` which
+handlers translate to a 403.
 
 ---
 
@@ -276,6 +415,50 @@ it adds. PR #4 (Matter) needs `matter.*` actions. PR #6 (Spend) needs
 `spend.invoice.*` actions. Etc.
 
 ---
+
+## What's new in PR #3 (Step 3 — Auth0 + RBAC + permission model)
+
+- `packages/auth` is no longer empty.
+  - `Permission` enum: 37 canonical values, every one of the 20 strings
+    the Step 2 admin role carried verbatim — module-load runtime guard
+    fails fast if any seed string drifts.
+  - 8 canonical roles: `admin`, `gc`, `attorney`, `paralegal`,
+    `legal_ops`, `requester`, `external_counsel`, `viewer`. Default
+    permission bundles in `roles.ts`. Admin-must-be-superset gate
+    asserts `admin.permissions.length === Object.values(Permission).length`
+    at module load.
+  - `canUserDo(user, permission, resource?)` returns a discriminated
+    `AccessDecision` (`{allowed, reason, message}`). Resource-scope
+    layer enforces matter-assignment / ticket-ownership / custodian
+    membership for the four scoped permissions.
+  - `assertUserCanDo()` + `AccessDeniedError` for handler use.
+- `@auth0/nextjs-auth0` 3.5 wired in.
+  - `apps/web/pages/api/auth/[...auth0].ts` mounts the catch-all.
+  - `apps/web/pages/api/auth/current-user.ts` returns the resolved user.
+  - `apps/web/middleware.ts` redirects anonymous requests to
+    `/api/auth/login` when configured; no-op otherwise.
+  - Dev-mode fallback: when `AUTH0_SECRET` is unset, the demo runs as
+    the seeded admin (Alex by default; override via `DEV_USER_EMAIL`).
+    No login flow, no broken pages — pnpm dev still works zero-config.
+- `useCurrentUser()` React hook in `@aegis/auth/react` — returns
+  `{ user, loading, error, has(perm), roleName }`. Same shape in both
+  modes.
+- `@aegis/db` `getCurrentOrganization` / `getCurrentUser` now accept
+  optional `(req, res)`. Request-scoped callers delegate to
+  `@aegis/auth/server.getResolvedUser`; script callers fall back to
+  email lookup. Threaded through `modules/intake/src/storage/server.ts`
+  so AuditLog rows attribute to the real session user when one exists.
+- Seed §7 — all 8 roles upserted with their full `ROLE_PERMISSIONS`
+  bundles (admin grows from 20 → 37 strings); 7 test users (one per
+  non-admin role) for previewing the demo through different role
+  lenses via `DEV_USER_EMAIL=<email>`.
+- CLAUDE.md additions:
+  - Full Permission enumeration + role catalog tables.
+  - Carryover note 1: "Auto-create patterns are seed/dev only — production
+    migrations and runtime code must fail loud."
+  - Carryover note 2: "Every documented exception requires either an
+    explicit sunset condition or a permanent justification."
+  - The Step 1 seed exception now has a sunset (Step 5) recorded.
 
 ## What's new in PR #2 (Step 2 — Postgres + Prisma + shared entity schema)
 

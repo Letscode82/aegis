@@ -57,12 +57,60 @@ serverless function bundles include the workspace deps.
 
 ## Required environment variables
 
-| Variable | Scope | Purpose |
-|---|---|---|
-| `ANTHROPIC_API_KEY` | Production + Preview | Server-side key used by `@aegis/ai/proxy`. Never exposed to the client. |
-| `DATABASE_URL` | Production + Preview | Postgres connection string. **Use the Neon pooled connection string** for serverless functions. |
+| Variable | Required for | Scope | Purpose |
+|---|---|---|---|
+| `ANTHROPIC_API_KEY` | Production | Production + Preview | Server-side key used by `@aegis/ai/proxy`. Never exposed to the client. Without it, `/api/claude` 500s and the Copilot/agents fall back to mocked responses. |
+| `DATABASE_URL` | Production | Production + Preview | Postgres connection string. **Use the Neon pooled connection string** for serverless functions. Without it, `/api/intake/storage` 500s and the Cockpit shows no tickets. |
+| `AUTH0_SECRET` | Production | Production + Preview | 32-byte hex secret used to encrypt the Auth0 session cookie. Generate with `openssl rand -hex 32`. **Presence of this variable is the binary on/off signal** — when it's set, the app enforces real auth; when absent, dev-mode fallback runs. |
+| `AUTH0_BASE_URL` | Production | Production + Preview | Public URL of the deployed app, e.g. `https://aegis.vercel.app`. Used to construct callback URLs. |
+| `AUTH0_ISSUER_BASE_URL` | Production | Production + Preview | Auth0 tenant URL, e.g. `https://aegis.us.auth0.com`. |
+| `AUTH0_CLIENT_ID` | Production | Production + Preview | Auth0 application client id. |
+| `AUTH0_CLIENT_SECRET` | Production | Production + Preview | Auth0 application client secret. |
+| `DEV_USER_EMAIL` | Optional (dev only) | Local `.env` | Override which seeded test user the dev-mode fallback resolves. Defaults to `alex.nguyen@aegis-demo.example` (admin). Set to e.g. `lena.attorney@aegis-demo.example` to preview the demo as an attorney. Has no effect when Auth0 is configured. |
 
-Step 3 will add the `AUTH0_*` variables.
+### Dev-mode fallback (no Auth0)
+
+If any of the five `AUTH0_*` variables is missing or empty, the app runs
+in **dev-mode fallback**:
+
+- The middleware is a transparent pass-through — no redirects.
+- `/api/auth/login` returns a deterministic JSON describing the
+  disabled state (instead of crashing the SDK on init).
+- `/api/auth/current-user` resolves the seeded admin (Alex Nguyen) or
+  whichever user `DEV_USER_EMAIL` points at.
+- `useCurrentUser()` returns the same `AuthUser` shape — UI doesn't
+  branch on the auth state.
+
+This keeps `pnpm dev` working zero-config on a fresh sandbox without
+forcing every contributor to provision an Auth0 tenant.
+
+### Auth0 setup (production)
+
+1. Create an Auth0 application — type "Regular Web Application",
+   allowed callback URL `https://<your-domain>/api/auth/callback`,
+   allowed logout URL `https://<your-domain>`.
+2. Generate a session secret:
+   ```bash
+   openssl rand -hex 32
+   ```
+3. Add the five `AUTH0_*` variables to Vercel (Production + Preview):
+   ```
+   Project → Settings → Environment Variables
+     AUTH0_SECRET            = <output of openssl rand -hex 32>
+     AUTH0_BASE_URL          = https://<your-vercel-domain>
+     AUTH0_ISSUER_BASE_URL   = https://<your-tenant>.us.auth0.com
+     AUTH0_CLIENT_ID         = <from Auth0 dashboard>
+     AUTH0_CLIENT_SECRET     = <from Auth0 dashboard>
+     Scope: Production + Preview
+   ```
+4. Redeploy. Anonymous requests to anything other than `/api/health`,
+   `/api/auth/*`, and Next.js internals now redirect to
+   `/api/auth/login`, which kicks off the Auth0 flow.
+
+The next sign-in by an unknown email currently returns null in
+`/api/auth/current-user` (Step 3 keeps this strict — the seed owns the
+canonical user list). A "first-login provisioning" flow is on the
+backlog for a later step.
 
 ### DATABASE_URL setup (Neon)
 

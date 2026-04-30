@@ -34,11 +34,17 @@ import {
   AgentRecommendationStatus,
   ConversationRole,
 } from "@prisma/client";
+// Build-time relative import — see CLAUDE.md "Documented exceptions".
+// The canonical role definitions live in @aegis/auth, but adding
+// @aegis/auth as a package dep here would close a turbo-detected
+// cycle (@aegis/auth depends on @aegis/db at runtime). The seed is
+// a dev-only tool — relative path is the cleanest way to read the
+// canonical bundle without creating a package-graph edge.
 import {
   ROLE_PERMISSIONS,
   ALL_ROLES,
   type RoleName,
-} from "@aegis/auth";
+} from "../../auth/src/roles";
 
 const prisma = new PrismaClient();
 
