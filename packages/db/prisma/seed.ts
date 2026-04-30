@@ -24,6 +24,11 @@ import {
   PrismaClient,
   PersonType,
   CounterpartyType,
+  MatterType,
+  MatterStatus,
+  MatterPartyRole,
+  LegalHoldStatus,
+  PreservationDataSource,
 } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -255,6 +260,229 @@ async function seedTags(orgId: string) {
 }
 
 // ───────────────────────────────────────────────────────────────────
+// Section 3 — Matters + Legal Holds
+// ───────────────────────────────────────────────────────────────────
+//
+// Three matters exercise the spine + the Legal Hold sub-domain:
+//   m-snowflake-msa  — TRANSACTIONAL, open. The Snowflake MSA review
+//                       (REQ-3506 in cockpit seed) escalated into a
+//                       proper matter with a budget and pending
+//                       invoices in Section 5.
+//   m-emp-harassment — EMPLOYMENT, open, with a Legal Hold ISSUED.
+//                       Tied to the v72 harassment escalation
+//                       (REQ-3403). Two custodians under hold.
+//   m-saigon-vendor  — ADVISORY, closed. The Saigon Tech Labs vendor
+//                       onboarding (REQ-3503) — closed after DPA
+//                       attached.
+
+async function seedMatters(orgId: string, leadAttorneyPersonId: string) {
+  // Snowflake MSA
+  await prisma.matter.upsert({
+    where: { id: "m-snowflake-msa" },
+    update: { title: "Snowflake MSA — Renewal & Re-papering" },
+    create: {
+      id: "m-snowflake-msa",
+      organizationId: orgId,
+      title: "Snowflake MSA — Renewal & Re-papering",
+      type: MatterType.TRANSACTIONAL,
+      status: MatterStatus.OPEN,
+      leadAttorneyId: leadAttorneyPersonId,
+      counterpartyId: "cp-snowflake",
+      description:
+        "Re-papering of master services agreement. Engineering negotiating payment terms (counterparty proposed Net 30 vs our Net 45 playbook). IP § 8.2 ambiguous — flagged for IP team.",
+      metadata: { exposure: "$2.4M annual", playbook: "MSA-v2" },
+    },
+  });
+
+  // Saigon Tech Labs vendor onboarding (closed)
+  await prisma.matter.upsert({
+    where: { id: "m-saigon-vendor" },
+    update: { title: "Saigon Tech Labs — Vendor Onboarding" },
+    create: {
+      id: "m-saigon-vendor",
+      organizationId: orgId,
+      title: "Saigon Tech Labs — Vendor Onboarding",
+      type: MatterType.ADVISORY,
+      status: MatterStatus.CLOSED,
+      closedAt: new Date("2026-04-18T15:00:00Z"),
+      leadAttorneyId: leadAttorneyPersonId,
+      counterpartyId: "cp-saigon",
+      description:
+        "Onboarding analytics vendor processing anonymised data. Standard DPA v3.1 attached. Sanctions / ABC / World-Check all clear. Closed within 24h of intake.",
+      metadata: { contractValue: "$180K/yr", dpaVersion: "3.1" },
+    },
+  });
+
+  // Employment / harassment matter — has Legal Hold
+  const empMatter = await prisma.matter.upsert({
+    where: { id: "m-emp-harassment" },
+    update: { title: "Confidential Employment Matter — VP Eng" },
+    create: {
+      id: "m-emp-harassment",
+      organizationId: orgId,
+      title: "Confidential Employment Matter — VP Eng",
+      type: MatterType.EMPLOYMENT,
+      status: MatterStatus.IN_PROGRESS,
+      leadAttorneyId: leadAttorneyPersonId,
+      description:
+        "Harassment complaint filed against VP Engineering. External counsel engaged. Plaintiff's counsel has contacted HR directly. Subject to legal hold.",
+      metadata: {
+        sensitivity: "high",
+        externalCounsel: "engaged",
+        notes: "Names redacted in metadata; full record under access control.",
+      },
+    },
+  });
+
+  // Add Alex as lead attorney party on each matter (idempotent unique on
+  // (matterId, personId, role)).
+  const matterIds = ["m-snowflake-msa", "m-saigon-vendor", "m-emp-harassment"];
+  for (const matterId of matterIds) {
+    await prisma.matterParty.upsert({
+      where: {
+        matterId_personId_role: {
+          matterId,
+          personId: leadAttorneyPersonId,
+          role: MatterPartyRole.LEAD_ATTORNEY,
+        },
+      },
+      update: {},
+      create: {
+        matterId,
+        personId: leadAttorneyPersonId,
+        role: MatterPartyRole.LEAD_ATTORNEY,
+      },
+    });
+  }
+
+  return { empMatter };
+}
+
+async function seedLegalHold(orgId: string, empMatterId: string) {
+  // Two custodian Persons specifically for the hold (data subject /
+  // custodian role separate from any employee record they might also
+  // have — Step 7+ identity-graph will resolve cross-role identities).
+  const custodian1 = await prisma.person.upsert({
+    where: { id: "p-cust-vp-eng" },
+    update: { name: "[Redacted] VP Eng" },
+    create: {
+      id: "p-cust-vp-eng",
+      organizationId: orgId,
+      type: PersonType.CUSTODIAN,
+      externalRef: "custodian:vp-eng-001",
+      name: "[Redacted] VP Eng",
+      email: "redacted-vp-eng@aegis-demo.example",
+      metadata: { redacted: true, reason: "active investigation" },
+    },
+  });
+
+  const custodian2 = await prisma.person.upsert({
+    where: { id: "p-cust-team-lead" },
+    update: { name: "[Redacted] Team Lead" },
+    create: {
+      id: "p-cust-team-lead",
+      organizationId: orgId,
+      type: PersonType.CUSTODIAN,
+      externalRef: "custodian:team-lead-002",
+      name: "[Redacted] Team Lead",
+      email: "redacted-team-lead@aegis-demo.example",
+      metadata: { redacted: true, reason: "active investigation" },
+    },
+  });
+
+  const hold = await prisma.legalHold.upsert({
+    where: { id: "lh-emp-harassment" },
+    update: { status: LegalHoldStatus.ISSUED },
+    create: {
+      id: "lh-emp-harassment",
+      matterId: empMatterId,
+      organizationId: orgId,
+      scope:
+        "All email, chat, and document storage related to the VP Engineering team for the period 2026-01-01 forward.",
+      status: LegalHoldStatus.ISSUED,
+      issuedAt: new Date("2026-04-17T10:00:00Z"),
+      reason:
+        "Pending investigation of harassment complaint with external-counsel involvement.",
+    },
+  });
+
+  // Notice rows — one per custodian. Acknowledged for custodian1, still
+  // pending acknowledgement for custodian2 (drives the demo's "1 of 2
+  // custodians acknowledged" UI when LegalHoldPanel ships in Step 4).
+  await prisma.holdNotice.upsert({
+    where: {
+      holdId_custodianId: { holdId: hold.id, custodianId: custodian1.id },
+    },
+    update: { acknowledgedAt: new Date("2026-04-17T11:30:00Z") },
+    create: {
+      holdId: hold.id,
+      custodianId: custodian1.id,
+      sentAt: new Date("2026-04-17T10:05:00Z"),
+      acknowledgedAt: new Date("2026-04-17T11:30:00Z"),
+      attestationCount: 1,
+    },
+  });
+
+  await prisma.holdNotice.upsert({
+    where: {
+      holdId_custodianId: { holdId: hold.id, custodianId: custodian2.id },
+    },
+    update: {},
+    create: {
+      holdId: hold.id,
+      custodianId: custodian2.id,
+      sentAt: new Date("2026-04-17T10:05:00Z"),
+    },
+  });
+
+  // One attestation already on file for custodian1.
+  await prisma.holdAttestation.upsert({
+    where: { id: "att-emp-001" },
+    update: {},
+    create: {
+      id: "att-emp-001",
+      holdId: hold.id,
+      custodianId: custodian1.id,
+      period: "2026-04",
+      attestedAt: new Date("2026-04-17T11:32:00Z"),
+      responseJson: {
+        confirmed: true,
+        notes: "All matter-related communications preserved per scope.",
+      },
+    },
+  });
+
+  // Preservation orders — IT confirmed for email and files.
+  await prisma.preservationOrder.upsert({
+    where: { id: "po-emp-email" },
+    update: {},
+    create: {
+      id: "po-emp-email",
+      holdId: hold.id,
+      dataSource: PreservationDataSource.EMAIL,
+      dataSourceRef: "exchange:vp-eng-team",
+      preservationTier: "enhanced",
+      ITConfirmedAt: new Date("2026-04-17T10:45:00Z"),
+    },
+  });
+
+  await prisma.preservationOrder.upsert({
+    where: { id: "po-emp-files" },
+    update: {},
+    create: {
+      id: "po-emp-files",
+      holdId: hold.id,
+      dataSource: PreservationDataSource.FILES,
+      dataSourceRef: "sharepoint:eng-vp-team-site",
+      preservationTier: "enhanced",
+      ITConfirmedAt: new Date("2026-04-17T10:50:00Z"),
+    },
+  });
+
+  return hold;
+}
+
+// ───────────────────────────────────────────────────────────────────
 // Entry point
 // ───────────────────────────────────────────────────────────────────
 
@@ -270,6 +498,10 @@ async function main() {
   console.log(
     `[seed] counterparties=${cpCount} requesters=${reqCount} tags=${tagCount}`,
   );
+
+  const { empMatter } = await seedMatters(org.id, alexPerson.id);
+  const hold = await seedLegalHold(org.id, empMatter.id);
+  console.log(`[seed] matters=3 legal_hold=${hold.id} (status=${hold.status})`);
 
   console.log("[seed] done.");
 }
