@@ -48,6 +48,46 @@ const REQUIRED_ENV_VARS = [
 ] as const;
 
 /**
+ * Production-mode fail-loud guard.
+ *
+ * The dev-mode fallback (resolveByEmail → seeded admin) is a deliberate
+ * developer-experience affordance: `pnpm dev` works zero-config without
+ * forcing every contributor to provision an Auth0 tenant. Letting that
+ * fallback engage in production would silently downgrade the deploy to
+ * "every visitor is the admin" — a security regression invisible to a
+ * normal smoke test.
+ *
+ * This guard fails the module load (and therefore the cold-start of any
+ * serverless function importing @aegis/auth/server) with a clear error
+ * the moment `NODE_ENV=production` AND `AUTH0_SECRET` is unset. Vercel
+ * sets `NODE_ENV=production` for both Production and Preview deploys,
+ * so Preview deploys are also protected — there is no "preview mode"
+ * silent-bypass.
+ *
+ * Failure surfaces as a deploy-time error in the function build log, not
+ * as a 500 on first request. That is intentional — broken auth must be
+ * a deploy-failing condition, not a runtime drift.
+ */
+if (
+  process.env.NODE_ENV === "production" &&
+  (typeof process.env.AUTH0_SECRET !== "string" ||
+    process.env.AUTH0_SECRET.length === 0)
+) {
+  const missing = REQUIRED_ENV_VARS.filter(
+    (k) => typeof process.env[k] !== "string" || process.env[k]!.length === 0,
+  );
+  throw new Error(
+    "[@aegis/auth] Refusing to start in production with Auth0 disabled. " +
+      `NODE_ENV=production but AUTH0_SECRET is missing. ` +
+      `Missing required env vars: ${missing.join(", ")}. ` +
+      "Set them in the Vercel project's Production + Preview env (see " +
+      "docs/deployment.md → 'Auth0 setup (production)'). The dev-mode " +
+      "fallback that resolves the seeded admin is intentional for local " +
+      "dev only and MUST NOT silently engage in a production deploy.",
+  );
+}
+
+/**
  * True iff every Auth0 env var is set with a non-empty value. Cached
  * once per process — env vars don't change at runtime in serverless,
  * and this is read on every request so the cache matters.

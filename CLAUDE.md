@@ -416,6 +416,31 @@ it adds. PR #4 (Matter) needs `matter.*` actions. PR #6 (Spend) needs
 
 ---
 
+## Module-load architectural guards
+
+Several invariants are enforced at module-import time so a future edit
+that violates them fails fast — at `next build`, at `pnpm typecheck`,
+at the first cold start of a serverless function — instead of drifting
+silently into production. Adding a new guard here is preferred over
+relying on a test or code review to catch the same drift.
+
+| Guard | Where | What it asserts | What trips it |
+|---|---|---|---|
+| **Permission enum ⊇ seed strings** | `packages/auth/src/permissions.ts` | Every string in `SEED_ADMIN_PERMISSIONS_VERBATIM` (the 20 strings the Step 2 admin role carries) maps to a `Permission` enum value. | Renaming a `Permission` value that the seed depends on. |
+| **admin role is the superuser bundle** | `packages/auth/src/roles.ts` | `ROLE_PERMISSIONS.admin.length === Object.values(Permission).length`. | Adding a new `Permission` without granting it to admin. |
+| **No silent dev-mode auth in production** | `packages/auth/src/server.ts` | If `NODE_ENV=production` and `AUTH0_SECRET` is unset, the module throws at import — failing the deploy with a clear error instead of letting the dev-mode fallback (every visitor resolves to the seeded admin) silently engage. | Deploying without the five `AUTH0_*` env vars set on the Vercel project. |
+
+These guards run on the first `import` of their module — so any
+serverless function bundle that touches the affected package fails
+the cold-start, not just one specific entry point. There is no
+"forgot to import the guard" path.
+
+When adding a new architectural commitment that future Claude Code
+sessions might accidentally violate, prefer a module-load assertion
+over a runtime check or a documentation note alone.
+
+---
+
 ## What's new in PR #3 (Step 3 — Auth0 + RBAC + permission model)
 
 - `packages/auth` is no longer empty.
@@ -440,6 +465,11 @@ it adds. PR #4 (Matter) needs `matter.*` actions. PR #6 (Spend) needs
   - Dev-mode fallback: when `AUTH0_SECRET` is unset, the demo runs as
     the seeded admin (Alex by default; override via `DEV_USER_EMAIL`).
     No login flow, no broken pages — pnpm dev still works zero-config.
+  - **Production guard.** `@aegis/auth/server` throws at module load
+    if `NODE_ENV=production` AND `AUTH0_SECRET` is unset. The deploy
+    fails at function cold-start with a clear error rather than
+    silently downgrading to "every visitor is the admin" via the
+    dev-mode fallback. See "Module-load architectural guards" above.
 - `useCurrentUser()` React hook in `@aegis/auth/react` — returns
   `{ user, loading, error, has(perm), roleName }`. Same shape in both
   modes.
