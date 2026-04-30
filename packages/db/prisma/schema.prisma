@@ -26,7 +26,15 @@
 // ════════════════════════════════════════════════════════════════════
 
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  // Vercel's Lambda runtime is RHEL-based with OpenSSL 3.0; without
+  // this target, prisma generate emits only the host's native binary
+  // (e.g. debian on a developer Mac/Linux laptop, alpine in Docker)
+  // and the production deploy 500s with PrismaClientInitializationError
+  // ("could not locate the Query Engine for runtime rhel-openssl-3.0.x").
+  // Both targets are bundled — `native` keeps `pnpm dev` fast on the
+  // host platform, `rhel-openssl-3.0.x` ships in the serverless bundle.
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
 }
 
 datasource db {
