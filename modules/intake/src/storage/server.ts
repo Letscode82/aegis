@@ -26,6 +26,7 @@
 
 import {
   prisma,
+  logAudit,
   getCurrentOrganization,
   getCurrentUser,
   IntakeSource,
@@ -187,11 +188,27 @@ async function loadTicketsV8(orgId: string): Promise<V8Ticket[]> {
 // ── Write path: upsert tickets from a v8 array ───────────────────────
 
 async function saveTicketsV8(orgId: string, tickets: V8Ticket[]): Promise<void> {
+  // Resolve the demo user once — we tag every audit row with their id
+  // as the actor (single-user demo until Step 3 wires Auth0).
+  const demoUser = await getCurrentUser();
+
   for (const t of tickets) {
     if (!t.id) continue;
     const submittedAt = t.submittedTs
       ? new Date(t.submittedTs)
       : new Date();
+
+    // Read pre-mutation state so we can emit an AuditLog row for any
+    // transition that crosses a meaningful boundary (Differentiator #3).
+    const before = await prisma.intakeTicket.findUnique({
+      where: { id: t.id },
+      select: {
+        status: true,
+        triagedAction: true,
+        triagedBy: true,
+      },
+    });
+
     // Common fields written on both create and update. Plain object so
     // it composes into both Prisma input shapes (update / unchecked create).
     const common = {
@@ -254,9 +271,105 @@ async function saveTicketsV8(orgId: string, tickets: V8Ticket[]): Promise<void> 
       },
     });
 
+    // ── AuditLog discipline ──────────────────────────────────────────
+    // Differentiator #3: every state-changing path writes an AuditLog
+    // row. The Intake module's transitions of interest, with their
+    // canonical action names:
+    //
+    //   intake.ticket.created                 — first time we see this id
+    //   intake.recommendation.approved        — triagedAction → approved
+    //   intake.recommendation.edited_approved — triagedAction → edited-approved
+    //   intake.recommendation.rejected        — triagedAction → rejected
+    //   intake.recommendation.reassigned      — triagedAction → reassigned
+    //   intake.ticket.escalated               — status → ESCALATED
+    //   intake.ticket.closed                  — status → CLOSED
+    //
+    // These ride alongside the v8 demo's existing client-side log so the
+    // canonical AuditLog ledger fills in without UI changes. The legacy
+    // localStorage agent log is silently no-op'd in intakeStorageSet.
+    const newStatus = common.status;
+    const newAction = common.triagedAction;
+    const actor = demoUser.id;
+
+    if (!before) {
+      // Brand-new ticket.
+      await logAudit({
+        organizationId: orgId,
+        actorId: actor,
+        actorType: "USER",
+        action: "intake.ticket.created",
+        resourceType: "IntakeTicket",
+        resourceId: t.id,
+        afterJson: { status: newStatus, source: t._source ?? "form" },
+      });
+    } else {
+      // Status transitions that cross a meaningful boundary.
+      if (before.status !== newStatus && newStatus === IntakeStatus.ESCALATED) {
+        await logAudit({
+          organizationId: orgId,
+          actorId: actor,
+          actorType: "USER",
+          action: "intake.ticket.escalated",
+          resourceType: "IntakeTicket",
+          resourceId: t.id,
+          beforeJson: { status: before.status },
+          afterJson: { status: newStatus },
+        });
+      }
+      if (before.status !== newStatus && newStatus === IntakeStatus.CLOSED) {
+        await logAudit({
+          organizationId: orgId,
+          actorId: actor,
+          actorType: "USER",
+          action: "intake.ticket.closed",
+          resourceType: "IntakeTicket",
+          resourceId: t.id,
+          beforeJson: { status: before.status },
+          afterJson: { status: newStatus, triagedAction: newAction },
+        });
+      }
+      // Recommendation review actions — only fire when triagedAction
+      // newly transitions (not on every save).
+      if (before.triagedAction !== newAction && newAction) {
+        const actionMap: Record<string, string> = {
+          approved: "intake.recommendation.approved",
+          "edited-approved": "intake.recommendation.edited_approved",
+          rejected: "intake.recommendation.rejected",
+          reassigned: "intake.recommendation.reassigned",
+          "manual-close": "intake.recommendation.manual_close",
+          snoozed: "intake.recommendation.snoozed",
+        };
+        const auditAction = actionMap[newAction];
+        if (auditAction) {
+          await logAudit({
+            organizationId: orgId,
+            actorId: actor,
+            actorType: "USER",
+            action: auditAction,
+            resourceType: "IntakeTicket",
+            resourceId: t.id,
+            beforeJson: { triagedAction: before.triagedAction },
+            afterJson: {
+              triagedAction: newAction,
+              triagedBy: t.triagedBy,
+            },
+            metadata: { source: "intake-storage-api" },
+          });
+        }
+      }
+    }
+
     // Replace recommendation if present.
     if (t.agentRecommendation && t.agentRecommendation.agentId) {
       const r = t.agentRecommendation;
+      // Map the ticket's triagedAction onto the rec's review status —
+      // approved/edited → APPROVED, rejected → REJECTED, otherwise PENDING.
+      const recStatus =
+        newAction === "approved" || newAction === "edited-approved"
+          ? AgentRecommendationStatus.APPROVED
+          : newAction === "rejected"
+            ? AgentRecommendationStatus.REJECTED
+            : AgentRecommendationStatus.PENDING;
       await prisma.agentRecommendation.deleteMany({ where: { ticketId: t.id } });
       await prisma.agentRecommendation.create({
         data: {
@@ -269,7 +382,9 @@ async function saveTicketsV8(orgId: string, tickets: V8Ticket[]): Promise<void> 
           concerns: (r.concerns ?? []) as never,
           citations: (r.precedentLinks ?? []) as never,
           shortFormReply: r.alternativeTone ?? null,
-          status: AgentRecommendationStatus.PENDING,
+          status: recStatus,
+          reviewedBy: recStatus === AgentRecommendationStatus.PENDING ? null : actor,
+          reviewedAt: recStatus === AgentRecommendationStatus.PENDING ? null : new Date(),
         },
       });
     }
