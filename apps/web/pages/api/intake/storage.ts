@@ -30,11 +30,15 @@ export default async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
+  // Threaded context — let intake/server resolve the user via
+  // @aegis/auth/server (Auth0 session OR dev fallback) so AuditLog
+  // rows attribute to the real session user when one exists.
+  const ctx = { req, res };
   try {
     if (req.method === "GET") {
       const key = getKey(req);
       if (!key) return res.status(400).json({ error: "Missing key" });
-      const result = await intakeStorageGet(key);
+      const result = await intakeStorageGet(key, ctx);
       return res.status(200).json(result);
     }
 
@@ -52,14 +56,14 @@ export default async function handler(
           .status(400)
           .json({ error: "value must be a JSON-stringified string" });
       }
-      await intakeStorageSet(body.key, body.value);
+      await intakeStorageSet(body.key, body.value, ctx);
       return res.status(204).end();
     }
 
     if (req.method === "DELETE") {
       const key = getKey(req);
       if (!key) return res.status(400).json({ error: "Missing key" });
-      await intakeStorageDelete(key);
+      await intakeStorageDelete(key, ctx);
       return res.status(204).end();
     }
 
