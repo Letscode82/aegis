@@ -512,6 +512,11 @@ async function main() {
     `[seed] tickets=${tk.ticketCount} recommendations=${tk.recCount} conversation_messages=${tk.convCount} auto_persons=${tk.autoPersonCount}`,
   );
 
+  const sp = await seedSpend(org.id);
+  console.log(
+    `[seed] vendors=${sp.vendors} timekeepers=${sp.timekeepers} invoices=${sp.invoices}`,
+  );
+
   console.log("[seed] done.");
 }
 
@@ -748,4 +753,243 @@ async function seedTickets(orgId: string) {
   }
 
   return { ticketCount: tickets.length, recCount, convCount, autoPersonCount };
+}
+
+// ───────────────────────────────────────────────────────────────────
+// Section 5 — Spend & Counsel
+// ───────────────────────────────────────────────────────────────────
+//
+// Two outside-counsel firms (LAW_FIRM Vendors backed by Counterparty
+// rows) plus an alternative legal services provider. Six invoices
+// across the open Snowflake matter — three approved/paid, two in
+// review, one flagged for an anomaly. One annual department budget
+// + one matter-scoped budget exercise both BudgetScope variants.
+
+async function seedSpend(orgId: string) {
+  // Counterparties for law firms — the spine connects Vendor.counterpartyId
+  // to a real Counterparty row, so cross-module queries (matter-vendor,
+  // contracts-vendor) all resolve through one shared entity.
+  await prisma.counterparty.upsert({
+    where: { id: "cp-skadden" },
+    update: { name: "Skadden, Arps, Slate, Meagher & Flom LLP" },
+    create: {
+      id: "cp-skadden",
+      organizationId: orgId,
+      name: "Skadden, Arps, Slate, Meagher & Flom LLP",
+      type: CounterpartyType.LAW_FIRM,
+      country: "US",
+    },
+  });
+  await prisma.counterparty.upsert({
+    where: { id: "cp-cleary" },
+    update: { name: "Cleary Gottlieb Steen & Hamilton LLP" },
+    create: {
+      id: "cp-cleary",
+      organizationId: orgId,
+      name: "Cleary Gottlieb Steen & Hamilton LLP",
+      type: CounterpartyType.LAW_FIRM,
+      country: "US",
+    },
+  });
+  await prisma.counterparty.upsert({
+    where: { id: "cp-axiom" },
+    update: { name: "Axiom Law" },
+    create: {
+      id: "cp-axiom",
+      organizationId: orgId,
+      name: "Axiom Law",
+      type: CounterpartyType.LAW_FIRM,
+      country: "US",
+    },
+  });
+
+  // Vendors
+  const skadden = await prisma.vendor.upsert({
+    where: { id: "v-skadden" },
+    update: {},
+    create: {
+      id: "v-skadden",
+      organizationId: orgId,
+      name: "Skadden",
+      type: "LAW_FIRM",
+      counterpartyId: "cp-skadden",
+      ratesCard: { partner: 1450, senior: 1100, associate: 750 },
+      performanceScore: 4.3,
+    },
+  });
+  const cleary = await prisma.vendor.upsert({
+    where: { id: "v-cleary" },
+    update: {},
+    create: {
+      id: "v-cleary",
+      organizationId: orgId,
+      name: "Cleary Gottlieb",
+      type: "LAW_FIRM",
+      counterpartyId: "cp-cleary",
+      ratesCard: { partner: 1500, senior: 1150, associate: 800 },
+      performanceScore: 4.5,
+    },
+  });
+  const axiom = await prisma.vendor.upsert({
+    where: { id: "v-axiom" },
+    update: {},
+    create: {
+      id: "v-axiom",
+      organizationId: orgId,
+      name: "Axiom Law",
+      type: "ALSP",
+      counterpartyId: "cp-axiom",
+      ratesCard: { senior_attorney: 425, attorney: 285 },
+      performanceScore: 4.0,
+    },
+  });
+
+  // Timekeepers — external counsel Persons (separate from EMPLOYEE
+  // requesters). They link to Vendor + Person.
+  const tkPersons = [
+    { id: "p-tk-skadden-partner", name: "Margaret Holloway", title: "Partner", vendor: skadden.id, defaultRate: 1450 },
+    { id: "p-tk-skadden-senior",  name: "Theodore Park",     title: "Senior Associate", vendor: skadden.id, defaultRate: 1100 },
+    { id: "p-tk-cleary-partner",  name: "Yvonne Chen",       title: "Partner", vendor: cleary.id,  defaultRate: 1500 },
+    { id: "p-tk-axiom-senior",    name: "Daniel Reyes",      title: "Senior Attorney", vendor: axiom.id,   defaultRate: 425 },
+  ];
+  for (const t of tkPersons) {
+    await prisma.person.upsert({
+      where: { id: t.id },
+      update: { name: t.name },
+      create: {
+        id: t.id,
+        organizationId: orgId,
+        type: PersonType.EXTERNAL_COUNSEL,
+        externalRef: "timekeeper:" + t.id,
+        name: t.name,
+        email: t.id + "@external.example",
+        metadata: { vendor: t.vendor, title: t.title },
+      },
+    });
+    await prisma.timekeeper.upsert({
+      where: { vendorId_personId: { vendorId: t.vendor, personId: t.id } },
+      update: { defaultRate: t.defaultRate, title: t.title },
+      create: {
+        vendorId: t.vendor,
+        personId: t.id,
+        title: t.title,
+        defaultRate: t.defaultRate,
+      },
+    });
+  }
+
+  // Six invoices across the Snowflake matter.
+  const invoices: Array<{
+    id: string;
+    vendorId: string;
+    matterId: string;
+    amount: number;
+    periodStart: Date;
+    periodEnd: Date;
+    status: "SUBMITTED" | "IN_REVIEW" | "APPROVED" | "REJECTED" | "PAID";
+    flagAnomaly?: boolean;
+  }> = [
+    { id: "inv-snowflake-001", vendorId: skadden.id, matterId: "m-snowflake-msa", amount: 48_750, periodStart: new Date("2026-01-01"), periodEnd: new Date("2026-01-31"), status: "PAID" },
+    { id: "inv-snowflake-002", vendorId: skadden.id, matterId: "m-snowflake-msa", amount: 62_300, periodStart: new Date("2026-02-01"), periodEnd: new Date("2026-02-28"), status: "PAID" },
+    { id: "inv-snowflake-003", vendorId: skadden.id, matterId: "m-snowflake-msa", amount: 71_400, periodStart: new Date("2026-03-01"), periodEnd: new Date("2026-03-31"), status: "APPROVED" },
+    { id: "inv-snowflake-004", vendorId: cleary.id,  matterId: "m-snowflake-msa", amount: 28_900, periodStart: new Date("2026-03-01"), periodEnd: new Date("2026-03-31"), status: "IN_REVIEW" },
+    { id: "inv-snowflake-005", vendorId: skadden.id, matterId: "m-snowflake-msa", amount: 94_200, periodStart: new Date("2026-04-01"), periodEnd: new Date("2026-04-15"), status: "IN_REVIEW", flagAnomaly: true },
+    { id: "inv-snowflake-006", vendorId: axiom.id,   matterId: "m-snowflake-msa", amount: 12_400, periodStart: new Date("2026-04-01"), periodEnd: new Date("2026-04-15"), status: "SUBMITTED" },
+  ];
+
+  for (const inv of invoices) {
+    await prisma.invoice.upsert({
+      where: { id: inv.id },
+      update: { status: inv.status as never },
+      create: {
+        id: inv.id,
+        vendorId: inv.vendorId,
+        matterId: inv.matterId,
+        amount: inv.amount,
+        currency: "USD",
+        periodStart: inv.periodStart,
+        periodEnd: inv.periodEnd,
+        status: inv.status as never,
+        ledesData: null as never,
+        approvedBy: inv.status === "APPROVED" || inv.status === "PAID" ? "demo-person-alex" : null,
+        approvedAt: inv.status === "APPROVED" || inv.status === "PAID" ? new Date(inv.periodEnd.getTime() + 5 * 24 * 60 * 60 * 1000) : null,
+      },
+    });
+    // Replace line items idempotently.
+    await prisma.invoiceLineItem.deleteMany({ where: { invoiceId: inv.id } });
+    // Two lines per invoice — partner + senior associate, simple split.
+    const partnerHours = Math.round((inv.amount * 0.4) / 1450);
+    const seniorHours = Math.round((inv.amount * 0.6) / 1100);
+    const partnerTk =
+      inv.vendorId === skadden.id ? "p-tk-skadden-partner" :
+      inv.vendorId === cleary.id ? "p-tk-cleary-partner" :
+      "p-tk-axiom-senior";
+    const seniorTk =
+      inv.vendorId === skadden.id ? "p-tk-skadden-senior" : partnerTk;
+    await prisma.invoiceLineItem.create({
+      data: {
+        invoiceId: inv.id,
+        timekeeperId: partnerTk,
+        hours: partnerHours,
+        rate: 1450,
+        description: "Snowflake MSA — partner-level review and counterparty negotiation",
+        date: inv.periodStart,
+        status: inv.flagAnomaly ? "FLAGGED" : ("ACCEPTED" as never),
+        flaggedReason: inv.flagAnomaly ? "Block-billed; line item exceeds standard 8-hour daily cap" : null,
+      },
+    });
+    await prisma.invoiceLineItem.create({
+      data: {
+        invoiceId: inv.id,
+        timekeeperId: seniorTk,
+        hours: seniorHours,
+        rate: 1100,
+        description: "Snowflake MSA — drafting + redline turn",
+        date: inv.periodStart,
+        status: "ACCEPTED" as never,
+      },
+    });
+  }
+
+  // Budgets — one matter-scoped, one annual-scoped.
+  await prisma.budget.upsert({
+    where: {
+      organizationId_scope_scopeId_period: {
+        organizationId: orgId,
+        scope: "MATTER",
+        scopeId: "m-snowflake-msa",
+        period: "2026",
+      },
+    },
+    update: { allocatedAmount: 350_000, spentAmount: 318_000 },
+    create: {
+      organizationId: orgId,
+      scope: "MATTER",
+      scopeId: "m-snowflake-msa",
+      period: "2026",
+      allocatedAmount: 350_000,
+      spentAmount: 318_000,
+    },
+  });
+  await prisma.budget.upsert({
+    where: {
+      organizationId_scope_scopeId_period: {
+        organizationId: orgId,
+        scope: "ANNUAL",
+        scopeId: "legal-2026",
+        period: "2026",
+      },
+    },
+    update: { allocatedAmount: 4_500_000, spentAmount: 1_847_000 },
+    create: {
+      organizationId: orgId,
+      scope: "ANNUAL",
+      scopeId: "legal-2026",
+      period: "2026",
+      allocatedAmount: 4_500_000,
+      spentAmount: 1_847_000,
+    },
+  });
+
+  return { vendors: 3, timekeepers: tkPersons.length, invoices: invoices.length };
 }
