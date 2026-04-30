@@ -20,7 +20,11 @@
  *   6. Privacy — sample DSAR + ConsentRecord
  */
 
-import { PrismaClient, PersonType } from "@prisma/client";
+import {
+  PrismaClient,
+  PersonType,
+  CounterpartyType,
+} from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -124,6 +128,133 @@ async function seedOrgAndAdmin() {
 }
 
 // ───────────────────────────────────────────────────────────────────
+// Section 2 — Counterparties, requester Persons, demo Tags
+// ───────────────────────────────────────────────────────────────────
+//
+// Counterparty list mirrors the entities mentioned in the v8 cockpit
+// seed + bulk NDA seed: Acme Corp, Snowflake, Saigon Tech Labs, plus
+// the bulk NDA roster (Globex, Initech, Umbrella, Soylent, Wayne).
+// Real demo would also include law firms — those land in Section 5
+// when Vendors get seeded.
+
+const COUNTERPARTIES: Array<{
+  id: string;
+  name: string;
+  type: CounterpartyType;
+  country?: string;
+  metadata?: Record<string, unknown>;
+}> = [
+  { id: "cp-acme", name: "Acme Corp", type: CounterpartyType.COMPANY, country: "US" },
+  { id: "cp-snowflake", name: "Snowflake Inc.", type: CounterpartyType.COMPANY, country: "US" },
+  { id: "cp-saigon", name: "Saigon Tech Labs", type: CounterpartyType.COMPANY, country: "VN", metadata: { dataProcessor: true } },
+  { id: "cp-deloitte", name: "Deloitte", type: CounterpartyType.COMPANY, country: "US" },
+  { id: "cp-globex", name: "Globex Industries", type: CounterpartyType.COMPANY, country: "US" },
+  { id: "cp-initech", name: "Initech Solutions", type: CounterpartyType.COMPANY, country: "US" },
+  { id: "cp-umbrella", name: "Umbrella Corp", type: CounterpartyType.COMPANY, country: "US" },
+  { id: "cp-soylent", name: "Soylent Group", type: CounterpartyType.COMPANY, country: "US" },
+  { id: "cp-wayne", name: "Wayne Enterprises", type: CounterpartyType.COMPANY, country: "US" },
+  { id: "cp-datastream", name: "DataStream AI", type: CounterpartyType.COMPANY, country: "US", metadata: { dataProcessor: true } },
+];
+
+// Requesters across v72 + v8 cockpit + v8 bulk NDA seeds.
+// type=EMPLOYEE — they are internal staff filing legal intake tickets.
+const REQUESTERS: Array<{
+  id: string;
+  name: string;
+  email: string;
+  department: string;
+}> = [
+  // v8 cockpit requesters (REQ-3501..3508)
+  { id: "p-james", name: "James Holloway", email: "james.holloway@aegis-demo.example", department: "Sales — Enterprise" },
+  { id: "p-rhea", name: "Rhea Malhotra", email: "rhea.malhotra@aegis-demo.example", department: "Finance" },
+  { id: "p-dmitri", name: "Dmitri Volkov", email: "dmitri.volkov@aegis-demo.example", department: "Procurement — APAC" },
+  { id: "p-aisha", name: "Aisha Patel", email: "aisha.patel@aegis-demo.example", department: "Marketing" },
+  { id: "p-marcus", name: "Marcus Reid", email: "marcus.reid@aegis-demo.example", department: "HR" },
+  { id: "p-elena", name: "Elena Rodriguez", email: "elena.rodriguez@aegis-demo.example", department: "Engineering" },
+  { id: "p-priya", name: "Priya Kulkarni", email: "priya.kulkarni@aegis-demo.example", department: "Engineering" },
+  { id: "p-nikhil", name: "Nikhil Shah", email: "nikhil.shah@aegis-demo.example", department: "Corporate Development" },
+  // v72 requesters (REQ-3401..3404)
+  { id: "p-sarah", name: "Sarah Johnson", email: "sarah.johnson@aegis-demo.example", department: "Product" },
+  { id: "p-mike", name: "Mike Peters", email: "mike.peters@aegis-demo.example", department: "Engineering" },
+  { id: "p-lisa", name: "Lisa Wang", email: "lisa.wang@aegis-demo.example", department: "HR" },
+  { id: "p-tom", name: "Tom Bradley", email: "tom.bradley@aegis-demo.example", department: "Procurement" },
+  // bulk NDA requesters (REQ-3601..3605)
+  { id: "p-alexk", name: "Alex Kim", email: "alex.kim@aegis-demo.example", department: "Sales — Enterprise" },
+  { id: "p-mayac", name: "Maya Chen", email: "maya.chen@aegis-demo.example", department: "Partnerships" },
+  { id: "p-ryan", name: "Ryan O'Brien", email: "ryan.obrien@aegis-demo.example", department: "Corp Dev" },
+  { id: "p-sofia", name: "Sofia Ramirez", email: "sofia.ramirez@aegis-demo.example", department: "BD" },
+  { id: "p-nathan", name: "Nathan Webb", email: "nathan.webb@aegis-demo.example", department: "Strategy" },
+];
+
+// Demo tags. Categories mirror the Aurora visual language.
+const TAGS: Array<{
+  id: string;
+  name: string;
+  category: string;
+  color: string;
+}> = [
+  { id: "tag-high-risk", name: "high-risk", category: "risk", color: "#E5484D" },
+  { id: "tag-ai-triaged", name: "ai-triaged", category: "lifecycle", color: "#7E5BEF" },
+  { id: "tag-external-counsel", name: "external-counsel", category: "domain", color: "#3491FA" },
+  { id: "tag-template-fit", name: "template-fit", category: "intake", color: "#34D399" },
+  { id: "tag-data-processing", name: "data-processing", category: "privacy", color: "#F59E0B" },
+];
+
+async function seedCounterparties(orgId: string) {
+  for (const cp of COUNTERPARTIES) {
+    await prisma.counterparty.upsert({
+      where: { id: cp.id },
+      update: { name: cp.name, type: cp.type, country: cp.country ?? null },
+      create: {
+        id: cp.id,
+        organizationId: orgId,
+        name: cp.name,
+        type: cp.type,
+        country: cp.country ?? null,
+        metadata: cp.metadata ?? {},
+      },
+    });
+  }
+  return COUNTERPARTIES.length;
+}
+
+async function seedRequesters(orgId: string) {
+  for (const r of REQUESTERS) {
+    await prisma.person.upsert({
+      where: { id: r.id },
+      update: { name: r.name, email: r.email },
+      create: {
+        id: r.id,
+        organizationId: orgId,
+        type: PersonType.EMPLOYEE,
+        externalRef: `employee:${r.id}`,
+        name: r.name,
+        email: r.email,
+        metadata: { department: r.department },
+      },
+    });
+  }
+  return REQUESTERS.length;
+}
+
+async function seedTags(orgId: string) {
+  for (const t of TAGS) {
+    await prisma.tag.upsert({
+      where: { id: t.id },
+      update: { name: t.name, category: t.category, color: t.color },
+      create: {
+        id: t.id,
+        organizationId: orgId,
+        name: t.name,
+        category: t.category,
+        color: t.color,
+      },
+    });
+  }
+  return TAGS.length;
+}
+
+// ───────────────────────────────────────────────────────────────────
 // Entry point
 // ───────────────────────────────────────────────────────────────────
 
@@ -132,6 +263,13 @@ async function main() {
 
   const { org, user, alexPerson } = await seedOrgAndAdmin();
   console.log(`[seed] org=${org.id} user=${user.id} alex=${alexPerson.id}`);
+
+  const cpCount = await seedCounterparties(org.id);
+  const reqCount = await seedRequesters(org.id);
+  const tagCount = await seedTags(org.id);
+  console.log(
+    `[seed] counterparties=${cpCount} requesters=${reqCount} tags=${tagCount}`,
+  );
 
   console.log("[seed] done.");
 }
