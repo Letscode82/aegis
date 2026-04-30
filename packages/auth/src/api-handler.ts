@@ -13,12 +13,64 @@ import { isAuth0Configured } from "./server";
 
 type AuthHandler = (req: NextApiRequest, res: NextApiResponse) => unknown;
 
+const REQUIRED_ENV_VARS = [
+  "AUTH0_SECRET",
+  "AUTH0_BASE_URL",
+  "AUTH0_ISSUER_BASE_URL",
+  "AUTH0_CLIENT_ID",
+  "AUTH0_CLIENT_SECRET",
+] as const;
+
+/**
+ * Once-per-cold-start diagnostic log. Reports which AUTH0_* env vars
+ * are present vs. missing AND whether the runtime is production. Logs
+ * server-side only — never appears in any HTTP response — and never
+ * logs the actual values.
+ *
+ * Why: a missing env var manifests as a 500 from /api/auth/login in
+ * production, with the failure cause invisible without redeploying.
+ * This line in the cold-start log makes the failure mode self-evident:
+ * a glance at Vercel function logs answers "did the build see the
+ * vars" without redeploying with extra logging.
+ */
+let _envCheckLogged = false;
+function logEnvCheckOnce() {
+  if (_envCheckLogged) return;
+  _envCheckLogged = true;
+
+  const present: string[] = [];
+  const missing: string[] = [];
+  for (const k of REQUIRED_ENV_VARS) {
+    const v = process.env[k];
+    if (typeof v === "string" && v.length > 0) {
+      present.push(k);
+    } else {
+      missing.push(k);
+    }
+  }
+
+  const nodeEnv = process.env.NODE_ENV ?? "(unset)";
+  const vercelEnv = process.env.VERCEL_ENV ?? "(unset)";
+
+  // Single-line structured log so it's grep-able from Vercel function logs.
+  console.log(
+    "[@aegis/auth] env check on first /api/auth/* request: " +
+      `NODE_ENV=${nodeEnv} VERCEL_ENV=${vercelEnv} ` +
+      `present=[${present.join(",")}] ` +
+      `missing=[${missing.join(",")}] ` +
+      `auth0_configured=${present.length === REQUIRED_ENV_VARS.length}`,
+  );
+}
+
 /**
  * Returns a handler suitable for the `pages/api/auth/[...auth0].ts`
  * file. Lazy-imports @auth0/nextjs-auth0 only when configured.
  */
 export function makeAuthHandler(): AuthHandler {
   return async (req, res) => {
+    // Cold-start diagnostic — once per process, server-side only.
+    logEnvCheckOnce();
+
     if (!isAuth0Configured()) {
       // Dev mode — describe the state instead of crashing.
       res.status(200).json({
