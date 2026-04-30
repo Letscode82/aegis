@@ -6,7 +6,7 @@ const nextConfig = {
     outputFileTracingRoot: new URL("../../", import.meta.url).pathname,
   },
   // Workspace packages ship as source (.js/.jsx/.ts). Let Next.js transpile them.
-  transpilePackages: ["@aegis/ui", "@aegis/ai", "@aegis/intake", "@aegis/db"],
+  transpilePackages: ["@aegis/ui", "@aegis/ai", "@aegis/intake", "@aegis/db", "@aegis/auth"],
   eslint: {
     // We run ESLint via turbo; don't block production builds on lint.
     ignoreDuringBuilds: true,

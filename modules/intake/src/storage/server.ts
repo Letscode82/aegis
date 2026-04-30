@@ -187,10 +187,16 @@ async function loadTicketsV8(orgId: string): Promise<V8Ticket[]> {
 
 // ── Write path: upsert tickets from a v8 array ───────────────────────
 
-async function saveTicketsV8(orgId: string, tickets: V8Ticket[]): Promise<void> {
-  // Resolve the demo user once — we tag every audit row with their id
-  // as the actor (single-user demo until Step 3 wires Auth0).
-  const demoUser = await getCurrentUser();
+async function saveTicketsV8(
+  orgId: string,
+  tickets: V8Ticket[],
+  ctx?: { req?: { headers: Record<string, string | string[] | undefined> }; res?: unknown },
+): Promise<void> {
+  // Resolve the actor once — every audit row carries this user's id.
+  // Goes through @aegis/auth/server when a request is present, so a
+  // real Auth0 session correctly attributes the audit; otherwise
+  // falls through to the seeded demo user.
+  const demoUser = await getCurrentUser(ctx?.req, ctx?.res);
 
   for (const t of tickets) {
     if (!t.id) continue;
@@ -455,14 +461,27 @@ async function loadAgentLogV8(orgId: string): Promise<unknown[]> {
 // ── Public surface ───────────────────────────────────────────────────
 
 /**
+ * Minimal request shape — accepts NextApiRequest or any object with
+ * a `headers` field. Threaded into @aegis/db's context helpers, which
+ * lazy-load @aegis/auth/server when present (Auth0 session resolution
+ * + dev fallback). Without `req`, the helpers fall back to the seeded
+ * demo user — useful for scripts that have no HTTP context.
+ */
+export type RequestContext = {
+  req?: { headers: Record<string, string | string[] | undefined> };
+  res?: unknown;
+};
+
+/**
  * Resolve a `{value: string} | null` payload for the given storage key.
  * Mirrors `window.storage.get(key)` from the v8 demo.
  */
 export async function intakeStorageGet(
   key: string,
+  ctx: RequestContext = {},
 ): Promise<{ value: string } | null> {
-  const org = await getCurrentOrganization();
-  const user = await getCurrentUser();
+  const org = await getCurrentOrganization(ctx.req, ctx.res);
+  const user = await getCurrentUser(ctx.req, ctx.res);
 
   if (key === K_TICKETS) {
     const tickets = await loadTicketsV8(org.id);
@@ -510,9 +529,10 @@ export async function intakeStorageGet(
 export async function intakeStorageSet(
   key: string,
   value: string,
+  ctx: RequestContext = {},
 ): Promise<void> {
-  const org = await getCurrentOrganization();
-  const user = await getCurrentUser();
+  const org = await getCurrentOrganization(ctx.req, ctx.res);
+  const user = await getCurrentUser(ctx.req, ctx.res);
 
   if (key === K_TICKETS) {
     let parsed: V8Ticket[];
@@ -524,7 +544,7 @@ export async function intakeStorageSet(
     if (!Array.isArray(parsed)) {
       throw new Error("[intake/storage] tickets payload must be an array");
     }
-    await saveTicketsV8(org.id, parsed);
+    await saveTicketsV8(org.id, parsed, ctx);
     return;
   }
   if (key === K_TICKETS_SEEDED) {
@@ -565,9 +585,12 @@ export async function intakeStorageSet(
 /**
  * Delete the value for a key. Mirrors `window.storage.delete(key)`.
  */
-export async function intakeStorageDelete(key: string): Promise<void> {
-  const org = await getCurrentOrganization();
-  const user = await getCurrentUser();
+export async function intakeStorageDelete(
+  key: string,
+  ctx: RequestContext = {},
+): Promise<void> {
+  const org = await getCurrentOrganization(ctx.req, ctx.res);
+  const user = await getCurrentUser(ctx.req, ctx.res);
 
   if (key === K_TICKETS) {
     // Reset path — drop tickets, recommendations, conversations.
