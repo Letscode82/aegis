@@ -27,6 +27,7 @@
     "@prisma/client": "5.22.0"
   },
   "devDependencies": {
+    "@aegis/auth": "workspace:*",
     "@aegis/eslint-config": "workspace:*",
     "@types/node": "^20.17.9",
     "eslint": "^8.57.1",

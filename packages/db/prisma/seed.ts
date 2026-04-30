@@ -34,6 +34,11 @@ import {
   AgentRecommendationStatus,
   ConversationRole,
 } from "@prisma/client";
+import {
+  ROLE_PERMISSIONS,
+  ALL_ROLES,
+  type RoleName,
+} from "@aegis/auth";
 
 const prisma = new PrismaClient();
 
@@ -45,34 +50,14 @@ const DEMO_ORG_NAME = "AEGIS Demo Corp";
 const DEMO_USER_EMAIL = "alex.nguyen@aegis-demo.example";
 const DEMO_USER_NAME = "Alex Nguyen";
 
-// All canonical permission strings. Step 3 will move this list to
-// @aegis/auth and trim per-role; the demo admin gets all of them today.
-const ALL_PERMISSIONS = [
-  "intake:create_ticket",
-  "intake:read_all_tickets",
-  "intake:approve_recommendation",
-  "intake:reject_recommendation",
-  "intake:close_ticket",
-  "matter:read_all",
-  "matter:create",
-  "matter:update",
-  "matter:close",
-  "matter:legal_hold:issue",
-  "matter:legal_hold:release",
-  "matter:legal_hold:custodian_view",
-  "spend:read_all",
-  "spend:approve_invoice",
-  "spend:reject_invoice",
-  "privacy:dsar:read",
-  "privacy:dsar:fulfill",
-  "audit:read_all",
-  "admin:manage_users",
-  "admin:manage_roles",
-];
-
 // ───────────────────────────────────────────────────────────────────
 // Section 1 — Organization, Role, User, Alex Nguyen Person
 // ───────────────────────────────────────────────────────────────────
+//
+// admin Role is created here with the canonical permission set from
+// @aegis/auth.ROLE_PERMISSIONS. Section 7 re-upserts every role
+// (including admin) idempotently, but seeding admin in §1 first lets
+// us link Alex's User row immediately.
 
 async function seedOrgAndAdmin() {
   const org = await prisma.organization.upsert({
@@ -86,15 +71,16 @@ async function seedOrgAndAdmin() {
     },
   });
 
+  const adminPermissions = Array.from(ROLE_PERMISSIONS.admin);
   const adminRole = await prisma.role.upsert({
     where: {
       organizationId_name: { organizationId: org.id, name: "admin" },
     },
-    update: { permissions: ALL_PERMISSIONS },
+    update: { permissions: adminPermissions },
     create: {
       organizationId: org.id,
       name: "admin",
-      permissions: ALL_PERMISSIONS,
+      permissions: adminPermissions,
     },
   });
 
@@ -520,6 +506,11 @@ async function main() {
   const pr = await seedPrivacy(org.id);
   console.log(
     `[seed] dsars=${pr.dsar} data_locations=${pr.locations} consents=${pr.consents} ropas=${pr.ropas} incidents=${pr.incidents}`,
+  );
+
+  const ru = await seedRolesAndTestUsers(org.id);
+  console.log(
+    `[seed] roles=${ru.rolesWritten} test_users=${ru.usersWritten}`,
   );
 
   console.log("[seed] done.");
@@ -1144,4 +1135,91 @@ async function seedPrivacy(orgId: string) {
   });
 
   return { dsar: 1, locations: locations.length, consents: 1, ropas: 2, incidents: 1 };
+}
+
+// ───────────────────────────────────────────────────────────────────
+// Section 7 — Roles + test users
+// ───────────────────────────────────────────────────────────────────
+//
+// Writes all 8 canonical Roles with their full permission sets from
+// @aegis/auth.ROLE_PERMISSIONS, and creates one test user per non-admin
+// role so local dev can preview the demo through different role lenses
+// by setting DEV_USER_EMAIL=<role>.test@aegis-demo.example.
+//
+// Idempotent: every Role is upserted by (organizationId, name); every
+// User is upserted by (organizationId, email). Re-running this section
+// against the Step 2 data refreshes the admin permission JSON from
+// 20 strings (Step 2's literal list) → 37 strings (the canonical
+// superset), and brings the other 7 roles into existence with their
+// default permission bundles. Step 2 data is preserved.
+//
+// admin → Alex Nguyen (existing, from §1)
+// gc, attorney, paralegal, legal_ops, requester, external_counsel, viewer
+//   → seven new test users, one each.
+
+const TEST_USERS: ReadonlyArray<{
+  email: string;
+  name: string;
+  roleName: Exclude<RoleName, "admin">;
+}> = Object.freeze([
+  { email: "marcus.gc@aegis-demo.example",          name: "Marcus Reyes",      roleName: "gc" },
+  { email: "alex.nguyen@aegis-demo.example",         name: "Alex Nguyen",       roleName: "admin" as never } as never, // sentinel; filtered below
+  { email: "lena.attorney@aegis-demo.example",       name: "Lena Pérez",        roleName: "attorney" },
+  { email: "samira.paralegal@aegis-demo.example",    name: "Samira Iqbal",      roleName: "paralegal" },
+  { email: "thomas.legalops@aegis-demo.example",     name: "Thomas Berger",     roleName: "legal_ops" },
+  { email: "alexkim.requester@aegis-demo.example",   name: "Alex Kim",          roleName: "requester" },
+  { email: "rebecca.external@aegis-demo.example",    name: "Rebecca Sato",      roleName: "external_counsel" },
+  { email: "felix.viewer@aegis-demo.example",        name: "Felix Brennan",     roleName: "viewer" },
+].filter((u) => u.roleName !== ("admin" as never)));
+
+async function seedRolesAndTestUsers(orgId: string) {
+  // 1. Upsert every canonical role with the full ROLE_PERMISSIONS list.
+  //    For admin this overwrites Step 2's 20-string seed with the
+  //    canonical 37-string superset.
+  let rolesWritten = 0;
+  for (const roleName of ALL_ROLES) {
+    const permissions = Array.from(ROLE_PERMISSIONS[roleName]);
+    await prisma.role.upsert({
+      where: {
+        organizationId_name: { organizationId: orgId, name: roleName },
+      },
+      update: { permissions },
+      create: {
+        organizationId: orgId,
+        name: roleName,
+        permissions,
+      },
+    });
+    rolesWritten += 1;
+  }
+
+  // 2. Resolve the role rows so we can attach test users to them.
+  const roleRows = await prisma.role.findMany({
+    where: { organizationId: orgId },
+  });
+  const roleIdByName = new Map(roleRows.map((r) => [r.name, r.id]));
+
+  // 3. Upsert one test user per non-admin role (admin is Alex, already
+  //    seeded in §1). Each user gets a deterministic email so
+  //    DEV_USER_EMAIL=<email> can preview the demo as that role.
+  let usersWritten = 0;
+  for (const u of TEST_USERS) {
+    const roleId = roleIdByName.get(u.roleName);
+    if (!roleId) continue;
+    await prisma.user.upsert({
+      where: {
+        organizationId_email: { organizationId: orgId, email: u.email },
+      },
+      update: { name: u.name, roleId },
+      create: {
+        organizationId: orgId,
+        email: u.email,
+        name: u.name,
+        roleId,
+      },
+    });
+    usersWritten += 1;
+  }
+
+  return { rolesWritten, usersWritten };
 }
