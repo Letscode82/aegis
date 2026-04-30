@@ -113,6 +113,43 @@ every checkpoint.
 
 ---
 
+## Documented exceptions to the module-isolation rule
+
+The ESLint `no-restricted-paths` rule is load-bearing. The exceptions
+below are the **only** sanctioned crossings of the module ↔ packages
+boundary. Any new exception requires an entry in this table and a
+prose comment at the disable site explaining the rationale.
+
+| Site | Direction | Why allowed |
+|---|---|---|
+| `packages/db/prisma/seed.ts` | imports `modules/intake/src/seed/{v72-seed,v8-cockpit-seed,v8-bulk-nda-seed}.js` | Dev-only seed script reading its own input. Runs at `pnpm db:seed` time only — never bundled, never imported by app code. The v8 demo fixtures are the canonical demo dataset; duplicating them inside `packages/db` would create two sources of truth. |
+
+### When this pattern is allowed
+- **Build-time / dev-only tooling.** Seed scripts, codegen, fixtures
+  that the app does not import at runtime.
+- **The script reads its own legacy input.** The Step 5 refactor
+  moves the v8 fixtures' canonical home; until then, the seed reads
+  the existing location.
+- **Each crossing is per-line, with a prose justification.** No
+  blanket disables. No file-level disable. No directory-level disable.
+
+### When this pattern is forbidden
+- **Runtime app code.** A page, an API route, a module file, a
+  package — anything that ships in `next build`. Even if it's
+  "just convenience" or "the data is already there."
+- **Citing this exception as precedent.** Each new exception requires
+  its own row in the table above, with its own justification.
+- **Pulling a module's internals into a package to "shortcut" a
+  proper api.ts surface.** That is exactly the architecture this
+  rule prevents. Add the public surface to the module's `api.ts`
+  instead.
+
+If you find yourself wanting a fourth exception, **stop and ask** —
+the right answer is almost always "promote the shared bit into a
+package" or "add it to the module's `api.ts`."
+
+---
+
 ## House rules for editing this repo
 
 - Use **pnpm** (not npm or yarn). The root `packageManager` field pins it.
@@ -162,15 +199,117 @@ enumeration. Until then, the demo runs as a single user with full access.
 
 ---
 
-## Audit log discipline (placeholder)
+## Data access discipline
 
-Step 2 (PR #2) introduces the `AuditLog` entity. From PR #2 onwards, every
-state-changing path must call `logAudit()` from `@aegis/db`. Every PR after
-Step 2 must include audit log entries for the mutations it adds.
+All database reads and writes go through `@aegis/db`. Every module imports
+the singleton `prisma` client from there:
+
+```ts
+import { prisma, logAudit, getCurrentOrganization, type Matter } from "@aegis/db";
+```
+
+- Modules **never** construct their own `PrismaClient` — connection pools
+  must be shared.
+- Modules **never** issue raw SQL — Prisma migrations are the only path.
+- Modules **never** import `@prisma/client` directly — generated types and
+  enums come through `@aegis/db`.
+
+Local dev runs against the Postgres brought up by `docker compose up -d`
+at the repo root. Production runs against Neon. See
+[`packages/db/README.md`](./packages/db/README.md) for the full workflow,
+schema overview, and migration tooling.
+
+### First-class shared entities (do not re-implement)
+
+These live in `@aegis/db` and every module attaches to them. Inventing
+parallel module-specific tables is forbidden:
+
+- `Counterparty` — companies, individuals, law firms, regulators
+- `Person` — humans (employees, external counsel, custodians, data
+  subjects, counterparty contacts) — polymorphic on role
+- `Document` — files, polymorphic on `(ownerType, ownerId)`
+- `Obligation` — commitments sourced from contracts / regulations /
+  policies / privacy laws
+- `Event` — append-only log feeding timelines, search index, notifications
+- `Tag` + `Tagging` — labels with polymorphic many-to-many
+
+If a feature wants `MatterCounterparty`, `ContractParty`, `IntakeDocument`,
+etc. — that's a sign of going wrong. Stop and use the shared entity.
+
+## Audit log discipline (Differentiator #3)
+
+Every state-changing path writes an `AuditLog` row via `logAudit()` from
+`@aegis/db`. There is no "this mutation is too small to log" exception.
+
+```ts
+await logAudit({
+  organizationId,
+  actorId: user.id,           // or null for system / agent actors
+  actorType: "USER",          // "USER" | "AGENT" | "SYSTEM"
+  action: "matter.created",   // dot.notation
+  resourceType: "Matter",
+  resourceId: matter.id,
+  beforeJson: null,           // omit for create
+  afterJson: { title, type }, // omit for delete
+  metadata: { source: "ui" },
+});
+```
+
+The helper is best-effort — failures log but never throw, so the audit
+write cannot roll back the calling mutation.
+
+**Where to call it.** The architecturally correct place is server-side,
+inside the mutation chokepoint, *not* in the React component or hook.
+The server is the only party that sees the canonical pre-mutation state;
+client-side calls can be tampered with. Examples already in the codebase:
+
+- `modules/intake/src/storage/server.ts` writes 5+ canonical audit
+  actions (`intake.ticket.created`, `intake.recommendation.approved`,
+  `intake.recommendation.edited_approved`, `intake.recommendation.rejected`,
+  `intake.recommendation.reassigned`, `intake.recommendation.manual_close`,
+  `intake.recommendation.snoozed`, `intake.ticket.escalated`,
+  `intake.ticket.closed`) by diffing the incoming payload against
+  pre-mutation DB state.
+
+Every PR after Step 2 must include audit log entries for the mutations
+it adds. PR #4 (Matter) needs `matter.*` actions. PR #6 (Spend) needs
+`spend.invoice.*` actions. Etc.
 
 ---
 
-## What's new in PR #1 (this PR)
+## What's new in PR #2 (Step 2 — Postgres + Prisma + shared entity schema)
+
+- `packages/db` is no longer empty.
+  - Full Prisma schema (`prisma/schema.prisma`) — 34 tables across all
+    11 modules, provider = `postgresql`.
+  - Initial migration applied (`prisma/migrations/<ts>_init`).
+  - `PrismaClient` singleton at `@aegis/db` (hung off `globalThis` so
+    Next.js dev hot-reloads do not leak connections).
+  - `logAudit()` helper for the canonical AuditLog write path.
+  - `getCurrentOrganization()` / `getCurrentUser()` stubs — resolve the
+    seeded demo org / user until Step 3 wires Auth0.
+- Local dev runs against the Postgres brought up by the repo-root
+  `docker-compose.yml`. Prod runs against Neon — same schema, different
+  `DATABASE_URL`.
+- Demo seed (`prisma/seed.ts`) — idempotent, six commit-aligned sections:
+  org+user+role, counterparties+requesters+tags, matters+legal-hold,
+  intake tickets (read at runtime from `modules/intake/src/seed/*.js`),
+  spend (vendors/invoices/budgets), privacy (DSAR/ROPA/consent/incident).
+- `window.storage` polyfill is now Prisma-backed.
+  - `modules/intake/src/storage/server.ts` — server-only translation layer
+    that maps the v8 demo's storage keys to Prisma queries.
+  - `apps/web/pages/api/intake/storage.ts` — thin HTTP wrapper.
+  - `modules/intake/src/storage/polyfill.js` — rewritten to fetch the API.
+  - React components don't change; `window.storage` interface preserved.
+- Audit log discipline implemented end-to-end. Every Intake state
+  transition (approve, reject, escalate, close, edit, reassign, …)
+  writes an AuditLog row server-side, transparently — there is no path
+  through the storage API that misses the ledger.
+- `CLAUDE.md` "Documented exceptions" section records the seed's
+  `modules/intake/src/seed → packages/db/prisma/seed.ts` cross-package
+  import — the only sanctioned crossing of the module-isolation rule.
+
+## What's new in PR #1
 
 - pnpm + Turborepo monorepo.
 - Vite → Next.js 14 (Pages Router) migration.

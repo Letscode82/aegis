@@ -1,0 +1,32 @@
+# Local Postgres for AEGIS development.
+#
+# `docker compose up -d` starts a Postgres 16 instance on localhost:5432
+# that the @aegis/db package connects to via DATABASE_URL. The volume
+# `aegis-db-data` persists across container restarts; remove it with
+# `docker compose down -v` to start clean.
+#
+# Production runs against Neon (or another managed Postgres) — DATABASE_URL
+# is the only difference. Schema and migrations are identical.
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: aegis-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: aegis
+      POSTGRES_PASSWORD: aegis
+      POSTGRES_DB: aegis
+    volumes:
+      - aegis-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aegis -d aegis"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  aegis-db-data:
+    name: aegis-db-data

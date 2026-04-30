@@ -6,23 +6,25 @@
   "main": "./src/index.js",
   "exports": {
     ".": "./src/index.js",
-    "./polyfill": "./src/storage/polyfill.js"
+    "./polyfill": "./src/storage/polyfill.js",
+    "./server": "./src/storage/server.ts"
   },
   "files": ["src"],
   "scripts": {
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test": "echo 'no tests yet' && exit 0",
-    "build": "echo 'no build step (source-only package)' && exit 0",
     "dev": "echo 'use apps/web dev'"
   },
   "dependencies": {
     "@aegis/ai": "workspace:*",
+    "@aegis/db": "workspace:*",
     "@aegis/ui": "workspace:*",
     "react": "^18.3.1"
   },
   "devDependencies": {
     "@aegis/eslint-config": "workspace:*",
+    "@types/node": "^20.17.9",
     "@types/react": "^18.3.12",
     "eslint": "^8.57.1",
     "typescript": "5.6.3"

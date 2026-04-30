@@ -4,9 +4,17 @@
     "**/.env.*local",
     "tsconfig.base.json"
   ],
+  "globalEnv": [
+    "NODE_ENV",
+    "VERCEL_ENV"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
+      "env": [
+        "ANTHROPIC_API_KEY",
+        "DATABASE_URL"
+      ],
       "outputs": [
         ".next/**",
         "!.next/cache/**",
@@ -15,7 +23,11 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "env": [
+        "ANTHROPIC_API_KEY",
+        "DATABASE_URL"
+      ]
     },
     "lint": {
       "dependsOn": ["^lint"],
@@ -23,11 +35,27 @@
     },
     "test": {
       "dependsOn": ["^test"],
+      "env": [
+        "DATABASE_URL"
+      ],
       "outputs": ["coverage/**"]
     },
     "typecheck": {
       "dependsOn": ["^typecheck"],
       "outputs": []
+    },
+    "db:generate": {
+      "cache": false,
+      "outputs": ["src/generated/**"]
+    },
+    "db:migrate": {
+      "cache": false,
+      "env": ["DATABASE_URL"],
+      "outputs": ["prisma/migrations/**"]
+    },
+    "db:seed": {
+      "cache": false,
+      "env": ["DATABASE_URL"]
     },
     "clean": {
       "cache": false
