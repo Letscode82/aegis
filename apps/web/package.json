@@ -12,8 +12,11 @@
   },
   "dependencies": {
     "@aegis/ai": "workspace:*",
+    "@aegis/auth": "workspace:*",
+    "@aegis/db": "workspace:*",
     "@aegis/intake": "workspace:*",
     "@aegis/ui": "workspace:*",
+    "@auth0/nextjs-auth0": "3.5.0",
     "next": "14.2.18",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

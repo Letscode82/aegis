@@ -20,12 +20,21 @@ importers:
       '@aegis/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@aegis/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@aegis/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@aegis/intake':
         specifier: workspace:*
         version: link:../../modules/intake
       '@aegis/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@auth0/nextjs-auth0':
+        specifier: 3.5.0
+        version: 3.5.0(next@14.2.18(react-dom@18.3.1(react@18.3.1))(react@18.3.1))
       next:
         specifier: 14.2.18
         version: 14.2.18(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
