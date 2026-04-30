@@ -8,7 +8,7 @@
  * The seed file (prisma/seed.ts) tags the demo org and user with stable
  * external refs so these helpers can resolve them without a session.
  */
-import { prisma } from "./client.js";
+import { prisma } from "./client";
 
 const DEMO_ORG_NAME = "AEGIS Demo Corp";
 const DEMO_USER_EMAIL = "alex.nguyen@aegis-demo.example";
