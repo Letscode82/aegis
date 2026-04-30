@@ -517,6 +517,11 @@ async function main() {
     `[seed] vendors=${sp.vendors} timekeepers=${sp.timekeepers} invoices=${sp.invoices}`,
   );
 
+  const pr = await seedPrivacy(org.id);
+  console.log(
+    `[seed] dsars=${pr.dsar} data_locations=${pr.locations} consents=${pr.consents} ropas=${pr.ropas} incidents=${pr.incidents}`,
+  );
+
   console.log("[seed] done.");
 }
 
@@ -992,4 +997,151 @@ async function seedSpend(orgId: string) {
   });
 
   return { vendors: 3, timekeepers: tkPersons.length, invoices: invoices.length };
+}
+
+// ───────────────────────────────────────────────────────────────────
+// Section 6 — Privacy & Compliance Operations
+// ───────────────────────────────────────────────────────────────────
+//
+// Sample DSAR + DSARDataLocation rows + ConsentRecord +
+// DataProcessingActivity (ROPA) + a low-severity PrivacyIncident.
+// The DSAR requester is a DATA_SUBJECT Person, separate from any
+// employee record they might also hold (identity resolution is
+// @aegis/identity-graph's job, Step 7+).
+
+async function seedPrivacy(orgId: string) {
+  const dataSubject = await prisma.person.upsert({
+    where: { id: "p-ds-jdoe" },
+    update: { name: "J. Doe" },
+    create: {
+      id: "p-ds-jdoe",
+      organizationId: orgId,
+      type: PersonType.DATA_SUBJECT,
+      externalRef: "data-subject:jdoe-001",
+      name: "J. Doe",
+      email: "jdoe@external.example",
+      metadata: {
+        verificationDoc: "passport",
+        jurisdiction: "EU",
+      },
+    },
+  });
+
+  // DSAR — access request, in progress.
+  const dsar = await prisma.dataSubjectRequest.upsert({
+    where: { id: "dsar-2026-001" },
+    update: { status: "IN_PROGRESS" },
+    create: {
+      id: "dsar-2026-001",
+      organizationId: orgId,
+      requesterPersonId: dataSubject.id,
+      requestType: "ACCESS",
+      jurisdiction: "EU",
+      status: "IN_PROGRESS",
+      slaDeadline: new Date(Date.now() + 18 * 24 * 60 * 60 * 1000),
+      verificationStatus: "VERIFIED",
+    },
+  });
+
+  // Data location lookups across systems — found in two, not in one.
+  const locations = [
+    { system: "Salesforce CRM", dataType: "contact-info", found: true,  redactionsRequired: true,  retrieved: true  },
+    { system: "Marketing-DB",   dataType: "email-events",  found: true,  redactionsRequired: false, retrieved: false },
+    { system: "HRIS",           dataType: "employment",    found: false, redactionsRequired: false, retrieved: false },
+  ];
+  for (const l of locations) {
+    await prisma.dSARDataLocation.upsert({
+      where: {
+        requestId_system_dataType: {
+          requestId: dsar.id,
+          system: l.system,
+          dataType: l.dataType,
+        },
+      },
+      update: { found: l.found },
+      create: {
+        requestId: dsar.id,
+        system: l.system,
+        dataType: l.dataType,
+        found: l.found,
+        redactionsRequired: l.redactionsRequired,
+        retrievedAt: l.retrieved ? new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) : null,
+      },
+    });
+  }
+
+  // Consent record — opt-in with EXPLICIT mechanism.
+  await prisma.consentRecord.upsert({
+    where: { id: "cr-jdoe-marketing" },
+    update: {},
+    create: {
+      id: "cr-jdoe-marketing",
+      organizationId: orgId,
+      dataSubjectPersonId: dataSubject.id,
+      purpose: "Marketing communications — product newsletter",
+      mechanism: "EXPLICIT",
+      capturedAt: new Date("2026-01-15T10:00:00Z"),
+    },
+  });
+
+  // ROPA — Record of Processing Activities. Two entries cover the
+  // dataProcessor counterparties seeded in §2 (Saigon Tech Labs,
+  // DataStream AI).
+  await prisma.dataProcessingActivity.upsert({
+    where: {
+      organizationId_name: { organizationId: orgId, name: "Customer support analytics" },
+    },
+    update: {},
+    create: {
+      organizationId: orgId,
+      name: "Customer support analytics",
+      lawfulBasis: "Legitimate interest (recital 47)",
+      dataTypes: ["support-ticket", "anonymised-usage-events"],
+      retentionPeriodDays: 365,
+      dataSubjectCategories: ["customers", "trial-users"],
+      systems: ["Zendesk", "Saigon Tech Labs analytics"],
+      transferredCountries: ["VN"],
+    },
+  });
+  await prisma.dataProcessingActivity.upsert({
+    where: {
+      organizationId_name: { organizationId: orgId, name: "ML model training (anonymised)" },
+    },
+    update: {},
+    create: {
+      organizationId: orgId,
+      name: "ML model training (anonymised)",
+      lawfulBasis: "Contract (Article 6(1)(b))",
+      dataTypes: ["anonymised-product-events"],
+      retentionPeriodDays: 730,
+      dataSubjectCategories: ["customers"],
+      systems: ["DataStream AI"],
+      transferredCountries: ["US"],
+    },
+  });
+
+  // Sample low-severity privacy incident — discovered, contained,
+  // not escalated to regulator.
+  await prisma.privacyIncident.upsert({
+    where: { id: "pi-2026-001" },
+    update: { status: "CONTAINED" },
+    create: {
+      id: "pi-2026-001",
+      organizationId: orgId,
+      severity: "LOW",
+      discoveredAt: new Date("2026-04-10T14:22:00Z"),
+      reportedAt: new Date("2026-04-10T16:00:00Z"),
+      affectedRecordsCount: 12,
+      status: "CONTAINED",
+      regulatorNotified: false,
+      mitigationSteps: [
+        "Misrouted email to internal distribution list — recall sent within 18 minutes",
+        "Confirmed no external recipients via mail-server logs",
+        "Privacy Impact Assessment recorded; no regulator threshold met",
+      ],
+      description: "12 internal records included in an internal-only mail by mistake. No external exposure.",
+    },
+  });
+
+  return { dsar: 1, locations: locations.length, consents: 1, ropas: 2, incidents: 1 };
 }
