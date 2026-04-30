@@ -113,6 +113,43 @@ every checkpoint.
 
 ---
 
+## Documented exceptions to the module-isolation rule
+
+The ESLint `no-restricted-paths` rule is load-bearing. The exceptions
+below are the **only** sanctioned crossings of the module ↔ packages
+boundary. Any new exception requires an entry in this table and a
+prose comment at the disable site explaining the rationale.
+
+| Site | Direction | Why allowed |
+|---|---|---|
+| `packages/db/prisma/seed.ts` | imports `modules/intake/src/seed/{v72-seed,v8-cockpit-seed,v8-bulk-nda-seed}.js` | Dev-only seed script reading its own input. Runs at `pnpm db:seed` time only — never bundled, never imported by app code. The v8 demo fixtures are the canonical demo dataset; duplicating them inside `packages/db` would create two sources of truth. |
+
+### When this pattern is allowed
+- **Build-time / dev-only tooling.** Seed scripts, codegen, fixtures
+  that the app does not import at runtime.
+- **The script reads its own legacy input.** The Step 5 refactor
+  moves the v8 fixtures' canonical home; until then, the seed reads
+  the existing location.
+- **Each crossing is per-line, with a prose justification.** No
+  blanket disables. No file-level disable. No directory-level disable.
+
+### When this pattern is forbidden
+- **Runtime app code.** A page, an API route, a module file, a
+  package — anything that ships in `next build`. Even if it's
+  "just convenience" or "the data is already there."
+- **Citing this exception as precedent.** Each new exception requires
+  its own row in the table above, with its own justification.
+- **Pulling a module's internals into a package to "shortcut" a
+  proper api.ts surface.** That is exactly the architecture this
+  rule prevents. Add the public surface to the module's `api.ts`
+  instead.
+
+If you find yourself wanting a fourth exception, **stop and ask** —
+the right answer is almost always "promote the shared bit into a
+package" or "add it to the module's `api.ts`."
+
+---
+
 ## House rules for editing this repo
 
 - Use **pnpm** (not npm or yarn). The root `packageManager` field pins it.
