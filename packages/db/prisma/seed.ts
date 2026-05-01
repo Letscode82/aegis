@@ -307,21 +307,208 @@ async function seedTags(orgId: string) {
 //                       onboarding (REQ-3503) — closed after DPA
 //                       attached.
 
+// ── 3a. Matter type configuration ────────────────────────────────
+//
+// Per-(organisation, matter type) configuration: numbering format,
+// closeout checklist, default folder structure. Reads from this
+// table seed module behaviour (number assignment, folder auto-create
+// on M365 binding, closeout gating).
+
+const TYPE_CONFIGS: Array<{
+  matterType: MatterType;
+  numberingFormat: string;
+  defaultFolderStructure: string[];
+  closeoutChecklist: Array<{ key: string; label: string; required: boolean }>;
+  documentTemplates: Array<{ key: string; name: string }>;
+}> = [
+  {
+    matterType: MatterType.LITIGATION,
+    numberingFormat: "M-LIT-{YYYY}-{SEQ:4}",
+    defaultFolderStructure: [
+      "Pleadings",
+      "Motions",
+      "Discovery",
+      "Correspondence",
+      "Settlement",
+    ],
+    closeoutChecklist: [
+      { key: "final-judgment", label: "Final judgment / settlement on file", required: true },
+      { key: "preservation-released", label: "Preservation orders released", required: true },
+      { key: "fees-reconciled", label: "Outside-counsel fees reconciled", required: true },
+      { key: "knowledge-entry", label: "Lessons-learned added to Knowledge", required: false },
+    ],
+    documentTemplates: [
+      { key: "complaint", name: "Complaint" },
+      { key: "answer", name: "Answer" },
+      { key: "discovery-request", name: "Discovery Request" },
+    ],
+  },
+  {
+    matterType: MatterType.TRANSACTIONAL,
+    numberingFormat: "M-TXN-{YYYY}-{SEQ:4}",
+    defaultFolderStructure: [
+      "Drafts",
+      "Redlines",
+      "Counterparty Comms",
+      "Executed",
+    ],
+    closeoutChecklist: [
+      { key: "executed-on-file", label: "Executed contract on file", required: true },
+      { key: "obligations-extracted", label: "Obligations extracted to Obligation tracker", required: true },
+      { key: "renewal-flagged", label: "Renewal date flagged on calendar", required: false },
+    ],
+    documentTemplates: [
+      { key: "msa", name: "Master Services Agreement" },
+      { key: "sow", name: "Statement of Work" },
+    ],
+  },
+  {
+    matterType: MatterType.MA,
+    numberingFormat: "M-MA-{YYYY}-{SEQ:4}",
+    defaultFolderStructure: [
+      "Diligence",
+      "Definitive Agreements",
+      "Disclosure Schedules",
+      "Closing",
+      "Post-Closing",
+    ],
+    closeoutChecklist: [
+      { key: "definitive-signed", label: "Definitive agreement signed", required: true },
+      { key: "regulatory-clearances", label: "Regulatory clearances received", required: true },
+      { key: "post-closing-deliverables", label: "Post-closing deliverables filed", required: true },
+    ],
+    documentTemplates: [
+      { key: "loi", name: "Letter of Intent" },
+      { key: "spa", name: "Stock Purchase Agreement" },
+    ],
+  },
+  {
+    matterType: MatterType.IP,
+    numberingFormat: "M-IP-{YYYY}-{SEQ:4}",
+    defaultFolderStructure: ["Filings", "Office Actions", "Prior Art"],
+    closeoutChecklist: [
+      { key: "registration-confirmed", label: "Registration / disposition confirmed", required: true },
+      { key: "renewal-calendared", label: "Renewal calendared", required: false },
+    ],
+    documentTemplates: [{ key: "patent-app", name: "Patent Application" }],
+  },
+  {
+    matterType: MatterType.EMPLOYMENT,
+    numberingFormat: "M-EMP-{YYYY}-{SEQ:4}",
+    defaultFolderStructure: ["Investigation", "External Counsel", "HR", "Outcome"],
+    closeoutChecklist: [
+      { key: "investigation-report", label: "Investigation report finalised", required: true },
+      { key: "hr-action-recorded", label: "HR action recorded", required: true },
+      { key: "hold-released", label: "Legal hold released", required: true },
+    ],
+    documentTemplates: [
+      { key: "investigation-plan", name: "Investigation Plan" },
+    ],
+  },
+  {
+    matterType: MatterType.REGULATORY,
+    numberingFormat: "M-REG-{YYYY}-{SEQ:4}",
+    defaultFolderStructure: ["Filings", "Comments", "Correspondence"],
+    closeoutChecklist: [
+      { key: "filing-submitted", label: "Required filings submitted", required: true },
+    ],
+    documentTemplates: [],
+  },
+  {
+    matterType: MatterType.INVESTIGATION,
+    numberingFormat: "M-INV-{YYYY}-{SEQ:4}",
+    defaultFolderStructure: ["Evidence", "Witness Statements", "Findings"],
+    closeoutChecklist: [
+      { key: "findings-finalised", label: "Findings finalised", required: true },
+      { key: "remediation-tracked", label: "Remediation actions tracked", required: true },
+    ],
+    documentTemplates: [],
+  },
+  {
+    matterType: MatterType.ADVISORY,
+    numberingFormat: "M-ADV-{YYYY}-{SEQ:4}",
+    defaultFolderStructure: ["Memos", "Opinions"],
+    closeoutChecklist: [
+      { key: "memo-finalised", label: "Advisory memo finalised", required: true },
+    ],
+    documentTemplates: [{ key: "advisory-memo", name: "Advisory Memo" }],
+  },
+  {
+    matterType: MatterType.OTHER,
+    numberingFormat: "M-{YYYY}-{SEQ:4}",
+    defaultFolderStructure: ["General"],
+    closeoutChecklist: [],
+    documentTemplates: [],
+  },
+];
+
+async function seedMatterTypeConfigs(orgId: string) {
+  for (const c of TYPE_CONFIGS) {
+    await prisma.matterTypeConfig.upsert({
+      where: {
+        organizationId_matterType: {
+          organizationId: orgId,
+          matterType: c.matterType,
+        },
+      },
+      update: {
+        numberingFormat: c.numberingFormat,
+        defaultFolderStructure: c.defaultFolderStructure,
+        closeoutChecklist: c.closeoutChecklist,
+        documentTemplates: c.documentTemplates,
+      },
+      create: {
+        organizationId: orgId,
+        matterType: c.matterType,
+        numberingFormat: c.numberingFormat,
+        defaultFolderStructure: c.defaultFolderStructure,
+        closeoutChecklist: c.closeoutChecklist,
+        documentTemplates: c.documentTemplates,
+      },
+    });
+  }
+  return TYPE_CONFIGS.length;
+}
+
+function checklistSnapshot(
+  matterType: MatterType,
+): Array<{ key: string; label: string; required: boolean; completed: boolean }> {
+  const config = TYPE_CONFIGS.find((c) => c.matterType === matterType);
+  return (config?.closeoutChecklist ?? []).map((it) => ({
+    key: it.key,
+    label: it.label,
+    required: it.required,
+    completed: false,
+  }));
+}
+
 async function seedMatters(orgId: string, leadAttorneyPersonId: string) {
   // Snowflake MSA
   await prisma.matter.upsert({
     where: { id: "m-snowflake-msa" },
-    update: { title: "Snowflake MSA — Renewal & Re-papering" },
+    update: {
+      title: "Snowflake MSA — Renewal & Re-papering",
+      matterNumber: "M-TXN-2026-0001",
+      jurisdiction: "US-CA",
+      estimatedValue: 2_400_000,
+      estimatedDurationDays: 90,
+      closeoutChecklistJson: checklistSnapshot(MatterType.TRANSACTIONAL),
+    },
     create: {
       id: "m-snowflake-msa",
       organizationId: orgId,
       title: "Snowflake MSA — Renewal & Re-papering",
+      matterNumber: "M-TXN-2026-0001",
       type: MatterType.TRANSACTIONAL,
       status: MatterStatus.OPEN,
+      jurisdiction: "US-CA",
+      estimatedValue: 2_400_000,
+      estimatedDurationDays: 90,
       leadAttorneyId: leadAttorneyPersonId,
       counterpartyId: "cp-snowflake",
       description:
         "Re-papering of master services agreement. Engineering negotiating payment terms (counterparty proposed Net 30 vs our Net 45 playbook). IP § 8.2 ambiguous — flagged for IP team.",
+      closeoutChecklistJson: checklistSnapshot(MatterType.TRANSACTIONAL),
       metadata: { exposure: "$2.4M annual", playbook: "MSA-v2" },
     },
   });
@@ -329,18 +516,48 @@ async function seedMatters(orgId: string, leadAttorneyPersonId: string) {
   // Saigon Tech Labs vendor onboarding (closed)
   await prisma.matter.upsert({
     where: { id: "m-saigon-vendor" },
-    update: { title: "Saigon Tech Labs — Vendor Onboarding" },
+    update: {
+      title: "Saigon Tech Labs — Vendor Onboarding",
+      matterNumber: "M-ADV-2026-0001",
+      jurisdiction: "US-CA",
+      estimatedValue: 180_000,
+      // For a closed matter, mark every required checklist item complete so
+      // the Step 4a state-machine assertion (closeout-gated) holds in seed.
+      closeoutChecklistJson: checklistSnapshot(MatterType.ADVISORY).map((c) =>
+        c.required
+          ? {
+              ...c,
+              completed: true,
+              completedAt: "2026-04-18T15:00:00Z",
+              completedBy: leadAttorneyPersonId,
+            }
+          : c,
+      ),
+    },
     create: {
       id: "m-saigon-vendor",
       organizationId: orgId,
       title: "Saigon Tech Labs — Vendor Onboarding",
+      matterNumber: "M-ADV-2026-0001",
       type: MatterType.ADVISORY,
       status: MatterStatus.CLOSED,
       closedAt: new Date("2026-04-18T15:00:00Z"),
+      jurisdiction: "US-CA",
+      estimatedValue: 180_000,
       leadAttorneyId: leadAttorneyPersonId,
       counterpartyId: "cp-saigon",
       description:
         "Onboarding analytics vendor processing anonymised data. Standard DPA v3.1 attached. Sanctions / ABC / World-Check all clear. Closed within 24h of intake.",
+      closeoutChecklistJson: checklistSnapshot(MatterType.ADVISORY).map((c) =>
+        c.required
+          ? {
+              ...c,
+              completed: true,
+              completedAt: "2026-04-18T15:00:00Z",
+              completedBy: leadAttorneyPersonId,
+            }
+          : c,
+      ),
       metadata: { contractValue: "$180K/yr", dpaVersion: "3.1" },
     },
   });
@@ -348,16 +565,26 @@ async function seedMatters(orgId: string, leadAttorneyPersonId: string) {
   // Employment / harassment matter — has Legal Hold
   const empMatter = await prisma.matter.upsert({
     where: { id: "m-emp-harassment" },
-    update: { title: "Confidential Employment Matter — VP Eng" },
+    update: {
+      title: "Confidential Employment Matter — VP Eng",
+      matterNumber: "M-EMP-2026-0001",
+      jurisdiction: "US-CA",
+      estimatedValue: 850_000,
+      closeoutChecklistJson: checklistSnapshot(MatterType.EMPLOYMENT),
+    },
     create: {
       id: "m-emp-harassment",
       organizationId: orgId,
       title: "Confidential Employment Matter — VP Eng",
+      matterNumber: "M-EMP-2026-0001",
       type: MatterType.EMPLOYMENT,
       status: MatterStatus.ACTIVE,
+      jurisdiction: "US-CA",
+      estimatedValue: 850_000,
       leadAttorneyId: leadAttorneyPersonId,
       description:
         "Harassment complaint filed against VP Engineering. External counsel engaged. Plaintiff's counsel has contacted HR directly. Subject to legal hold.",
+      closeoutChecklistJson: checklistSnapshot(MatterType.EMPLOYMENT),
       metadata: {
         sensitivity: "high",
         externalCounsel: "engaged",
@@ -518,6 +745,88 @@ async function seedLegalHold(orgId: string, empMatterId: string) {
 // Entry point
 // ───────────────────────────────────────────────────────────────────
 
+// ── 3c. Sample matter tasks ──────────────────────────────────────
+//
+// Three open tasks on the Snowflake MSA matter so the matter detail UI
+// has realistic content. Idempotent via stable ids.
+
+async function seedMatterTasks(_orgId: string, alexUserId: string) {
+  const tasks = [
+    {
+      id: "task-snow-redline",
+      matterId: "m-snowflake-msa",
+      title: "Turn redline on §3 (payment terms)",
+      source: "manual",
+    },
+    {
+      id: "task-snow-ip-review",
+      matterId: "m-snowflake-msa",
+      title: "Route §8.2 (IP) to Patricia for ambiguity review",
+      source: "manual",
+    },
+    {
+      id: "task-snow-final-execution",
+      matterId: "m-snowflake-msa",
+      title: "Schedule final execution call",
+      source: "manual",
+      dependsOnTaskId: "task-snow-redline",
+    },
+  ];
+
+  for (const t of tasks) {
+    await prisma.matterTask.upsert({
+      where: { id: t.id },
+      update: { title: t.title },
+      create: {
+        id: t.id,
+        matterId: t.matterId,
+        title: t.title,
+        source: t.source,
+        createdBy: alexUserId,
+        dependsOnTaskId: "dependsOnTaskId" in t ? t.dependsOnTaskId : null,
+      },
+    });
+  }
+  return tasks.length;
+}
+
+// ── 3d. Synthetic AuditLog seed row ──────────────────────────────
+//
+// Writes a "system.boot" row so the AuditLog chain has a known
+// genesis after migration. The CI db-integrity job runs
+// audit-canary.ts after seeding to validate the chain — without at
+// least one row, the canary trivially passes with rows=0 and the
+// trigger never gets exercised.
+//
+// Idempotent via a deterministic resourceId; on re-runs we look up
+// by (orgId, action, resourceId) and skip if present.
+
+async function seedSystemBootAudit(orgId: string) {
+  const resourceId = "demo-org-bootstrap";
+  const existing = await prisma.auditLog.findFirst({
+    where: {
+      organizationId: orgId,
+      action: "system.boot",
+      resourceId,
+    },
+    select: { id: true },
+  });
+  if (existing) return false;
+  await prisma.auditLog.create({
+    data: {
+      organizationId: orgId,
+      actorId: null,
+      actorType: "SYSTEM",
+      action: "system.boot",
+      resourceType: "Organization",
+      resourceId,
+      afterJson: { seededAt: new Date().toISOString() },
+      metadata: { source: "seed", purpose: "audit-chain canary fixture" },
+    },
+  });
+  return true;
+}
+
 async function main() {
   console.log("[seed] starting…");
 
@@ -531,9 +840,20 @@ async function main() {
     `[seed] counterparties=${cpCount} requesters=${reqCount} tags=${tagCount}`,
   );
 
+  const typeConfigCount = await seedMatterTypeConfigs(org.id);
+  console.log(`[seed] matter_type_configs=${typeConfigCount}`);
+
   const { empMatter } = await seedMatters(org.id, alexPerson.id);
   const hold = await seedLegalHold(org.id, empMatter.id);
   console.log(`[seed] matters=3 legal_hold=${hold.id} (status=${hold.status})`);
+
+  const taskCount = await seedMatterTasks(org.id, user.id);
+  console.log(`[seed] matter_tasks=${taskCount}`);
+
+  const bootRowAdded = await seedSystemBootAudit(org.id);
+  console.log(
+    `[seed] system_boot_audit=${bootRowAdded ? "added" : "already present"}`,
+  );
 
   const tk = await seedTickets(org.id);
   console.log(
