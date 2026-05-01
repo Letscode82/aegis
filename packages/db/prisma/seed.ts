@@ -53,8 +53,27 @@ const prisma = new PrismaClient();
 // ───────────────────────────────────────────────────────────────────
 
 const DEMO_ORG_NAME = "AEGIS Demo Corp";
-const DEMO_USER_EMAIL = "alex.nguyen@aegis-demo.example";
 const DEMO_USER_NAME = "Alex Nguyen";
+
+/**
+ * Admin email — env-driven so production deploys use a real, verifiable
+ * address that the admin can actually sign in with via Auth0. The
+ * fallback (`alex.nguyen@aegis-demo.example`) is a non-routable demo
+ * domain and is intended for local dev / CI only.
+ *
+ * In production, set `SEED_ADMIN_EMAIL` in Vercel to the same email
+ * the admin will sign up with on Auth0; otherwise `getResolvedUser()`
+ * in @aegis/auth/server won't find a User row matching the session
+ * email and the dashboard will appear empty.
+ *
+ * Idempotency: this seed identifies the admin by `name === "Alex Nguyen"`
+ * within the demo org rather than by email, so changing
+ * `SEED_ADMIN_EMAIL` between runs updates the existing row's email
+ * instead of creating a duplicate User.
+ */
+const DEMO_USER_EMAIL =
+  (process.env.SEED_ADMIN_EMAIL ?? "").trim() ||
+  "alex.nguyen@aegis-demo.example";
 
 // ───────────────────────────────────────────────────────────────────
 // Section 1 — Organization, Role, User, Alex Nguyen Person
@@ -90,21 +109,38 @@ async function seedOrgAndAdmin() {
     },
   });
 
-  const user = await prisma.user.upsert({
-    where: {
-      organizationId_email: {
-        organizationId: org.id,
-        email: DEMO_USER_EMAIL,
-      },
-    },
-    update: { name: DEMO_USER_NAME, roleId: adminRole.id },
-    create: {
-      organizationId: org.id,
-      email: DEMO_USER_EMAIL,
-      name: DEMO_USER_NAME,
-      roleId: adminRole.id,
-    },
+  // Identify the admin User by name within the demo org, NOT by email.
+  // SEED_ADMIN_EMAIL can change between runs (production rotates it from
+  // the dev fallback to the real Auth0 sign-in address); upserting by
+  // email would create a duplicate User on every change. Looking up by
+  // name keeps us on the same row and just rewrites its email.
+  const existingAdmin = await prisma.user.findFirst({
+    where: { organizationId: org.id, name: DEMO_USER_NAME },
   });
+  const user = existingAdmin
+    ? await prisma.user.update({
+        where: { id: existingAdmin.id },
+        data: {
+          email: DEMO_USER_EMAIL,
+          name: DEMO_USER_NAME,
+          roleId: adminRole.id,
+        },
+      })
+    : await prisma.user.upsert({
+        where: {
+          organizationId_email: {
+            organizationId: org.id,
+            email: DEMO_USER_EMAIL,
+          },
+        },
+        update: { name: DEMO_USER_NAME, roleId: adminRole.id },
+        create: {
+          organizationId: org.id,
+          email: DEMO_USER_EMAIL,
+          name: DEMO_USER_NAME,
+          roleId: adminRole.id,
+        },
+      });
 
   // Alex Nguyen also exists as a Person (the attorney reviewing tickets,
   // assigned to Matters, etc.). userId links the two records — same

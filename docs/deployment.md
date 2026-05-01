@@ -66,6 +66,7 @@ serverless function bundles include the workspace deps.
 | `AUTH0_ISSUER_BASE_URL` | Production | Production + Preview | Auth0 tenant URL, e.g. `https://aegis.us.auth0.com`. |
 | `AUTH0_CLIENT_ID` | Production | Production + Preview | Auth0 application client id. |
 | `AUTH0_CLIENT_SECRET` | Production | Production + Preview | Auth0 application client secret. |
+| `SEED_ADMIN_EMAIL` | Production (required); optional in dev/preview | Production + Preview | Email address the seed writes onto the admin User row. **Must match the email the admin signs into Auth0 with**, or `getResolvedUser()` won't find the User and the dashboard appears empty. Defaults to `alex.nguyen@aegis-demo.example` (a non-routable demo domain) when unset — fine for dev/CI, never for production. Read by `pnpm --filter @aegis/db db:seed`; idempotent across changes (rewrites the existing row by name). |
 | `DEV_USER_EMAIL` | Optional (dev only) | Local `.env` | Override which seeded test user the dev-mode fallback resolves. Defaults to `alex.nguyen@aegis-demo.example` (admin). Set to e.g. `lena.attorney@aegis-demo.example` to preview the demo as an attorney. Has no effect when Auth0 is configured. |
 
 ### Dev-mode fallback (no Auth0)

@@ -185,6 +185,65 @@ Re-running the seed against an already-seeded DB is a no-op (counts
 unchanged, except for the deletes/recreates of recommendation +
 conversation rows which churn deterministically).
 
+## Production seed
+
+The seed is **safe to run against production** with one configuration
+step: set `SEED_ADMIN_EMAIL` to the real email the admin will sign in
+with through Auth0.
+
+| Mode | `SEED_ADMIN_EMAIL` | Admin User row |
+|---|---|---|
+| Local dev / CI | unset | email = `alex.nguyen@aegis-demo.example` (the demo-only fallback) |
+| Production / preview | set to a real address | email = the value of `SEED_ADMIN_EMAIL` |
+
+```bash
+# Production rollout, same flow as PR #10/#11/#13:
+cd apps/web
+pnpm dlx vercel env pull .env.production
+export $(grep -v '^#' .env.production | xargs)
+cd ../..
+
+# DATABASE_URL is the Neon pooled URL; SEED_ADMIN_EMAIL was set in
+# the Vercel dashboard alongside the AUTH0_* vars.
+pnpm --filter @aegis/db db:seed
+```
+
+### Why this matters
+
+`@aegis/auth/server.getResolvedUser()` looks up the User row by the
+session's email address. If the seeded admin's email doesn't match
+the email the admin signs in with on Auth0, the session resolves to
+`null` and the dashboard appears empty. Setting `SEED_ADMIN_EMAIL`
+to the same address prevents the mismatch.
+
+### Idempotency across email changes
+
+The seed identifies the admin User by `name === "Alex Nguyen"` within
+the demo org rather than by email, so changing `SEED_ADMIN_EMAIL`
+between runs **rewrites the existing row's email** instead of creating
+a duplicate User. The Alex Person row uses the stable id
+`demo-person-alex` and gets the same email applied.
+
+```sql
+-- Verified:
+SELECT count(*) FROM "User" WHERE name = 'Alex Nguyen';
+-- → 1, regardless of how many times the seed runs with different SEED_ADMIN_EMAIL values
+```
+
+### Bootstrapping a new tenant
+
+If you're seeding a fresh Neon database for a new prospect/customer:
+
+```bash
+DATABASE_URL=<their-neon-url> SEED_ADMIN_EMAIL=their.gc@theircompany.com \
+  pnpm --filter @aegis/db db:seed
+```
+
+Then the admin's first Auth0 login (with `their.gc@theircompany.com`)
+resolves to the seeded admin User and immediately sees the demo data.
+A future "first-login provisioning" flow will replace this hand-seed
+once we ship multi-tenant onboarding.
+
 ## Reset workflow
 
 To wipe the DB and start clean:

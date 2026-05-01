@@ -202,6 +202,28 @@ certainly need an explicit upstream reference instead — a registration
 flow, a validation step, or a dedicated provisioning endpoint with its
 own audit trail.
 
+### Production seed must use a real, verifiable admin email
+
+The fallback admin email in `packages/db/prisma/seed.ts`
+(`alex.nguyen@aegis-demo.example`) is a non-routable demo domain and
+exists for local dev / CI only. **Production deployments must set
+`SEED_ADMIN_EMAIL`** to the real address the admin will sign in with
+through Auth0.
+
+Reasoning:
+- `@aegis/auth/server.getResolvedUser()` resolves the User row by the
+  Auth0 session's email. A mismatch means the dashboard appears empty
+  — the admin sees a "logged in" state but no data, because the seeded
+  User row has the demo email and the session has the real one.
+- The fallback email is a non-routable domain by design — letting it
+  reach a production User row would silently advertise a fake account
+  in audit-log surfaces and notification fan-outs.
+
+The seed is idempotent across `SEED_ADMIN_EMAIL` changes: it
+identifies the admin User by `name === "Alex Nguyen"` within the demo
+org, so changing the env between runs rewrites the existing row's
+email instead of creating a duplicate.
+
 ---
 
 ## House rules for editing this repo
