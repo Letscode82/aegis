@@ -85,13 +85,19 @@ export type {
   MatterPartyRole,
   MatterStatus,
   MatterTask,
+  MatterTaskStatus,
+  MatterType,
   MatterCostBasis,
+  MatterTypeConfig,
+  MatterFieldTemplate,
+  MatterFieldType,
   AttorneyWorkloadReport,
   DashboardStats,
   ReportPeriod,
   UpdateMatterInput,
   WorkloadReport,
   LegalHold,
+  CloseoutChecklistItem,
 } from "./src/internal/types";
 
 export {
