@@ -101,10 +101,18 @@ module should import from `@aegis/intake`.
 
 ## Foundation plan checkpoints
 
-PR #1 (this PR) — Turborepo + Next.js + module structure.
+PR #1 — Turborepo + Next.js + module structure.
 PR #2 — Postgres + Prisma + full shared entity schema. (Step 2)
 PR #3 — Auth0 + RBAC + permission enumeration. (Step 3)
-PR #4 — Matter Management module with Legal Hold. (Step 4)
+PR #4 — Matter Management module — split into four sub-PRs:
+  4a — Matter foundation: CRUD, state machine, tasks, AuditLog
+       chain (D11), reporting, M365 + AI behind mocked interfaces.
+  4b — Legal Hold workflow (issue, attest, release, custodian view).
+  4c — M365 Graph API client replaces the 4a mock; folders, Teams
+       channels, mail rules auto-provision on matter create.
+  4d — AI features: matter creation suggestions, similar matters,
+       custodian discovery, draft generation. Real Claude calls
+       replace the 4a keyword/static fallbacks.
 PR #5 — Refactor Intake into internal/api split. (Step 5)
 PR #6 — Spend & Counsel module + cross-module flow. (Step 6)
 
@@ -131,6 +139,9 @@ the shared bit into a package or add it to the module's `api.ts`.
 |---|---|---|---|
 | `packages/db/prisma/seed.ts` | imports `modules/intake/src/seed/{v72-seed,v8-cockpit-seed,v8-bulk-nda-seed}.js` | Dev-only seed script reading its own input. Runs at `pnpm db:seed` time only — never bundled, never imported by app code. The v8 demo fixtures are the canonical demo dataset; duplicating them inside `packages/db` would create two sources of truth. | **Sunset at Step 5.** The Intake `internal/api` split absorbs the v8 fixtures into the module's public surface; the seed will then read from `@aegis/intake/api` instead, ending the cross-package import. |
 | `packages/db/prisma/seed.ts` | imports `packages/auth/src/roles` via the relative path `../../auth/src/roles` | Same dev-only seed reads the canonical `ROLE_PERMISSIONS` bundles from `@aegis/auth`. A package-name import would create a turbo-detected cycle (`@aegis/auth` depends on `@aegis/db` at runtime). The relative path skips the `package.json` edge while still pointing at the single source of truth — duplicating the role bundles inside the seed would drift the moment a permission is added. | **Permanent.** Role definitions live in `@aegis/auth` by design; build-time tooling reaching them via relative path is the cleanest way to keep one source of truth without introducing a circular package dep. Revisit if the cycle goes away (e.g., if `@aegis/auth` ever stops depending on `@aegis/db`). |
+| `modules/matter/src/internal/services/m365.ts` | declares `M365Client` interface + `MockM365Client` implementation | The M365 (SharePoint / Teams / Outlook) integration interface ships in 4a so callers (matter create form, document attachment panel) wire against a stable shape. The Graph API client is mocked. | **Sunset at 4c.** The 4c sub-PR replaces `MockM365Client` with the real Graph API client; the interface stays, the implementation changes, no caller moves. |
+| `modules/matter/src/internal/services/cross-module.ts:findSimilarMattersService` | keyword-overlap fallback | Keyword overlap is a placeholder so the matter create form's "similar matters" affordance has real-shaped data today. | **Sunset at 4d.** The 4d sub-PR replaces the keyword fallback with a Claude embedding lookup; same return shape (`MatterMatch[]`). |
+| `modules/matter/src/internal/services/cross-module.ts:getMatterCostBasisService` | reads `Budget` + sums approved/paid `Invoice` rows directly | Spend module is not yet shipped (Step 6). The matter dashboard / detail view need real-shaped cost-basis data today. | **Sunset at Step 6.** The Spend module's `api.ts` will expose `getMatterSpendSummary(matterId)`; this stub is replaced by a single call into `@aegis/spend`, returning the same `MatterCostBasis` shape with `source: "spend-api"`. |
 
 ### When this pattern is allowed
 - **Build-time / dev-only tooling.** Seed scripts, codegen, fixtures
@@ -438,6 +449,78 @@ it adds. PR #4 (Matter) needs `matter.*` actions. PR #6 (Spend) needs
 
 ---
 
+## Architectural Foundations
+
+Cross-cutting commitments that every module inherits. Adding to this
+list requires deliberate consensus; relaxing one is a breaking
+architectural change.
+
+### AuditLog cryptographic chain (D11)
+
+Every module's mutating operations write to `AuditLog` via
+`@aegis/db.logAudit`. The table is **append-only** at the database
+level and **cryptographically chained** so post-hoc tampering is
+detectable.
+
+**Schema.** Each row carries `chainPosition` (per-organisation 1-indexed
+monotonic counter), `prevHash` (SHA-256 of the prior row's
+`contentHash` within the same org; 64 zero-bytes for the genesis row),
+`contentHash` (SHA-256 of the canonical-content text including
+`prevHash` and `chainPosition`), and `schemaVersion` (canonical-content
+shape version, currently 1).
+
+**Triggers.** Postgres triggers, installed by migration
+`20260501120100_step4a_audit_chain`, enforce three invariants:
+
+- `BEFORE INSERT` runs `audit_log_before_insert()` inside a per-org
+  `pg_advisory_xact_lock` so concurrent inserts cannot collide on
+  `chainPosition`. The trigger overwrites whatever `prevHash` /
+  `contentHash` / `chainPosition` the app sent — apps cannot influence
+  these values.
+- `BEFORE UPDATE` raises `check_violation` unconditionally.
+- `BEFORE DELETE` raises `check_violation` unconditionally.
+
+**Verification.** Tamper detection does **not** depend on the
+immutability triggers staying intact. An attacker with superuser could
+disable the triggers, but `verifyAuditChain(orgId)` (in `@aegis/db`)
+recomputes `contentHash` from the row's stored fields via the same
+SQL helper the trigger uses (`audit_log_compute_hash`). Any divergence
+localises the break. The CI `db-integrity` job runs
+`packages/db/scripts/audit-canary.ts` after every migration so a
+schema change that silently invalidates previously-sealed rows fails
+the build.
+
+**Defensibility export.** `exportAuditDefensibilityReport(filter)`
+produces `{ pdfBuffer, jsonReport }`. The JSON report includes each
+row's verbatim `canonicalContent` text — the exact string the trigger
+hashed — so off-database auditors can SHA-256 each row and compare to
+`contentHash` without reproducing JSONB normalisation. The PDF
+embeds the JSON via PDF Info dict (`AegisChainData` base64) **and** as
+an embedded file attachment (`aegis-chain-data.json`).
+
+**This is non-negotiable across all 11 modules.** New modules:
+- **Never** issue raw SQL against `AuditLog`; always go through
+  `logAudit()`.
+- **Never** UPDATE or DELETE an `AuditLog` row. To correct a record,
+  add a corrective audit row.
+- **Never** add `prevHash`, `contentHash`, or `chainPosition` values
+  yourself; the trigger fills them.
+- Bumping `schemaVersion` requires writing a v2 canoniciser SQL
+  function and updating both the trigger and `audit-canary.ts` to
+  dispatch on the version. The whole point of `schemaVersion` is so
+  prior chain segments stay valid; never re-canonicalise.
+
+### Twin-recording (matter timeline + audit)
+
+In `@aegis/matter`, every state-changing path goes through
+`internal/services/timeline.ts:recordMatterEvent()`, which writes both
+the `Event`/`MatterTimeline` rows (product surface) **and** the
+`AuditLog` row (compliance ledger). This is the canonical pattern
+for any new module's mutation chokepoint — module code never writes
+one without the other.
+
+---
+
 ## Module-load architectural guards
 
 Several invariants are enforced at module-import time so a future edit
@@ -506,6 +589,50 @@ admin) keeps `pnpm dev` zero-config, and the production guard prevents
 the silent-downgrade footgun. Both stay through the swap.
 
 ---
+
+## What's new in PR #4 / sub-PR 4a (Step 4a — Matter foundation + AuditLog chain)
+
+- `modules/matter` ships from day one with the `internal/` + `ui/` +
+  `api.ts` split. `api.ts` is the only file other modules can import.
+- Matter CRUD + status state machine + numbering + parties + tasks +
+  closeout gating + reporting are full implementations. Cross-module
+  integration (intake link, counterparty, cost basis, similar
+  matters), M365 client interface, and Legal Hold reads are mocked /
+  stubbed against stable shapes; see "Documented exceptions" for
+  per-mock sunset conditions (4b/4c/4d/Step 6).
+- Status state machine — `DRAFT → OPEN → ACTIVE → STAYED → CLOSED →
+  ARCHIVED`. Transitions enforced with `IllegalMatterTransitionError`.
+  `CLOSED` is gated by the closeout checklist; the helper
+  `closeMatter()` is the only path that can cross to CLOSED.
+- Numbering — per-(org, type) configurable format on
+  `MatterTypeConfig.numberingFormat`. Default `M-{YYYY}-{SEQ:4}`.
+  DRAFT matters skip numbering until promoted.
+- AuditLog cryptographic chain (D11). See "Architectural Foundations".
+  Schema gains `prevHash` / `contentHash` / `chainPosition` /
+  `schemaVersion`. Postgres triggers enforce append-only + chain
+  consistency. `verifyAuditChain` + `exportAuditDefensibilityReport`
+  ship in `@aegis/db`. CI's `db-integrity` job runs the canary script
+  after every migration.
+- New permissions, all already in the `Permission` enum from Step 3:
+  `matter:read_all`, `matter:read_assigned`, `matter:create`,
+  `matter:update`, `matter:close`, `audit:read_all`. Routes in
+  `apps/web` are gated through `canUserDo` / `assertUserCanDo`.
+- New pages: `/matter` (dashboard), `/matter/list`, `/matter/new`,
+  `/matter/[id]` (tabbed detail), `/audit-log`. Aurora design system.
+- New API endpoints: `/api/matter/*` (dashboard, list, CRUD,
+  transition, close, parties, tasks, timeline, cost-basis,
+  legal-holds, audit) + `/api/audit-log` (list, verify, export).
+- Seed §3a–3d: `MatterTypeConfig` rows for all 9 matter types,
+  closeout checklists snapshotted onto the seeded matters, three
+  `MatterTask` rows on the Snowflake matter, and one synthetic
+  `system.boot` `AuditLog` row so the CI canary has data.
+- CLAUDE.md additions:
+  - "Architectural Foundations: AuditLog cryptographic chain (D11)"
+    section codifies the D11 commitment.
+  - Documented exceptions table grows by three: M365 mock (sunset 4c),
+    similar-matter keyword fallback (sunset 4d), Spend cost-basis
+    stub (sunset Step 6).
+  - Foundation plan checkpoint splits PR #4 into 4a/4b/4c/4d.
 
 ## What's new in PR #3 (Step 3 — Auth0 + RBAC + permission model)
 
