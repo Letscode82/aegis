@@ -12,6 +12,7 @@
   "files": ["src", "prisma"],
   "scripts": {
     "build": "prisma generate",
+    "postinstall": "prisma generate || echo '[@aegis/db] prisma generate skipped (likely a CI fallback without @prisma/client present)'",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test": "echo 'no tests yet' && exit 0",
