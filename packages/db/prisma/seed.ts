@@ -801,6 +801,116 @@ async function seedMatterTasks(_orgId: string, alexUserId: string) {
 // Idempotent via a deterministic resourceId; on re-runs we look up
 // by (orgId, action, resourceId) and skip if present.
 
+// ── 3e. Seeded matter audit rows ─────────────────────────────────
+//
+// Seed creates Matter rows via raw upsert (it has to — at seed time
+// there's no actor session, no matter API surface). To make the demo
+// self-consistent — every matter has provable audit history — we
+// write a matter.created AuditLog row for each seeded matter through
+// the same chain-sealed path the API uses.
+//
+// Idempotent: per (orgId, action="matter.created", resourceId) we
+// check first and skip if already present, so re-running the seed
+// does not duplicate rows or extend the chain unnecessarily.
+
+interface SeededMatterAuditFixture {
+  matterId: string;
+  title: string;
+  type: string;
+  status: string;
+  jurisdiction: string | null;
+  estimatedValue: number | null;
+  matterNumber: string | null;
+  counterpartyId: string | null;
+  leadAttorneyId: string;
+  closedAt?: string | null;
+}
+
+async function seedMatterAuditRows(
+  orgId: string,
+  actorUserId: string,
+  alexPersonId: string,
+) {
+  const fixtures: SeededMatterAuditFixture[] = [
+    {
+      matterId: "m-snowflake-msa",
+      title: "Snowflake MSA — Renewal & Re-papering",
+      type: "TRANSACTIONAL",
+      status: "OPEN",
+      jurisdiction: "US-CA",
+      estimatedValue: 2_400_000,
+      matterNumber: "M-TXN-2026-0001",
+      counterpartyId: "cp-snowflake",
+      leadAttorneyId: alexPersonId,
+    },
+    {
+      matterId: "m-saigon-vendor",
+      title: "Saigon Tech Labs — Vendor Onboarding",
+      type: "ADVISORY",
+      status: "CLOSED",
+      jurisdiction: "US-CA",
+      estimatedValue: 180_000,
+      matterNumber: "M-ADV-2026-0001",
+      counterpartyId: "cp-saigon",
+      leadAttorneyId: alexPersonId,
+      closedAt: "2026-04-18T15:00:00Z",
+    },
+    {
+      matterId: "m-emp-harassment",
+      title: "Confidential Employment Matter — VP Eng",
+      type: "EMPLOYMENT",
+      status: "ACTIVE",
+      jurisdiction: "US-CA",
+      estimatedValue: 850_000,
+      matterNumber: "M-EMP-2026-0001",
+      counterpartyId: null,
+      leadAttorneyId: alexPersonId,
+    },
+  ];
+
+  let written = 0;
+  let skipped = 0;
+  for (const f of fixtures) {
+    const existing = await prisma.auditLog.findFirst({
+      where: {
+        organizationId: orgId,
+        action: "matter.created",
+        resourceType: "Matter",
+        resourceId: f.matterId,
+      },
+      select: { id: true },
+    });
+    if (existing) {
+      skipped++;
+      continue;
+    }
+    await prisma.auditLog.create({
+      data: {
+        organizationId: orgId,
+        actorId: actorUserId,
+        actorType: "USER",
+        action: "matter.created",
+        resourceType: "Matter",
+        resourceId: f.matterId,
+        afterJson: {
+          id: f.matterId,
+          matterNumber: f.matterNumber,
+          title: f.title,
+          type: f.type,
+          status: f.status,
+          jurisdiction: f.jurisdiction,
+          counterpartyId: f.counterpartyId,
+          leadAttorneyId: f.leadAttorneyId,
+          ...(f.closedAt ? { closedAt: f.closedAt } : {}),
+        },
+        metadata: { source: "seed", note: "demo-seeded matter" },
+      },
+    });
+    written++;
+  }
+  return { written, skipped };
+}
+
 async function seedSystemBootAudit(orgId: string) {
   const resourceId = "demo-org-bootstrap";
   const existing = await prisma.auditLog.findFirst({
@@ -846,6 +956,11 @@ async function main() {
   const { empMatter } = await seedMatters(org.id, alexPerson.id);
   const hold = await seedLegalHold(org.id, empMatter.id);
   console.log(`[seed] matters=3 legal_hold=${hold.id} (status=${hold.status})`);
+
+  const ma = await seedMatterAuditRows(org.id, user.id, alexPerson.id);
+  console.log(
+    `[seed] matter_audit_rows=${ma.written} skipped_existing=${ma.skipped}`,
+  );
 
   const taskCount = await seedMatterTasks(org.id, user.id);
   console.log(`[seed] matter_tasks=${taskCount}`);

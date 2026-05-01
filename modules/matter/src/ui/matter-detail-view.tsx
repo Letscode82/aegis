@@ -363,46 +363,434 @@ const OverviewPanel: React.FC<{ matter: MatterDTO }> = ({ matter }) => {
 
 // ── Team panel ────────────────────────────────────────────────────
 
+type AssignableRole = "LEAD_ATTORNEY" | "ATTORNEY" | "PARALEGAL" | "OPS_SUPPORT";
+
+const ASSIGNABLE_ROLES: Array<{ value: AssignableRole; label: string }> = [
+  { value: "LEAD_ATTORNEY", label: "Lead attorney" },
+  { value: "ATTORNEY", label: "Secondary attorney" },
+  { value: "PARALEGAL", label: "Paralegal" },
+  { value: "OPS_SUPPORT", label: "Ops support" },
+];
+
+interface PersonSummary {
+  id: string;
+  name: string;
+  email: string | null;
+  type: string;
+}
+
 const TeamPanel: React.FC<{ matterId: string }> = ({ matterId }) => {
   const [parties, setParties] = useState<MatterPartyDTO[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [adding, setAdding] = useState(false);
+
   useEffect(() => {
+    let alive = true;
     fetch(`/api/matter/${matterId}/parties`)
-      .then((r) => r.json())
-      .then(setParties)
-      .catch(() => setParties([]));
-  }, [matterId]);
+      .then((r) => (r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`)))
+      .then((d: MatterPartyDTO[]) => {
+        if (alive) setParties(d);
+      })
+      .catch((e) => {
+        if (!alive) return;
+        setError(String(e));
+        setParties([]);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [matterId, reloadKey]);
+
+  function reload() {
+    setReloadKey((k) => k + 1);
+  }
+
+  async function remove(personId: string) {
+    setError(null);
+    try {
+      const r = await fetch(
+        `/api/matter/${matterId}/parties?personId=${encodeURIComponent(personId)}`,
+        { method: "DELETE" },
+      );
+      if (!r.ok && r.status !== 204) {
+        throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+      }
+      reload();
+    } catch (e) {
+      setError(String(e));
+    }
+  }
+
   return (
     <Card>
-      <SH icon="👥" title="Team" />
-      {!parties && <div style={{ color: C.t3, fontSize: 11 }}>Loading…</div>}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <SH
+          icon="👥"
+          title="Team"
+          sub={`${parties?.length ?? 0} member${parties?.length === 1 ? "" : "s"}`}
+        />
+        <button
+          type="button"
+          onClick={() => setAdding(true)}
+          style={{
+            background: C.bl,
+            border: "none",
+            color: C.bg,
+            padding: "6px 12px",
+            fontFamily: F,
+            fontWeight: 700,
+            fontSize: 11,
+            borderRadius: 4,
+            cursor: "pointer",
+            letterSpacing: 0.5,
+            textTransform: "uppercase",
+          }}
+        >
+          + Add team member
+        </button>
+      </div>
+      {error && (
+        <div style={{ color: C.rd, fontSize: 11, fontFamily: M, marginTop: 8 }}>
+          {error}
+        </div>
+      )}
+      {!parties && (
+        <div style={{ color: C.t3, fontSize: 11, marginTop: 10 }}>Loading…</div>
+      )}
       {parties && parties.length === 0 && (
-        <div style={{ color: C.t3, fontSize: 11 }}>No team members assigned yet.</div>
+        <div style={{ color: C.t3, fontSize: 11, marginTop: 10 }}>
+          No team members assigned yet.
+        </div>
       )}
       {parties && parties.length > 0 && (
-        <div style={{ display: "grid", gap: 4 }}>
+        <div style={{ display: "grid", gap: 4, marginTop: 10 }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 160px 110px 80px",
+              padding: "6px 8px",
+              fontSize: 9.5,
+              fontWeight: 600,
+              color: C.t3,
+              background: C.s1,
+              letterSpacing: 1,
+              textTransform: "uppercase",
+              fontFamily: F,
+              borderBottom: `1px solid ${C.br}22`,
+            }}
+          >
+            <div>Person</div>
+            <div>Role</div>
+            <div>Added</div>
+            <div></div>
+          </div>
           {parties.map((p) => (
             <div
               key={p.id}
               style={{
                 display: "grid",
-                gridTemplateColumns: "1fr 140px 100px",
+                gridTemplateColumns: "1fr 160px 110px 80px",
                 fontSize: 11,
-                padding: "4px 8px",
+                padding: "6px 8px",
                 color: C.t1,
                 fontFamily: F,
                 borderBottom: `1px solid ${C.br}22`,
+                alignItems: "center",
               }}
             >
               <div>{p.personName ?? p.personId}</div>
-              <div style={{ fontFamily: M, color: C.t3, fontSize: 10 }}>{p.role}</div>
+              <div style={{ fontFamily: M, color: C.t3, fontSize: 10.5 }}>{p.role}</div>
               <div style={{ fontFamily: M, color: C.t3, fontSize: 10 }}>
                 {new Date(p.addedAt).toISOString().slice(0, 10)}
+              </div>
+              <div style={{ textAlign: "right" }}>
+                <button
+                  type="button"
+                  onClick={() => remove(p.personId)}
+                  style={{
+                    background: "transparent",
+                    border: `1px solid ${C.rd}55`,
+                    color: C.rd,
+                    fontSize: 10,
+                    fontFamily: F,
+                    padding: "2px 8px",
+                    borderRadius: 4,
+                    cursor: "pointer",
+                    letterSpacing: 0.3,
+                  }}
+                >
+                  Remove
+                </button>
               </div>
             </div>
           ))}
         </div>
       )}
+      {adding && (
+        <AddTeamMemberDialog
+          matterId={matterId}
+          existingPersonIds={new Set((parties ?? []).map((p) => p.personId))}
+          onClose={() => setAdding(false)}
+          onAdded={() => {
+            setAdding(false);
+            reload();
+          }}
+        />
+      )}
     </Card>
+  );
+};
+
+const AddTeamMemberDialog: React.FC<{
+  matterId: string;
+  existingPersonIds: Set<string>;
+  onClose: () => void;
+  onAdded: () => void;
+}> = ({ matterId, existingPersonIds, onClose, onAdded }) => {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<PersonSummary[]>([]);
+  const [picked, setPicked] = useState<PersonSummary | null>(null);
+  const [role, setRole] = useState<AssignableRole>("ATTORNEY");
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    setSearching(true);
+    const params = new URLSearchParams();
+    if (query.trim()) params.set("q", query.trim());
+    fetch(`/api/matter/people/search?${params.toString()}`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`)))
+      .then((d: PersonSummary[]) => {
+        if (alive) setResults(d);
+      })
+      .catch((e) => alive && setError(String(e)))
+      .finally(() => alive && setSearching(false));
+    return () => {
+      alive = false;
+    };
+  }, [query]);
+
+  async function submit() {
+    if (!picked) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/matter/${matterId}/parties`, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ personId: picked.id, role }),
+      });
+      if (!r.ok && r.status !== 201) {
+        throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+      }
+      onAdded();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,.65)",
+        zIndex: 50,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+      onClick={onClose}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background: C.cd,
+          border: `1px solid ${C.brL}`,
+          padding: 18,
+          minWidth: 480,
+          maxHeight: "80vh",
+          overflowY: "auto",
+          fontFamily: F,
+          color: C.t1,
+        }}
+      >
+        <SH icon="✚" title="Add team member" sub="Pick a person and assign a role" />
+        <div style={{ marginTop: 12 }}>
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search by name or email…"
+            autoFocus
+            style={{
+              background: C.s1,
+              border: `1px solid ${C.br}`,
+              padding: "6px 10px",
+              borderRadius: 4,
+              color: C.t1,
+              fontFamily: M,
+              fontSize: 11,
+              outline: "none",
+              width: "100%",
+            }}
+          />
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gap: 2,
+            marginTop: 8,
+            maxHeight: 220,
+            overflowY: "auto",
+            border: `1px solid ${C.br}`,
+            borderRadius: 4,
+          }}
+        >
+          {searching && results.length === 0 && (
+            <div style={{ padding: 8, color: C.t3, fontSize: 11, fontFamily: M }}>
+              Searching…
+            </div>
+          )}
+          {!searching && results.length === 0 && (
+            <div style={{ padding: 8, color: C.t3, fontSize: 11, fontFamily: M }}>
+              No people match.
+            </div>
+          )}
+          {results.map((p) => {
+            const already = existingPersonIds.has(p.id);
+            const isPicked = picked?.id === p.id;
+            return (
+              <div
+                key={p.id}
+                onClick={() => !already && setPicked(p)}
+                style={{
+                  padding: "6px 10px",
+                  cursor: already ? "default" : "pointer",
+                  background: isPicked ? C.blG : "transparent",
+                  borderLeft: isPicked ? `2px solid ${C.bl}` : "2px solid transparent",
+                  opacity: already ? 0.5 : 1,
+                  display: "grid",
+                  gridTemplateColumns: "1fr 140px 80px",
+                  gap: 8,
+                  fontSize: 11,
+                  borderBottom: `1px solid ${C.br}22`,
+                }}
+              >
+                <span style={{ color: C.t1 }}>{p.name}</span>
+                <span style={{ color: C.t3, fontFamily: M, fontSize: 10 }}>
+                  {p.email ?? ""}
+                </span>
+                <span
+                  style={{
+                    color: already ? C.t4 : C.t3,
+                    fontFamily: M,
+                    fontSize: 9,
+                    textAlign: "right",
+                    letterSpacing: 0.5,
+                    textTransform: "uppercase",
+                  }}
+                >
+                  {already ? "on team" : p.type}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr auto",
+            gap: 12,
+            marginTop: 12,
+            alignItems: "end",
+          }}
+        >
+          <div>
+            <label style={{ fontSize: 10, color: C.t3, fontFamily: F }}>Role</label>
+            <select
+              value={role}
+              onChange={(e) => setRole(e.target.value as AssignableRole)}
+              style={{
+                background: C.s1,
+                border: `1px solid ${C.br}`,
+                padding: "5px 9px",
+                borderRadius: 4,
+                color: C.t1,
+                fontFamily: M,
+                fontSize: 11,
+                outline: "none",
+                width: "100%",
+                marginTop: 2,
+              }}
+            >
+              {ASSIGNABLE_ROLES.map((r) => (
+                <option key={r.value} value={r.value}>
+                  {r.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              type="button"
+              onClick={onClose}
+              style={{
+                background: "transparent",
+                border: `1px solid ${C.br}`,
+                color: C.t1,
+                padding: "6px 14px",
+                borderRadius: 4,
+                cursor: "pointer",
+                fontFamily: F,
+                fontSize: 11,
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={!picked || submitting}
+              onClick={submit}
+              style={{
+                background: picked ? C.bl : C.br,
+                border: "none",
+                color: C.bg,
+                padding: "6px 18px",
+                borderRadius: 4,
+                cursor: picked ? (submitting ? "wait" : "pointer") : "default",
+                fontFamily: F,
+                fontSize: 11,
+                fontWeight: 700,
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+              }}
+            >
+              {submitting ? "Adding…" : "Add"}
+            </button>
+          </div>
+        </div>
+        {error && (
+          <div
+            style={{
+              color: C.rd,
+              fontSize: 11,
+              fontFamily: M,
+              marginTop: 8,
+              padding: 8,
+              border: `1px solid ${C.rd}55`,
+              borderRadius: 4,
+            }}
+          >
+            {error}
+          </div>
+        )}
+      </div>
+    </div>
   );
 };
 
