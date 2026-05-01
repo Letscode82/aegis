@@ -64,11 +64,13 @@ CREATE UNIQUE INDEX "Matter_organizationId_matterNumber_key"
   ON "Matter"("organizationId", "matterNumber")
   WHERE "matterNumber" IS NOT NULL;
 
--- Existing seeded rows have status DEFAULT OPEN, but the schema's new
--- default is DRAFT. Existing rows keep their current value (no UPDATE),
--- new rows default to DRAFT. The default is a column-level concern —
--- alter only the column's default, not the data.
-ALTER TABLE "Matter" ALTER COLUMN "status" SET DEFAULT 'DRAFT';
+-- Note: the column-default flip to 'DRAFT' lives in the follow-on
+-- migration step4a_matter_status_default. Postgres rejects "ALTER
+-- COLUMN ... SET DEFAULT 'DRAFT'" in the same transaction that
+-- ALTER TYPE ... ADD VALUE 'DRAFT' (above) introduced the value:
+-- "unsafe use of new value 'DRAFT' of enum type MatterStatus".
+-- Splitting the SET DEFAULT into the next migration lets the new
+-- enum value commit before any DDL references it.
 
 -- ════════════════════════════════════════════════════════════════════
 -- 4. AuditLog chain fields

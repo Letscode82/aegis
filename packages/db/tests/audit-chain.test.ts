@@ -207,6 +207,9 @@ describe("AuditLog defensibility export", () => {
 describe("AuditLog chain — scale", () => {
   it("verifies a 10,000-row chain in under 5 seconds", async () => {
     const orgId = await makeOrg("test-scale-10k");
+    // Per-run id prefix so two runs against the same database don't collide
+    // on AuditLog primary keys when the cleanup didn't get a chance to run.
+    const runPrefix = `s${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
     try {
       // Bulk-insert through Postgres via an INSERT ... SELECT generates 10k
       // rows much faster than 10k Prisma round trips. We let the BEFORE
@@ -217,7 +220,7 @@ describe("AuditLog chain — scale", () => {
         INSERT INTO "AuditLog"
           ("id", "organizationId", "actorType", "action", "resourceType", "resourceId", "afterJson", "schemaVersion")
         SELECT
-          'ck' || lpad(g::text, 14, '0'),
+          $2::text || lpad(g::text, 10, '0'),
           $1::text,
           'SYSTEM',
           'test.scale',
@@ -228,10 +231,16 @@ describe("AuditLog chain — scale", () => {
         FROM generate_series(1, 10000) g
       `,
         orgId,
+        runPrefix,
       );
       const startedAt = Date.now();
       const result = await verifyAuditChain(orgId);
       const elapsedMs = Date.now() - startedAt;
+      // Surface the measured value to the run log so reviewers can see
+      // the actual headroom against the 5s budget without re-running.
+      console.log(
+        `[scale] verifyAuditChain(10000 rows) elapsedMs=${elapsedMs} (budget 5000)`,
+      );
       expect(result.intact).toBe(true);
       expect(result.rowsChecked).toBe(10_000);
       expect(elapsedMs).toBeLessThan(5_000);
@@ -244,6 +253,7 @@ describe("AuditLog chain — scale", () => {
 describe("logAudit — chain-fill side effect", () => {
   it("apps cannot influence prevHash / contentHash / chainPosition", async () => {
     const orgId = await makeOrg("test-tamper-on-insert");
+    const evilId = `evil-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
     try {
       // Even if an app explicitly sends bogus chain values via raw SQL,
       // the trigger overwrites them. Prisma's create() doesn't expose a
@@ -254,7 +264,7 @@ describe("logAudit — chain-fill side effect", () => {
           ("id", "organizationId", "actorType", "action", "resourceType", "resourceId",
            "afterJson", "prevHash", "contentHash", "chainPosition", "schemaVersion")
         VALUES (
-          'evil-row',
+          $4::text,
           $1::text,
           'USER',
           'test.evil',
@@ -270,9 +280,10 @@ describe("logAudit — chain-fill side effect", () => {
         orgId,
         "f".repeat(64), // bogus prevHash
         "e".repeat(64), // bogus contentHash
+        evilId,
       );
       const inserted = await prisma.auditLog.findUnique({
-        where: { id: "evil-row" },
+        where: { id: evilId },
       });
       expect(inserted).not.toBeNull();
       // Trigger should have rewritten chainPosition to 1 (genesis)

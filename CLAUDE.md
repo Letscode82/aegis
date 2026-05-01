@@ -485,10 +485,13 @@ immutability triggers staying intact. An attacker with superuser could
 disable the triggers, but `verifyAuditChain(orgId)` (in `@aegis/db`)
 recomputes `contentHash` from the row's stored fields via the same
 SQL helper the trigger uses (`audit_log_compute_hash`). Any divergence
-localises the break. The CI `db-integrity` job runs
-`packages/db/scripts/audit-canary.ts` after every migration so a
-schema change that silently invalidates previously-sealed rows fails
-the build.
+localises the break. The CI `db-integrity` job is a **pre-merge
+required check**: every PR brings up Postgres, applies all migrations
+from scratch, seeds, runs `packages/db/scripts/audit-canary.ts`, and
+runs the `@aegis/db` integration suite (`pnpm --filter @aegis/db run
+test:db`). A migration or service change that silently invalidates
+previously-sealed rows — or that breaks any of the seven chain
+invariants the suite asserts — fails the build and blocks merge.
 
 **Defensibility export.** `exportAuditDefensibilityReport(filter)`
 produces `{ pdfBuffer, jsonReport }`. The JSON report includes each
@@ -611,8 +614,10 @@ the silent-downgrade footgun. Both stay through the swap.
   Schema gains `prevHash` / `contentHash` / `chainPosition` /
   `schemaVersion`. Postgres triggers enforce append-only + chain
   consistency. `verifyAuditChain` + `exportAuditDefensibilityReport`
-  ship in `@aegis/db`. CI's `db-integrity` job runs the canary script
-  after every migration.
+  ship in `@aegis/db`. CI's `db-integrity` job is a pre-merge
+  required check — it brings up Postgres, applies migrations, seeds,
+  runs the canary script and the integration suite; a chain
+  regression blocks merge.
 - New permissions, all already in the `Permission` enum from Step 3:
   `matter:read_all`, `matter:read_assigned`, `matter:create`,
   `matter:update`, `matter:close`, `audit:read_all`. Routes in
