@@ -63,7 +63,9 @@ packages/
   eslint-config/   Shared ESLint + module-isolation rule
 modules/
   intake/          Bulk-moved in Step 1; api.ts split in Step 5
-  (matter/, spend/, … added in Steps 4–6)
+  matter/          Step 4a — internal/ + ui/ + api.ts from day one
+  admin/           Platform admin (users + roles) — internal/ + ui/ + api.ts
+  (spend/, … added in Step 6)
 reference/aegis-v7-aurora.jsx   Preserved monolith. Read-only.
 ```
 
@@ -592,6 +594,42 @@ admin) keeps `pnpm dev` zero-config, and the production guard prevents
 the silent-downgrade footgun. Both stay through the swap.
 
 ---
+
+## What's new in PR #20 (Admin module — users + roles)
+
+- New `modules/admin` ships with the `internal/` + `ui/` + `api.ts`
+  layout. The package owns user-management and role-management
+  surfaces; mutations go through `api.ts`, never raw Prisma. Module
+  isolation is preserved.
+- New `User.suspendedAt` column. Soft-delete: the User row stays so
+  AuditLog references still resolve, but
+  `@aegis/auth/server.getResolvedUser` now refuses suspended users so
+  they cannot authenticate. Reactivation clears the column.
+- New side-nav group `ADMIN` (rendered when at least one of its
+  entries is permitted): Users, Roles, Audit Log. Audit Log moves
+  here from Intelligence — the three live together because they're
+  all platform-administration affordances. Each entry is
+  permission-gated (`admin:manage_users`, `admin:manage_roles`,
+  `audit:read_all` respectively).
+- Two structural guards:
+  - `LastAdminProtectedError` — blocks suspending or demoting the
+    last admin user in an organisation. The platform must always
+    have a path back into admin tooling.
+  - `AdminSupersetViolationError` — runtime sibling of the
+    module-load `admin role is the superuser bundle` assertion in
+    `@aegis/auth.roles`. Catches "I'll just toggle one off in the
+    admin UI" before it lands.
+- Every admin mutation writes a chain-sealed AuditLog row:
+  - `user.invited`, `user.role.changed`, `user.suspended`,
+    `user.reactivated`
+  - `role.permissions.updated` with before/after permission arrays
+    plus an `added` / `removed` diff in metadata
+- New CI check: `pnpm --filter @aegis/admin run test:db` runs in
+  the `db-integrity` job, six tests covering both guards and the
+  chain-sealed permission audit row. Pure unit tests (permission
+  catalog coverage, diff helper) run in the default test stage.
+- Deep-link redirects added: `/admin/users` and `/admin/roles` 307 to
+  `/?view=users` and `/?view=roles`.
 
 ## What's new in PR #4 / sub-PR 4a (Step 4a — Matter foundation + AuditLog chain)
 

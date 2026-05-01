@@ -7,6 +7,7 @@ import { ALL_APPROVALS, ALL_ALERTS } from "./data/aggregate";
 import { DailyView, AlertsView, ApprovalsView, ContractsView, RegulatoryView, LitigationView, ComplianceView, SpendView, GovernanceView } from "./views/v72";
 import { MissionControlView, BoardReportView, BrainView, OCMView, CyberView, WorkflowBuilderView, ArchitectureView, RiskGraphView, ScenariosView } from "./views/v8";
 import { MatterManagementShell, AuditLogShell } from "./views/matter-shell.jsx";
+import { AdminUsersShell, AdminRolesShell } from "./views/admin-shell.jsx";
 
 // Reads `?view=...` on first mount so deep links (e.g. /matter/[id]
 // rewriting to /?view=matters&matterId=...) land in the right tile.
@@ -33,7 +34,8 @@ export default function App(){
     regulatory:RegulatoryView,graph:RiskGraphView,scenarios:ScenariosView,
     ocm:OCMView,spend:SpendView,governance:GovernanceView,
     cyber:CyberView,brain:BrainView,board:BoardReportView,workflows:WorkflowBuilderView,
-    architecture:ArchitectureView,audit:AuditLogShell};
+    architecture:ArchitectureView,
+    users:AdminUsersShell,roles:AdminRolesShell,audit:AuditLogShell};
   const Comp=V[view]||DailyView;
 
   // Filter NAV by the user's permissions. Entries without a `permission`
@@ -41,7 +43,21 @@ export default function App(){
   // current-user query returns and confirms the grant. The server-side
   // gate on the underlying API stays authoritative — the nav filter is
   // a UX-only refinement.
-  const visibleNav=NAV.filter(n=>!n.permission||(authLoading?false:has(n.permission)));
+  const permFiltered=NAV.filter(n=>!n.permission||(authLoading?false:has(n.permission)));
+  // Drop dangling dividers — when a permission filter hides every
+  // entry of a group (e.g. ADMIN for non-admins), the surrounding
+  // divider is meaningless decor. Keep a divider only if the entries
+  // before and after it belong to different groups.
+  const visibleNav=permFiltered.filter((n,i,arr)=>{
+    if(!n.id.startsWith("divider")) return true;
+    let next=null;
+    for(let j=i+1;j<arr.length;j++){if(!arr[j].id.startsWith("divider")){next=arr[j];break;}}
+    if(!next) return false;
+    let prev=null;
+    for(let j=i-1;j>=0;j--){if(!arr[j].id.startsWith("divider")){prev=arr[j];break;}}
+    if(!prev) return false;
+    return prev.group!==next.group;
+  });
 
   return <div style={{display:"flex",minHeight:"100vh",background:C.bg,fontFamily:F,color:C.t1}}>
     <style>{CSS}</style>

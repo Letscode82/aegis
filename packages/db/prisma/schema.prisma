@@ -97,6 +97,11 @@ model User {
   name           String
   roleId         String?
   lastLoginAt    DateTime?
+  /// Set when an admin suspends the user. Soft delete: the User row
+  /// stays so AuditLog references stay resolvable (actorId), but
+  /// getResolvedUser refuses to return suspended users so they cannot
+  /// authenticate. Cleared by reactivation.
+  suspendedAt    DateTime?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
