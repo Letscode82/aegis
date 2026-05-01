@@ -16,6 +16,18 @@
 export { prisma } from "./client";
 export { logAudit, type LogAuditInput, type AuditActorType } from "./audit";
 export {
+  verifyAuditChain,
+  type ChainBreak,
+  type ChainVerificationResult,
+} from "./audit-verify";
+export {
+  exportAuditDefensibilityReport,
+  type AuditDefensibilityFilter,
+  type AuditDefensibilityReport,
+  type AuditDefensibilityJsonReport,
+  type AuditDefensibilityRow,
+} from "./audit-export";
+export {
   getCurrentOrganization,
   getCurrentUser,
   type CurrentUser,
