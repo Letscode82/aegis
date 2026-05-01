@@ -4,6 +4,32 @@ const nextConfig = {
   experimental: {
     // Trace files from the monorepo root so output bundles include workspace deps.
     outputFileTracingRoot: new URL("../../", import.meta.url).pathname,
+    // Force-include the Prisma query engine binaries in the serverless
+    // function bundle. Next.js's tracer doesn't follow Prisma's runtime
+    // fs.readFileSync(<engine.so.node>) — the binary is loaded at engine
+    // init by path, not via require() — so the .so.node files are
+    // missing from the bundle without an explicit include.
+    //
+    // Symptom on Vercel without this:
+    //   PrismaClientInitializationError: Prisma Client could not locate
+    //   the Query Engine for runtime "rhel-openssl-3.0.x"
+    //
+    // Reference: https://www.prisma.io/docs/orm/prisma-client/deployment/serverless/deploy-to-vercel
+    //
+    // pnpm hoists @prisma/client into .pnpm/<package>@<version_hash>/...
+    // so the glob has to allow for the version-hash directory.
+    // We include both:
+    //   .prisma/client/  — generated client output (the .so.node files)
+    //   @prisma/client/  — the runtime that loads them
+    // for every API route, since /api/auth/*, /api/intake/*, and any
+    // future /api/<module>/* path eventually queries Postgres through
+    // @aegis/db.
+    outputFileTracingIncludes: {
+      "/api/**/*": [
+        "../../node_modules/.pnpm/@prisma+client@*/node_modules/.prisma/client/**/*",
+        "../../node_modules/.pnpm/@prisma+client@*/node_modules/@prisma/client/**/*",
+      ],
+    },
   },
   // Workspace packages ship as source (.js/.jsx/.ts). Let Next.js transpile them.
   transpilePackages: ["@aegis/ui", "@aegis/ai", "@aegis/intake", "@aegis/db", "@aegis/auth"],
