@@ -88,3 +88,6 @@ jobs:
 
       - name: AuditLog chain canary
         run: pnpm --filter @aegis/db exec tsx scripts/audit-canary.ts
+
+      - name: Audit chain integration tests (@aegis/db)
+        run: pnpm --filter @aegis/db run test:db
