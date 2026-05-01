@@ -354,7 +354,7 @@ async function seedMatters(orgId: string, leadAttorneyPersonId: string) {
       organizationId: orgId,
       title: "Confidential Employment Matter — VP Eng",
       type: MatterType.EMPLOYMENT,
-      status: MatterStatus.IN_PROGRESS,
+      status: MatterStatus.ACTIVE,
       leadAttorneyId: leadAttorneyPersonId,
       description:
         "Harassment complaint filed against VP Engineering. External counsel engaged. Plaintiff's counsel has contacted HR directly. Subject to legal hold.",

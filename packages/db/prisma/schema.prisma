@@ -100,8 +100,8 @@ model User {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  role         Role?        @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role         Role?            @relation(fields: [roleId], references: [id], onDelete: SetNull)
   persons      Person[]
   preferences  UserPreference[]
 
@@ -111,23 +111,50 @@ model User {
 }
 
 /// Append-only ledger of every state-changing action across the platform.
-/// Differentiator #3: every AI action that mutates state writes here.
+/// Differentiator #3 (D11): every AI action that mutates state writes here.
 /// Modules MUST call logAudit() from @aegis/db on every mutation.
+///
+/// Cryptographic chain (added in Step 4a):
+///   - chainPosition is a per-organization 1-indexed monotonic counter.
+///   - contentHash is SHA-256 over the canonical JSON of the row's
+///     identifying fields plus prevHash (so the chain is hash-linked).
+///   - prevHash references the immediately preceding row's contentHash
+///     within the same organization. The genesis row uses 64 zero-bytes.
+///   - schemaVersion lets us evolve the canonical-JSON shape without
+///     invalidating historical chain validation.
+///
+/// Postgres triggers (see migration 4a-audit-chain) enforce immutability:
+/// UPDATE and DELETE on this table raise an exception. INSERTs flow
+/// through a BEFORE INSERT trigger that computes prevHash, chainPosition,
+/// and contentHash inside a per-organization advisory lock.
 model AuditLog {
   id             String   @id @default(cuid())
   organizationId String
-  actorId        String?  // null = system / non-user actor (agents, scheduler)
+  actorId        String? // null = system / non-user actor (agents, scheduler)
   actorType      String   @default("USER") // USER | AGENT | SYSTEM
-  action         String   // dot.notation: matter.created, intake.recommendation.approved, …
-  resourceType   String   // polymorphic — Matter, IntakeTicket, etc.
+  action         String // dot.notation: matter.created, intake.recommendation.approved, …
+  resourceType   String // polymorphic — Matter, IntakeTicket, etc.
   resourceId     String
   beforeJson     Json?
   afterJson      Json?
-  metadata       Json?    // free-form context (ip, request id, agent confidence, …)
+  metadata       Json? // free-form context (ip, request id, agent confidence, …)
   timestamp      DateTime @default(now())
+
+  /// SHA-256 hex of the previous row's contentHash within this organization.
+  /// 64 zero-bytes for the genesis row. Filled by BEFORE INSERT trigger.
+  prevHash      String @default("")
+  /// SHA-256 hex of this row's canonical content (excluding contentHash itself).
+  /// Filled by BEFORE INSERT trigger.
+  contentHash   String @default("")
+  /// Per-organization monotonically increasing chain position.
+  /// Filled by BEFORE INSERT trigger.
+  chainPosition BigInt @default(0)
+  /// Canonical-JSON schema version. Bumped if the field set shifts.
+  schemaVersion Int    @default(1)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
+  @@unique([organizationId, chainPosition])
   @@index([organizationId, timestamp(sort: Desc)])
   @@index([organizationId, resourceType, resourceId])
   @@index([organizationId, actorId])
@@ -137,8 +164,8 @@ model AuditLog {
 model Notification {
   id             String    @id @default(cuid())
   organizationId String
-  recipientId    String    // User id
-  type           String    // dot.notation: hold.notice.sent, intake.escalation, …
+  recipientId    String // User id
+  type           String // dot.notation: hold.notice.sent, intake.escalation, …
   payload        Json      @default("{}")
   readAt         DateTime?
   createdAt      DateTime  @default(now())
@@ -166,23 +193,23 @@ enum CounterpartyType {
 }
 
 model Counterparty {
-  id                   String           @id @default(cuid())
-  organizationId       String
-  name                 String
-  type                 CounterpartyType
-  country              String?
-  parentId             String?          // entity-group hierarchy
-  sanctionsScreenedAt  DateTime?
-  metadata             Json             @default("{}")
-  createdAt            DateTime         @default(now())
-  updatedAt            DateTime         @updatedAt
+  id                  String           @id @default(cuid())
+  organizationId      String
+  name                String
+  type                CounterpartyType
+  country             String?
+  parentId            String? // entity-group hierarchy
+  sanctionsScreenedAt DateTime?
+  metadata            Json             @default("{}")
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
 
   organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   parent       Counterparty?  @relation("CounterpartyHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   children     Counterparty[] @relation("CounterpartyHierarchy")
 
-  matters     Matter[]
-  vendors     Vendor[]
+  matters Matter[]
+  vendors Vendor[]
   // Persons attached to this counterparty as contacts (Person.type = COUNTERPARTY_CONTACT,
   // metadata.counterpartyId = this id). Not modeled as FK to keep Person polymorphic.
 
@@ -207,8 +234,8 @@ model Person {
   id             String     @id @default(cuid())
   organizationId String
   type           PersonType
-  userId         String?    // nullable — externals don't have a User
-  externalRef    String?    // e.g. workday:E12345 — used for cross-row identity resolution
+  userId         String? // nullable — externals don't have a User
+  externalRef    String? // e.g. workday:E12345 — used for cross-row identity resolution
   name           String
   email          String?
   metadata       Json       @default("{}")
@@ -218,14 +245,14 @@ model Person {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  matterParties     MatterParty[]
-  holdNotices       HoldNotice[]
-  holdAttestations  HoldAttestation[]
-  intakeRequested   IntakeTicket[]    @relation("IntakeRequester")
-  timekeepers       Timekeeper[]
-  invoiceLineItems  InvoiceLineItem[]
-  dsarRequests      DataSubjectRequest[]
-  consentRecords    ConsentRecord[]
+  matterParties    MatterParty[]
+  holdNotices      HoldNotice[]
+  holdAttestations HoldAttestation[]
+  intakeRequested  IntakeTicket[]       @relation("IntakeRequester")
+  timekeepers      Timekeeper[]
+  invoiceLineItems InvoiceLineItem[]
+  dsarRequests     DataSubjectRequest[]
+  consentRecords   ConsentRecord[]
 
   @@index([organizationId, email])
   @@index([organizationId, externalRef])
@@ -252,10 +279,10 @@ model Document {
   sizeBytes        Int
   storageUrl       String
   version          Int               @default(1)
-  parentDocumentId String?           // versioning: prior version
+  parentDocumentId String? // versioning: prior version
   ownerType        DocumentOwnerType
   ownerId          String
-  uploadedBy       String            // User id
+  uploadedBy       String // User id
   uploadedAt       DateTime          @default(now())
   encryptedAt      DateTime?
 
@@ -286,18 +313,18 @@ enum ObligationStatus {
 /// "We owe X to Y by Z." Cuts across Contracts, Regulatory, Privacy,
 /// Governance — anyone with commitments to fulfill or attest to.
 model Obligation {
-  id             String                @id @default(cuid())
+  id             String               @id @default(cuid())
   organizationId String
   sourceType     ObligationSourceType
-  sourceId       String                // polymorphic — Contract id, Regulation id, …
+  sourceId       String // polymorphic — Contract id, Regulation id, …
   description    String
   dueDate        DateTime?
-  recurrence     String?               // RRULE string, or null for one-shot
-  ownerId        String?               // Person id (responsible party)
-  status         ObligationStatus      @default(OPEN)
-  metadata       Json                  @default("{}")
-  createdAt      DateTime              @default(now())
-  updatedAt      DateTime              @updatedAt
+  recurrence     String? // RRULE string, or null for one-shot
+  ownerId        String? // Person id (responsible party)
+  status         ObligationStatus     @default(OPEN)
+  metadata       Json                 @default("{}")
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -311,18 +338,18 @@ model Obligation {
 /// Distinct from AuditLog: AuditLog records *who did what* for
 /// compliance; Event records *what happened* for product surfaces.
 model Event {
-  id                String   @id @default(cuid())
-  organizationId    String
-  type              String   // dot.notation: matter.opened, hold.attested, …
-  sourceType        String   // polymorphic
-  sourceId          String
-  actorId           String?  // User id (null for system events)
-  summary           String
-  payload           Json     @default("{}")
-  occurredAt        DateTime @default(now())
-  indexedForSearch  Boolean  @default(false)
+  id               String   @id @default(cuid())
+  organizationId   String
+  type             String // dot.notation: matter.opened, hold.attested, …
+  sourceType       String // polymorphic
+  sourceId         String
+  actorId          String? // User id (null for system events)
+  summary          String
+  payload          Json     @default("{}")
+  occurredAt       DateTime @default(now())
+  indexedForSearch Boolean  @default(false)
 
-  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   matterTimelines MatterTimeline[]
 
   @@index([organizationId, occurredAt(sort: Desc)])
@@ -370,51 +397,81 @@ model Tagging {
 // Matter from day one — not a future feature.
 
 enum MatterType {
-  TRANSACTIONAL
   LITIGATION
-  REGULATORY_INVESTIGATION
-  ADVISORY
+  TRANSACTIONAL
+  MA
   IP
   EMPLOYMENT
+  REGULATORY
+  INVESTIGATION
+  ADVISORY
   OTHER
 }
 
+/// Status state machine, enforced in modules/matter:
+///   DRAFT → OPEN → ACTIVE → (STAYED ↔ ACTIVE) → CLOSED → ARCHIVED
+/// CLOSED is gated by the closeout checklist defined on MatterTypeConfig.
 enum MatterStatus {
+  DRAFT
   OPEN
-  IN_PROGRESS
+  ACTIVE
+  STAYED
   CLOSED
   ARCHIVED
 }
 
 model Matter {
-  id              String       @id @default(cuid())
-  organizationId  String
-  title           String
-  type            MatterType
-  status          MatterStatus @default(OPEN)
-  openedAt        DateTime     @default(now())
-  closedAt        DateTime?
-  leadAttorneyId  String?      // Person id (Person.type = EMPLOYEE)
-  counterpartyId  String?
-  parentMatterId  String?
-  costCenterId    String?
-  description     String?
-  metadata        Json         @default("{}")
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  id                    String       @id @default(cuid())
+  organizationId        String
+  /// Human-readable matter number, unique per organization.
+  /// Format is governed by the org's MatterTypeConfig.numberingFormat.
+  /// Nullable to permit multi-step creation flows (DRAFT before number assignment),
+  /// but in practice every non-DRAFT row carries one.
+  matterNumber          String?
+  title                 String
+  type                  MatterType
+  status                MatterStatus @default(DRAFT)
+  openedAt              DateTime     @default(now())
+  closedAt              DateTime?
+  leadAttorneyId        String? // Person id (Person.type = EMPLOYEE)
+  counterpartyId        String?
+  parentMatterId        String?
+  costCenterId          String?
+  description           String?
+  /// Jurisdiction tag — used by the Litigation FRCP rule engine and reports.
+  /// Free-form to allow non-US codes; recommended values: "US-FED", "US-NY", "EU", …
+  jurisdiction          String?
+  /// Estimated exposure or contract value. Decimal preserves cents precisely.
+  estimatedValue        Decimal?     @db.Decimal(18, 2)
+  /// Estimated duration in days.
+  estimatedDurationDays Int?
+  /// Snapshot of the closeout checklist at matter-creation time. Items
+  /// are { key, label, required, completed, completedAt, completedBy }.
+  /// Sourced from MatterTypeConfig.closeoutChecklist for the matter's type.
+  closeoutChecklistJson Json         @default("[]")
+  /// Type-specific custom fields; keys defined by MatterFieldTemplate rows.
+  customFieldsJson      Json         @default("{}")
+  /// M365 binding metadata. Populated by the (mocked-in-4a, real-in-4c)
+  /// integration: { sharepointSiteId, teamsChannelId, mailFolderId, … }.
+  m365Bindings          Json         @default("{}")
+  metadata              Json         @default("{}")
+  createdAt             DateTime     @default(now())
+  updatedAt             DateTime     @updatedAt
 
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   counterparty Counterparty? @relation(fields: [counterpartyId], references: [id], onDelete: SetNull)
   parent       Matter?       @relation("MatterHierarchy", fields: [parentMatterId], references: [id], onDelete: SetNull)
   children     Matter[]      @relation("MatterHierarchy")
 
-  parties     MatterParty[]
-  timelines   MatterTimeline[]
-  matterTags  MatterTag[]
-  legalHolds  LegalHold[]
-  invoices    Invoice[]
+  parties       MatterParty[]
+  timelines     MatterTimeline[]
+  matterTags    MatterTag[]
+  legalHolds    LegalHold[]
+  invoices      Invoice[]
   intakeTickets IntakeTicket[]
+  tasks         MatterTask[]
 
+  @@unique([organizationId, matterNumber])
   @@index([organizationId, status])
   @@index([organizationId, type])
   @@index([organizationId, openedAt(sort: Desc)])
@@ -427,6 +484,7 @@ enum MatterPartyRole {
   LEAD_ATTORNEY
   ATTORNEY
   PARALEGAL
+  OPS_SUPPORT
   CLIENT_CONTACT
   CUSTODIAN
   EXPERT_WITNESS
@@ -435,11 +493,11 @@ enum MatterPartyRole {
 }
 
 model MatterParty {
-  id        String          @id @default(cuid())
-  matterId  String
-  personId  String
-  role      MatterPartyRole
-  addedAt   DateTime        @default(now())
+  id       String          @id @default(cuid())
+  matterId String
+  personId String
+  role     MatterPartyRole
+  addedAt  DateTime        @default(now())
 
   matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
   person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
@@ -476,6 +534,113 @@ model MatterTag {
   @@index([tagId])
 }
 
+enum MatterTaskStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+  CANCELLED
+}
+
+/// Tasks attached to a matter — checklist items, deadlines, FRCP-derived
+/// dates. dependsOnTaskId implements simple A-blocks-B dependencies; the
+/// scheduler refuses to advance a task whose blocker is not DONE.
+model MatterTask {
+  id              String           @id @default(cuid())
+  matterId        String
+  title           String
+  description     String?
+  assigneeId      String? // Person id (LEAD_ATTORNEY, ATTORNEY, PARALEGAL …)
+  dueDate         DateTime?
+  status          MatterTaskStatus @default(PENDING)
+  /// Source of the task — "manual", "closeout", "frcp:rule-26-disclosures",
+  /// "calendar:statutory", "intake-derived", … . Reporting and the
+  /// closeout-checklist gate read this.
+  source          String           @default("manual")
+  /// Stable key for closeout checklist items (matches the key in
+  /// Matter.closeoutChecklistJson) so completing a task can mark the
+  /// corresponding checklist line item done.
+  closeoutKey     String?
+  dependsOnTaskId String?
+  createdBy       String // User id
+  completedAt     DateTime?
+  completedBy     String? // User id
+  metadata        Json             @default("{}")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  matter        Matter       @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  dependsOnTask MatterTask?  @relation("MatterTaskDependency", fields: [dependsOnTaskId], references: [id], onDelete: SetNull)
+  blockedTasks  MatterTask[] @relation("MatterTaskDependency")
+
+  @@index([matterId, status])
+  @@index([matterId, dueDate])
+  @@index([assigneeId])
+  @@index([dependsOnTaskId])
+}
+
+enum MatterFieldType {
+  STRING
+  NUMBER
+  DATE
+  BOOLEAN
+  ENUM
+  CURRENCY
+}
+
+/// Per-organization custom field definitions per matter type. The values
+/// land in Matter.customFieldsJson keyed by fieldKey. Activated when a
+/// matter of the given type is created or edited.
+model MatterFieldTemplate {
+  id             String          @id @default(cuid())
+  organizationId String
+  matterType     MatterType
+  fieldKey       String
+  fieldLabel     String
+  fieldType      MatterFieldType
+  isRequired     Boolean         @default(false)
+  displayOrder   Int             @default(0)
+  /// For ENUM fields: ["option-a", "option-b"]. Empty array otherwise.
+  enumOptions    Json            @default("[]")
+  helpText       String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  @@unique([organizationId, matterType, fieldKey])
+  @@index([organizationId, matterType, displayOrder])
+}
+
+/// Per-(organization, matter type) configuration: numbering format,
+/// default folder structure, closeout checklist, default calendar events.
+/// Reads from this table seed module behaviour (number assignment,
+/// folder auto-create on M365 binding, FRCP defaults, closeout gating).
+model MatterTypeConfig {
+  id                     String     @id @default(cuid())
+  organizationId         String
+  matterType             MatterType
+  /// Format string with placeholders: {YYYY}, {YY}, {TYPE}, {SEQ:n} (zero-padded).
+  /// Default: "M-{YYYY}-{SEQ:4}".
+  numberingFormat        String     @default("M-{YYYY}-{SEQ:4}")
+  /// Per-org sequence counter for this matter type. Incremented on assignment.
+  numberingSequence      Int        @default(0)
+  /// Sub-folder names auto-created when a matter is bound to M365.
+  /// Default for LITIGATION: ["Pleadings","Motions","Discovery","Correspondence","Settlement"].
+  defaultFolderStructure Json       @default("[]")
+  /// Closeout checklist — array of { key, label, required } items. Required
+  /// items must have a completed MatterTask of the same closeoutKey before
+  /// the matter can transition to CLOSED.
+  closeoutChecklist      Json       @default("[]")
+  /// Calendar events seeded on matter creation, e.g. statutory deadlines.
+  defaultCalendarEvents  Json       @default("[]")
+  /// Document templates suggested per matter type (e.g. Litigation has
+  /// "Complaint", "Answer", "Discovery Request"). { key, name, contentRef }.
+  documentTemplates      Json       @default("[]")
+  createdAt              DateTime   @default(now())
+  updatedAt              DateTime   @updatedAt
+
+  @@unique([organizationId, matterType])
+  @@index([organizationId])
+}
+
 // ── Legal Hold (within Matter) ────────────────────────────────────
 
 enum LegalHoldStatus {
@@ -488,7 +653,7 @@ model LegalHold {
   id             String          @id @default(cuid())
   matterId       String
   organizationId String
-  scope          String          // free-text scope description
+  scope          String // free-text scope description
   status         LegalHoldStatus @default(DRAFT)
   reason         String?
   issuedAt       DateTime?
@@ -499,22 +664,22 @@ model LegalHold {
   matter       Matter       @relation(fields: [matterId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  notices             HoldNotice[]
-  attestations        HoldAttestation[]
-  preservationOrders  PreservationOrder[]
+  notices            HoldNotice[]
+  attestations       HoldAttestation[]
+  preservationOrders PreservationOrder[]
 
   @@index([organizationId, status])
   @@index([matterId])
 }
 
 model HoldNotice {
-  id                 String    @id @default(cuid())
-  holdId             String
-  custodianId        String    // Person id (Person.type = CUSTODIAN)
-  sentAt             DateTime  @default(now())
-  acknowledgedAt     DateTime?
-  escalatedAt        DateTime?
-  attestationCount   Int       @default(0)
+  id               String    @id @default(cuid())
+  holdId           String
+  custodianId      String // Person id (Person.type = CUSTODIAN)
+  sentAt           DateTime  @default(now())
+  acknowledgedAt   DateTime?
+  escalatedAt      DateTime?
+  attestationCount Int       @default(0)
 
   hold      LegalHold @relation(fields: [holdId], references: [id], onDelete: Cascade)
   custodian Person    @relation(fields: [custodianId], references: [id], onDelete: Cascade)
@@ -525,12 +690,12 @@ model HoldNotice {
 }
 
 model HoldAttestation {
-  id          String   @id @default(cuid())
-  holdId      String
-  custodianId String
-  period      String   // e.g. "2026-Q2", "2026-04"
-  attestedAt  DateTime @default(now())
-  responseJson Json    @default("{}")
+  id           String   @id @default(cuid())
+  holdId       String
+  custodianId  String
+  period       String // e.g. "2026-Q2", "2026-04"
+  attestedAt   DateTime @default(now())
+  responseJson Json     @default("{}")
 
   hold      LegalHold @relation(fields: [holdId], references: [id], onDelete: Cascade)
   custodian Person    @relation(fields: [custodianId], references: [id], onDelete: Cascade)
@@ -548,13 +713,13 @@ enum PreservationDataSource {
 }
 
 model PreservationOrder {
-  id                String                 @id @default(cuid())
-  holdId            String
-  dataSource        PreservationDataSource
-  dataSourceRef     String                 // e.g. mailbox name, file share path
-  preservationTier  String                 // "standard" | "enhanced" | …
-  ITConfirmedAt     DateTime?
-  createdAt         DateTime               @default(now())
+  id               String                 @id @default(cuid())
+  holdId           String
+  dataSource       PreservationDataSource
+  dataSourceRef    String // e.g. mailbox name, file share path
+  preservationTier String // "standard" | "enhanced" | …
+  ITConfirmedAt    DateTime?
+  createdAt        DateTime               @default(now())
 
   hold LegalHold @relation(fields: [holdId], references: [id], onDelete: Cascade)
 
@@ -593,37 +758,37 @@ enum IntakeStatus {
 model IntakeTicket {
   id             String       @id // human-readable: "REQ-3501". Not cuid.
   organizationId String
-  requesterId    String       // Person id (Person.type = EMPLOYEE)
-  matterId       String?      // optional — link to Matter created from this ticket
+  requesterId    String // Person id (Person.type = EMPLOYEE)
+  matterId       String? // optional — link to Matter created from this ticket
   source         IntakeSource @default(FORM)
 
-  type           String       // "NDA Request", "Contract Question", …
-  priority       String       // "Critical" | "High" | "Medium" | "Low"
-  status         IntakeStatus @default(AWAITING_TRIAGE)
-  stage          String       @default("new") // "new" | "triaged" | "approved" | "closed"
-  description    String
-  department     String?      // requester's department (denormalised)
-  assignedTo     String?      // free-text routing: "Cockpit Queue", "Rachel Adams", …
+  type        String // "NDA Request", "Contract Question", …
+  priority    String // "Critical" | "High" | "Medium" | "Low"
+  status      IntakeStatus @default(AWAITING_TRIAGE)
+  stage       String       @default("new") // "new" | "triaged" | "approved" | "closed"
+  description String
+  department  String? // requester's department (denormalised)
+  assignedTo  String? // free-text routing: "Cockpit Queue", "Rachel Adams", …
 
-  slaHours       Int
-  slaStatus      String       // "On Track" | "At Risk" | "Breached"
+  slaHours  Int
+  slaStatus String // "On Track" | "At Risk" | "Breached"
 
   /// Free-form blob from classifyIntakeRegex / classifyIntakeClaude.
   /// Modeled fields would over-constrain — categories evolve.
-  aiTriageJson   Json?
+  aiTriageJson Json?
 
   /// Mirror of `workflow` array from v8 seed: [{label, done, active}]
-  workflowJson   Json         @default("[]")
+  workflowJson Json @default("[]")
 
   /// Triage decision recorded when the attorney closes the ticket.
-  triagedBy      String?
-  triagedAt      DateTime?
-  triagedAction  String?      // "approved" | "rejected" | "reassigned" | …
+  triagedBy        String?
+  triagedAt        DateTime?
+  triagedAction    String? // "approved" | "rejected" | "reassigned" | …
   agentProcessedAt DateTime?
 
-  submittedAt    DateTime     @default(now())
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  submittedAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   requester    Person       @relation("IntakeRequester", fields: [requesterId], references: [id], onDelete: Cascade)
@@ -651,16 +816,16 @@ enum AgentRecommendationStatus {
 model AgentRecommendation {
   id              String                    @id @default(cuid())
   ticketId        String
-  agentId         String                    // "nda-agent", "faq-agent", …
+  agentId         String // "nda-agent", "faq-agent", …
   confidence      Float
-  suggestedAction String                    // "approve-and-send", "flag-for-review", "escalate"
-  draftedResponse String                    // long text — full drafted reply
-  reasoning       String                    // why the agent recommends this
+  suggestedAction String // "approve-and-send", "flag-for-review", "escalate"
+  draftedResponse String // long text — full drafted reply
+  reasoning       String // why the agent recommends this
   concerns        Json                      @default("[]") // string[]
   citations       Json                      @default("[]") // [{id, title}]
-  shortFormReply  String?                   // optional one-liner
+  shortFormReply  String? // optional one-liner
   status          AgentRecommendationStatus @default(PENDING)
-  reviewedBy      String?                   // User id
+  reviewedBy      String? // User id
   reviewedAt      DateTime?
   createdAt       DateTime                  @default(now())
 
@@ -680,12 +845,12 @@ enum ConversationRole {
 /// Per-message log of the Copilot conversation that produced a ticket.
 /// Canonical source — IntakeTicket.aiTriageJson does NOT duplicate this.
 model IntakeConversation {
-  id               String           @id @default(cuid())
-  ticketId         String
-  role             ConversationRole
-  content          String
-  fieldsExtracted  Json?            // structured extraction snapshot
-  timestamp        DateTime         @default(now())
+  id              String           @id @default(cuid())
+  ticketId        String
+  role            ConversationRole
+  content         String
+  fieldsExtracted Json? // structured extraction snapshot
+  timestamp       DateTime         @default(now())
 
   ticket IntakeTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
@@ -709,15 +874,15 @@ enum VendorType {
 }
 
 model Vendor {
-  id                 String     @id @default(cuid())
-  organizationId     String
-  name               String
-  type               VendorType
-  counterpartyId     String?    // for law firms — link to the Counterparty record
-  ratesCard          Json       @default("{}") // { tier: rate } map
-  performanceScore   Float?
-  createdAt          DateTime   @default(now())
-  updatedAt          DateTime   @updatedAt
+  id               String     @id @default(cuid())
+  organizationId   String
+  name             String
+  type             VendorType
+  counterpartyId   String? // for law firms — link to the Counterparty record
+  ratesCard        Json       @default("{}") // { tier: rate } map
+  performanceScore Float?
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
 
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   counterparty Counterparty? @relation(fields: [counterpartyId], references: [id], onDelete: SetNull)
@@ -739,21 +904,21 @@ enum InvoiceStatus {
 }
 
 model Invoice {
-  id           String        @id @default(cuid())
-  vendorId     String
-  matterId     String
-  amount       Float
-  currency     String        @default("USD")
-  periodStart  DateTime
-  periodEnd    DateTime
-  status       InvoiceStatus @default(SUBMITTED)
-  ledesData    Json?         // LEDES upload payload
-  submittedAt  DateTime      @default(now())
-  approvedBy   String?       // User id
-  approvedAt   DateTime?
+  id             String        @id @default(cuid())
+  vendorId       String
+  matterId       String
+  amount         Float
+  currency       String        @default("USD")
+  periodStart    DateTime
+  periodEnd      DateTime
+  status         InvoiceStatus @default(SUBMITTED)
+  ledesData      Json? // LEDES upload payload
+  submittedAt    DateTime      @default(now())
+  approvedBy     String? // User id
+  approvedAt     DateTime?
   rejectedReason String?
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   matter Matter @relation(fields: [matterId], references: [id], onDelete: Cascade)
@@ -774,14 +939,14 @@ enum InvoiceLineStatus {
 }
 
 model InvoiceLineItem {
-  id           String            @id @default(cuid())
-  invoiceId    String
-  timekeeperId String?
-  hours        Float
-  rate         Float
-  description  String
-  date         DateTime
-  status       InvoiceLineStatus @default(PENDING)
+  id            String            @id @default(cuid())
+  invoiceId     String
+  timekeeperId  String?
+  hours         Float
+  rate          Float
+  description   String
+  date          DateTime
+  status        InvoiceLineStatus @default(PENDING)
   flaggedReason String?
 
   invoice    Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
@@ -802,8 +967,8 @@ model Budget {
   id              String      @id @default(cuid())
   organizationId  String
   scope           BudgetScope
-  scopeId         String      // Matter id, department name, or year
-  period          String      // e.g. "2026", "2026-Q2"
+  scopeId         String // Matter id, department name, or year
+  period          String // e.g. "2026", "2026-Q2"
   allocatedAmount Float
   spentAmount     Float       @default(0)
   currency        String      @default("USD")
@@ -817,12 +982,12 @@ model Budget {
 }
 
 model Timekeeper {
-  id           String  @id @default(cuid())
-  vendorId     String
-  personId     String  // Person.type = EXTERNAL_COUNSEL
-  title        String
-  defaultRate  Float
-  blendedRate  Float?
+  id          String @id @default(cuid())
+  vendorId    String
+  personId    String // Person.type = EXTERNAL_COUNSEL
+  title       String
+  defaultRate Float
+  blendedRate Float?
 
   vendor Vendor @relation(fields: [vendorId], references: [id], onDelete: Cascade)
   person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
@@ -867,22 +1032,22 @@ enum DSARVerificationStatus {
 }
 
 model DataSubjectRequest {
-  id                  String                 @id @default(cuid())
-  organizationId      String
-  requesterPersonId   String
-  requestType         DSARRequestType
-  jurisdiction        String                 // ISO 3166-1 alpha-2 or region code
-  status              DSARStatus             @default(RECEIVED)
-  slaDeadline         DateTime
-  submittedAt         DateTime               @default(now())
-  completedAt         DateTime?
-  verificationStatus  DSARVerificationStatus @default(UNVERIFIED)
-  response            Json?                  // fulfillment payload or rejection reason
-  createdAt           DateTime               @default(now())
-  updatedAt           DateTime               @updatedAt
+  id                 String                 @id @default(cuid())
+  organizationId     String
+  requesterPersonId  String
+  requestType        DSARRequestType
+  jurisdiction       String // ISO 3166-1 alpha-2 or region code
+  status             DSARStatus             @default(RECEIVED)
+  slaDeadline        DateTime
+  submittedAt        DateTime               @default(now())
+  completedAt        DateTime?
+  verificationStatus DSARVerificationStatus @default(UNVERIFIED)
+  response           Json? // fulfillment payload or rejection reason
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
 
-  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  requesterPerson  Person       @relation(fields: [requesterPersonId], references: [id], onDelete: Cascade)
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requesterPerson Person       @relation(fields: [requesterPersonId], references: [id], onDelete: Cascade)
 
   dataLocations DSARDataLocation[]
 
@@ -892,13 +1057,13 @@ model DataSubjectRequest {
 }
 
 model DSARDataLocation {
-  id                   String    @id @default(cuid())
-  requestId            String
-  system               String    // "Salesforce", "HRIS", "Marketing-DB", …
-  dataType             String    // "contact-info", "transaction-history", …
-  found                Boolean   @default(false)
-  redactionsRequired   Boolean   @default(false)
-  retrievedAt          DateTime?
+  id                 String    @id @default(cuid())
+  requestId          String
+  system             String // "Salesforce", "HRIS", "Marketing-DB", …
+  dataType           String // "contact-info", "transaction-history", …
+  found              Boolean   @default(false)
+  redactionsRequired Boolean   @default(false)
+  retrievedAt        DateTime?
 
   request DataSubjectRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
 
@@ -924,8 +1089,8 @@ model ConsentRecord {
   withdrawnAt         DateTime?
   mechanism           ConsentMechanism
 
-  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  dataSubjectPerson Person      @relation(fields: [dataSubjectPersonId], references: [id], onDelete: Cascade)
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  dataSubjectPerson Person       @relation(fields: [dataSubjectPersonId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, dataSubjectPersonId])
   @@index([organizationId, withdrawnAt])
@@ -936,17 +1101,17 @@ model ConsentRecord {
 /// and where it goes. ROPA is the regulator-facing artifact; this table
 /// is its source of truth.
 model DataProcessingActivity {
-  id                       String   @id @default(cuid())
-  organizationId           String
-  name                     String
-  lawfulBasis              String   // free-form for jurisdiction flex
-  dataTypes                Json     @default("[]")
-  retentionPeriodDays      Int
-  dataSubjectCategories    Json     @default("[]")
-  systems                  Json     @default("[]")
-  transferredCountries     Json     @default("[]")
-  createdAt                DateTime @default(now())
-  updatedAt                DateTime @updatedAt
+  id                    String   @id @default(cuid())
+  organizationId        String
+  name                  String
+  lawfulBasis           String // free-form for jurisdiction flex
+  dataTypes             Json     @default("[]")
+  retentionPeriodDays   Int
+  dataSubjectCategories Json     @default("[]")
+  systems               Json     @default("[]")
+  transferredCountries  Json     @default("[]")
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -969,18 +1134,18 @@ enum PrivacyIncidentStatus {
 }
 
 model PrivacyIncident {
-  id                    String                  @id @default(cuid())
-  organizationId        String
-  severity              PrivacyIncidentSeverity
-  discoveredAt          DateTime
-  reportedAt            DateTime?
-  affectedRecordsCount  Int                     @default(0)
-  status                PrivacyIncidentStatus   @default(REPORTED)
-  regulatorNotified     Boolean                 @default(false)
-  mitigationSteps       Json                    @default("[]")
-  description           String?
-  createdAt             DateTime                @default(now())
-  updatedAt             DateTime                @updatedAt
+  id                   String                  @id @default(cuid())
+  organizationId       String
+  severity             PrivacyIncidentSeverity
+  discoveredAt         DateTime
+  reportedAt           DateTime?
+  affectedRecordsCount Int                     @default(0)
+  status               PrivacyIncidentStatus   @default(REPORTED)
+  regulatorNotified    Boolean                 @default(false)
+  mitigationSteps      Json                    @default("[]")
+  description          String?
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -1000,7 +1165,7 @@ model PrivacyIncident {
 model UserPreference {
   id        String   @id @default(cuid())
   userId    String
-  key       String   // e.g. "aegis:intake:cockpit-state:v1"
+  key       String // e.g. "aegis:intake:cockpit-state:v1"
   value     Json
   updatedAt DateTime @updatedAt
 
