@@ -24,9 +24,15 @@ export default async function handler(
   res.status(200).json(
     holds.map((h) => ({
       id: h.id,
-      scope: h.scope,
+      holdNumber: h.holdNumber,
+      title: h.title,
+      // Field renamed in 4b: `scope` -> `scopeDescription`. UI keeps
+      // the old key on the wire for now so the placeholder card can
+      // stay backward-compatible until the new HoldListTab lands.
+      scope: h.scopeDescription,
       status: h.status,
-      reason: h.reason,
+      reason: h.triggerEventDescription,
+      jurisdictions: h.jurisdictions,
       issuedAt: h.issuedAt?.toISOString() ?? null,
       releasedAt: h.releasedAt?.toISOString() ?? null,
     })),

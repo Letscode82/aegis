@@ -11,8 +11,11 @@ import { Card, Pill, SH, C, F, M } from "@aegis/ui";
 
 interface LegalHoldDTO {
   id: string;
+  holdNumber: string | null;
+  title: string;
   scope: string;
-  status: "DRAFT" | "ISSUED" | "RELEASED";
+  status: "DRAFT" | "ISSUED" | "ACTIVE" | "PARTIALLY_RELEASED" | "RELEASED";
+  jurisdictions: string[];
   issuedAt: string | null;
   releasedAt: string | null;
   reason: string | null;
@@ -21,6 +24,8 @@ interface LegalHoldDTO {
 const STATUS_COLOR: Record<LegalHoldDTO["status"], string> = {
   DRAFT: C.t3,
   ISSUED: C.am,
+  ACTIVE: C.bl,
+  PARTIALLY_RELEASED: C.tl,
   RELEASED: C.gn,
 };
 

@@ -73,6 +73,11 @@ model Organization {
   ropas          DataProcessingActivity[]
   incidents      PrivacyIncident[]
 
+  holdPolicy          OrganizationHoldPolicy?
+  holdNoticeTemplates HoldNoticeTemplate[]
+  departedRetentions  DepartedCustodianRetention[]
+  agentDecisions      AgentDecision[]
+
   @@index([name])
 }
 
@@ -109,6 +114,14 @@ model User {
   role         Role?            @relation(fields: [roleId], references: [id], onDelete: SetNull)
   persons      Person[]
   preferences  UserPreference[]
+
+  legalHoldsCreated             LegalHold[]           @relation("LegalHoldCreatedBy")
+  legalHoldsReleased            LegalHold[]           @relation("LegalHoldReleasedBy")
+  legalHoldEvents               LegalHoldEvent[]      @relation("LegalHoldEventActor")
+  legalHoldTriggersRecorded     HoldTriggerEvent[]    @relation("HoldTriggerRecordedBy")
+  noticeIssuancesIssued         HoldNoticeIssuance[]  @relation("HoldNoticeIssuedBy")
+  custodianDataSourcesConfirmed CustodianDataSource[] @relation("CustodianDataSourceConfirmedBy")
+  agentDecisionsApproved        AgentDecision[]       @relation("AgentDecisionApprovedBy")
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -158,6 +171,9 @@ model AuditLog {
   schemaVersion Int    @default(1)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  legalHoldEvents LegalHoldEvent[] @relation("LegalHoldEventAuditLog")
+  agentDecisions  AgentDecision[]  @relation("AgentDecisionAuditLog")
 
   @@unique([organizationId, chainPosition])
   @@index([organizationId, timestamp(sort: Desc)])
@@ -250,14 +266,14 @@ model Person {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  matterParties    MatterParty[]
-  holdNotices      HoldNotice[]
-  holdAttestations HoldAttestation[]
-  intakeRequested  IntakeTicket[]       @relation("IntakeRequester")
-  timekeepers      Timekeeper[]
-  invoiceLineItems InvoiceLineItem[]
-  dsarRequests     DataSubjectRequest[]
-  consentRecords   ConsentRecord[]
+  matterParties       MatterParty[]
+  legalHoldCustodians LegalHoldCustodian[]
+  departedRetentions  DepartedCustodianRetention[]
+  intakeRequested     IntakeTicket[]               @relation("IntakeRequester")
+  timekeepers         Timekeeper[]
+  invoiceLineItems    InvoiceLineItem[]
+  dsarRequests        DataSubjectRequest[]
+  consentRecords      ConsentRecord[]
 
   @@index([organizationId, email])
   @@index([organizationId, externalRef])
@@ -647,89 +663,326 @@ model MatterTypeConfig {
 }
 
 // ── Legal Hold (within Matter) ────────────────────────────────────
+//
+// Sub-PR 4b reshape — event-sourced lifecycle, jurisdiction-aware,
+// per-custodian release, snapshot notice templates, deterministic
+// defensibility scorecard. Old tables (HoldNotice / HoldAttestation /
+// PreservationOrder + the PreservationDataSource enum) are replaced
+// by LegalHoldCustodian + CustodianDataSource + HoldNoticeIssuance;
+// see migration 4b_legal_hold_core.
 
 enum LegalHoldStatus {
   DRAFT
   ISSUED
+  ACTIVE
+  PARTIALLY_RELEASED
   RELEASED
 }
 
+enum DataSourceType {
+  EMAIL_MAILBOX
+  ARCHIVED_MAILBOX
+  DEPARTED_USER_MAILBOX
+  ONEDRIVE
+  SHAREPOINT_SITE
+  TEAMS_CHANNEL
+  TEAMS_DM
+  TEAMS_PRIVATE_CHANNEL
+  SLACK_CHANNEL
+  SLACK_DM
+  GOOGLE_DRIVE
+  GOOGLE_CHAT
+  EPHEMERAL_CHAT_AUTO_DELETE
+  LOCAL_DEVICE
+  PHYSICAL_FILES
+  THIRD_PARTY_SAAS
+  OTHER
+}
+
+enum PreservationAction {
+  LEGAL_HOLD_IN_PLACE
+  COPIED_TO_PRESERVATION_VAULT
+  SNAPSHOT_TAKEN
+  RETENTION_SUSPENDED
+  THIRD_PARTY_COLLECTION_PENDING
+  NOT_APPLICABLE
+  PRESERVATION_FAILED
+}
+
+enum LegalHoldEventType {
+  HOLD_DRAFTED
+  TRIGGER_RECORDED
+  HOLD_ISSUED
+  CUSTODIAN_ADDED
+  CUSTODIAN_REMOVED
+  CUSTODIAN_ACKNOWLEDGED
+  CUSTODIAN_RE_ATTESTED
+  REMINDER_SENT
+  ESCALATED
+  DATA_SOURCE_ADDED
+  DATA_SOURCE_PRESERVATION_APPLIED
+  DATA_SOURCE_PRESERVATION_CONFIRMED
+  DATA_SOURCE_PRESERVATION_FAILED
+  SCOPE_AMENDED
+  CUSTODIAN_DEPARTED
+  CUSTODIAN_PARTIALLY_RELEASED
+  HOLD_RELEASED
+  HOLD_RE_OPENED
+}
+
 model LegalHold {
-  id             String          @id @default(cuid())
-  matterId       String
-  organizationId String
-  scope          String // free-text scope description
-  status         LegalHoldStatus @default(DRAFT)
-  reason         String?
-  issuedAt       DateTime?
-  releasedAt     DateTime?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id                        String          @id @default(cuid())
+  organizationId            String
+  matterId                  String
+  /// Org-unique. Format default LH-{YYYY}-{SEQ:4}; assigned at issue time.
+  holdNumber                String?
+  title                     String
+  /// Markdown.
+  scopeDescription          String
+  /// ISO 3166-1 alpha-2 codes plus US state codes ("US-CA", "US-NY").
+  jurisdictions             String[]        @default([])
+  /// Lifecycle (denormalized — always derivable from LegalHoldEvent).
+  status                    LegalHoldStatus @default(DRAFT)
+  triggeredAt               DateTime?
+  triggerEventDescription   String?
+  issuedAt                  DateTime?
+  releasedAt                DateTime?
+  /// When set, overrides OrganizationHoldPolicy fields per-hold.
+  customPolicyJson          Json?
+  /// Privilege & departure flags (commitment I).
+  /// Shape: { hasInhouseCounselCustodian, hasOutsideCounselCustodian,
+  ///          attorneyClientFlagged, workProductFlagged }
+  privilegeFlags            Json            @default("{}")
+  affectsDepartedCustodians Boolean         @default(false)
+  /// Attribution.
+  createdById               String
+  releasedById              String?
+  releaseReason             String?
+  createdAt                 DateTime        @default(now())
+  updatedAt                 DateTime        @updatedAt
 
-  matter       Matter       @relation(fields: [matterId], references: [id], onDelete: Cascade)
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization    Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  matter          Matter                       @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  createdBy       User                         @relation("LegalHoldCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  releasedBy      User?                        @relation("LegalHoldReleasedBy", fields: [releasedById], references: [id], onDelete: SetNull)
+  custodians      LegalHoldCustodian[]
+  noticeIssuances HoldNoticeIssuance[]
+  events          LegalHoldEvent[]
+  triggerEvents   HoldTriggerEvent[]
+  departures      DepartedCustodianRetention[]
 
-  notices            HoldNotice[]
-  attestations       HoldAttestation[]
-  preservationOrders PreservationOrder[]
-
+  @@unique([organizationId, holdNumber])
   @@index([organizationId, status])
   @@index([matterId])
 }
 
-model HoldNotice {
-  id               String    @id @default(cuid())
-  holdId           String
-  custodianId      String // Person id (Person.type = CUSTODIAN)
-  sentAt           DateTime  @default(now())
-  acknowledgedAt   DateTime?
-  escalatedAt      DateTime?
-  attestationCount Int       @default(0)
+model LegalHoldCustodian {
+  id                           String    @id @default(cuid())
+  legalHoldId                  String
+  personId                     String
+  /// Acknowledgment of receipt.
+  acknowledgedAt               DateTime?
+  /// { ip, userAgent, attestationStatement }
+  acknowledgmentMetadata       Json?
+  /// Periodic re-attestation (commitment 5).
+  lastReAttestedAt             DateTime?
+  nextReAttestationDueAt       DateTime?
+  /// Per-custodian release (supports partial release of the hold).
+  releasedAt                   DateTime?
+  releaseReason                String?
+  /// Departure handling (commitment E).
+  departureRecordedAt          DateTime?
+  departedCustodianRetentionId String?   @unique
+  createdAt                    DateTime  @default(now())
+  updatedAt                    DateTime  @updatedAt
 
-  hold      LegalHold @relation(fields: [holdId], references: [id], onDelete: Cascade)
-  custodian Person    @relation(fields: [custodianId], references: [id], onDelete: Cascade)
+  legalHold         LegalHold                   @relation(fields: [legalHoldId], references: [id], onDelete: Cascade)
+  person            Person                      @relation(fields: [personId], references: [id], onDelete: Cascade)
+  dataSources       CustodianDataSource[]
+  departedRetention DepartedCustodianRetention? @relation(fields: [departedCustodianRetentionId], references: [id], onDelete: SetNull)
 
-  @@unique([holdId, custodianId])
-  @@index([holdId])
-  @@index([custodianId])
+  @@unique([legalHoldId, personId])
+  @@index([legalHoldId])
+  @@index([nextReAttestationDueAt])
 }
 
-model HoldAttestation {
-  id           String   @id @default(cuid())
-  holdId       String
-  custodianId  String
-  period       String // e.g. "2026-Q2", "2026-04"
-  attestedAt   DateTime @default(now())
-  responseJson Json     @default("{}")
+model CustodianDataSource {
+  id                        String             @id @default(cuid())
+  legalHoldCustodianId      String
+  type                      DataSourceType
+  externalIdentifier        String
+  displayLabel              String
+  preservationAction        PreservationAction @default(LEGAL_HOLD_IN_PLACE)
+  preservationAppliedAt     DateTime?
+  preservationConfirmedAt   DateTime?
+  preservationConfirmedById String?
+  preservationFailureReason String?
+  /// Surfaces D2 risk (e.g. ephemeral chat with no override).
+  retentionPolicyConflict   Boolean            @default(false)
+  metadataJson              Json?
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
 
-  hold      LegalHold @relation(fields: [holdId], references: [id], onDelete: Cascade)
-  custodian Person    @relation(fields: [custodianId], references: [id], onDelete: Cascade)
+  legalHoldCustodian      LegalHoldCustodian @relation(fields: [legalHoldCustodianId], references: [id], onDelete: Cascade)
+  preservationConfirmedBy User?              @relation("CustodianDataSourceConfirmedBy", fields: [preservationConfirmedById], references: [id], onDelete: SetNull)
 
-  @@index([holdId])
-  @@index([custodianId])
+  @@index([legalHoldCustodianId])
+  @@index([type, preservationAction])
 }
 
-enum PreservationDataSource {
-  EMAIL
-  FILES
-  CHAT
-  ERP
-  OTHER
+model HoldNoticeTemplate {
+  id              String   @id @default(cuid())
+  organizationId  String
+  name            String
+  /// null = default template; otherwise ISO jurisdiction code.
+  jurisdictionKey String?
+  bodyMarkdown    String
+  /// SHA-256 of bodyMarkdown — content-hashed artifact.
+  bodyHash        String
+  version         Int      @default(1)
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  issuances    HoldNoticeIssuance[]
+
+  @@index([organizationId, jurisdictionKey, isActive])
 }
 
-model PreservationOrder {
-  id               String                 @id @default(cuid())
-  holdId           String
-  dataSource       PreservationDataSource
-  dataSourceRef    String // e.g. mailbox name, file share path
-  preservationTier String // "standard" | "enhanced" | …
-  ITConfirmedAt    DateTime?
-  createdAt        DateTime               @default(now())
+model HoldNoticeIssuance {
+  id                 String   @id @default(cuid())
+  legalHoldId        String
+  templateId         String
+  templateVersion    Int
+  bodyHashAtIssuance String
+  recipientCount     Int
+  issuedAt           DateTime @default(now())
+  issuedById         String
 
-  hold LegalHold @relation(fields: [holdId], references: [id], onDelete: Cascade)
+  legalHold LegalHold          @relation(fields: [legalHoldId], references: [id], onDelete: Cascade)
+  template  HoldNoticeTemplate @relation(fields: [templateId], references: [id], onDelete: Restrict)
+  issuedBy  User               @relation("HoldNoticeIssuedBy", fields: [issuedById], references: [id], onDelete: Restrict)
 
-  @@index([holdId])
-  @@index([dataSource])
+  @@index([legalHoldId])
+}
+
+/// Canonical history of a hold. Status & denormalized fields on
+/// LegalHold are a fast-read materialization of this stream — they
+/// must always be derivable from these rows. The `recordHoldEvent`
+/// helper twin-records to AuditLog so the cryptographic chain seals
+/// every hold mutation.
+model LegalHoldEvent {
+  id                  String             @id @default(cuid())
+  legalHoldId         String
+  type                LegalHoldEventType
+  summary             String
+  payloadJson         Json?
+  actorId             String?
+  /// Mirrors AuditLog.actorType — "USER" | "AGENT" | "SYSTEM".
+  actorType           String             @default("USER")
+  /// Links back into the chain-sealed AuditLog row.
+  resultingAuditLogId String?
+  occurredAt          DateTime           @default(now())
+
+  legalHold         LegalHold @relation(fields: [legalHoldId], references: [id], onDelete: Cascade)
+  actor             User?     @relation("LegalHoldEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  resultingAuditLog AuditLog? @relation("LegalHoldEventAuditLog", fields: [resultingAuditLogId], references: [id], onDelete: SetNull)
+
+  @@index([legalHoldId, occurredAt])
+}
+
+model HoldTriggerEvent {
+  id               String   @id @default(cuid())
+  legalHoldId      String
+  eventDescription String
+  occurredAt       DateTime
+  recordedById     String
+  recordedAt       DateTime @default(now())
+
+  legalHold  LegalHold @relation(fields: [legalHoldId], references: [id], onDelete: Cascade)
+  recordedBy User      @relation("HoldTriggerRecordedBy", fields: [recordedById], references: [id], onDelete: Restrict)
+
+  @@index([legalHoldId])
+}
+
+model OrganizationHoldPolicy {
+  id                            String   @id @default(cuid())
+  organizationId                String   @unique
+  defaultAttestationCadenceDays Int      @default(90)
+  reminderLeadTimeDays          Int      @default(7)
+  /// [{level, afterDays, notifyRoleNames[]}]
+  escalationChainJson           Json     @default("[]")
+  /// {[jurisdiction]: {cadenceDays, mandatoryLanguageMd}}
+  jurisdictionPoliciesJson      Json?
+  createdAt                     DateTime @default(now())
+  updatedAt                     DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model DepartedCustodianRetention {
+  id                      String             @id @default(cuid())
+  organizationId          String
+  personId                String
+  legalHoldId             String
+  /// Mocked in 4b; real Graph IT-preservation order id ships in 4c.
+  itPreservationOrderId   String?
+  preservationStatus      PreservationAction @default(THIRD_PARTY_COLLECTION_PENDING)
+  preservationConfirmedAt DateTime?
+  notes                   String?
+  createdAt               DateTime           @default(now())
+  updatedAt               DateTime           @updatedAt
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  person       Person              @relation(fields: [personId], references: [id], onDelete: Cascade)
+  legalHold    LegalHold           @relation(fields: [legalHoldId], references: [id], onDelete: Cascade)
+  custodian    LegalHoldCustodian?
+
+  @@index([organizationId, preservationStatus])
+}
+
+// ── Agent evidence-grade decisions (locked contract — empty in 4b) ──
+//
+// Architectural commitment A. In 4b the table ships unused; in 4d every
+// Claude-generated recommendation writes a row that must reach
+// APPROVED before the corresponding mutation runs. The mutation gate
+// (refuse to mutate if a PENDING AgentDecision references the action)
+// is enforced now and dormant.
+
+enum AgentApprovalStatus {
+  PENDING
+  APPROVED
+  APPROVED_WITH_OVERRIDE
+  REJECTED
+  /// Policy gate failed before reaching a human.
+  AUTO_REJECTED
+}
+
+model AgentDecision {
+  id                   String              @id @default(cuid())
+  organizationId       String
+  agentName            String
+  modelId              String
+  modelVersion         String
+  promptHash           String
+  retrievedContextHash String?
+  recommendationJson   Json
+  confidence           Float?
+  approvalStatus       AgentApprovalStatus @default(PENDING)
+  approvedById         String?
+  approvedAt           DateTime?
+  overrideReason       String?
+  /// The AuditLog row that records the executed action when approved.
+  resultingAuditLogId  String?
+  createdAt            DateTime            @default(now())
+
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  approvedBy        User?        @relation("AgentDecisionApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  resultingAuditLog AuditLog?    @relation("AgentDecisionAuditLog", fields: [resultingAuditLogId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, agentName, createdAt])
+  @@index([approvalStatus])
 }
 
 // ════════════════════════════════════════════════════════════════════
