@@ -19,11 +19,16 @@ export const NAV=[
   {id:"scenarios",label:"Scenarios",icon:"◉",c:C.em,group:"INTELLIGENCE"},
   {id:"brain",label:"Company Brain",icon:"◎",c:C.tl,group:"INTELLIGENCE"},
   {id:"board",label:"Board Pack",icon:"◇",c:C.pp,group:"INTELLIGENCE"},
-  // Audit Log is gated to roles carrying audit:read_all (admin + gc by
-  // default). AppShell hides this entry for users without it; the
-  // server-side check on /api/audit-log is the authoritative gate.
-  {id:"audit",label:"Audit Log",icon:"◆",c:C.am,group:"INTELLIGENCE",permission:"audit:read_all"},
   {id:"divider3"},
   {id:"workflows",label:"Workflow Builder",icon:"▷",c:C.tl,group:"PLATFORM"},
   {id:"architecture",label:"Architecture",icon:"▶",c:C.pp,group:"PLATFORM"},
+  {id:"divider4"},
+  // PLATFORM admin tools — each entry is permission-gated. AppShell
+  // hides any entry whose `permission` the current user lacks; if all
+  // three hide, the entire ADMIN group header doesn't render.
+  // Server-side checks on /api/admin/* and /api/audit-log are the
+  // authoritative gates.
+  {id:"users",label:"Users",icon:"◈",c:C.bl,group:"ADMIN",permission:"admin:manage_users"},
+  {id:"roles",label:"Roles",icon:"◆",c:C.pp,group:"ADMIN",permission:"admin:manage_roles"},
+  {id:"audit",label:"Audit Log",icon:"◇",c:C.am,group:"ADMIN",permission:"audit:read_all"},
 ];

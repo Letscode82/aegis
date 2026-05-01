@@ -160,6 +160,11 @@ async function resolveByEmail(
     // tenant-level setting.
     return null;
   }
+  // Admin module's soft-suspend: refuse to authenticate suspended users.
+  // The User row stays so AuditLog references still resolve, but the
+  // session is denied at the auth boundary so suspended users cannot
+  // hit any gated endpoint.
+  if (dbUser.suspendedAt) return null;
   return assembleAuthUser(dbUser, hint?.name);
 }
 

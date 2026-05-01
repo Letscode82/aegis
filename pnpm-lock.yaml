@@ -17,6 +17,9 @@ importers:
 
   apps/web:
     dependencies:
+      '@aegis/admin':
+        specifier: workspace:*
+        version: link:../../modules/admin
       '@aegis/ai':
         specifier: workspace:*
         version: link:../../packages/ai
@@ -69,6 +72,40 @@ importers:
       typescript:
         specifier: 5.6.3
         version: 5.6.3
+
+  modules/admin:
+    dependencies:
+      '@aegis/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
+      '@aegis/db':
+        specifier: workspace:*
+        version: link:../../packages/db
+      '@aegis/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
+      react:
+        specifier: ^18.3.1
+        version: 18.3.1
+    devDependencies:
+      '@aegis/eslint-config':
+        specifier: workspace:*
+        version: link:../../packages/eslint-config
+      '@types/node':
+        specifier: ^20.17.9
+        version: 20.19.39
+      '@types/react':
+        specifier: ^18.3.12
+        version: 18.3.28
+      eslint:
+        specifier: ^8.57.1
+        version: 8.57.1
+      typescript:
+        specifier: 5.6.3
+        version: 5.6.3
+      vitest:
+        specifier: 1.6.1
+        version: 1.6.1(@types/node@20.19.39)
 
   modules/intake:
     dependencies:
