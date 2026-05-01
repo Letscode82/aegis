@@ -1,27 +1,47 @@
 import { useState, useEffect } from "react";
 import { C, F, M, SR, Dot, CSS } from "@aegis/ui";
 import { AICopilot, IntakeView } from "@aegis/intake";
+import { useCurrentUser } from "@aegis/auth/react";
 import { NAV } from "./data/nav";
 import { ALL_APPROVALS, ALL_ALERTS } from "./data/aggregate";
 import { DailyView, AlertsView, ApprovalsView, ContractsView, RegulatoryView, LitigationView, ComplianceView, SpendView, GovernanceView } from "./views/v72";
-import { MissionControlView, BoardReportView, BrainView, OCMView, CyberView, WorkflowBuilderView, ArchitectureView, MatterManagementView, RiskGraphView, ScenariosView } from "./views/v8";
+import { MissionControlView, BoardReportView, BrainView, OCMView, CyberView, WorkflowBuilderView, ArchitectureView, RiskGraphView, ScenariosView } from "./views/v8";
+import { MatterManagementShell, AuditLogShell } from "./views/matter-shell.jsx";
+
+// Reads `?view=...` on first mount so deep links (e.g. /matter/[id]
+// rewriting to /?view=matters&matterId=...) land in the right tile.
+// Subsequent state changes don't push to the URL — Aurora is one-page,
+// the side-nav is the navigation surface.
+function initialViewFromUrl(fallback){
+  if(typeof window==="undefined") return fallback;
+  const v=new URLSearchParams(window.location.search).get("view");
+  return v||fallback;
+}
 
 export default function App(){
-  const[view,setView]=useState("mission");
+  const[view,setView]=useState(()=>initialViewFromUrl("mission"));
   const[copilotOpen,setCopilotOpen]=useState(false);
   const[time,setTime]=useState(new Date());
+  const{has,loading:authLoading}=useCurrentUser();
   useEffect(()=>{const t=setInterval(()=>setTime(new Date()),1000);return()=>clearInterval(t)},[]);
 
   const critAlerts=ALL_ALERTS.filter(a=>a.sev==="critical").length;
   const pendingAppr=ALL_APPROVALS.length;
 
   const V={mission:MissionControlView,today:DailyView,alerts:AlertsView,approvals:ApprovalsView,
-    intake:IntakeView,matters:MatterManagementView,contracts:ContractsView,
+    intake:IntakeView,matters:MatterManagementShell,contracts:ContractsView,
     regulatory:RegulatoryView,graph:RiskGraphView,scenarios:ScenariosView,
     ocm:OCMView,spend:SpendView,governance:GovernanceView,
     cyber:CyberView,brain:BrainView,board:BoardReportView,workflows:WorkflowBuilderView,
-    architecture:ArchitectureView};
+    architecture:ArchitectureView,audit:AuditLogShell};
   const Comp=V[view]||DailyView;
+
+  // Filter NAV by the user's permissions. Entries without a `permission`
+  // are visible to everyone; entries with one are hidden until the
+  // current-user query returns and confirms the grant. The server-side
+  // gate on the underlying API stays authoritative — the nav filter is
+  // a UX-only refinement.
+  const visibleNav=NAV.filter(n=>!n.permission||(authLoading?false:has(n.permission)));
 
   return <div style={{display:"flex",minHeight:"100vh",background:C.bg,fontFamily:F,color:C.t1}}>
     <style>{CSS}</style>
@@ -39,7 +59,7 @@ export default function App(){
       <div style={{padding:"8px 6px",flex:1,overflowY:"auto"}}>
         {(() => {
           let currentGroup = null;
-          return NAV.map(n=>{
+          return visibleNav.map(n=>{
             if(n.id.startsWith("divider")) return <div key={n.id} style={{height:1,background:C.br,margin:"10px 10px"}}/>;
             const showHeader = n.group && n.group !== currentGroup;
             if(showHeader) currentGroup = n.group;

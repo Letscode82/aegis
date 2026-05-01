@@ -19,6 +19,10 @@ export const NAV=[
   {id:"scenarios",label:"Scenarios",icon:"◉",c:C.em,group:"INTELLIGENCE"},
   {id:"brain",label:"Company Brain",icon:"◎",c:C.tl,group:"INTELLIGENCE"},
   {id:"board",label:"Board Pack",icon:"◇",c:C.pp,group:"INTELLIGENCE"},
+  // Audit Log is gated to roles carrying audit:read_all (admin + gc by
+  // default). AppShell hides this entry for users without it; the
+  // server-side check on /api/audit-log is the authoritative gate.
+  {id:"audit",label:"Audit Log",icon:"◆",c:C.am,group:"INTELLIGENCE",permission:"audit:read_all"},
   {id:"divider3"},
   {id:"workflows",label:"Workflow Builder",icon:"▷",c:C.tl,group:"PLATFORM"},
   {id:"architecture",label:"Architecture",icon:"▶",c:C.pp,group:"PLATFORM"},

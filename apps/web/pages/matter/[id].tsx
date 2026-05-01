@@ -1,25 +1,20 @@
-import dynamic from "next/dynamic";
-import Head from "next/head";
-import { useRouter } from "next/router";
-import { Nav } from "./index";
+import type { GetServerSideProps } from "next";
 
-const MatterDetailView = dynamic(
-  () => import("@aegis/matter/ui").then((m) => m.MatterDetailView),
-  { ssr: false },
-);
-
-export default function MatterDetailPage() {
-  const router = useRouter();
-  const id = typeof router.query.id === "string" ? router.query.id : null;
-  return (
-    <>
-      <Head>
-        <title>AEGIS · Matter</title>
-      </Head>
-      <main style={{ background: "#0B1020", minHeight: "100vh" }}>
-        <Nav active="list" />
-        {id && <MatterDetailView matterId={id} />}
-      </main>
-    </>
-  );
+export default function MatterDetailRedirect() {
+  return null;
 }
+
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const id = typeof ctx.params?.id === "string" ? ctx.params.id : "";
+  if (!id) {
+    return {
+      redirect: { destination: "/?view=matters", permanent: false },
+    };
+  }
+  return {
+    redirect: {
+      destination: `/?view=matters&matterId=${encodeURIComponent(id)}`,
+      permanent: false,
+    },
+  };
+};
