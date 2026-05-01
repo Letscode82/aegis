@@ -1,0 +1,31 @@
+{
+  "name": "@aegis/matter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./api.ts",
+  "types": "./api.ts",
+  "exports": {
+    ".": "./api.ts",
+    "./ui": "./src/ui/index.ts"
+  },
+  "files": ["api.ts", "src"],
+  "scripts": {
+    "lint": "eslint api.ts src",
+    "typecheck": "tsc --noEmit",
+    "test": "echo 'no tests yet' && exit 0",
+    "dev": "echo 'use apps/web dev'"
+  },
+  "dependencies": {
+    "@aegis/db": "workspace:*",
+    "@aegis/ui": "workspace:*",
+    "react": "^18.3.1"
+  },
+  "devDependencies": {
+    "@aegis/eslint-config": "workspace:*",
+    "@types/node": "^20.17.9",
+    "@types/react": "^18.3.12",
+    "eslint": "^8.57.1",
+    "typescript": "5.6.3"
+  }
+}
