@@ -1,8 +1,24 @@
 /**
  * @aegis/matter/ui — public UI surface.
  *
- * Components are added in the UI commit (chunk 7). This file is the
- * stable entry point so apps/web can import "@aegis/matter/ui" without
- * having to know which component file moved.
+ * apps/web pages compose these components; sibling modules (Intake)
+ * may consume them through this entry point but must not deep-import
+ * the implementation files.
  */
-export {};
+export { MatterDashboard } from "./matter-dashboard";
+export { MatterListView } from "./matter-list-view";
+export { MatterDetailView } from "./matter-detail-view";
+export { MatterCreateForm } from "./matter-create-form";
+export { LegalHoldPanel } from "./legal-hold-panel";
+export { AuditLogView } from "./audit-log-view";
+
+export type {
+  MatterDTO,
+  MatterPartyDTO,
+  MatterTaskDTO,
+  TimelineEntryDTO,
+  ChecklistItemDTO,
+  DashboardStatsDTO,
+  AuditLogDTO,
+  ChainVerificationDTO,
+} from "./types";
