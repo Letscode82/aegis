@@ -19,6 +19,7 @@ import type {
   MatterStatus,
 } from "./types";
 import { LegalHoldPanel } from "./legal-hold-panel";
+import { HoldListTab, HoldDetailPage, HoldCreateForm } from "./legal-hold";
 
 type TabKey =
   | "overview"
@@ -200,7 +201,7 @@ export const MatterDetailView: React.FC<MatterDetailViewProps> = ({
       {tab === "team" && <TeamPanel matterId={matterId} />}
       {tab === "tasks" && <TasksPanel matterId={matterId} onChanged={refresh} />}
       {tab === "timeline" && <TimelinePanel matterId={matterId} />}
-      {tab === "hold" && <LegalHoldPanel matterId={matterId} />}
+      {tab === "hold" && <HoldsTab matterId={matterId} />}
       {tab === "spend" && <SpendPanel matterId={matterId} />}
       {tab === "audit" && <AuditPanel matterId={matterId} />}
       {tab === "m365" && <M365Panel />}
@@ -1082,3 +1083,38 @@ const M365Panel: React.FC = () => (
     </div>
   </Card>
 );
+
+// ── Holds tab — wraps HoldListTab + HoldDetailPage with state-driven
+//                sub-navigation (mirrors the matter-shell pattern so
+//                the side-nav stays consistent).
+
+const HoldsTab: React.FC<{ matterId: string }> = ({ matterId }) => {
+  const [view, setView] = useState<"list" | "create" | string>("list");
+  if (view === "create") {
+    return (
+      <div style={{ display: "grid", gap: 14 }}>
+        <HoldCreateForm
+          matterId={matterId}
+          onCancel={() => setView("list")}
+          onCreated={(id: string) => setView(id)}
+        />
+      </div>
+    );
+  }
+  if (view !== "list") {
+    return (
+      <HoldDetailPage
+        matterId={matterId}
+        holdId={view}
+        onBack={() => setView("list")}
+      />
+    );
+  }
+  return (
+    <HoldListTab
+      matterId={matterId}
+      onSelect={(id: string) => setView(id)}
+      onCreate={() => setView("create")}
+    />
+  );
+};

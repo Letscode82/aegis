@@ -109,7 +109,14 @@ PR #3 — Auth0 + RBAC + permission enumeration. (Step 3)
 PR #4 — Matter Management module — split into four sub-PRs:
   4a — Matter foundation: CRUD, state machine, tasks, AuditLog
        chain (D11), reporting, M365 + AI behind mocked interfaces.
-  4b — Legal Hold workflow (issue, attest, release, custodian view).
+  4b — Legal Hold core: 12 capabilities (trigger capture, notice
+       issuance, custodian identification, ack tracking, re-acknowledgment,
+       reminders/escalation, in-place preservation orchestration, data-
+       source mapping, IT confirmation, immutable audit, release workflow,
+       defensibility export). M365 stays mocked behind extended
+       `MockM365Client` (sunset 4c). AI stays mocked behind
+       `MockHoldAIClient` (sunset 4d). `AgentDecision` table contract
+       locked but ships empty. Deterministic defensibility scorecard ships.
   4c — M365 Graph API client replaces the 4a mock; folders, Teams
        channels, mail rules auto-provision on matter create.
   4d — AI features: matter creation suggestions, similar matters,
@@ -144,6 +151,9 @@ the shared bit into a package or add it to the module's `api.ts`.
 | `modules/matter/src/internal/services/m365.ts` | declares `M365Client` interface + `MockM365Client` implementation | The M365 (SharePoint / Teams / Outlook) integration interface ships in 4a so callers (matter create form, document attachment panel) wire against a stable shape. The Graph API client is mocked. | **Sunset at 4c.** The 4c sub-PR replaces `MockM365Client` with the real Graph API client; the interface stays, the implementation changes, no caller moves. |
 | `modules/matter/src/internal/services/cross-module.ts:findSimilarMattersService` | keyword-overlap fallback | Keyword overlap is a placeholder so the matter create form's "similar matters" affordance has real-shaped data today. | **Sunset at 4d.** The 4d sub-PR replaces the keyword fallback with a Claude embedding lookup; same return shape (`MatterMatch[]`). |
 | `modules/matter/src/internal/services/cross-module.ts:getMatterCostBasisService` | reads `Budget` + sums approved/paid `Invoice` rows directly | Spend module is not yet shipped (Step 6). The matter dashboard / detail view need real-shaped cost-basis data today. | **Sunset at Step 6.** The Spend module's `api.ts` will expose `getMatterSpendSummary(matterId)`; this stub is replaced by a single call into `@aegis/spend`, returning the same `MatterCostBasis` shape with `source: "spend-api"`. |
+| `modules/matter/src/internal/services/m365.ts:MockM365Client` Legal Hold methods | extends the 4a `M365Client` interface with `discoverCustodians`, `applyPreservation`, `releasePreservation`, `preserveDepartedMailbox`, `enumerateDataSourcesForUser`; mock implementations return deterministic seeded data | The Legal Hold workflow (sub-PR 4b) needs M365 effects (custodian discovery, in-place preservation, departed-mailbox preservation) but the real Graph API client lands in 4c. The interface ships in 4b so all hold-side callers (`data-sources.ts`, custodians service, departure handling) wire against the stable shape today. | **Sunset at 4c.** The 4c sub-PR replaces every method's mock body with Graph API calls; the interface stays unchanged, no caller moves. |
+| `modules/matter/src/internal/legal-hold/services/ai-mock.ts` | declares `HoldAIClient` interface + `MockHoldAIClient` implementation with deterministic stubs for `recommendCustodians`, `recommendCadence`, `draftNotice`, `explainScorecard`. `confidence` is `null` (signals "no model behind this") | Hold UI surfaces (custodian recommendations, cadence picker, notice drafting, scorecard narrative) need real-shaped data today. Real Claude calls land in 4d together with the `AgentDecision` lifecycle (every recommendation writes a row that must reach `APPROVED` before the corresponding mutation runs). | **Sunset at 4d.** The 4d sub-PR replaces the mock with `@aegis/ai`-routed Claude calls and writes `AgentDecision` rows; same return shape, no caller moves. |
+| `modules/matter/src/internal/legal-hold/services/defensibility.ts:getHoldDefensibilityScoreService` (narrative-explanation field) | omits `narrativeMarkdown` in 4b output; structured `components` + `gaps` ship deterministic | The deterministic six-component scorecard is fully implemented in 4b (custodian acknowledgment + re-attestation + data-source coverage + IT confirmation + notice-template integrity + audit-chain integrity). The AI-generated narrative explanation (D6) requires real Claude calls and ships in 4d. | **Sunset at 4d.** The 4d sub-PR adds the `narrativeMarkdown` field on `HoldDefensibilityScore`; deterministic structure stays unchanged. |
 
 ### When this pattern is allowed
 - **Build-time / dev-only tooling.** Seed scripts, codegen, fixtures
@@ -524,6 +534,35 @@ the `Event`/`MatterTimeline` rows (product surface) **and** the
 for any new module's mutation chokepoint — module code never writes
 one without the other.
 
+### Legal Hold lifecycle as event log
+
+Legal Hold uses an event-sourced model: every state change writes a
+`LegalHoldEvent` row through
+`modules/matter/src/internal/legal-hold/services/timeline.ts:recordHoldEvent()`,
+which twin-records to `AuditLog` and stores the resulting
+`AuditLog.id` on `LegalHoldEvent.resultingAuditLogId`. Denormalized
+fields on `LegalHold` (`status`, `issuedAt`, `releasedAt`, etc.) are
+a fast-read materialization of the event stream — they must always
+be derivable from `LegalHoldEvent`. Per-custodian release, scope
+amendment, and departure transfers are first-class event types
+(`CUSTODIAN_PARTIALLY_RELEASED`, `SCOPE_AMENDED`,
+`CUSTODIAN_DEPARTED`) rather than mutations of the parent hold's
+fields.
+
+The hold-side helper writes via `prisma.auditLog.create` directly
+(rather than `@aegis/db.logAudit`'s best-effort path) so audit
+failures fail the mutation — Legal Hold has stronger guarantees
+than the matter timeline because the audit row IS the legal anchor.
+
+The `AgentDecision` table locks the evidence-grade contract for
+agent-actor mutations. In 4b the table is empty; in 4d, every Claude-
+generated recommendation writes an `AgentDecision` row that must
+reach `APPROVED` (or `APPROVED_WITH_OVERRIDE`) before the
+corresponding mutation runs. `recordHoldEvent` already enforces the
+gate — callers passing an `agentDecisionId` whose status is
+`PENDING` get an `AgentDecisionPendingError`. This is conservative
+AI governance enforced in the schema, not the prompt.
+
 ---
 
 ## Module-load architectural guards
@@ -630,6 +669,87 @@ the silent-downgrade footgun. Both stay through the swap.
   catalog coverage, diff helper) run in the default test stage.
 - Deep-link redirects added: `/admin/users` and `/admin/roles` 307 to
   `/?view=users` and `/?view=roles`.
+
+## What's new in sub-PR 4b (Legal Hold core)
+
+The Legal Hold workflow lifecycle from "litigation reasonably
+anticipated" through release, with an event-sourced model that lets
+4d wire AI-actor mutations into the same chain-sealed audit ledger.
+
+- New schema: `LegalHold` reshaped, `LegalHoldCustodian`,
+  `CustodianDataSource`, `HoldNoticeTemplate`, `HoldNoticeIssuance`,
+  `LegalHoldEvent`, `HoldTriggerEvent`, `OrganizationHoldPolicy`,
+  `DepartedCustodianRetention`, `AgentDecision`. Plus four new enums
+  (`DataSourceType`, `PreservationAction`, `LegalHoldEventType`,
+  `AgentApprovalStatus`) and an expanded `LegalHoldStatus` (DRAFT →
+  ISSUED → ACTIVE → PARTIALLY_RELEASED → RELEASED).
+- `recordHoldEvent()` mirrors `recordMatterEvent()` from 4a: every
+  state-changing hold mutation writes a `LegalHoldEvent` linked via
+  `resultingAuditLogId` to a chain-sealed `AuditLog` row. Hold-side
+  `prisma.auditLog.create` is used directly (rather than the
+  best-effort `logAudit` helper) so audit failures fail the
+  mutation — hold ledger has stronger guarantees than matter timeline.
+- Twelve capabilities ship as real workflow: trigger event capture,
+  hold notice issuance with content-hashed templates, custodian
+  identification (mocked discovery), notice acknowledgment + periodic
+  re-attestation, reminder + escalation evaluator (pg-boss handlers
+  scaffolded), in-place preservation orchestration through the
+  extended `MockM365Client` (sunset 4c), typed data-source taxonomy
+  (17 `DataSourceType` values incl. ephemeral / departed-mailbox),
+  IT-confirmed preservation, tamper-proof immutable audit (inherited
+  from D11), full + partial release + scope amendment as distinct
+  events, and a deterministic six-component defensibility scorecard.
+- `MockHoldAIClient` (sunset 4d) ships the AI surface contract
+  (`recommendCustodians`, `recommendCadence`, `draftNotice`,
+  `explainScorecard`) with deterministic placeholder data and
+  `confidence: null` semantics signalling "no model behind this".
+- `AgentDecision` table contract is locked but ships empty in 4b.
+  `recordHoldEvent` enforces the `AgentDecisionPendingError` gate —
+  any caller passing an `agentDecisionId` whose status is `PENDING`
+  is refused. The gate is dormant in 4b (no rows exist); 4d turns it
+  on by writing real decisions.
+- Public surface added to `modules/matter/api.ts`: lifecycle
+  (createLegalHold / issueLegalHold / releaseLegalHold /
+  partiallyReleaseCustodian / amendHoldScope), trigger
+  (recordHoldTrigger), custodians (addHoldCustodian /
+  removeHoldCustodian / acknowledgeHold / reAttestHold /
+  markCustodianDeparted), data sources (addCustodianDataSource /
+  applyDataSourcePreservation / confirmDataSourcePreservation),
+  notices (createNoticeTemplate / updateNoticeTemplate /
+  issueNotice), policy (getOrgHoldPolicy / updateOrgHoldPolicy /
+  resolveEffectivePolicy), reads (listLegalHolds / getLegalHoldById /
+  listHoldEvents / getCustodianHoldView /
+  getHoldDefensibilityScore / exportHoldDefensibility), AI mock
+  (getHoldAIClient). Errors: IllegalHoldTransitionError,
+  HoldPolicyResolutionError, CustodianAlreadyAcknowledgedError,
+  AgentDecisionPendingError.
+- Routes under `/api/matter/[id]/holds/*` for list / create /
+  detail / amend / issue / release / custodians / acknowledge /
+  notices / scorecard / export / timeline. All permission-gated
+  via `assertUserCanDo` against `matter:legal_hold:issue`,
+  `matter:legal_hold:release`, `matter:legal_hold:custodian_view`,
+  or read-side `matter:read_*` as appropriate.
+- Custodian-side flow: `/custodian/holds/[holdId]/acknowledge`
+  page renders `CustodianAttestationView` after looking up the
+  current user's matterId + personId via `/api/custodian/hold-context`.
+- UI: `HoldListTab` (replaces the 4a placeholder LegalHoldPanel
+  inside the matter detail view's Legal Hold tab), `HoldDetailPage`
+  with six tabs (Overview / Custodians / Data Sources / Notices /
+  Timeline / Defensibility), `HoldCreateForm`, deterministic
+  `DefensibilityBadge` with banded colour ramp, `CustodianAttestationView`.
+- Seed §3 rewrite: `OrganizationHoldPolicy` + two
+  `HoldNoticeTemplate` rows (default + GDPR) + one ACTIVE
+  `LegalHold` "LH-2026-0001" on the Snowflake matter with three
+  custodians at mixed states (acknowledged / pending /
+  re-attestation overdue) + seven `CustodianDataSource` rows
+  spanning the typed taxonomy (two with `retentionPolicyConflict=true`
+  so the scorecard surfaces real gaps) + one issuance + one trigger
+  event + ten `LegalHoldEvent` rows.
+- Documented exceptions table gains three new rows: extended
+  `MockM365Client` methods (sunset 4c), `MockHoldAIClient` (sunset
+  4d), defensibility scorecard's narrative explanation field
+  (sunset 4d). The matter exceptions for the M365 stub already
+  cover the base interface.
 
 ## What's new in PR #4 / sub-PR 4a (Step 4a — Matter foundation + AuditLog chain)
 

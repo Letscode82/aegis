@@ -12,6 +12,18 @@ export { MatterCreateForm } from "./matter-create-form";
 export { LegalHoldPanel } from "./legal-hold-panel";
 export { AuditLogView } from "./audit-log-view";
 
+// Legal Hold core (sub-PR 4b)
+export {
+  HoldListTab,
+  HoldDetailPage,
+  HoldCreateForm,
+  CustodianAttestationView,
+  DefensibilityBadge,
+  JurisdictionPills,
+  StatusPill,
+  defensibilityColor,
+} from "./legal-hold";
+
 export type {
   MatterDTO,
   MatterPartyDTO,
@@ -22,3 +34,14 @@ export type {
   AuditLogDTO,
   ChainVerificationDTO,
 } from "./types";
+
+export type {
+  HoldSummaryDTO,
+  HoldDetailDTO,
+  HoldCustodianDTO,
+  HoldDataSourceDTO,
+  HoldEventDTO,
+  HoldNoticeIssuanceDTO,
+  HoldDefensibilityScoreDTO,
+  LegalHoldStatusKey,
+} from "./legal-hold";
