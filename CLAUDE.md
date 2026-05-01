@@ -463,6 +463,50 @@ over a runtime check or a documentation note alone.
 
 ---
 
+## Future migrations
+
+Architectural decisions we expect to revisit. Not "TODOs" — actual
+forks where the current choice is right for now and will need to
+change when a known trigger fires. Each entry names the decision,
+the trigger condition, and the rough cost of the swap.
+
+### Auth: Auth0 → enterprise-IdP federation (NextAuth.js)
+
+**Current.** `@aegis/auth` wraps `@auth0/nextjs-auth0` 3.5. Auth0 was
+chosen for fast demo setup — one tenant, Universal Login, zero IdP
+work for the development team.
+
+**Trigger.** First client contract requiring SSO with their existing
+IdP (Microsoft Entra ID, Okta, Ping). Enterprise legal departments
+will not run identity through a vendor account they don't control;
+SAML/OIDC federation to the client's IdP is table stakes.
+
+**Migration plan.** The `@aegis/auth` package is structured so the
+SDK can be swapped without touching modules:
+
+- `Permission`, `RoleName`, `ROLE_PERMISSIONS`, `canUserDo`,
+  `assertUserCanDo` are SDK-agnostic. Stay as-is.
+- `getResolvedUser(req, res)` is the only function that imports
+  `@auth0/nextjs-auth0`. Reimplement with NextAuth.js v5 + a SAML/OIDC
+  provider per tenant. Same signature, same `AuthUser` return shape —
+  no consumer change.
+- `makeAuthHandler()` factory + the `[...auth0]` catch-all become a
+  NextAuth `[...nextauth]` route.
+- Module-load production guard (`AUTH0_SECRET` unset → throw)
+  generalises to "OIDC issuer URL unset → throw".
+
+**Estimated cost.** Half a day of focused work. The architectural
+isolation that makes this swap cheap is the reason we picked the
+package boundary the way we did, and the reason `@aegis/db.context.ts`
+delegates to `@aegis/auth/server.getResolvedUser` rather than calling
+the Auth0 SDK directly.
+
+**Until then.** The dev-mode fallback (no `AUTH0_*` env → seeded
+admin) keeps `pnpm dev` zero-config, and the production guard prevents
+the silent-downgrade footgun. Both stay through the swap.
+
+---
+
 ## What's new in PR #3 (Step 3 — Auth0 + RBAC + permission model)
 
 - `packages/auth` is no longer empty.
