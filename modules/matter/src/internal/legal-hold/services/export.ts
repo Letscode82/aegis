@@ -1,0 +1,167 @@
+/**
+ * Defensibility export — court-ready JSON payload.
+ *
+ * Produces a structured snapshot of one hold: header, custodians
+ * with per-row acknowledgment status, data sources with preservation
+ * state, notice issuance roster, full event timeline, and the
+ * deterministic scorecard. Builds on the 4a audit-export pattern;
+ * 4d adds the AI-generated narrative explanation as an additional
+ * field on the score.
+ *
+ * The PDF rendering is left to the caller — the API route can pipe
+ * the JSON into the same `pdfkit`-based formatter that the audit-
+ * defensibility export uses, or return JSON directly. This module
+ * focuses on the deterministic content; presentation is glue.
+ */
+import { prisma } from "@aegis/db";
+import type { HoldDefensibilityScore } from "../types";
+import { getHoldDefensibilityScoreService } from "./defensibility";
+
+export interface HoldDefensibilityExport {
+  $schema: "aegis.legal-hold.defensibility.v1";
+  generatedAt: string;
+  hold: {
+    id: string;
+    organizationId: string;
+    matterId: string;
+    holdNumber: string | null;
+    title: string;
+    scopeDescription: string;
+    jurisdictions: string[];
+    status: string;
+    triggeredAt: string | null;
+    triggerEventDescription: string | null;
+    issuedAt: string | null;
+    releasedAt: string | null;
+    privilegeFlags: unknown;
+    affectsDepartedCustodians: boolean;
+  };
+  custodians: Array<{
+    id: string;
+    personId: string;
+    personName: string;
+    personEmail: string | null;
+    acknowledgedAt: string | null;
+    lastReAttestedAt: string | null;
+    nextReAttestationDueAt: string | null;
+    releasedAt: string | null;
+    departureRecordedAt: string | null;
+  }>;
+  dataSources: Array<{
+    id: string;
+    legalHoldCustodianId: string;
+    type: string;
+    externalIdentifier: string;
+    displayLabel: string;
+    preservationAction: string;
+    preservationAppliedAt: string | null;
+    preservationConfirmedAt: string | null;
+    preservationFailureReason: string | null;
+    retentionPolicyConflict: boolean;
+  }>;
+  noticeIssuances: Array<{
+    id: string;
+    templateId: string;
+    templateVersion: number;
+    bodyHashAtIssuance: string;
+    recipientCount: number;
+    issuedAt: string;
+    issuedById: string;
+  }>;
+  events: Array<{
+    id: string;
+    type: string;
+    summary: string;
+    actorId: string | null;
+    actorType: string;
+    occurredAt: string;
+    resultingAuditLogId: string | null;
+  }>;
+  scorecard: HoldDefensibilityScore;
+}
+
+export async function exportHoldDefensibilityService(
+  holdId: string,
+): Promise<HoldDefensibilityExport> {
+  const hold = await prisma.legalHold.findUnique({
+    where: { id: holdId },
+    include: {
+      custodians: {
+        include: {
+          person: { select: { name: true, email: true } },
+          dataSources: true,
+        },
+      },
+      noticeIssuances: true,
+      events: { orderBy: [{ occurredAt: "asc" }] },
+    },
+  });
+  if (!hold) throw new Error(`Hold ${holdId} not found`);
+
+  const scorecard = await getHoldDefensibilityScoreService(holdId);
+
+  return {
+    $schema: "aegis.legal-hold.defensibility.v1",
+    generatedAt: new Date().toISOString(),
+    hold: {
+      id: hold.id,
+      organizationId: hold.organizationId,
+      matterId: hold.matterId,
+      holdNumber: hold.holdNumber,
+      title: hold.title,
+      scopeDescription: hold.scopeDescription,
+      jurisdictions: hold.jurisdictions,
+      status: hold.status,
+      triggeredAt: hold.triggeredAt?.toISOString() ?? null,
+      triggerEventDescription: hold.triggerEventDescription,
+      issuedAt: hold.issuedAt?.toISOString() ?? null,
+      releasedAt: hold.releasedAt?.toISOString() ?? null,
+      privilegeFlags: hold.privilegeFlags,
+      affectsDepartedCustodians: hold.affectsDepartedCustodians,
+    },
+    custodians: hold.custodians.map((c) => ({
+      id: c.id,
+      personId: c.personId,
+      personName: c.person.name,
+      personEmail: c.person.email,
+      acknowledgedAt: c.acknowledgedAt?.toISOString() ?? null,
+      lastReAttestedAt: c.lastReAttestedAt?.toISOString() ?? null,
+      nextReAttestationDueAt: c.nextReAttestationDueAt?.toISOString() ?? null,
+      releasedAt: c.releasedAt?.toISOString() ?? null,
+      departureRecordedAt: c.departureRecordedAt?.toISOString() ?? null,
+    })),
+    dataSources: hold.custodians.flatMap((c) =>
+      c.dataSources.map((d) => ({
+        id: d.id,
+        legalHoldCustodianId: d.legalHoldCustodianId,
+        type: d.type,
+        externalIdentifier: d.externalIdentifier,
+        displayLabel: d.displayLabel,
+        preservationAction: d.preservationAction,
+        preservationAppliedAt: d.preservationAppliedAt?.toISOString() ?? null,
+        preservationConfirmedAt: d.preservationConfirmedAt?.toISOString() ?? null,
+        preservationFailureReason: d.preservationFailureReason,
+        retentionPolicyConflict: d.retentionPolicyConflict,
+      })),
+    ),
+    noticeIssuances: hold.noticeIssuances.map((i) => ({
+      id: i.id,
+      templateId: i.templateId,
+      templateVersion: i.templateVersion,
+      bodyHashAtIssuance: i.bodyHashAtIssuance,
+      recipientCount: i.recipientCount,
+      issuedAt: i.issuedAt.toISOString(),
+      issuedById: i.issuedById,
+    })),
+    events: hold.events.map((e) => ({
+      id: e.id,
+      type: e.type,
+      summary: e.summary,
+      actorId: e.actorId,
+      actorType: e.actorType,
+      occurredAt: e.occurredAt.toISOString(),
+      resultingAuditLogId: e.resultingAuditLogId,
+    })),
+    scorecard,
+  };
+}

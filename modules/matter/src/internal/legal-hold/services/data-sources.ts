@@ -1,0 +1,184 @@
+/**
+ * CustodianDataSource lifecycle — add, apply preservation, confirm
+ * preservation. Preservation orchestration routes through the
+ * MockM365Client extensions (sunset 4c).
+ */
+import { prisma, type CustodianDataSource } from "@aegis/db";
+import type {
+  AddCustodianDataSourceInput,
+  ApplyDataSourcePreservationInput,
+  ConfirmDataSourcePreservationInput,
+  HoldActor,
+} from "../types";
+import { getM365Client } from "../../services/m365";
+import { recordHoldEvent } from "./timeline";
+
+async function loadHoldOrgFromDataSource(
+  dataSourceId: string,
+): Promise<{ legalHoldId: string; organizationId: string; personId: string }> {
+  const ds = await prisma.custodianDataSource.findUnique({
+    where: { id: dataSourceId },
+    select: {
+      legalHoldCustodian: {
+        select: {
+          legalHoldId: true,
+          personId: true,
+          legalHold: { select: { organizationId: true } },
+        },
+      },
+    },
+  });
+  if (!ds) throw new Error(`Data source ${dataSourceId} not found`);
+  return {
+    legalHoldId: ds.legalHoldCustodian.legalHoldId,
+    organizationId: ds.legalHoldCustodian.legalHold.organizationId,
+    personId: ds.legalHoldCustodian.personId,
+  };
+}
+
+export async function addCustodianDataSourceService(
+  input: AddCustodianDataSourceInput,
+  actor: HoldActor,
+): Promise<CustodianDataSource> {
+  const lhc = await prisma.legalHoldCustodian.findUnique({
+    where: { id: input.legalHoldCustodianId },
+    select: {
+      id: true,
+      legalHoldId: true,
+      legalHold: { select: { organizationId: true } },
+    },
+  });
+  if (!lhc) throw new Error(`Custodian row ${input.legalHoldCustodianId} not found`);
+  if (lhc.legalHold.organizationId !== actor.organizationId) {
+    throw new Error("Cross-org access refused");
+  }
+
+  const created = await prisma.custodianDataSource.create({
+    data: {
+      legalHoldCustodianId: input.legalHoldCustodianId,
+      type: input.type,
+      externalIdentifier: input.externalIdentifier,
+      displayLabel: input.displayLabel,
+      preservationAction: input.preservationAction ?? "LEGAL_HOLD_IN_PLACE",
+      retentionPolicyConflict: input.retentionPolicyConflict ?? false,
+      metadataJson: (input.metadata ?? null) as object,
+    },
+  });
+
+  await recordHoldEvent({
+    legalHoldId: lhc.legalHoldId,
+    organizationId: actor.organizationId,
+    actor,
+    type: "DATA_SOURCE_ADDED",
+    summary: `Data source added: ${input.displayLabel}`,
+    auditAction: "matter.legal_hold.data_source.added",
+    afterJson: {
+      id: created.id,
+      type: created.type,
+      label: created.displayLabel,
+      action: created.preservationAction,
+      retentionPolicyConflict: created.retentionPolicyConflict,
+    },
+  });
+
+  return created;
+}
+
+export async function applyDataSourcePreservationService(
+  input: ApplyDataSourcePreservationInput,
+  actor: HoldActor,
+): Promise<CustodianDataSource> {
+  const ds = await prisma.custodianDataSource.findUnique({
+    where: { id: input.dataSourceId },
+    include: {
+      legalHoldCustodian: {
+        include: {
+          person: { select: { externalRef: true } },
+          legalHold: { select: { organizationId: true } },
+        },
+      },
+    },
+  });
+  if (!ds) throw new Error(`Data source ${input.dataSourceId} not found`);
+  if (ds.legalHoldCustodian.legalHold.organizationId !== actor.organizationId) {
+    throw new Error("Cross-org access refused");
+  }
+
+  // Route through the mocked M365 client. 4c replaces with real Graph.
+  const m365 = getM365Client();
+  const result = await m365.applyPreservation({
+    custodianExternalIdentifier: ds.legalHoldCustodian.person.externalRef ?? "unknown",
+    dataSourceExternalIdentifier: ds.externalIdentifier,
+    type: ds.type,
+    action: ds.preservationAction,
+    reasonCode: input.reasonCode,
+  });
+
+  const appliedAt = new Date(result.appliedAt);
+  const updated = await prisma.custodianDataSource.update({
+    where: { id: ds.id },
+    data: {
+      preservationAppliedAt: appliedAt,
+      preservationFailureReason: result.failureReason,
+      preservationAction: result.ok
+        ? ds.preservationAction
+        : "PRESERVATION_FAILED",
+    },
+  });
+
+  await recordHoldEvent({
+    legalHoldId: ds.legalHoldCustodian.legalHoldId,
+    organizationId: actor.organizationId,
+    actor,
+    type: result.ok ? "DATA_SOURCE_PRESERVATION_APPLIED" : "DATA_SOURCE_PRESERVATION_FAILED",
+    summary: result.ok
+      ? `Preservation applied: ${ds.displayLabel}`
+      : `Preservation FAILED: ${ds.displayLabel} (${result.failureReason})`,
+    auditAction: result.ok
+      ? "matter.legal_hold.data_source.preservation.applied"
+      : "matter.legal_hold.data_source.preservation.failed",
+    afterJson: {
+      dataSourceId: ds.id,
+      action: result.ok ? ds.preservationAction : "PRESERVATION_FAILED",
+      appliedAt: appliedAt.toISOString(),
+      upstreamReferenceId: result.upstreamReferenceId,
+    },
+  });
+
+  return updated;
+}
+
+export async function confirmDataSourcePreservationService(
+  input: ConfirmDataSourcePreservationInput,
+  actor: HoldActor,
+): Promise<CustodianDataSource> {
+  const ctx = await loadHoldOrgFromDataSource(input.dataSourceId);
+  if (ctx.organizationId !== actor.organizationId) {
+    throw new Error("Cross-org access refused");
+  }
+
+  const confirmedAt = new Date();
+  const updated = await prisma.custodianDataSource.update({
+    where: { id: input.dataSourceId },
+    data: {
+      preservationConfirmedAt: confirmedAt,
+      preservationConfirmedById: actor.id,
+    },
+  });
+
+  await recordHoldEvent({
+    legalHoldId: ctx.legalHoldId,
+    organizationId: actor.organizationId,
+    actor,
+    type: "DATA_SOURCE_PRESERVATION_CONFIRMED",
+    summary: `IT preservation confirmed: ${updated.displayLabel}`,
+    auditAction: "matter.legal_hold.data_source.preservation.confirmed",
+    afterJson: {
+      dataSourceId: input.dataSourceId,
+      confirmedAt: confirmedAt.toISOString(),
+      confirmedById: actor.id,
+    },
+  });
+
+  return updated;
+}

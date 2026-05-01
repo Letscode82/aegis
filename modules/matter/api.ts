@@ -248,3 +248,218 @@ export async function getWorkloadReport(
 ): Promise<WorkloadReport> {
   return getWorkloadReportService(orgId);
 }
+
+// ── Legal Hold (sub-PR 4b) ─────────────────────────────────────────
+
+import * as LegalHoldServices from "./src/internal/legal-hold";
+
+export type {
+  AcknowledgeHoldInput,
+  AddCustodianDataSourceInput,
+  AddHoldCustodianInput,
+  AmendHoldScopeInput,
+  ApplyDataSourcePreservationInput,
+  ConfirmDataSourcePreservationInput,
+  CreateLegalHoldInput,
+  CreateNoticeTemplateInput,
+  CustodianDataSource,
+  CustodianHoldView,
+  DataSourceType,
+  HoldActor,
+  HoldDefensibilityExport,
+  HoldDefensibilityGap,
+  HoldDefensibilityScore,
+  HoldNoticeIssuance,
+  HoldNoticeTemplate,
+  HoldTriggerEvent,
+  IssueLegalHoldInput,
+  IssueNoticeInput,
+  LegalHoldCustodian,
+  LegalHoldEvent,
+  LegalHoldEventType,
+  OrganizationHoldPolicy,
+  PartiallyReleaseCustodianInput,
+  PreservationAction,
+  ReAttestHoldInput,
+  ReleaseLegalHoldInput,
+  ResolvedHoldPolicy,
+  ScoreComponent,
+  UpdateNoticeTemplateInput,
+} from "./src/internal/legal-hold";
+
+export {
+  AgentDecisionPendingError,
+  CustodianAlreadyAcknowledgedError,
+  HoldPolicyResolutionError,
+  IllegalHoldTransitionError,
+} from "./src/internal/legal-hold";
+
+// Lifecycle
+export async function createLegalHold(
+  input: import("./src/internal/legal-hold").CreateLegalHoldInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.createLegalHoldService(input, actor);
+}
+export async function issueLegalHold(
+  input: import("./src/internal/legal-hold").IssueLegalHoldInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.issueLegalHoldService(input, actor);
+}
+export async function releaseLegalHold(
+  input: import("./src/internal/legal-hold").ReleaseLegalHoldInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.releaseLegalHoldService(input, actor);
+}
+export async function partiallyReleaseCustodian(
+  input: import("./src/internal/legal-hold").PartiallyReleaseCustodianInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.partiallyReleaseCustodianService(input, actor);
+}
+export async function amendHoldScope(
+  input: import("./src/internal/legal-hold").AmendHoldScopeInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.amendHoldScopeService(input, actor);
+}
+
+// Trigger
+export async function recordHoldTrigger(
+  holdId: string,
+  eventDescription: string,
+  occurredAt: Date,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.recordHoldTriggerService(
+    holdId,
+    eventDescription,
+    occurredAt,
+    actor,
+  );
+}
+
+// Custodians
+export async function addHoldCustodian(
+  input: import("./src/internal/legal-hold").AddHoldCustodianInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.addHoldCustodianService(input, actor);
+}
+export async function removeHoldCustodian(
+  holdId: string,
+  personId: string,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.removeHoldCustodianService(holdId, personId, actor);
+}
+export async function acknowledgeHold(
+  input: import("./src/internal/legal-hold").AcknowledgeHoldInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.acknowledgeHoldService(input, actor);
+}
+export async function reAttestHold(
+  input: import("./src/internal/legal-hold").ReAttestHoldInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.reAttestHoldService(input, actor);
+}
+export async function markCustodianDeparted(
+  holdId: string,
+  personId: string,
+  actor: import("./src/internal/legal-hold").HoldActor,
+  notes?: string,
+) {
+  return LegalHoldServices.markCustodianDepartedService(
+    holdId,
+    personId,
+    actor,
+    notes,
+  );
+}
+
+// Data sources
+export async function addCustodianDataSource(
+  input: import("./src/internal/legal-hold").AddCustodianDataSourceInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.addCustodianDataSourceService(input, actor);
+}
+export async function applyDataSourcePreservation(
+  input: import("./src/internal/legal-hold").ApplyDataSourcePreservationInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.applyDataSourcePreservationService(input, actor);
+}
+export async function confirmDataSourcePreservation(
+  input: import("./src/internal/legal-hold").ConfirmDataSourcePreservationInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.confirmDataSourcePreservationService(input, actor);
+}
+
+// Notice templates
+export async function createNoticeTemplate(
+  input: import("./src/internal/legal-hold").CreateNoticeTemplateInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.createNoticeTemplateService(input, actor);
+}
+export async function updateNoticeTemplate(
+  input: import("./src/internal/legal-hold").UpdateNoticeTemplateInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.updateNoticeTemplateService(input, actor);
+}
+export async function issueNotice(
+  input: import("./src/internal/legal-hold").IssueNoticeInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.issueNoticeService(input, actor);
+}
+
+// Policy
+export async function getOrgHoldPolicy(organizationId: string) {
+  return LegalHoldServices.getOrgHoldPolicy(organizationId);
+}
+export async function updateOrgHoldPolicy(
+  organizationId: string,
+  policy: Partial<import("./src/internal/legal-hold").ResolvedHoldPolicy>,
+) {
+  return LegalHoldServices.updateOrgHoldPolicy(organizationId, policy);
+}
+export async function resolveEffectivePolicy(
+  organizationId: string,
+  holdId?: string,
+) {
+  return LegalHoldServices.resolveEffectivePolicy(organizationId, holdId);
+}
+
+// Reads
+export async function listLegalHolds(
+  organizationId: string,
+  matterId?: string,
+) {
+  return LegalHoldServices.listLegalHoldsService(organizationId, matterId);
+}
+export async function getLegalHoldById(holdId: string) {
+  return LegalHoldServices.getLegalHoldByIdService(holdId);
+}
+export async function listHoldEvents(holdId: string, limit?: number) {
+  return LegalHoldServices.listHoldEventsService(holdId, limit);
+}
+export async function getCustodianHoldView(holdId: string, personId: string) {
+  return LegalHoldServices.getCustodianHoldViewService(holdId, personId);
+}
+export async function getHoldDefensibilityScore(holdId: string) {
+  return LegalHoldServices.getHoldDefensibilityScoreService(holdId);
+}
+export async function exportHoldDefensibility(holdId: string) {
+  return LegalHoldServices.exportHoldDefensibilityService(holdId);
+}
+
+// AI mock client (sunset 4d)
+export { getHoldAIClient } from "./src/internal/legal-hold";
