@@ -11,6 +11,7 @@ export { MatterDetailView } from "./matter-detail-view";
 export { MatterCreateForm } from "./matter-create-form";
 export { LegalHoldPanel } from "./legal-hold-panel";
 export { AuditLogView } from "./audit-log-view";
+export { AdminM365Status } from "./admin-m365-status";
 
 // Legal Hold core (sub-PR 4b)
 export {
