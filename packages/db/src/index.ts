@@ -17,6 +17,12 @@ export { prisma } from "./client";
 export { logAudit, type LogAuditInput, type AuditActorType } from "./audit";
 export { sha256Hex, bodyHash } from "./hash";
 export {
+  encryptSecret,
+  decryptSecret,
+  secretFingerprint,
+  SecretDecryptError,
+} from "./crypto";
+export {
   verifyAuditChain,
   type ChainBreak,
   type ChainVerificationResult,
@@ -103,6 +109,7 @@ export type {
   OrganizationHoldPolicy,
   DepartedCustodianRetention,
   AgentDecision,
+  OrganizationM365Credential,
   IntakeTicket,
   AgentRecommendation,
   IntakeConversation,
