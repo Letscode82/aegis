@@ -77,6 +77,7 @@ model Organization {
   holdNoticeTemplates HoldNoticeTemplate[]
   departedRetentions  DepartedCustodianRetention[]
   agentDecisions      AgentDecision[]
+  m365Credential      OrganizationM365Credential?
 
   @@index([name])
 }
@@ -758,6 +759,12 @@ model LegalHold {
   createdById               String
   releasedById              String?
   releaseReason             String?
+  /// Graph linkage (sub-PR 4c). Populated when the hold is mirrored
+  /// into Microsoft Purview as an `ediscoveryCase`. Null until the
+  /// first successful real-Graph applyPreservation call; remains null
+  /// when the org runs against MockM365Client (no creds / E5 absent).
+  graphEdiscoveryCaseId     String?
+  graphHoldPolicyId         String?
   createdAt                 DateTime        @default(now())
   updatedAt                 DateTime        @updatedAt
 
@@ -793,6 +800,13 @@ model LegalHoldCustodian {
   /// Departure handling (commitment E).
   departureRecordedAt          DateTime?
   departedCustodianRetentionId String?   @unique
+  /// Graph linkage (sub-PR 4c). graphHoldStatus mirrors Graph's own
+  /// applied/applying/partial/failed state on the corresponding
+  /// `ediscoveryCustodian`. graphLastSyncedAt is the timestamp of
+  /// the most recent successful applyHold/removeHold round-trip.
+  graphCustodianId             String?
+  graphHoldStatus              String?
+  graphLastSyncedAt            DateTime?
   createdAt                    DateTime  @default(now())
   updatedAt                    DateTime  @updatedAt
 
@@ -820,6 +834,11 @@ model CustodianDataSource {
   /// Surfaces D2 risk (e.g. ephemeral chat with no override).
   retentionPolicyConflict   Boolean            @default(false)
   metadataJson              Json?
+  /// Graph linkage (sub-PR 4c). The Graph eDiscovery custodian's
+  /// userSource or siteSource id; populated on successful applyHold.
+  /// graphSourceType is "userSource" | "siteSource".
+  graphSourceId             String?
+  graphSourceType           String?
   createdAt                 DateTime           @default(now())
   updatedAt                 DateTime           @updatedAt
 
@@ -1431,4 +1450,51 @@ model UserPreference {
 
   @@unique([userId, key])
   @@index([userId])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 9. M365 Per-Organization Credentials (sub-PR 4c)
+// ════════════════════════════════════════════════════════════════════
+//
+// One row per organisation that has a Microsoft 365 tenant
+// connection. The factory in `modules/matter/src/internal/services/
+// m365-factory.ts` resolves credentials in this order:
+//
+//   1. row in OrganizationM365Credential (per-org override)
+//   2. M365_TENANT_ID + M365_CLIENT_ID + M365_CLIENT_SECRET env vars
+//   3. MockM365Client fallback
+//
+// `encryptedClientSecret` ships with a dev-only PLAINTEXT
+// implementation (UTF-8 of the secret). The interface in
+// `packages/db/src/crypto.ts` is stable; KMS-backed envelope
+// encryption replaces the implementation before first paying
+// customer (see CLAUDE.md "Documented exceptions").
+
+model OrganizationM365Credential {
+  id                    String    @id @default(cuid())
+  organizationId        String    @unique
+  /// Tenant id is not a secret.
+  tenantId              String
+  /// Client id is not a secret.
+  clientId              String
+  /// Encrypted at rest via @aegis/db.encryptSecret. 4c ships dev-only
+  /// plaintext (sunset before first paying customer).
+  encryptedClientSecret Bytes
+  /// Override for sovereign clouds (Azure China, GCC High); defaults
+  /// to the global Graph endpoint.
+  graphBaseUrl          String    @default("https://graph.microsoft.com")
+  isActive              Boolean   @default(true)
+  /// Last time `verifyM365Credentials` round-tripped successfully.
+  lastVerifiedAt        DateTime?
+  lastErrorMessage      String?
+  /// Lifecycle.
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+  /// Last time `rotateOrgM365Secret` ran. The factory cache invalidates
+  /// when this changes.
+  rotatedAt             DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, isActive])
 }

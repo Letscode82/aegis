@@ -463,3 +463,29 @@ export async function exportHoldDefensibility(holdId: string) {
 
 // AI mock client (sunset 4d)
 export { getHoldAIClient } from "./src/internal/legal-hold";
+
+// ── M365 connection management (sub-PR 4c) ─────────────────────────
+
+export {
+  getM365ConnectionStatus,
+  rotateOrgM365Secret,
+  upsertOrgM365Credentials,
+  verifyM365Credentials,
+  type UpsertCredentialsInput,
+} from "./src/internal/services/m365-graph-auth";
+
+export {
+  M365EDiscoveryNotLicensedError,
+  M365GraphAuthError,
+  M365GraphError,
+  M365GraphNotFoundError,
+  M365TenantUnreachableError,
+  M365ThrottleExceededError,
+} from "./src/internal/services/m365-graph-errors";
+
+export type {
+  M365ConnectionStatus,
+  M365VerifyResult,
+} from "./src/internal/services/m365-graph-types";
+
+export { getM365ClientForOrg } from "./src/internal/services/m365-factory";

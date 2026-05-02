@@ -117,8 +117,17 @@ PR #4 — Matter Management module — split into four sub-PRs:
        `MockM365Client` (sunset 4c). AI stays mocked behind
        `MockHoldAIClient` (sunset 4d). `AgentDecision` table contract
        locked but ships empty. Deterministic defensibility scorecard ships.
-  4c — M365 Graph API client replaces the 4a mock; folders, Teams
-       channels, mail rules auto-provision on matter create.
+  4c — Microsoft Graph real integration: `M365GraphClient` replaces
+       `MockM365Client` as the production default. Eight methods wired
+       to the current `microsoft.graph.security` eDiscovery
+       subnamespace (deprecated `microsoft.graph.eDiscovery` namespace
+       explicitly avoided). Per-org credential storage in
+       `OrganizationM365Credential` (dev-only plaintext encryption —
+       sunset before first paying customer). Token caching in-process
+       by org id. Every Graph call audited via `withGraphAudit`.
+       Throttle handling via custom middleware respecting
+       `Retry-After`. Production fail-loud guards on env vars match
+       Step 3. AI stays mocked (sunset 4d).
   4d — AI features: matter creation suggestions, similar matters,
        custodian discovery, draft generation. Real Claude calls
        replace the 4a keyword/static fallbacks.
@@ -148,10 +157,13 @@ the shared bit into a package or add it to the module's `api.ts`.
 |---|---|---|---|
 | `packages/db/prisma/seed.ts` | imports `modules/intake/src/seed/{v72-seed,v8-cockpit-seed,v8-bulk-nda-seed}.js` | Dev-only seed script reading its own input. Runs at `pnpm db:seed` time only — never bundled, never imported by app code. The v8 demo fixtures are the canonical demo dataset; duplicating them inside `packages/db` would create two sources of truth. | **Sunset at Step 5.** The Intake `internal/api` split absorbs the v8 fixtures into the module's public surface; the seed will then read from `@aegis/intake/api` instead, ending the cross-package import. |
 | `packages/db/prisma/seed.ts` | imports `packages/auth/src/roles` via the relative path `../../auth/src/roles` | Same dev-only seed reads the canonical `ROLE_PERMISSIONS` bundles from `@aegis/auth`. A package-name import would create a turbo-detected cycle (`@aegis/auth` depends on `@aegis/db` at runtime). The relative path skips the `package.json` edge while still pointing at the single source of truth — duplicating the role bundles inside the seed would drift the moment a permission is added. | **Permanent.** Role definitions live in `@aegis/auth` by design; build-time tooling reaching them via relative path is the cleanest way to keep one source of truth without introducing a circular package dep. Revisit if the cycle goes away (e.g., if `@aegis/auth` ever stops depending on `@aegis/db`). |
-| `modules/matter/src/internal/services/m365.ts` | declares `M365Client` interface + `MockM365Client` implementation | The M365 (SharePoint / Teams / Outlook) integration interface ships in 4a so callers (matter create form, document attachment panel) wire against a stable shape. The Graph API client is mocked. | **Sunset at 4c.** The 4c sub-PR replaces `MockM365Client` with the real Graph API client; the interface stays, the implementation changes, no caller moves. |
+| `modules/matter/src/internal/services/m365.ts` (`MockM365Client`) | retains the mock implementation as a fallback when M365 credentials are absent (CI; local dev without creds) | The mock is no longer the default in production — `m365-factory.getM365ClientForOrg(orgId)` selects `M365GraphClient` when env vars or per-org credentials are present (sub-PR 4c). The mock survives as a CI-friendly fallback so module-isolation tests don't require a tenant. | **Permanent** in current shape. Sunset only if Graph integration becomes mandatory and CI is restructured to provision a tenant. |
 | `modules/matter/src/internal/services/cross-module.ts:findSimilarMattersService` | keyword-overlap fallback | Keyword overlap is a placeholder so the matter create form's "similar matters" affordance has real-shaped data today. | **Sunset at 4d.** The 4d sub-PR replaces the keyword fallback with a Claude embedding lookup; same return shape (`MatterMatch[]`). |
 | `modules/matter/src/internal/services/cross-module.ts:getMatterCostBasisService` | reads `Budget` + sums approved/paid `Invoice` rows directly | Spend module is not yet shipped (Step 6). The matter dashboard / detail view need real-shaped cost-basis data today. | **Sunset at Step 6.** The Spend module's `api.ts` will expose `getMatterSpendSummary(matterId)`; this stub is replaced by a single call into `@aegis/spend`, returning the same `MatterCostBasis` shape with `source: "spend-api"`. |
-| `modules/matter/src/internal/services/m365.ts:MockM365Client` Legal Hold methods | extends the 4a `M365Client` interface with `discoverCustodians`, `applyPreservation`, `releasePreservation`, `preserveDepartedMailbox`, `enumerateDataSourcesForUser`; mock implementations return deterministic seeded data | The Legal Hold workflow (sub-PR 4b) needs M365 effects (custodian discovery, in-place preservation, departed-mailbox preservation) but the real Graph API client lands in 4c. The interface ships in 4b so all hold-side callers (`data-sources.ts`, custodians service, departure handling) wire against the stable shape today. | **Sunset at 4c.** The 4c sub-PR replaces every method's mock body with Graph API calls; the interface stays unchanged, no caller moves. |
+| `modules/matter/src/internal/services/m365.ts:MockM365Client` Legal Hold methods | retains mock implementations for the four 4b-extended methods (`discoverCustodians`, `applyPreservation`, `releasePreservation`, `preserveDepartedMailbox`, `enumerateDataSourcesForUser`) | Same rationale as above — fallback path for credential-free environments. The 4c factory selects `M365GraphClient` when creds resolve. | **Permanent** as long as the parent mock survives. |
+| `packages/db/src/crypto.ts` (`encryptSecret` / `decryptSecret`) | implements **plaintext** "encryption" of `OrganizationM365Credential.encryptedClientSecret` — the bytes stored are the v1-prefixed UTF-8 of the secret | KMS-backed envelope encryption requires customer-tenant onboarding flow that doesn't exist yet. Plaintext is sufficient for the dev tenant, fail-fast wrong for production customers. The interface (`encryptSecret` / `decryptSecret`) stays the same; the implementation swap is non-breaking thanks to the v1 / v2 version prefix discriminator. | **Sunset before first paying customer.** A follow-up PR replaces the implementation with envelope encryption. The interface stays unchanged; no caller moves. |
+| `modules/matter/src/internal/services/m365-graph-client.ts:provisionMatterBindings` (Teams channel creation) | requires a pre-existing `AEGIS-Matters` Team in the customer tenant; does not auto-create the parent Team | Auto-creating a parent Team requires `Group.ReadWrite.All` and `Team.Create` which 4c deliberately did not request — smaller permission surface = easier admin consent in production. The dev tenant has the parent Team pre-seeded; production customer onboarding includes a "create AEGIS parent Team" runbook step. | **Permanent design decision.** |
+| `modules/matter/src/internal/services/m365-graph-client.ts:applyPreservation` (graceful degradation on missing E5) | returns `M365EDiscoveryNotLicensedError` instead of throwing 403; legal-hold workflow falls back to non-Graph preservation modes | Graph eDiscovery API requires E5 + eDiscovery Premium. Customers without that tier should still get partial AEGIS functionality (preservation via copy-to-vault, manual collection). The defensibility scorecard records the gap as a structured component. | **Permanent.** The graceful path is a product requirement, not a temporary workaround. |
 | `modules/matter/src/internal/legal-hold/services/ai-mock.ts` | declares `HoldAIClient` interface + `MockHoldAIClient` implementation with deterministic stubs for `recommendCustodians`, `recommendCadence`, `draftNotice`, `explainScorecard`. `confidence` is `null` (signals "no model behind this") | Hold UI surfaces (custodian recommendations, cadence picker, notice drafting, scorecard narrative) need real-shaped data today. Real Claude calls land in 4d together with the `AgentDecision` lifecycle (every recommendation writes a row that must reach `APPROVED` before the corresponding mutation runs). | **Sunset at 4d.** The 4d sub-PR replaces the mock with `@aegis/ai`-routed Claude calls and writes `AgentDecision` rows; same return shape, no caller moves. |
 | `modules/matter/src/internal/legal-hold/services/defensibility.ts:getHoldDefensibilityScoreService` (narrative-explanation field) | omits `narrativeMarkdown` in 4b output; structured `components` + `gaps` ship deterministic | The deterministic six-component scorecard is fully implemented in 4b (custodian acknowledgment + re-attestation + data-source coverage + IT confirmation + notice-template integrity + audit-chain integrity). The AI-generated narrative explanation (D6) requires real Claude calls and ships in 4d. | **Sunset at 4d.** The 4d sub-PR adds the `narrativeMarkdown` field on `HoldDefensibilityScore`; deterministic structure stays unchanged. |
 
@@ -534,6 +546,32 @@ the `Event`/`MatterTimeline` rows (product surface) **and** the
 for any new module's mutation chokepoint — module code never writes
 one without the other.
 
+### M365 integration as auditable, replaceable, and degradable
+
+AEGIS's Microsoft Graph integration follows three rules:
+
+**Auditable.** Every Graph call writes an `AuditLog` row via
+`withGraphAudit` (`modules/matter/src/internal/services/m365-graph-audit.ts`).
+The chain seals it. Defensibility queries can reconstruct exactly
+which Graph requests AEGIS made on behalf of which hold, with what
+response, and whether the response was successful. This is the same
+evidentiary discipline as the AgentDecision contract from 4b — agent
+or service, every external action is on the chain.
+
+**Replaceable.** The `M365Client` interface is the boundary. The
+factory (`m365-factory.getM365ClientForOrg(orgId)`) returns
+`M365GraphClient` when credentials are present, the mock when they
+aren't. Sovereign cloud variants (Azure China, GCC High) become an
+additional `M365Client` implementation behind the same factory — no
+caller moves.
+
+**Degradable.** When eDiscovery Premium licensing is absent in a
+customer tenant, AEGIS doesn't fail — it surfaces a typed
+`M365EDiscoveryNotLicensedError` and the legal-hold workflow falls
+back to non-Graph preservation actions (`COPIED_TO_PRESERVATION_VAULT`,
+`THIRD_PARTY_COLLECTION_PENDING`). The defensibility scorecard
+records the gap as a structured component, not a workflow stop.
+
 ### Legal Hold lifecycle as event log
 
 Legal Hold uses an event-sourced model: every state change writes a
@@ -669,6 +707,68 @@ the silent-downgrade footgun. Both stay through the swap.
   catalog coverage, diff helper) run in the default test stage.
 - Deep-link redirects added: `/admin/users` and `/admin/roles` 307 to
   `/?view=users` and `/?view=roles`.
+
+## What's new in sub-PR 4c (Microsoft Graph real integration)
+
+Replaces `MockM365Client` with `M365GraphClient` as the production
+default. Eight methods wired to the current
+`microsoft.graph.security` eDiscovery namespace. The mock survives
+as the CI / no-creds fallback path.
+
+- New schema: `OrganizationM365Credential` (per-org tenant + clientId
+  + encrypted secret; dev-only plaintext encryption with v1 version
+  prefix, sunset before first paying customer); Graph linkage columns
+  `graphEdiscoveryCaseId` / `graphHoldPolicyId` on `LegalHold`,
+  `graphCustodianId` / `graphHoldStatus` / `graphLastSyncedAt` on
+  `LegalHoldCustodian`, `graphSourceId` / `graphSourceType` on
+  `CustodianDataSource`. All Graph linkage columns nullable — populated
+  only after a successful real-Graph operation.
+- New helpers in `@aegis/db`: `encryptSecret` / `decryptSecret` /
+  `secretFingerprint` (`packages/db/src/crypto.ts`).
+- New typed-error hierarchy: `M365GraphError`, `M365GraphAuthError`,
+  `M365EDiscoveryNotLicensedError`, `M365ThrottleExceededError`,
+  `M365TenantUnreachableError`, `M365GraphNotFoundError`. `mapGraphError`
+  normalises SDK errors to these so callers always have something to
+  branch on.
+- `withGraphAudit` wraps every Graph call. Failure rows record the
+  error name + correlation id so defensibility queries can reconstruct
+  exactly what Graph said.
+- Production fail-loud guard at module load: partial M365 env vars in
+  production crash the build (matches the AUTH0_SECRET pattern from
+  Step 3).
+- Per-org `M365GraphClient` cache keyed by `(orgId, fingerprint)` so
+  env-var or per-org-row rotation invalidates cleanly without a
+  Redis dependency.
+- Public surface added to `modules/matter/api.ts`:
+  `getM365ClientForOrg`, `getM365ConnectionStatus`,
+  `verifyM365Credentials`, `upsertOrgM365Credentials`,
+  `rotateOrgM365Secret`, plus the typed errors.
+- Routes:
+  - `GET /api/admin/m365/sync-status` — connection status (no Graph
+    call); `admin:manage_users`
+  - `GET|POST /api/admin/m365/verify-credentials` — round-trips Graph
+    `/organization`
+  - `GET /api/_health/m365` — shallow health probe (no Graph call)
+- UI: `AdminM365Status` component rendered at `/admin/m365` with
+  Aurora styling, "Verify now" button, and a result panel showing
+  round-trip duration + tenant id + error class on failure.
+- `pnpm m365:smoke` script (`packages/db/scripts/m365-smoke.ts`)
+  exercises every method against the real dev tenant when env vars
+  are set. Documented exception in CLAUDE.md (dev-only smoke;
+  matches the existing seed precedent).
+- Contract tests confirm mock and real client return identical
+  shapes for all 8 methods. Real client is driven by a stubbed Graph
+  SDK — no network. Runs in default `pnpm test` (CI-safe).
+- Documented exceptions table updated:
+  - Two existing M365 mock entries rewritten from "sunset 4c" to
+    "permanent fallback" (mock survives for CI / no-creds dev).
+  - Three new entries: dev-only plaintext encryption (sunset before
+    first paying customer), pre-existing AEGIS-Matters parent Team
+    requirement (permanent design decision), graceful degradation
+    on missing E5 license (permanent product requirement).
+- New Architectural Foundation: "M365 integration as auditable,
+  replaceable, and degradable" — codifies the audit-every-call,
+  factory-replaceable, error-on-license-absent pattern.
 
 ## What's new in sub-PR 4b (Legal Hold core)
 

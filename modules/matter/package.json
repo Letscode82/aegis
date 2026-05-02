@@ -14,15 +14,20 @@
     "lint": "eslint api.ts src",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:m365": "vitest run tests/m365-contract.test.ts",
     "dev": "echo 'use apps/web dev'"
   },
   "dependencies": {
     "@aegis/db": "workspace:*",
     "@aegis/ui": "workspace:*",
+    "@azure/identity": "4.4.1",
+    "@microsoft/microsoft-graph-client": "3.0.7",
+    "isomorphic-fetch": "3.0.0",
     "react": "^18.3.1"
   },
   "devDependencies": {
     "@aegis/eslint-config": "workspace:*",
+    "@microsoft/microsoft-graph-types": "2.40.0",
     "@types/node": "^20.17.9",
     "@types/react": "^18.3.12",
     "eslint": "^8.57.1",

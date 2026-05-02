@@ -10,7 +10,7 @@ import type {
   ConfirmDataSourcePreservationInput,
   HoldActor,
 } from "../types";
-import { getM365Client } from "../../services/m365";
+import { getM365ClientForOrg } from "../../services/m365-factory";
 import { recordHoldEvent } from "./timeline";
 
 async function loadHoldOrgFromDataSource(
@@ -104,8 +104,10 @@ export async function applyDataSourcePreservationService(
     throw new Error("Cross-org access refused");
   }
 
-  // Route through the mocked M365 client. 4c replaces with real Graph.
-  const m365 = getM365Client();
+  // Route through the M365 factory. Real Graph when creds resolve;
+  // mock fallback otherwise. 4b shipped with mock-only; 4c wires
+  // M365GraphClient into the same interface — no caller change.
+  const m365 = await getM365ClientForOrg(actor.organizationId);
   const result = await m365.applyPreservation({
     custodianExternalIdentifier: ds.legalHoldCustodian.person.externalRef ?? "unknown",
     dataSourceExternalIdentifier: ds.externalIdentifier,
