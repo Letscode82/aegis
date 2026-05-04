@@ -156,6 +156,19 @@ PR #4 — Matter Management module — split into four sub-PRs:
        shared Toast component across the app, custodian search /
        filter / sort with URL state. New permission
        `admin:legal_hold:templates_manage` added.
+  4c.5 — Legal Hold advanced features: defensibility score trend
+       sparkline with daily snapshots
+       (`HoldDefensibilityScoreSnapshot`), saved views with
+       scope-awareness and org-shared variants (`SavedView`),
+       notice template visual editor with version history
+       (`HoldNoticeTemplateVersion`), mobile-optimized custodian
+       acknowledgment, custodian self-service portal home.
+       Defensibility export bumped to v3 with trend data.
+       Snapshot recurring jobs ship as admin HTTP triggers
+       (`/api/admin/jobs/defensibility-{snapshot,cleanup}`); the
+       service shape is pg-boss-ready and a worker runtime swap
+       is the only change needed to wire scheduled execution
+       (documented exception below).
   4d — AI features: matter creation suggestions, similar matters,
        custodian discovery, draft generation. Real Claude calls
        replace the 4a keyword/static fallbacks.
@@ -195,12 +208,14 @@ the shared bit into a package or add it to the module's `api.ts`.
 | `modules/matter/src/internal/legal-hold/services/ai-mock.ts` | declares `HoldAIClient` interface + `MockHoldAIClient` implementation with deterministic stubs for `recommendCustodians`, `recommendCadence`, `draftNotice`, `explainScorecard`. `confidence` is `null` (signals "no model behind this") | Hold UI surfaces (custodian recommendations, cadence picker, notice drafting, scorecard narrative) need real-shaped data today. Real Claude calls land in 4d together with the `AgentDecision` lifecycle (every recommendation writes a row that must reach `APPROVED` before the corresponding mutation runs). | **Sunset at 4d.** The 4d sub-PR replaces the mock with `@aegis/ai`-routed Claude calls and writes `AgentDecision` rows; same return shape, no caller moves. |
 | `modules/matter/src/internal/legal-hold/services/defensibility.ts:getHoldDefensibilityScoreService` (narrative-explanation field) | omits `narrativeMarkdown` in 4b output; structured `components` + `gaps` ship deterministic | The deterministic six-component scorecard is fully implemented in 4b (custodian acknowledgment + re-attestation + data-source coverage + IT confirmation + notice-template integrity + audit-chain integrity). The AI-generated narrative explanation (D6) requires real Claude calls and ships in 4d. | **Sunset at 4d.** The 4d sub-PR adds the `narrativeMarkdown` field on `HoldDefensibilityScore`; deterministic structure stays unchanged. |
 | `modules/matter/src/internal/legal-hold/services/notice-composer.ts:composeAndSendNoticeService` | writes `HoldNoticeIssuance` + per-recipient `LegalHoldEvent` rows + chain-sealed AuditLog rows but does NOT send email. The notice-viewer drill-in shows "Recorded" for every recipient as the delivery status. | Real email delivery requires SMTP/SES/Outlook integration that is a separate product surface. The issuance + chain rows are sufficient defensibility evidence — the recipient roster, body hash, and template-version snapshot are court-ready today; only the per-recipient send-mechanism telemetry is missing. | **Sunset when first customer demands real delivery.** Replace the stub at the service level (the `deliveryStubbed` flag and the "Recorded" status string are the seams); the issuance, audit chain, and per-recipient REMINDER_SENT events all stay unchanged. |
+| `modules/matter/src/internal/legal-hold/services/snapshot-jobs.ts` (`runDailySnapshotPass`, `runWeeklyCleanupPass`) | exposed as admin HTTP triggers (`POST /api/admin/jobs/defensibility-{snapshot,cleanup}`) rather than registered with a pg-boss runtime | The repo doesn't yet have a long-running worker process to host pg-boss `schedule()` registrations. The service shape is pg-boss-ready (idempotent within UTC day, returns a structured result) and the trigger surface accepts external schedulers (Vercel Cron, GitHub Actions, etc.) so daily/weekly cadence is achievable today without a worker. | **Sunset when the worker runtime ships.** The schedule registration replaces the cron trigger; the service signatures stay unchanged. Both jobs become `pg-boss.schedule()` calls pointing at `runDailySnapshotPass(orgId)` / `runWeeklyCleanupPass(orgId)`; no caller change. |
 
 ### Schema versioning notes (not exceptions, but worth documenting)
 
 | Surface | Bump | Notes |
 |---|---|---|
 | `HoldDefensibilityExport.$schema` | v1 → v2 (4c.3) | v1 reported `value: number` for every component, including a misleading 1.0 against an empty denominator. v2 reports `value: number \| null` and excludes null components from both the weighted sum and the divisor — overall score reflects only what's currently measurable. v1 readers can still parse v2 by treating null as missing. The overall `score` field shape is unchanged. |
+| `HoldDefensibilityExport.$schema` | v2 → v3 (4c.5) | Adds a `trend` field carrying chronological score snapshots (date + score + per-component values). Each snapshot uses the same component shape as the live scorecard. v2 readers can ignore the new field; the existing `scorecard` and `score` fields are unchanged. |
 
 ### When this pattern is allowed
 - **Build-time / dev-only tooling.** Seed scripts, codegen, fixtures
@@ -743,6 +758,101 @@ the silent-downgrade footgun. Both stay through the swap.
   catalog coverage, diff helper) run in the default test stage.
 - Deep-link redirects added: `/admin/users` and `/admin/roles` 307 to
   `/?view=users` and `/?view=roles`.
+
+## What's new in sub-PR 4c.5 (Legal Hold advanced features)
+
+Five advanced features that move AEGIS past "credible to
+sophisticated buyers" toward "demonstrably superior to incumbents
+on features they don't have." Three new schema models + one new
+enum, all in one combined-for-atomicity migration. All non-breaking.
+
+- **Item 15 — defensibility score trend sparkline.** New
+  `HoldDefensibilityScoreSnapshot` model captures one row per
+  (hold, computedAt). The header strip renders a 30-day sparkline
+  next to the score badge; clicking opens a `DefensibilityTrendModal`
+  with a date-range picker, an overall sparkline, and per-component
+  trends. Snapshots are written by:
+    - `recordDefensibilitySnapshotService(holdId)` — service entry
+      point; returns the typed snapshot DTO.
+    - `runDailySnapshotPass(orgId)` — iterates every active hold,
+      idempotent within the UTC day. Triggered by an admin HTTP
+      route (Vercel Cron / GitHub Actions / pg-boss-runtime-ready).
+    - `runWeeklyCleanupPass(orgId)` — keeps every snapshot from the
+      last 90 days at original resolution; thins older snapshots
+      to one per ISO week.
+  New reusable `Sparkline` primitive in `@aegis/ui` (other modules
+  can adopt for any trend visualisation). Defensibility export
+  schema bumped to `v3` carrying the trend array.
+
+- **Item 16 — saved views.** New `SavedView` + `SavedViewScope`
+  enum (LEGAL_HOLD_CUSTODIANS / LEGAL_HOLDS_LIST / MATTER_LIST /
+  AUDIT_LOG). Owner-only by default with `isShared` flag for
+  org-wide visibility; one `isDefault` per (owner, scope) tuple
+  enforced via transaction.
+  UI: `SavedViewsDropdown` above the search/filter bar shows
+  "My views" and "Shared views" sections; `SaveViewDialog` captures
+  the current filter state; `ManageViewsModal` does inline rename /
+  toggle shared / toggle default / delete. CustodiansPanel
+  serialises `{query, statuses, sortKey}` into `filterStateJson`;
+  loading a view restores all three. Defaults auto-apply on first
+  mount.
+  Routes: `GET|POST /api/saved-views`, `PUT|DELETE /api/saved-views/[id]`.
+
+- **Item 17 — notice template visual editor with version
+  history.** New `HoldNoticeTemplateVersion` model. Every save
+  writes one row; the parent template's `version` + `bodyHash`
+  mirror the latest. Older `HoldNoticeIssuance` rows keep
+  resolving correctly via `(templateId, version)`.
+  UI: `NoticeTemplateEditor` with three panes — markdown editor
+  (with insert-variable dropdown, twelve canonical variables),
+  live preview (250ms-debounced, sample context), version history
+  (newest-first list, click to open `DiffModal` with side-by-side
+  comparison + `Revert editor to this version`). Save prompts for
+  an optional change-log description.
+  Routes: `GET|POST /api/admin/legal-hold/templates/[id]/versions`.
+  Page: `/admin/legal-hold/templates/[id]/edit`.
+
+- **Item 18 — mobile-optimized custodian acknowledgment.**
+  `CustodianAttestationView` becomes phone-first:
+    - new `useIsNarrow()` hook tracking `(max-width: 640px)`;
+    - notice body collapsible behind a 44px-min "Read full notice"
+      toggle so the form is reachable without scrolling past long
+      mandatory language;
+    - 14px font sizes on phone for native readability;
+    - sticky submit button (`position: fixed`, backdrop blur)
+      anchored to the bottom of the viewport with reserved
+      bottom padding so the last card isn't hidden;
+    - structured success state with `role=status + aria-live` for
+      screen readers, matter title + timestamp + plain-language
+      next-steps;
+    - `<meta name="viewport">` added to both ack pages so mobile
+      browsers render at native scale.
+
+- **Item 19 — custodian self-service portal home.** New
+  `/custodian/holds` page (`CustodianPortalHome`) lists every
+  active hold the authenticated user is on with status pills,
+  scope summary, and a contextual CTA per row ("Acknowledge now"
+  / "Re-attest" / "View details"). Empty state explains the
+  no-holds case. Reads from new `GET /api/custodian/my-holds`
+  which resolves the actor's Person via `userId` then `email`
+  fallback (covers seeded demo accounts).
+
+Net new lines:
+  - 3 new Prisma models + 1 new enum + 1 migration
+  - 1 reusable @aegis/ui primitive (Sparkline)
+  - 5 new internal services (defensibility-snapshot,
+    snapshot-jobs, saved-views, notice-template-versions,
+    custodian-portal helper baked into HTTP)
+  - 7 new HTTP routes
+  - 9 new UI components (DefensibilityTrendModal,
+    SavedViewsDropdown, SaveViewDialog, ManageViewsModal,
+    NoticeTemplateEditor, CustodianPortalHome, plus internal
+    SubmitButton / DiffModal / SaveTemplateDialog)
+  - 3 new test files (defensibility-snapshot, saved-views,
+    notice-template-versions) — total matter tests 74 → 96
+
+One documented exception (deferred pg-boss worker runtime). Two
+schema-versioning notes (defensibility export v2 → v3).
 
 ## What's new in sub-PR 4c.4 (Legal Hold high-priority polish)
 
