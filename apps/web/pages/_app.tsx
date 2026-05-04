@@ -1,4 +1,5 @@
 import type { AppProps } from "next/app";
+import { ToastProvider } from "@aegis/ui";
 import { installStoragePolyfill } from "@aegis/intake/polyfill";
 
 // Install the window.storage polyfill before any child component renders.
@@ -10,5 +11,9 @@ if (typeof window !== "undefined") {
 }
 
 export default function App({ Component, pageProps }: AppProps) {
-  return <Component {...pageProps} />;
+  return (
+    <ToastProvider>
+      <Component {...pageProps} />
+    </ToastProvider>
+  );
 }

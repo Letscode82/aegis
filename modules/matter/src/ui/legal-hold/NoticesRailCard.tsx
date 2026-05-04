@@ -5,7 +5,7 @@
  * has been removed.
  */
 import React, { useEffect, useState } from "react";
-import { Card, SH, C, F, M } from "@aegis/ui";
+import { Card, SH, C, F, M, useToast } from "@aegis/ui";
 import { NoticeComposerDialog } from "./NoticeComposerDialog";
 import type { HoldNoticeIssuanceDTO } from "./types";
 
@@ -25,10 +25,10 @@ export const NoticesRailCard: React.FC<NoticesRailCardProps> = ({
   canMutate,
   onOpenViewer,
 }) => {
+  const toast = useToast();
   const [rows, setRows] = useState<HoldNoticeIssuanceDTO[] | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
-  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/matter/${matterId}/holds/${holdId}/notices`)
@@ -147,24 +147,6 @@ export const NoticesRailCard: React.FC<NoticesRailCardProps> = ({
         </button>
       )}
 
-      {toast && (
-        <div
-          style={{
-            marginTop: 8,
-            padding: "5px 8px",
-            background: `${C.gn}15`,
-            border: `1px solid ${C.gn}55`,
-            borderRadius: 4,
-            color: C.gn,
-            fontFamily: M,
-            fontSize: 10,
-            letterSpacing: 0.3,
-          }}
-        >
-          {toast}
-        </div>
-      )}
-
       {composerOpen && (
         <NoticeComposerDialog
           matterId={matterId}
@@ -173,10 +155,9 @@ export const NoticesRailCard: React.FC<NoticesRailCardProps> = ({
           onIssued={(result) => {
             setComposerOpen(false);
             setReloadKey((k) => k + 1);
-            setToast(
-              `Notice sent to ${result.recipientCount} custodian${result.recipientCount === 1 ? "" : "s"}.`,
+            toast.success(
+              `Notice issued to ${result.recipientCount} custodian${result.recipientCount === 1 ? "" : "s"}.`,
             );
-            setTimeout(() => setToast(null), 4000);
           }}
         />
       )}

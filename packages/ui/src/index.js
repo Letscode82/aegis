@@ -26,3 +26,6 @@ export {
 
 // Atoms — forms
 export { inputStyle, FormField } from "./atoms/form.jsx";
+
+// Toast / snackbar (sub-PR 4c.4)
+export { ToastProvider, useToast } from "./Toast";

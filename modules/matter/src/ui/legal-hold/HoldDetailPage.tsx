@@ -19,7 +19,7 @@
  * cards reuse /scorecard, /timeline, /notices, /summary.
  */
 import React, { useEffect, useState } from "react";
-import { Card, C, F, M } from "@aegis/ui";
+import { Card, C, F, M, useToast } from "@aegis/ui";
 import { HoldHeaderStrip } from "./HoldHeaderStrip";
 import { HoldStatusRow } from "./HoldStatusRow";
 import { CustodiansPanel } from "./CustodiansPanel";
@@ -91,6 +91,7 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
 }) => {
   const baseUrl = `${endpoint}/${matterId}/holds/${holdId}`;
   const wide = useIsWide(1024);
+  const toast = useToast();
   const { canIssue, canRelease } = useHoldPermissions();
 
   const [summary, setSummary] = useState<HoldWorkspaceSummaryDTO | null>(null);
@@ -131,9 +132,10 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
     try {
       const r = await fetch(`${baseUrl}/issue`, { method: "POST" });
       if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+      toast.success("Hold issued.");
       reload();
     } catch (e) {
-      setError(String(e));
+      toast.error(`Issue hold failed: ${String(e)}`);
     } finally {
       setBusy(false);
     }
@@ -150,9 +152,12 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
         body: JSON.stringify({ releaseReason: reason }),
       });
       if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+      toast.success(
+        `Hold released (reason: ${reason.slice(0, 60)}${reason.length > 60 ? "…" : ""}).`,
+      );
       reload();
     } catch (e) {
-      setError(String(e));
+      toast.error(`Release hold failed: ${String(e)}`);
     } finally {
       setBusy(false);
     }
