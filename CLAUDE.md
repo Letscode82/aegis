@@ -128,6 +128,13 @@ PR #4 — Matter Management module — split into four sub-PRs:
        Throttle handling via custom middleware respecting
        `Retry-After`. Production fail-loud guards on env vars match
        Step 3. AI stays mocked (sunset 4d).
+  4c.2 — Legal Hold UX redesign: pure UI restructure (no backend
+       changes). Replaces the 6-sub-tab `HoldDetailPage` with a single
+       Cyber-Response-density workspace — header strip + structured
+       status row + dominant `CustodiansPanel` + right rail
+       (Defensibility / Timeline / Notices). Adds
+       `getHoldWorkspaceSummaryService` to extend the existing reads
+       surface; introduces no new mutation endpoints.
   4d — AI features: matter creation suggestions, similar matters,
        custodian discovery, draft generation. Real Claude calls
        replace the 4a keyword/static fallbacks.
@@ -707,6 +714,73 @@ the silent-downgrade footgun. Both stay through the swap.
   catalog coverage, diff helper) run in the default test stage.
 - Deep-link redirects added: `/admin/users` and `/admin/roles` 307 to
   `/?view=users` and `/?view=roles`.
+
+## What's new in sub-PR 4c.2 (Legal Hold UX workspace)
+
+Pure UI restructure of the legal-hold detail surface — no backend
+changes, no new mutation endpoints, no schema migration. Replaces the
+six-sub-tab `HoldDetailPage` (Overview / Custodians / Data Sources /
+Notices / Timeline / Defensibility) with a single Cyber-Response-grade
+workspace that puts custodian state and defensibility evidence side-
+by-side.
+
+- New read service `getHoldWorkspaceSummaryService(holdId)` extends
+  `internal/legal-hold/services/reads.ts` — returns hold + counts
+  (custodians by ack/pending/overdue/released/departed, data sources
+  by preserved/IT-confirmed/conflict, notices, events) +
+  `lastActivityAt` + `nextReminderDueAt` + resolved cadence in a
+  single round-trip. Surfaced through `modules/matter/api.ts` and the
+  new `GET /api/matter/[id]/holds/[holdId]/summary` route (gated
+  identically to the existing list reads).
+- New UI components in `modules/matter/src/ui/legal-hold/`:
+  - `HoldHeaderStrip` — hold ID + status pill + jurisdictions +
+    privilege/departed flags + serif title + collapsible scope +
+    trigger-event line + `DefensibilityBadge` + contextual primary
+    action button (DRAFT→Issue / ISSUED|ACTIVE→Release /
+    PARTIALLY_RELEASED→Release Remaining / RELEASED→Re-open stub).
+    Action disables with tooltip when missing permission or when
+    DRAFT has zero custodians.
+  - `HoldStatusRow` — three structured-count lines reading from the
+    summary endpoint; dot-separators, monospace numerics, semantic
+    colours (overdue ack count red, conflict count red).
+  - `CustodiansPanel` — dominant body area; header chips for overdue
+    acks (with bulk Send-Reminders toggle that filters the list),
+    departed custodians, and a 4d-ready `AgentDecisionChip` that
+    polls the audit log for pending agent recommendations (returns 0
+    until 4d ships).
+  - `CustodianRow` — collapsible row with inline data sources,
+    per-source preservation pill + Mark-confirmed action, ack
+    metadata block (statement / IP / UA), inline Re-attest +
+    Release-this-custodian buttons.
+  - `CustodianAddDialog` — three-mode dialog (M365 directory search /
+    matter team picker / manual-entry note pointing to admin module).
+    Escape closes; rows already on the hold disabled with `ON HOLD`.
+  - `DefensibilityRailCard` — six mini horizontal bars + Show
+    breakdown modal (full numeric breakdown + gap list) + Export JSON
+    anchor reusing the existing `/export` route.
+  - `TimelineRailCard` — last 5 events with type-coloured dots +
+    relative timestamps + View-all modal with per-type filter chips.
+  - `NoticesRailCard` — count + last issuance card (template name /
+    version / recipients / body hash / issued-at) + `+ Issue notice`
+    dialog discovering templates from prior issuances.
+- `HoldDetailPage` is now a ~200-line orchestrator: fetches summary
+  + scorecard, resolves `canIssue` / `canRelease` via a thin
+  `/api/auth/current-user` fetch (avoids adding `@aegis/auth` as a
+  matter-module dep — permission strings are a stable interface),
+  and lays out header / status / 1fr+320px grid. Below 1024px the
+  rail collapses underneath the panel via a `matchMedia` hook.
+- `HoldCustodianDTO` gains `acknowledgmentMetadata` (already present
+  in the schema) so the row can render the IP/UA/statement block.
+- No old sub-tab URLs existed at the route level (everything was
+  inside the tab state of `HoldDetailPage`), so no redirects are
+  required. The matter-detail Holds tab continues to mount
+  `HoldDetailPage` with the same `(matterId, holdId, onBack)`
+  signature.
+- No new exception entries in the documented-exceptions table —
+  every component reuses existing endpoints, services, and audit
+  paths. The `confirmDataSourcePreservation` button is wired
+  optimistically because the HTTP wrapper for that service lands in
+  a follow-up; the affordance is in place.
 
 ## What's new in sub-PR 4c (Microsoft Graph real integration)
 
