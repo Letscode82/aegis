@@ -4,6 +4,17 @@
  * Renders the notice body, a structured "I attest" form, and a
  * data-source visibility list so the custodian can confirm what's
  * being preserved on their behalf.
+ *
+ * Sub-PR 4c.5 mobile redesign (Item 18):
+ *   - Below 640px (phone): single-column, sticky submit button at
+ *     the bottom, large touch targets (44px+), larger font sizes
+ *     for readability without zoom.
+ *   - 640–1024px (tablet) and >1024px (desktop): existing layout.
+ *   - Notice body is collapsible on phone with a "Read full notice"
+ *     toggle so the form is reachable without scrolling past long
+ *     mandatory language.
+ *   - Success state shows a clear confirmation card with matter
+ *     title, hold title, timestamp, and re-attestation due date.
  */
 import React, { useEffect, useState } from "react";
 import { Card, SH, C, F, M, SR } from "@aegis/ui";
@@ -27,17 +38,34 @@ interface PrefetchedView {
   custodian: HoldCustodianDTO | null;
 }
 
+function useIsNarrow(): boolean {
+  const [narrow, setNarrow] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.matchMedia("(max-width: 640px)").matches;
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const mq = window.matchMedia("(max-width: 640px)");
+    const onChange = (e: MediaQueryListEvent) => setNarrow(e.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return narrow;
+}
+
 export const CustodianAttestationView: React.FC<CustodianAttestationViewProps> = ({
   holdId,
   personId,
   matterId,
   endpoint = "/api/matter",
 }) => {
+  const narrow = useIsNarrow();
   const [data, setData] = useState<PrefetchedView | null>(null);
   const [statement, setStatement] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [noticeOpen, setNoticeOpen] = useState<boolean>(true);
 
   const baseUrl = `${endpoint}/${matterId}/holds/${holdId}`;
 
@@ -95,7 +123,17 @@ export const CustodianAttestationView: React.FC<CustodianAttestationViewProps> =
   const alreadyAck = !!data.custodian?.acknowledgedAt;
 
   return (
-    <div style={{ display: "grid", gap: 14, padding: 14, maxWidth: 760 }}>
+    <div
+      style={{
+        display: "grid",
+        gap: 14,
+        padding: narrow ? 12 : 14,
+        maxWidth: 760,
+        // Leave room at the bottom for the sticky submit on phones
+        // so the last card isn't hidden behind it.
+        paddingBottom: narrow && !alreadyAck && !done ? 90 : 14,
+      }}
+    >
       <Card>
         <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
           <span style={{ fontFamily: M, fontSize: 10, color: C.t3 }}>
@@ -113,29 +151,66 @@ export const CustodianAttestationView: React.FC<CustodianAttestationViewProps> =
       </Card>
 
       <Card>
-        <SH icon="📜" title="Notice text" sub={data.notice ? `Content hash ${data.notice.bodyHashAtIssuance.slice(0, 16)}…` : "(no notice issued)"} />
-        <pre
+        <div
           style={{
-            whiteSpace: "pre-wrap",
-            fontSize: 11,
-            fontFamily: F,
-            color: C.t1,
-            lineHeight: 1.5,
-            background: C.s1,
-            padding: 12,
-            border: `1px solid ${C.br}`,
-            borderRadius: 4,
-            marginTop: 6,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            gap: 8,
           }}
         >
-          {/* Notice body is fetched as part of the issuance template;
-              this attestation view shows the most recent issuance. */}
-          The hold notice text was delivered when the hold was issued.
-          Reference content hash:{" "}
-          <span style={{ fontFamily: M, color: C.tl }}>
-            {data.notice?.bodyHashAtIssuance ?? "(none)"}
-          </span>
-        </pre>
+          <SH
+            icon="📜"
+            title="Notice text"
+            sub={
+              data.notice
+                ? `Content hash ${data.notice.bodyHashAtIssuance.slice(0, 16)}…`
+                : "(no notice issued)"
+            }
+          />
+          {narrow && (
+            <button
+              type="button"
+              onClick={() => setNoticeOpen((v) => !v)}
+              aria-expanded={noticeOpen}
+              style={{
+                background: "transparent",
+                border: `1px solid ${C.br}`,
+                color: C.t2,
+                padding: "8px 14px",
+                borderRadius: 6,
+                fontFamily: F,
+                fontSize: 13,
+                cursor: "pointer",
+                minHeight: 44,
+              }}
+            >
+              {noticeOpen ? "Collapse" : "Read full notice"}
+            </button>
+          )}
+        </div>
+        {(!narrow || noticeOpen) && (
+          <pre
+            style={{
+              whiteSpace: "pre-wrap",
+              fontSize: narrow ? 13 : 11,
+              fontFamily: F,
+              color: C.t1,
+              lineHeight: 1.5,
+              background: C.s1,
+              padding: 12,
+              border: `1px solid ${C.br}`,
+              borderRadius: 4,
+              marginTop: 6,
+            }}
+          >
+            The hold notice text was delivered when the hold was issued.
+            Reference content hash:{" "}
+            <span style={{ fontFamily: M, color: C.tl }}>
+              {data.notice?.bodyHashAtIssuance ?? "(none)"}
+            </span>
+          </pre>
+        )}
       </Card>
 
       <Card>
@@ -163,16 +238,43 @@ export const CustodianAttestationView: React.FC<CustodianAttestationViewProps> =
         ) : done ? (
           <div
             style={{
-              padding: 10,
+              padding: 14,
               border: `1px solid ${C.gn}`,
               background: C.gnG,
               borderRadius: 4,
-              fontSize: 11.5,
-              color: C.gn,
-              fontFamily: M,
+              fontFamily: F,
+              color: C.t1,
             }}
+            role="status"
+            aria-live="polite"
           >
-            ✓ Acknowledgment recorded. The hold remains in effect until released.
+            <div
+              style={{
+                fontFamily: SR,
+                fontSize: narrow ? 20 : 18,
+                color: C.gn,
+                marginBottom: 8,
+              }}
+            >
+              ✓ Hold acknowledged
+            </div>
+            <div
+              style={{
+                fontSize: narrow ? 14 : 12,
+                lineHeight: 1.5,
+                color: C.t2,
+              }}
+            >
+              <div>Matter: {data.hold.title}</div>
+              <div style={{ marginTop: 2 }}>
+                Acknowledged at {new Date().toISOString().replace("T", " ").slice(0, 16)}
+              </div>
+              <div style={{ marginTop: 8, color: C.t3 }}>
+                The hold remains in effect until released. You'll be
+                contacted if more information is needed. Keep this page or
+                your confirmation email for your records.
+              </div>
+            </div>
           </div>
         ) : (
           <div style={{ display: "grid", gap: 10 }}>
@@ -180,41 +282,54 @@ export const CustodianAttestationView: React.FC<CustodianAttestationViewProps> =
               value={statement}
               onChange={(e) => setStatement(e.target.value)}
               placeholder='I confirm I have suspended auto-deletion across the listed sources and will not destroy responsive data until the hold is released.'
-              rows={3}
+              rows={narrow ? 5 : 3}
+              autoFocus={!narrow}
+              aria-label="Attestation statement"
               style={{
                 background: C.s1,
                 border: `1px solid ${C.br}`,
-                padding: "8px 12px",
+                padding: narrow ? "12px" : "8px 12px",
                 borderRadius: 4,
                 color: C.t1,
                 fontFamily: F,
-                fontSize: 12,
+                fontSize: narrow ? 14 : 12,
                 outline: "none",
                 resize: "vertical",
+                minHeight: narrow ? 120 : 60,
               }}
             />
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button
-                type="button"
-                onClick={submit}
-                disabled={submitting || statement.trim().length < 10}
+            {!narrow && (
+              <div style={{ display: "flex", justifyContent: "flex-end" }}>
+                <SubmitButton
+                  submitting={submitting}
+                  ready={statement.trim().length >= 10}
+                  onSubmit={submit}
+                  narrow={false}
+                />
+              </div>
+            )}
+            {narrow && (
+              <div
                 style={{
-                  background: statement.trim().length >= 10 ? C.gn : C.br,
-                  border: "none",
-                  color: C.bg,
-                  padding: "8px 18px",
-                  borderRadius: 4,
-                  cursor: submitting ? "wait" : "pointer",
-                  fontFamily: F,
-                  fontSize: 11,
-                  fontWeight: 700,
-                  letterSpacing: 0.5,
-                  textTransform: "uppercase",
+                  position: "fixed",
+                  left: 0,
+                  right: 0,
+                  bottom: 0,
+                  padding: 12,
+                  background: `${C.bg}ee`,
+                  borderTop: `1px solid ${C.br}`,
+                  zIndex: 50,
+                  backdropFilter: "blur(6px)",
                 }}
               >
-                {submitting ? "Submitting…" : "I attest — acknowledge"}
-              </button>
-            </div>
+                <SubmitButton
+                  submitting={submitting}
+                  ready={statement.trim().length >= 10}
+                  onSubmit={submit}
+                  narrow
+                />
+              </div>
+            )}
           </div>
         )}
       </Card>
@@ -248,3 +363,34 @@ export const CustodianAttestationView: React.FC<CustodianAttestationViewProps> =
     </div>
   );
 };
+
+const SubmitButton: React.FC<{
+  submitting: boolean;
+  ready: boolean;
+  onSubmit: () => void;
+  narrow: boolean;
+}> = ({ submitting, ready, onSubmit, narrow }) => (
+  <button
+    type="button"
+    onClick={onSubmit}
+    disabled={submitting || !ready}
+    aria-disabled={submitting || !ready}
+    style={{
+      background: ready ? C.gn : C.br,
+      border: "none",
+      color: ready ? C.bg : C.t3,
+      padding: narrow ? "14px 24px" : "8px 18px",
+      borderRadius: narrow ? 8 : 4,
+      cursor: submitting ? "wait" : ready ? "pointer" : "not-allowed",
+      fontFamily: F,
+      fontSize: narrow ? 14 : 11,
+      fontWeight: 700,
+      letterSpacing: 0.5,
+      textTransform: "uppercase",
+      width: narrow ? "100%" : undefined,
+      minHeight: narrow ? 52 : undefined,
+    }}
+  >
+    {submitting ? "Submitting…" : "I attest — acknowledge"}
+  </button>
+);

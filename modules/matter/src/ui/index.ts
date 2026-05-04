@@ -29,6 +29,7 @@ export {
 export { HoldPolicyEditor } from "./legal-hold/HoldPolicyEditor";
 export { HoldScopeTemplatesAdmin } from "./legal-hold/HoldScopeTemplatesAdmin";
 export { NoticeTemplateEditor } from "./legal-hold/NoticeTemplateEditor";
+export { CustodianPortalHome } from "./legal-hold/CustodianPortalHome";
 
 export type {
   MatterDTO,

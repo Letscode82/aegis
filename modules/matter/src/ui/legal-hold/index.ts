@@ -36,6 +36,7 @@ export { SavedViewsDropdown } from "./SavedViewsDropdown";
 export { SaveViewDialog } from "./SaveViewDialog";
 export { ManageViewsModal } from "./ManageViewsModal";
 export { NoticeTemplateEditor } from "./NoticeTemplateEditor";
+export { CustodianPortalHome } from "./CustodianPortalHome";
 export { HoldPolicyEditor } from "./HoldPolicyEditor";
 export { HoldScopeTemplatesAdmin } from "./HoldScopeTemplatesAdmin";
 export { SaveAsScopeTemplateDialog } from "./SaveAsScopeTemplateDialog";

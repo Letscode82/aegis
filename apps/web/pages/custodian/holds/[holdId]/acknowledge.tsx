@@ -66,6 +66,7 @@ export default function CustodianAckPage() {
     <>
       <Head>
         <title>AEGIS · Hold acknowledgment</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <main style={{ background: "#0B1020", minHeight: "100vh" }}>
         <CustodianAttestationView
