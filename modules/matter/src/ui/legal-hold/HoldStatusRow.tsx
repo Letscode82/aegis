@@ -13,6 +13,13 @@ import type { HoldWorkspaceSummaryDTO } from "./types";
 
 export interface HoldStatusRowProps {
   summary: HoldWorkspaceSummaryDTO | null;
+  /**
+   * Click handler for the "Last activity" affordance. Wired by
+   * HoldDetailPage to open TimelineFullStreamModal scrolled to the
+   * most recent event. Optional so the row stays renderable as a
+   * display-only component (Storybook, unit tests).
+   */
+  onOpenLastActivity?: () => void;
 }
 
 function formatRelativeTime(iso: string | null): string {
@@ -69,7 +76,10 @@ const Sep: React.FC = () => (
   </span>
 );
 
-export const HoldStatusRow: React.FC<HoldStatusRowProps> = ({ summary }) => {
+export const HoldStatusRow: React.FC<HoldStatusRowProps> = ({
+  summary,
+  onOpenLastActivity,
+}) => {
   if (!summary) {
     return (
       <Card>
@@ -127,7 +137,31 @@ export const HoldStatusRow: React.FC<HoldStatusRowProps> = ({ summary }) => {
         </Line>
         <Line>
           Last activity{" "}
-          <Cell value={formatRelativeTime(lastActivityAt)} color={C.t1} />
+          {onOpenLastActivity && lastActivityAt ? (
+            <button
+              type="button"
+              onClick={onOpenLastActivity}
+              aria-label="Open timeline at most recent event"
+              style={{
+                background: "transparent",
+                border: "none",
+                padding: 0,
+                cursor: "pointer",
+                fontFamily: M,
+                fontSize: 11,
+                fontWeight: 600,
+                letterSpacing: 0.4,
+                color: C.t1,
+                textDecoration: "underline",
+                textDecorationColor: `${C.t4}80`,
+                textUnderlineOffset: 2,
+              }}
+            >
+              {formatRelativeTime(lastActivityAt)}
+            </button>
+          ) : (
+            <Cell value={formatRelativeTime(lastActivityAt)} color={C.t1} />
+          )}
           <Sep />
           Next reminder{" "}
           <Cell

@@ -17,8 +17,20 @@ import { prisma } from "@aegis/db";
 import type { HoldDefensibilityScore } from "../types";
 import { getHoldDefensibilityScoreService } from "./defensibility";
 
+/**
+ * Schema versioning:
+ *   v1 (4b)  — every component reports a numeric `value` in [0, 1]
+ *              even when the component is inapplicable (e.g. zero
+ *              custodians acknowledged → reAttestationCurrency
+ *              reported as 1.0). Misleading.
+ *   v2 (4c.3) — components that aren't currently measurable report
+ *              `value: null` and are excluded from the weighted sum
+ *              and divisor. v1 readers can still consume v2 by
+ *              treating null as missing; the overall `score` field
+ *              is unchanged in shape.
+ */
 export interface HoldDefensibilityExport {
-  $schema: "aegis.legal-hold.defensibility.v1";
+  $schema: "aegis.legal-hold.defensibility.v2";
   generatedAt: string;
   hold: {
     id: string;
@@ -101,7 +113,7 @@ export async function exportHoldDefensibilityService(
   const scorecard = await getHoldDefensibilityScoreService(holdId);
 
   return {
-    $schema: "aegis.legal-hold.defensibility.v1",
+    $schema: "aegis.legal-hold.defensibility.v2",
     generatedAt: new Date().toISOString(),
     hold: {
       id: hold.id,

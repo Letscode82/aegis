@@ -184,9 +184,19 @@ export interface HoldDefensibilityScore {
 }
 
 export interface ScoreComponent {
-  value: number;
+  /**
+   * Component score in [0, 1], or `null` when the component is
+   * inapplicable to the current hold state (e.g. re-attestation
+   * currency when zero custodians have acknowledged yet).
+   * Null components are excluded from the weighted sum AND from the
+   * weight divisor — the overall score reflects only what is
+   * currently measurable.
+   */
+  value: number | null;
   weight: number;
   gap: string | null;
+  /** Hover/tooltip text when value is null, e.g. "Not yet applicable". */
+  notApplicableReason?: string | null;
 }
 
 export interface HoldDefensibilityGap {

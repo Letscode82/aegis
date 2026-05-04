@@ -33,9 +33,33 @@ const WEIGHTS = {
   auditChainIntegrity: 10,
 } as const;
 
-function ratio(numerator: number, denominator: number): number {
-  if (denominator <= 0) return 1;
+/**
+ * Compute a numerator/denominator ratio in [0, 1] OR return null
+ * when the denominator is zero — a null component is excluded from
+ * the weighted score (rather than reporting a misleading 100%).
+ */
+export function ratio(numerator: number, denominator: number): number | null {
+  if (denominator <= 0) return null;
   return Math.max(0, Math.min(1, numerator / denominator));
+}
+
+/**
+ * Aggregate per-component scores into a single 0..100 number.
+ * Null components are excluded from BOTH the weighted sum and the
+ * divisor, so the overall reflects only what's currently
+ * measurable. When every component is null the result is 0 —
+ * but the hold is so empty that no meaningful score exists.
+ */
+export function computeWeightedScore(
+  components: Array<{ value: number | null; weight: number }>,
+): number {
+  const applicable = components.filter(
+    (c): c is { value: number; weight: number } => c.value !== null,
+  );
+  const totalWeight = applicable.reduce((s, c) => s + c.weight, 0);
+  if (totalWeight === 0) return 0;
+  const weightedSum = applicable.reduce((s, c) => s + c.value * c.weight, 0);
+  return Math.round((weightedSum / totalWeight) * 100);
 }
 
 export async function getHoldDefensibilityScoreService(
@@ -59,11 +83,12 @@ export async function getHoldDefensibilityScoreService(
   const now = Date.now();
   const gaps: HoldDefensibilityGap[] = [];
 
-  // Component 1 — custodian acknowledgment rate.
+  // Component 1 — custodian acknowledgment rate. Inapplicable when
+  // the hold has no custodians yet (DRAFT with empty roster).
   const totalCustodians = hold.custodians.length;
   const acknowledged = hold.custodians.filter((c) => c.acknowledgedAt).length;
-  const ackRate = ratio(acknowledged, Math.max(1, totalCustodians));
-  if (acknowledged < totalCustodians) {
+  const ackRate = ratio(acknowledged, totalCustodians);
+  if (totalCustodians > 0 && acknowledged < totalCustodians) {
     gaps.push({
       key: "custodian-acknowledgment-pending",
       severity: "high",
@@ -72,17 +97,19 @@ export async function getHoldDefensibilityScoreService(
     });
   }
 
-  // Component 2 — re-attestation currency. A custodian whose
-  // nextReAttestationDueAt is in the past is overdue.
-  const overdueCustodians = hold.custodians.filter(
+  // Component 2 — re-attestation currency. Inapplicable until at
+  // least one custodian has acknowledged (no nextReAttestationDueAt
+  // is ever set before that).
+  const ackedCustodians = hold.custodians.filter((c) => c.acknowledgedAt);
+  const overdueCustodians = ackedCustodians.filter(
     (c) =>
       !c.releasedAt &&
       c.nextReAttestationDueAt !== null &&
       c.nextReAttestationDueAt.getTime() < now,
   );
   const reAttestRate = ratio(
-    Math.max(0, totalCustodians - overdueCustodians.length),
-    Math.max(1, totalCustodians),
+    Math.max(0, ackedCustodians.length - overdueCustodians.length),
+    ackedCustodians.length,
   );
   if (overdueCustodians.length > 0) {
     gaps.push({
@@ -93,9 +120,8 @@ export async function getHoldDefensibilityScoreService(
     });
   }
 
-  // Component 3 — data source preservation coverage. Every active
-  // custodian should have at least one data source whose
-  // preservationAction is not NOT_APPLICABLE / PRESERVATION_FAILED.
+  // Component 3 — data source preservation coverage. Inapplicable
+  // when no data sources have been mapped yet.
   const allDataSources = hold.custodians.flatMap((c) => c.dataSources);
   const totalDataSources = allDataSources.length;
   const successfullyApplied = allDataSources.filter(
@@ -104,12 +130,9 @@ export async function getHoldDefensibilityScoreService(
       d.preservationAction !== "PRESERVATION_FAILED" &&
       d.preservationAction !== "NOT_APPLICABLE",
   ).length;
-  const dsCoverage = ratio(
-    successfullyApplied,
-    Math.max(1, totalDataSources),
-  );
+  const dsCoverage = ratio(successfullyApplied, totalDataSources);
   const notApplied = totalDataSources - successfullyApplied;
-  if (notApplied > 0) {
+  if (totalDataSources > 0 && notApplied > 0) {
     gaps.push({
       key: "data-source-preservation-not-applied",
       severity: "high",
@@ -129,43 +152,40 @@ export async function getHoldDefensibilityScoreService(
     });
   }
 
-  // Component 4 — IT preservation confirmation rate.
+  // Component 4 — IT preservation confirmation rate. Inapplicable
+  // when no data sources have been mapped, OR when none have been
+  // applied yet (you can't confirm what hasn't been applied).
   const confirmedCount = allDataSources.filter(
     (d) => d.preservationConfirmedAt !== null,
   ).length;
-  const itConfirmRate = ratio(
-    confirmedCount,
-    Math.max(1, totalDataSources),
-  );
-  if (confirmedCount < totalDataSources) {
+  const itConfirmRate = ratio(confirmedCount, successfullyApplied);
+  if (
+    totalDataSources > 0 &&
+    successfullyApplied > 0 &&
+    confirmedCount < successfullyApplied
+  ) {
     gaps.push({
       key: "data-source-preservation-not-confirmed",
       severity: "medium",
-      message: `${totalDataSources - confirmedCount} data source${totalDataSources - confirmedCount === 1 ? "" : "s"} await IT-side preservation confirmation.`,
-      count: totalDataSources - confirmedCount,
+      message: `${successfullyApplied - confirmedCount} data source${successfullyApplied - confirmedCount === 1 ? "" : "s"} await IT-side preservation confirmation.`,
+      count: successfullyApplied - confirmedCount,
     });
   }
 
-  // Component 5 — notice template integrity. Every issuance's
-  // bodyHashAtIssuance should match the template's current bodyHash
-  // OR the template should be on a higher version (issuance was
-  // snapshotted before an edit). Drift is detected when the
-  // issuance's hash matches NEITHER the current nor a known prior
-  // version. With our event-sourced model the snapshot is
-  // authoritative — drift means the template row was modified
-  // out-of-band (raw SQL), which the scorecard surfaces.
+  // Component 5 — notice template integrity. Inapplicable until at
+  // least one notice has been issued.
   let templateOk = 0;
   let templateTotal = 0;
   for (const iss of hold.noticeIssuances) {
     templateTotal += 1;
     if (iss.bodyHashAtIssuance) {
-      // The template's *current* hash may have advanced — that's
-      // legal. Only flag if the issuance hash is empty (writer
-      // bypassed the snapshot path).
+      // Drift means the issuance hash is empty (writer bypassed the
+      // snapshot path) — the template's *current* hash may legally
+      // advance after the issuance.
       templateOk += 1;
     }
   }
-  const templateRate = ratio(templateOk, Math.max(1, templateTotal));
+  const templateRate = ratio(templateOk, templateTotal);
   if (templateTotal > templateOk) {
     gaps.push({
       key: "notice-template-drift",
@@ -175,9 +195,8 @@ export async function getHoldDefensibilityScoreService(
     });
   }
 
-  // Component 6 — audit chain integrity for the org. We verify the
-  // whole organisation chain (cheap thanks to the SQL-side helper);
-  // any break is reflected here.
+  // Component 6 — audit chain integrity for the org. Always
+  // applicable — chain seal is non-negotiable.
   const chainResult = await verifyAuditChain(hold.organizationId);
   const chainRate = chainResult.intact ? 1 : 0;
   if (!chainResult.intact) {
@@ -193,43 +212,72 @@ export async function getHoldDefensibilityScoreService(
     custodianAcknowledgmentRate: makeComponent(
       ackRate,
       WEIGHTS.custodianAcknowledgmentRate,
-      acknowledged === totalCustodians ? null : `${acknowledged}/${totalCustodians} acknowledged`,
+      ackRate === null
+        ? null
+        : acknowledged === totalCustodians
+          ? null
+          : `${acknowledged}/${totalCustodians} acknowledged`,
+      ackRate === null ? "No custodians on this hold yet." : null,
     ),
     reAttestationCurrency: makeComponent(
       reAttestRate,
       WEIGHTS.reAttestationCurrency,
-      overdueCustodians.length === 0 ? null : `${overdueCustodians.length} overdue`,
+      reAttestRate === null
+        ? null
+        : overdueCustodians.length === 0
+          ? null
+          : `${overdueCustodians.length} overdue`,
+      reAttestRate === null
+        ? "Not yet applicable — no custodians have acknowledged yet."
+        : null,
     ),
     dataSourcePreservationCoverage: makeComponent(
       dsCoverage,
       WEIGHTS.dataSourcePreservationCoverage,
-      notApplied === 0 ? null : `${notApplied} sources unprotected`,
+      dsCoverage === null
+        ? null
+        : notApplied === 0
+          ? null
+          : `${notApplied} sources unprotected`,
+      dsCoverage === null
+        ? "Not yet applicable — no data sources mapped yet."
+        : null,
     ),
     itPreservationConfirmationRate: makeComponent(
       itConfirmRate,
       WEIGHTS.itPreservationConfirmationRate,
-      confirmedCount === totalDataSources
+      itConfirmRate === null
         ? null
-        : `${totalDataSources - confirmedCount} confirmations pending`,
+        : confirmedCount === successfullyApplied
+          ? null
+          : `${successfullyApplied - confirmedCount} confirmations pending`,
+      itConfirmRate === null
+        ? totalDataSources === 0
+          ? "Not yet applicable — no data sources mapped yet."
+          : "Not yet applicable — no preservation has been applied yet."
+        : null,
     ),
     noticeTemplateIntegrity: makeComponent(
       templateRate,
       WEIGHTS.noticeTemplateIntegrity,
-      templateOk === templateTotal ? null : `${templateTotal - templateOk} issuances missing snapshot`,
+      templateRate === null
+        ? null
+        : templateOk === templateTotal
+          ? null
+          : `${templateTotal - templateOk} issuances missing snapshot`,
+      templateRate === null
+        ? "Not yet applicable — no notices have been issued yet."
+        : null,
     ),
     auditChainIntegrity: makeComponent(
       chainRate,
       WEIGHTS.auditChainIntegrity,
       chainResult.intact ? null : `${chainResult.breaks.length} chain breaks`,
+      null,
     ),
   };
 
-  const score = Math.round(
-    Object.values(components).reduce(
-      (sum, c) => sum + c.value * c.weight,
-      0,
-    ),
-  );
+  const score = computeWeightedScore(Object.values(components));
 
   return {
     holdId,
@@ -241,9 +289,10 @@ export async function getHoldDefensibilityScoreService(
 }
 
 function makeComponent(
-  value: number,
+  value: number | null,
   weight: number,
   gap: string | null,
+  notApplicableReason: string | null,
 ): ScoreComponent {
-  return { value, weight, gap };
+  return { value, weight, gap, notApplicableReason };
 }

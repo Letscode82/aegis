@@ -84,7 +84,13 @@ export interface HoldDefensibilityScoreDTO {
   score: number;
   components: Record<
     string,
-    { value: number; weight: number; gap: string | null }
+    {
+      /** Null = inapplicable (excluded from the weighted score). */
+      value: number | null;
+      weight: number;
+      gap: string | null;
+      notApplicableReason?: string | null;
+    }
   >;
   gaps: Array<{
     key: string;

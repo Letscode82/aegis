@@ -25,9 +25,11 @@ import { HoldStatusRow } from "./HoldStatusRow";
 import { CustodiansPanel } from "./CustodiansPanel";
 import { DefensibilityRailCard } from "./DefensibilityRailCard";
 import { TimelineRailCard } from "./TimelineRailCard";
+import { TimelineFullStreamModal } from "./TimelineFullStreamModal";
 import { NoticesRailCard } from "./NoticesRailCard";
 import type {
   HoldDefensibilityScoreDTO,
+  HoldEventDTO,
   HoldWorkspaceSummaryDTO,
 } from "./types";
 
@@ -92,9 +94,12 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
 
   const [summary, setSummary] = useState<HoldWorkspaceSummaryDTO | null>(null);
   const [score, setScore] = useState<HoldDefensibilityScoreDTO | null>(null);
+  const [events, setEvents] = useState<HoldEventDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
+  const [timelineOpen, setTimelineOpen] = useState(false);
+  const [highlightEventId, setHighlightEventId] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -106,6 +111,10 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
       .then((r) => (r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`)))
       .then((s: HoldDefensibilityScoreDTO) => alive && setScore(s))
       .catch(() => undefined);
+    fetch(`${baseUrl}/timeline`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`)))
+      .then((rows: HoldEventDTO[]) => alive && setEvents(rows))
+      .catch(() => alive && setEvents([]));
     return () => {
       alive = false;
     };
@@ -172,7 +181,13 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
         holdId={holdId}
         score={score}
       />
-      <TimelineRailCard matterId={matterId} holdId={holdId} />
+      <TimelineRailCard
+        events={events}
+        onOpenStream={() => {
+          setHighlightEventId(null);
+          setTimelineOpen(true);
+        }}
+      />
       <NoticesRailCard
         matterId={matterId}
         holdId={holdId}
@@ -219,7 +234,28 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
         canRelease={canRelease}
       />
 
-      <HoldStatusRow summary={summary} />
+      <HoldStatusRow
+        summary={summary}
+        onOpenLastActivity={
+          events && events.length > 0
+            ? () => {
+                // Timeline endpoint sorts newest-first, so the head
+                // row IS the most-recent event — pre-highlight it.
+                const head = events[0];
+                if (head) setHighlightEventId(head.id);
+                setTimelineOpen(true);
+              }
+            : undefined
+        }
+      />
+
+      {timelineOpen && events && (
+        <TimelineFullStreamModal
+          events={events}
+          highlightEventId={highlightEventId}
+          onClose={() => setTimelineOpen(false)}
+        />
+      )}
 
       {error && (
         <Card>

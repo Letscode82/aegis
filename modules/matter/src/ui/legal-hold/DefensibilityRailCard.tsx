@@ -68,6 +68,7 @@ export const DefensibilityRailCard: React.FC<DefensibilityRailCardProps> = ({
               label={COMPONENT_LABELS[key] ?? key}
               value={c.value}
               gap={c.gap}
+              notApplicableReason={c.notApplicableReason ?? null}
             />
           ))}
         </div>
@@ -130,9 +131,47 @@ export const DefensibilityRailCard: React.FC<DefensibilityRailCardProps> = ({
 
 const MiniBar: React.FC<{
   label: string;
-  value: number;
+  value: number | null;
   gap: string | null;
-}> = ({ label, value, gap }) => {
+  notApplicableReason: string | null;
+}> = ({ label, value, gap, notApplicableReason }) => {
+  if (value === null) {
+    return (
+      <div title={notApplicableReason ?? "Not yet applicable"}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            fontSize: 9.5,
+            fontFamily: F,
+            color: C.t3,
+            marginBottom: 2,
+          }}
+        >
+          <span>{label}</span>
+          <span
+            style={{
+              fontFamily: M,
+              color: C.t4,
+              fontSize: 9.5,
+              letterSpacing: 0.5,
+            }}
+          >
+            —
+          </span>
+        </div>
+        <div
+          style={{
+            height: 4,
+            background: C.br,
+            borderRadius: 2,
+            overflow: "hidden",
+            opacity: 0.4,
+          }}
+        />
+      </div>
+    );
+  }
   const pct = Math.round(value * 100);
   return (
     <div title={gap ?? `${pct}%`}>
@@ -183,39 +222,78 @@ const DefensibilityBreakdownModal: React.FC<{
     headerRight={<DefensibilityBadge score={score.score} />}
   >
     <div style={{ display: "grid", gap: 6 }}>
-      {Object.entries(score.components).map(([key, c]) => (
-        <div key={key}>
+      {Object.entries(score.components).map(([key, c]) => {
+        const isNa = c.value === null;
+        const pct = isNa ? 0 : Math.round((c.value as number) * 100);
+        return (
           <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              fontSize: 10.5,
-              color: C.t2,
-              fontFamily: F,
-            }}
+            key={key}
+            title={isNa ? c.notApplicableReason ?? "Not yet applicable" : undefined}
           >
-            <span>
-              {COMPONENT_LABELS[key] ?? key}{" "}
-              <span style={{ color: C.t4, fontSize: 9 }}>· weight {c.weight}</span>
-            </span>
-            <span style={{ fontFamily: M, color: C.t1 }}>{Math.round(c.value * 100)}%</span>
-          </div>
-          <div style={{ height: 5, background: C.br, borderRadius: 2, overflow: "hidden", marginTop: 3 }}>
             <div
               style={{
-                width: `${Math.round(c.value * 100)}%`,
-                height: "100%",
-                background: defensibilityColor(Math.round(c.value * 100)),
+                display: "flex",
+                justifyContent: "space-between",
+                fontSize: 10.5,
+                color: isNa ? C.t3 : C.t2,
+                fontFamily: F,
               }}
-            />
-          </div>
-          {c.gap && (
-            <div style={{ fontSize: 9.5, color: C.am, fontFamily: M, marginTop: 2 }}>
-              {c.gap}
+            >
+              <span>
+                {COMPONENT_LABELS[key] ?? key}{" "}
+                <span style={{ color: C.t4, fontSize: 9 }}>· weight {c.weight}</span>
+              </span>
+              <span
+                style={{
+                  fontFamily: M,
+                  color: isNa ? C.t4 : C.t1,
+                  letterSpacing: isNa ? 0.5 : 0,
+                }}
+              >
+                {isNa ? "—" : `${pct}%`}
+              </span>
             </div>
-          )}
-        </div>
-      ))}
+            <div
+              style={{
+                height: 5,
+                background: C.br,
+                borderRadius: 2,
+                overflow: "hidden",
+                marginTop: 3,
+                opacity: isNa ? 0.4 : 1,
+              }}
+            >
+              {!isNa && (
+                <div
+                  style={{
+                    width: `${pct}%`,
+                    height: "100%",
+                    background: defensibilityColor(pct),
+                  }}
+                />
+              )}
+            </div>
+            {isNa && c.notApplicableReason && (
+              <div
+                style={{
+                  fontSize: 9.5,
+                  color: C.t4,
+                  fontFamily: M,
+                  marginTop: 2,
+                  fontStyle: "italic",
+                }}
+              >
+                {c.notApplicableReason}
+              </div>
+            )}
+            {!isNa && c.gap && (
+              <div style={{ fontSize: 9.5, color: C.am, fontFamily: M, marginTop: 2 }}>
+                {c.gap}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
     {score.gaps.length > 0 && (
       <div style={{ marginTop: 18 }}>

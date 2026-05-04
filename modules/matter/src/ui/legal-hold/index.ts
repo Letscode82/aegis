@@ -9,6 +9,7 @@ export { CustodianRow } from "./CustodianRow";
 export { CustodianAddDialog } from "./CustodianAddDialog";
 export { DefensibilityRailCard } from "./DefensibilityRailCard";
 export { TimelineRailCard } from "./TimelineRailCard";
+export { TimelineFullStreamModal, TIMELINE_TYPE_COLORS } from "./TimelineFullStreamModal";
 export { NoticesRailCard } from "./NoticesRailCard";
 export { ModalShell } from "./ModalShell";
 export {
