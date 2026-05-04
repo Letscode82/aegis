@@ -146,6 +146,16 @@ PR #4 — Matter Management module — split into four sub-PRs:
        resolution across all surfaces. Real email sending stubbed
        (sunset documented). Defensibility export schema bumped to
        v2.
+  4c.4 — Legal Hold high-priority polish: trigger event surfacing
+       with edit dialog and DRAFT-state warning, jurisdiction
+       policy popover with per-jurisdiction effective cadence and
+       mandatory language, Issue Hold pre-flight confirmation with
+       paranoia type-to-confirm (same pattern for Release Hold),
+       hold scope templates lite (`HoldScopeTemplate` schema,
+       create-hold integration, admin CRUD, 2 seeded templates),
+       shared Toast component across the app, custodian search /
+       filter / sort with URL state. New permission
+       `admin:legal_hold:templates_manage` added.
   4d — AI features: matter creation suggestions, similar matters,
        custodian discovery, draft generation. Real Claude calls
        replace the 4a keyword/static fallbacks.
@@ -377,6 +387,7 @@ repurpose existing ones.
 | Audit | `audit:read_all` | Read the platform audit ledger |
 | Admin | `admin:manage_users` | Add / remove / edit users |
 |        | `admin:manage_roles` | Edit role permission sets |
+|        | `admin:legal_hold:templates_manage` | CRUD hold scope templates |
 
 ### The 8 canonical roles
 
@@ -732,6 +743,110 @@ the silent-downgrade footgun. Both stay through the swap.
   catalog coverage, diff helper) run in the default test stage.
 - Deep-link redirects added: `/admin/users` and `/admin/roles` 307 to
   `/?view=users` and `/?view=roles`.
+
+## What's new in sub-PR 4c.4 (Legal Hold high-priority polish)
+
+Six high-priority items that turn the legal-hold workspace from
+"operationally complete" (post-4c.3) into "demonstrably credible
+to a sophisticated buyer." All user-facing safety nets and
+productivity improvements; one schema migration (HoldScopeTemplate)
+and one enum addition (TRIGGER_UPDATED).
+
+- **Item 13 — shared Toast component.** New
+  `packages/ui/Toast.tsx` (`<ToastProvider>` + `useToast()`).
+  Renders via portal to `document.body` so persisted-transform
+  ancestors don't clip the toast. Auto-dismiss 4s (errors 8s),
+  manual dismiss on click, role=status / aria-live for SR
+  accessibility, max-visible 5. Mounted at the app root in
+  `apps/web/pages/_app.tsx`. Every legal-hold mutation now fires
+  action-specific success or error toasts (re-attest, release,
+  apply / confirm preservation, copy-ack-link, mark-ack on behalf,
+  data source added, notice issued, hold issued, hold released,
+  bulk action completed). Available app-wide for other modules to
+  adopt.
+
+- **Item 9 — trigger event surfacing.** New
+  `TriggerEventDialog` (record / edit). Below the title in the
+  header strip: yellow warning banner with "Record trigger event"
+  button when none recorded, or a one-line ▲ {date} ·
+  {description} block with Edit button when present. Issue Hold is
+  disabled when no trigger exists with tooltip "Record the trigger
+  event before issuing." Schema gains `TRIGGER_UPDATED` enum value
+  to distinguish post-hoc edits from the initial recording. New
+  GET / POST / PUT route at
+  `/api/matter/[id]/holds/[holdId]/trigger-event`.
+
+- **Item 11 — Issue/Release Hold pre-flight confirmation.**
+  `IssueHoldConfirmDialog` shows three sections: What will happen
+  (custodian names + counts + jurisdictions + template
+  availability), Pre-flight checks (block on missing trigger /
+  custodians; warn on missing GDPR template / no data sources),
+  and Confirmation (type the hold's title to enable the
+  destructive button — GitHub-style paranoia). Same pattern for
+  `ReleaseHoldConfirmDialog`. Both replace the previous
+  one-click destructive paths.
+
+- **Item 10 — jurisdiction policy popover + admin editor.**
+  Each jurisdiction pill in the header strip is now a button.
+  `JurisdictionPolicyPopover` opens via ModalShell showing the
+  per-jurisdiction cadence override, mandatory notice language,
+  works-council flag, and a GDPR right-to-erasure callout for
+  EU/UK/CH codes. `HoldPolicyEditor` admin page mounted at
+  `/admin/legal-hold/policy` edits the org's
+  `OrganizationHoldPolicy.jurisdictionPoliciesJson` (cadence +
+  mandatory language + works-council per jurisdiction) plus the
+  org defaults. New routes:
+  `GET /api/matter/[id]/holds/[holdId]/policy`,
+  `GET|PUT /api/admin/legal-hold/policy`.
+
+- **Item 12 — hold scope templates (lite).** New
+  `HoldScopeTemplate` schema (one new table, additive migration).
+  Two seeded examples: "Employment dispute" (US-CA / US-NY /
+  US-FED defaults, 36-month employment scope) and "IP litigation"
+  (US-FED / US-CA / EU-DE defaults, 60-month engineering scope).
+  `HoldCreateForm` gains a top dropdown that auto-fills scope +
+  jurisdictions when a template is picked, plus a "Save current as
+  template →" link that opens `SaveAsScopeTemplateDialog` to
+  capture the in-progress fields. Admin CRUD at
+  `/admin/legal-hold/templates` via `HoldScopeTemplatesAdmin`.
+  New permission `admin:legal_hold:templates_manage` added to the
+  Permission enum and the role-catalog Admin domain entry; admin
+  role auto-includes it via the existing superuser spread. New
+  routes:
+  `GET|POST /api/admin/legal-hold/templates`,
+  `GET|PUT|DELETE /api/admin/legal-hold/templates/[id]`.
+
+- **Item 14 — custodian search + filter + sort + URL state.**
+  New `CustodianSearchFilterBar` above the Custodians panel list.
+  Live name/email substring search, six status filter chips
+  (multi-select with All-resets-others semantics), four sort keys
+  (recent activity / name / status / days pending). Filter state
+  persists in URL query params (?q= / ?filter= / ?sort=) via
+  `window.history.replaceState` so refresh / shared link
+  reproduces the view (matter package can't depend on next/router
+  due to module-isolation; window.location keeps the boundary
+  clean). Bulk actions, the select-all checkbox, and the existing
+  "⚠ overdue" panel-header chip all respect the filtered view —
+  the unfiltered status-row counts at the top of the workspace
+  still show the hold's overall posture.
+
+Net new lines:
+  - 1 new schema model (HoldScopeTemplate) + 1 migration
+  - 1 new enum value (TRIGGER_UPDATED) + 1 migration
+  - 1 new permission (`admin:legal_hold:templates_manage`)
+  - 6 new HTTP routes
+  - 2 new internal services (trigger-event extension,
+    hold-templates CRUD)
+  - 1 new shared package primitive (Toast)
+  - 9 new UI components in `modules/matter/src/ui/legal-hold/`
+  - 2 new admin pages (`/admin/legal-hold/policy`,
+    `/admin/legal-hold/templates`)
+  - 3 new test files (trigger-event, custodian-filter; +Toast
+    coverage by integration usage) — total matter tests
+    57 → 74
+
+No documented exception entries needed — every change is on
+existing schema/services or extends them additively.
 
 ## What's new in sub-PR 4c.3 (Legal Hold critical operational gaps)
 
