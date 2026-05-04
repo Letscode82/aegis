@@ -16,7 +16,13 @@ export {
 } from "./services/lifecycle";
 
 // Trigger
-export { recordHoldTriggerService } from "./services/trigger";
+export {
+  getHoldTriggerEventService,
+  recordHoldTriggerService,
+  updateHoldTriggerService,
+  type TriggerEventDTO,
+  type UpdateHoldTriggerInput,
+} from "./services/trigger";
 
 // Custodians
 export {

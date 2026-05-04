@@ -340,6 +340,22 @@ export async function recordHoldTrigger(
     actor,
   );
 }
+export async function getHoldTriggerEvent(
+  holdId: string,
+  organizationId: string,
+) {
+  return LegalHoldServices.getHoldTriggerEventService(holdId, organizationId);
+}
+export async function updateHoldTrigger(
+  input: import("./src/internal/legal-hold").UpdateHoldTriggerInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.updateHoldTriggerService(input, actor);
+}
+export type {
+  TriggerEventDTO,
+  UpdateHoldTriggerInput,
+} from "./src/internal/legal-hold";
 
 // Custodians
 export async function addHoldCustodian(

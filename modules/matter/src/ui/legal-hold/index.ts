@@ -27,6 +27,9 @@ export { MarkAcknowledgedDialog } from "./MarkAcknowledgedDialog";
 export { BulkActionToolbar } from "./BulkActionToolbar";
 export { BulkMarkAcknowledgedDialog } from "./BulkMarkAcknowledgedDialog";
 export { BulkReleaseDialog } from "./BulkReleaseDialog";
+export { TriggerEventDialog } from "./TriggerEventDialog";
+export { IssueHoldConfirmDialog } from "./IssueHoldConfirmDialog";
+export { ReleaseHoldConfirmDialog } from "./ReleaseHoldConfirmDialog";
 export { ModalShell } from "./ModalShell";
 export {
   DefensibilityBadge,
