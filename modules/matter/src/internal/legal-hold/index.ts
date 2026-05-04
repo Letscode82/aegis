@@ -77,6 +77,14 @@ export {
   type HoldWorkspaceSummary,
 } from "./services/reads";
 
+// Actor resolution (timeline + audit + notice "issued by")
+export {
+  actorKey,
+  resolveActorsService,
+  type ActorKind,
+  type ResolvedActor,
+} from "./services/actor-resolver";
+
 // Errors / sentinels
 export { AgentDecisionPendingError } from "./services/timeline";
 

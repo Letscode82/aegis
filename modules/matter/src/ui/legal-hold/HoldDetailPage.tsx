@@ -251,6 +251,8 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
 
       {timelineOpen && events && (
         <TimelineFullStreamModal
+          matterId={matterId}
+          holdId={holdId}
           events={events}
           highlightEventId={highlightEventId}
           onClose={() => setTimelineOpen(false)}

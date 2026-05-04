@@ -464,6 +464,19 @@ export async function exportHoldDefensibility(holdId: string) {
   return LegalHoldServices.exportHoldDefensibilityService(holdId);
 }
 
+// Actor resolution for timelines, audit views, and notice "issued by".
+export async function resolveActors(
+  organizationId: string,
+  inputs: Array<{ actorId: string | null; actorType: string }>,
+) {
+  return LegalHoldServices.resolveActorsService(organizationId, inputs);
+}
+export { actorKey } from "./src/internal/legal-hold";
+export type {
+  ActorKind,
+  ResolvedActor,
+} from "./src/internal/legal-hold";
+
 // AI mock client (sunset 4d)
 export { getHoldAIClient } from "./src/internal/legal-hold";
 

@@ -10,6 +10,7 @@
  */
 import React, { useMemo, useState } from "react";
 import { C, F, M } from "@aegis/ui";
+import { ActorDisplay, useActorResolver } from "./ActorDisplay";
 import { ModalShell } from "./ModalShell";
 import type { HoldEventDTO } from "./types";
 
@@ -44,13 +45,24 @@ export interface TimelineFullStreamModalProps {
    * for the HoldStatusRow last-activity link.
    */
   highlightEventId?: string | null;
+  /** Required for actor name resolution. */
+  matterId: string;
+  holdId: string;
 }
 
 export const TimelineFullStreamModal: React.FC<TimelineFullStreamModalProps> = ({
   events,
   onClose,
   highlightEventId,
+  matterId,
+  holdId,
 }) => {
+  const actorInputs = useMemo(
+    () =>
+      events.map((e) => ({ actorId: e.actorId, actorType: e.actorType })),
+    [events],
+  );
+  const actorLookup = useActorResolver(matterId, holdId, actorInputs);
   const [filter, setFilter] = useState<string>("");
   const types = useMemo(() => {
     const set = new Set(events.map((e) => e.type));
@@ -111,8 +123,20 @@ export const TimelineFullStreamModal: React.FC<TimelineFullStreamModalProps> = (
                 {e.type}
               </span>
               <span style={{ color: C.t1 }}>{e.summary}</span>
-              <span style={{ fontFamily: M, fontSize: 9, color: C.t4 }}>
-                {e.actorType}:{e.actorId?.slice(0, 8) ?? "—"}…
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                <ActorDisplay
+                  actorId={e.actorId}
+                  actorType={e.actorType}
+                  lookup={actorLookup}
+                  compact
+                />
               </span>
             </div>
           );

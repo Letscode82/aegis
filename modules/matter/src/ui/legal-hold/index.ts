@@ -10,6 +10,12 @@ export { CustodianAddDialog } from "./CustodianAddDialog";
 export { DefensibilityRailCard } from "./DefensibilityRailCard";
 export { TimelineRailCard } from "./TimelineRailCard";
 export { TimelineFullStreamModal, TIMELINE_TYPE_COLORS } from "./TimelineFullStreamModal";
+export {
+  ActorDisplay,
+  actorKey as actorKeyClient,
+  useActorResolver,
+  type ResolvedActorDTO,
+} from "./ActorDisplay";
 export { NoticesRailCard } from "./NoticesRailCard";
 export { ModalShell } from "./ModalShell";
 export {
