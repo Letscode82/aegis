@@ -2,10 +2,21 @@
  * DefensibilityRailCard — compact scorecard summary in the right
  * rail, with a "Show breakdown" modal and an "Export JSON" button
  * that triggers the existing /api/matter/[id]/holds/[holdId]/export.
+ *
+ * Score state lives in the parent HoldDetailPage so the rail card
+ * and the header strip can never disagree about the current score —
+ * any custodian / data-source / acknowledgment mutation that bumps
+ * the parent's reload key refreshes both surfaces in lockstep.
+ *
+ * The breakdown modal renders via a React portal to document.body
+ * so an ancestor Card's persisted `transform: translateY(0)` (from
+ * Aurora's `fu` mount animation) doesn't trap `position: fixed`
+ * inside the rail's narrow column.
  */
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Card, SH, C, F, M } from "@aegis/ui";
 import { DefensibilityBadge, defensibilityColor } from "./badges";
+import { ModalShell } from "./ModalShell";
 import type { HoldDefensibilityScoreDTO } from "./types";
 
 const COMPONENT_LABELS: Record<string, string> = {
@@ -20,22 +31,16 @@ const COMPONENT_LABELS: Record<string, string> = {
 export interface DefensibilityRailCardProps {
   matterId: string;
   holdId: string;
+  /** Lifted from HoldDetailPage so header + rail show the same value. */
+  score: HoldDefensibilityScoreDTO | null;
 }
 
 export const DefensibilityRailCard: React.FC<DefensibilityRailCardProps> = ({
   matterId,
   holdId,
+  score,
 }) => {
-  const [score, setScore] = useState<HoldDefensibilityScoreDTO | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [breakdownOpen, setBreakdownOpen] = useState(false);
-
-  useEffect(() => {
-    fetch(`/api/matter/${matterId}/holds/${holdId}/scorecard`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`)))
-      .then(setScore)
-      .catch((e) => setError(String(e)));
-  }, [matterId, holdId]);
 
   return (
     <Card>
@@ -50,12 +55,7 @@ export const DefensibilityRailCard: React.FC<DefensibilityRailCardProps> = ({
         <SH icon="📊" title="Defensibility" />
         {score && <DefensibilityBadge score={score.score} />}
       </div>
-      {error && (
-        <div style={{ color: C.rd, fontSize: 11, fontFamily: M, marginTop: 6 }}>
-          {error}
-        </div>
-      )}
-      {!score && !error && (
+      {!score && (
         <div style={{ color: C.t3, fontSize: 11, fontFamily: M, marginTop: 8 }}>
           Loading…
         </div>
@@ -173,136 +173,91 @@ const MiniBar: React.FC<{
 const DefensibilityBreakdownModal: React.FC<{
   score: HoldDefensibilityScoreDTO;
   onClose: () => void;
-}> = ({ score, onClose }) => {
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Defensibility breakdown"
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,.65)",
-        zIndex: 60,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: C.cd,
-          border: `1px solid ${C.brL}`,
-          padding: 18,
-          minWidth: 540,
-          maxHeight: "85vh",
-          overflowY: "auto",
-          fontFamily: F,
-          color: C.t1,
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <SH icon="📊" title="Defensibility breakdown" sub={`Computed ${new Date(score.computedAt).toISOString().slice(0, 16).replace("T", " ")}`} />
-          <DefensibilityBadge score={score.score} />
+}> = ({ score, onClose }) => (
+  <ModalShell
+    onClose={onClose}
+    ariaLabel="Defensibility breakdown"
+    title="Defensibility breakdown"
+    icon="📊"
+    sub={`Computed ${new Date(score.computedAt).toISOString().slice(0, 16).replace("T", " ")}`}
+    headerRight={<DefensibilityBadge score={score.score} />}
+  >
+    <div style={{ display: "grid", gap: 6 }}>
+      {Object.entries(score.components).map(([key, c]) => (
+        <div key={key}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              fontSize: 10.5,
+              color: C.t2,
+              fontFamily: F,
+            }}
+          >
+            <span>
+              {COMPONENT_LABELS[key] ?? key}{" "}
+              <span style={{ color: C.t4, fontSize: 9 }}>· weight {c.weight}</span>
+            </span>
+            <span style={{ fontFamily: M, color: C.t1 }}>{Math.round(c.value * 100)}%</span>
+          </div>
+          <div style={{ height: 5, background: C.br, borderRadius: 2, overflow: "hidden", marginTop: 3 }}>
+            <div
+              style={{
+                width: `${Math.round(c.value * 100)}%`,
+                height: "100%",
+                background: defensibilityColor(Math.round(c.value * 100)),
+              }}
+            />
+          </div>
+          {c.gap && (
+            <div style={{ fontSize: 9.5, color: C.am, fontFamily: M, marginTop: 2 }}>
+              {c.gap}
+            </div>
+          )}
         </div>
-        <div style={{ marginTop: 14, display: "grid", gap: 6 }}>
-          {Object.entries(score.components).map(([key, c]) => (
-            <div key={key}>
-              <div
+      ))}
+    </div>
+    {score.gaps.length > 0 && (
+      <div style={{ marginTop: 18 }}>
+        <SH icon="⚠" title="Gaps" sub={`${score.gaps.length} issue${score.gaps.length === 1 ? "" : "s"}`} />
+        <div style={{ display: "grid", gap: 4, marginTop: 4 }}>
+          {score.gaps.map((g) => (
+            <div
+              key={g.key + g.message}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "60px 1fr 50px",
+                fontSize: 11,
+                fontFamily: F,
+                padding: "4px 6px",
+                borderBottom: `1px solid ${C.br}22`,
+                alignItems: "center",
+              }}
+            >
+              <span
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  fontSize: 10.5,
-                  color: C.t2,
-                  fontFamily: F,
+                  fontFamily: M,
+                  fontSize: 9.5,
+                  color:
+                    g.severity === "high"
+                      ? C.rd
+                      : g.severity === "medium"
+                        ? C.am
+                        : C.t3,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.4,
                 }}
               >
-                <span>
-                  {COMPONENT_LABELS[key] ?? key}{" "}
-                  <span style={{ color: C.t4, fontSize: 9 }}>· weight {c.weight}</span>
-                </span>
-                <span style={{ fontFamily: M, color: C.t1 }}>{Math.round(c.value * 100)}%</span>
-              </div>
-              <div style={{ height: 5, background: C.br, borderRadius: 2, overflow: "hidden", marginTop: 3 }}>
-                <div
-                  style={{
-                    width: `${Math.round(c.value * 100)}%`,
-                    height: "100%",
-                    background: defensibilityColor(Math.round(c.value * 100)),
-                  }}
-                />
-              </div>
-              {c.gap && (
-                <div style={{ fontSize: 9.5, color: C.am, fontFamily: M, marginTop: 2 }}>
-                  {c.gap}
-                </div>
-              )}
+                {g.severity}
+              </span>
+              <span style={{ color: C.t1 }}>{g.message}</span>
+              <span style={{ fontFamily: M, fontSize: 10, color: C.t3, textAlign: "right" }}>
+                {g.count}
+              </span>
             </div>
           ))}
         </div>
-        {score.gaps.length > 0 && (
-          <div style={{ marginTop: 18 }}>
-            <SH icon="⚠" title="Gaps" sub={`${score.gaps.length} issue${score.gaps.length === 1 ? "" : "s"}`} />
-            <div style={{ display: "grid", gap: 4, marginTop: 4 }}>
-              {score.gaps.map((g) => (
-                <div
-                  key={g.key + g.message}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "60px 1fr 50px",
-                    fontSize: 11,
-                    fontFamily: F,
-                    padding: "4px 6px",
-                    borderBottom: `1px solid ${C.br}22`,
-                    alignItems: "center",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontFamily: M,
-                      fontSize: 9.5,
-                      color:
-                        g.severity === "high"
-                          ? C.rd
-                          : g.severity === "medium"
-                            ? C.am
-                            : C.t3,
-                      textTransform: "uppercase",
-                      letterSpacing: 0.4,
-                    }}
-                  >
-                    {g.severity}
-                  </span>
-                  <span style={{ color: C.t1 }}>{g.message}</span>
-                  <span style={{ fontFamily: M, fontSize: 10, color: C.t3, textAlign: "right" }}>
-                    {g.count}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 14 }}>
-          <button
-            type="button"
-            onClick={onClose}
-            style={{
-              background: "transparent",
-              border: `1px solid ${C.br}`,
-              color: C.t1,
-              padding: "6px 14px",
-              borderRadius: 4,
-              cursor: "pointer",
-              fontFamily: F,
-              fontSize: 11,
-            }}
-          >
-            Close
-          </button>
-        </div>
       </div>
-    </div>
-  );
-};
+    )}
+  </ModalShell>
+);

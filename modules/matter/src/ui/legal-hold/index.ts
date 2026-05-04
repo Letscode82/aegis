@@ -10,6 +10,7 @@ export { CustodianAddDialog } from "./CustodianAddDialog";
 export { DefensibilityRailCard } from "./DefensibilityRailCard";
 export { TimelineRailCard } from "./TimelineRailCard";
 export { NoticesRailCard } from "./NoticesRailCard";
+export { ModalShell } from "./ModalShell";
 export {
   DefensibilityBadge,
   JurisdictionPills,
