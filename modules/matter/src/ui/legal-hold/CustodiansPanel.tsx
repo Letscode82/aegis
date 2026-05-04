@@ -19,6 +19,11 @@ import { BulkMarkAcknowledgedDialog } from "./BulkMarkAcknowledgedDialog";
 import { BulkReleaseDialog } from "./BulkReleaseDialog";
 import { CustodianRow } from "./CustodianRow";
 import { CustodianAddDialog } from "./CustodianAddDialog";
+import {
+  CustodianSearchFilterBar,
+  type CustodianSortKey,
+  type CustodianStatusFilter,
+} from "./CustodianSearchFilterBar";
 import { NoticeComposerDialog } from "./NoticeComposerDialog";
 
 export interface CustodiansPanelProps {
@@ -47,8 +52,47 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [adding, setAdding] = useState(false);
-  const [filterOverdue, setFilterOverdue] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  // Search / filter / sort — initial values seeded from URL query
+  // params so a refresh / shared link reproduces the view. We read
+  // window.location directly rather than depending on Next's router
+  // (matter package can't import next/router due to module-isolation
+  // rules), then push state changes via history.replaceState.
+  const [query, setQuery] = useState<string>(() => readUrlParam("q") ?? "");
+  const [statuses, setStatuses] = useState<Set<CustodianStatusFilter>>(() => {
+    const raw = readUrlParam("filter");
+    if (!raw) return new Set(["all"]);
+    return new Set(raw.split(",").filter(Boolean) as CustodianStatusFilter[]);
+  });
+  const [sortKey, setSortKey] = useState<CustodianSortKey>(() => {
+    const raw = readUrlParam("sort");
+    return (raw as CustodianSortKey) || "recent-activity";
+  });
+
+  // URL sync — encodes the filter set into ?q= / ?filter= / ?sort=.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    setOrDelete(params, "q", query.trim());
+    setOrDelete(
+      params,
+      "filter",
+      statuses.size === 0 || (statuses.size === 1 && statuses.has("all"))
+        ? ""
+        : Array.from(statuses)
+            .filter((s) => s !== "all")
+            .join(","),
+    );
+    setOrDelete(
+      params,
+      "sort",
+      sortKey === "recent-activity" ? "" : sortKey,
+    );
+    const qs = params.toString();
+    const newUrl = `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`;
+    window.history.replaceState(null, "", newUrl);
+  }, [query, statuses, sortKey]);
   // Bulk-selection + bulk-action state.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkSendOpen, setBulkSendOpen] = useState(false);
@@ -88,11 +132,88 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
     return rows.filter((c) => c.departureRecordedAt).length;
   }, [rows]);
 
+  function statusOf(c: HoldCustodianDTO): CustodianStatusFilter {
+    if (c.releasedAt) return "released";
+    if (overdueIds.includes(c.personId)) return "overdue";
+    if (c.acknowledgedAt) return "acknowledged";
+    return "pending";
+  }
+
   const visibleRows = useMemo(() => {
     if (!rows) return [];
-    if (!filterOverdue) return rows;
-    return rows.filter((c) => overdueIds.includes(c.personId));
-  }, [rows, filterOverdue, overdueIds]);
+    const q = query.trim().toLowerCase();
+    let out = rows.filter((c) => {
+      // Search across name + email.
+      if (q) {
+        const hay = `${c.personName} ${c.personEmail ?? ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      // Status chips. "all" disables filtering entirely; otherwise the
+      // row matches any selected status. "with-conflicts" is a per-data-
+      // source flag.
+      if (statuses.size > 0 && !statuses.has("all")) {
+        const s = statusOf(c);
+        const matchesStatus = statuses.has(s);
+        const hasConflict = c.dataSources.some((d) => d.retentionPolicyConflict);
+        const matchesConflicts =
+          statuses.has("with-conflicts") && hasConflict;
+        if (!matchesStatus && !matchesConflicts) return false;
+      }
+      return true;
+    });
+
+    // Sort
+    out = [...out];
+    if (sortKey === "name-asc") {
+      out.sort((a, b) => a.personName.localeCompare(b.personName));
+    } else if (sortKey === "status") {
+      const order: Record<CustodianStatusFilter, number> = {
+        all: 9,
+        overdue: 0,
+        pending: 1,
+        acknowledged: 2,
+        released: 3,
+        "with-conflicts": 4,
+      };
+      out.sort((a, b) => order[statusOf(a)] - order[statusOf(b)]);
+    } else if (sortKey === "days-pending") {
+      const daysSinceCreate = (c: HoldCustodianDTO) =>
+        c.acknowledgedAt
+          ? Number.NEGATIVE_INFINITY
+          : c.nextReAttestationDueAt
+            ? Date.now() - new Date(c.nextReAttestationDueAt).getTime()
+            : 0;
+      out.sort((a, b) => daysSinceCreate(b) - daysSinceCreate(a));
+    } else {
+      // recent-activity: latest of acknowledgedAt / lastReAttestedAt /
+      // releasedAt / departureRecordedAt wins; null sorts last.
+      const lastTs = (c: HoldCustodianDTO) => {
+        const candidates = [
+          c.acknowledgedAt,
+          c.lastReAttestedAt,
+          c.releasedAt,
+          c.departureRecordedAt,
+        ]
+          .filter((s): s is string => !!s)
+          .map((s) => new Date(s).getTime());
+        return candidates.length > 0 ? Math.max(...candidates) : 0;
+      };
+      out.sort((a, b) => lastTs(b) - lastTs(a));
+    }
+    return out;
+  }, [rows, query, statuses, sortKey, overdueIds]);
+
+  function toggleStatus(s: CustodianStatusFilter) {
+    setStatuses((prev) => {
+      const next = new Set(prev);
+      if (s === "all") return new Set(["all"]);
+      next.delete("all");
+      if (next.has(s)) next.delete(s);
+      else next.add(s);
+      if (next.size === 0) next.add("all");
+      return next;
+    });
+  }
 
   function nameFor(personId: string): string {
     return rows?.find((c) => c.personId === personId)?.personName ?? personId;
@@ -235,13 +356,17 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
             <ChipAction
               color={C.rd}
               label={`⚠ ${overdueIds.length} overdue acknowledgment${overdueIds.length === 1 ? "" : "s"}`}
-              actionLabel={filterOverdue ? "Show all" : "Send reminders"}
+              actionLabel={
+                statuses.has("overdue") && !statuses.has("all")
+                  ? "Show all"
+                  : "Send reminders"
+              }
               onClick={() => {
-                if (!filterOverdue) {
-                  setFilterOverdue(true);
+                if (!statuses.has("overdue") || statuses.has("all")) {
+                  setStatuses(new Set(["overdue"]));
                   onSendReminders(overdueIds);
                 } else {
-                  setFilterOverdue(false);
+                  setStatuses(new Set(["all"]));
                 }
               }}
             />
@@ -307,6 +432,16 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
 
       {rows && rows.length > 0 && (
         <div style={{ marginTop: 12 }}>
+          <CustodianSearchFilterBar
+            query={query}
+            onQueryChange={setQuery}
+            statuses={statuses}
+            onToggleStatus={toggleStatus}
+            sortKey={sortKey}
+            onSortChange={setSortKey}
+            resultCount={visibleRows.length}
+            totalCount={rows.length}
+          />
           <BulkActionToolbar
             count={selectedIds.size}
             alreadyAckedCount={
@@ -371,15 +506,19 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
             <span>Sources</span>
             <span style={{ textAlign: "right" }}>Last</span>
           </div>
-          {visibleRows.length === 0 && filterOverdue && (
+          {visibleRows.length === 0 && rows && rows.length > 0 && (
             <div style={{ padding: 12, color: C.t3, fontSize: 11, fontFamily: M }}>
-              No overdue custodians. <span
-                onClick={() => setFilterOverdue(false)}
+              No custodians match the current filters.{" "}
+              <span
+                onClick={() => {
+                  setStatuses(new Set(["all"]));
+                  setQuery("");
+                }}
                 style={{ color: C.bl, cursor: "pointer" }}
                 role="button"
                 tabIndex={0}
               >
-                Show all
+                Clear filters
               </span>
             </div>
           )}
@@ -645,3 +784,18 @@ const EmptyState: React.FC<{
     )}
   </div>
 );
+
+function readUrlParam(name: string): string | null {
+  if (typeof window === "undefined") return null;
+  const v = new URLSearchParams(window.location.search).get(name);
+  return v && v.length > 0 ? v : null;
+}
+
+function setOrDelete(
+  params: URLSearchParams,
+  key: string,
+  value: string,
+): void {
+  if (value && value.length > 0) params.set(key, value);
+  else params.delete(key);
+}

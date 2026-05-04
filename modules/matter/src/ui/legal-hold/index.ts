@@ -34,6 +34,11 @@ export { JurisdictionPolicyPopover } from "./JurisdictionPolicyPopover";
 export { HoldPolicyEditor } from "./HoldPolicyEditor";
 export { HoldScopeTemplatesAdmin } from "./HoldScopeTemplatesAdmin";
 export { SaveAsScopeTemplateDialog } from "./SaveAsScopeTemplateDialog";
+export {
+  CustodianSearchFilterBar,
+  type CustodianSortKey,
+  type CustodianStatusFilter,
+} from "./CustodianSearchFilterBar";
 export { ModalShell } from "./ModalShell";
 export {
   DefensibilityBadge,
