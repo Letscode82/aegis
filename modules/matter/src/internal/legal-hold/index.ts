@@ -125,6 +125,11 @@ export {
   type ListSnapshotsOptions,
 } from "./services/defensibility-snapshot";
 export {
+  runDailySnapshotPass,
+  runWeeklyCleanupPass,
+  type DailySnapshotPassResult,
+} from "./services/snapshot-jobs";
+export {
   exportHoldDefensibilityService,
   type HoldDefensibilityExport,
 } from "./services/export";

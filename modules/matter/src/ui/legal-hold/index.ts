@@ -31,6 +31,7 @@ export { TriggerEventDialog } from "./TriggerEventDialog";
 export { IssueHoldConfirmDialog } from "./IssueHoldConfirmDialog";
 export { ReleaseHoldConfirmDialog } from "./ReleaseHoldConfirmDialog";
 export { JurisdictionPolicyPopover } from "./JurisdictionPolicyPopover";
+export { DefensibilityTrendModal } from "./DefensibilityTrendModal";
 export { HoldPolicyEditor } from "./HoldPolicyEditor";
 export { HoldScopeTemplatesAdmin } from "./HoldScopeTemplatesAdmin";
 export { SaveAsScopeTemplateDialog } from "./SaveAsScopeTemplateDialog";

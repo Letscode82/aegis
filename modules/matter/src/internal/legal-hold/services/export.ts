@@ -16,21 +16,26 @@
 import { prisma } from "@aegis/db";
 import type { HoldDefensibilityScore } from "../types";
 import { getHoldDefensibilityScoreService } from "./defensibility";
+import { listHoldSnapshotsService } from "./defensibility-snapshot";
 
 /**
  * Schema versioning:
- *   v1 (4b)  — every component reports a numeric `value` in [0, 1]
- *              even when the component is inapplicable (e.g. zero
- *              custodians acknowledged → reAttestationCurrency
- *              reported as 1.0). Misleading.
+ *   v1 (4b)   — every component reports a numeric `value` in [0, 1]
+ *               even when the component is inapplicable (e.g. zero
+ *               custodians acknowledged → reAttestationCurrency
+ *               reported as 1.0). Misleading.
  *   v2 (4c.3) — components that aren't currently measurable report
- *              `value: null` and are excluded from the weighted sum
- *              and divisor. v1 readers can still consume v2 by
- *              treating null as missing; the overall `score` field
- *              is unchanged in shape.
+ *               `value: null` and are excluded from the weighted sum
+ *               and divisor. v1 readers can still consume v2 by
+ *               treating null as missing; the overall `score` field
+ *               is unchanged in shape.
+ *   v3 (4c.5) — adds a `trend` field: chronological array of
+ *               score snapshots (date + score + per-component
+ *               values). v2 readers can ignore the new field; the
+ *               existing `scorecard` object is unchanged.
  */
 export interface HoldDefensibilityExport {
-  $schema: "aegis.legal-hold.defensibility.v2";
+  $schema: "aegis.legal-hold.defensibility.v3";
   generatedAt: string;
   hold: {
     id: string;
@@ -90,6 +95,19 @@ export interface HoldDefensibilityExport {
     resultingAuditLogId: string | null;
   }>;
   scorecard: HoldDefensibilityScore;
+  /**
+   * Chronological score snapshots (sub-PR 4c.5, v3). Each snapshot
+   * carries the same component shape as the live scorecard so an
+   * off-database auditor can independently reconstruct the trend.
+   */
+  trend: {
+    snapshots: Array<{
+      computedAt: string;
+      score: number;
+      gapCount: number;
+      components: HoldDefensibilityScore["components"];
+    }>;
+  };
 }
 
 export async function exportHoldDefensibilityService(
@@ -111,9 +129,10 @@ export async function exportHoldDefensibilityService(
   if (!hold) throw new Error(`Hold ${holdId} not found`);
 
   const scorecard = await getHoldDefensibilityScoreService(holdId);
+  const snapshots = await listHoldSnapshotsService(holdId);
 
   return {
-    $schema: "aegis.legal-hold.defensibility.v2",
+    $schema: "aegis.legal-hold.defensibility.v3",
     generatedAt: new Date().toISOString(),
     hold: {
       id: hold.id,
@@ -175,5 +194,13 @@ export async function exportHoldDefensibilityService(
       resultingAuditLogId: e.resultingAuditLogId,
     })),
     scorecard,
+    trend: {
+      snapshots: snapshots.map((s) => ({
+        computedAt: s.computedAt,
+        score: s.score,
+        gapCount: s.gapCount,
+        components: s.components as HoldDefensibilityScore["components"],
+      })),
+    },
   };
 }

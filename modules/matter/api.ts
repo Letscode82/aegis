@@ -494,7 +494,14 @@ export async function listHoldSnapshots(
 export async function pruneOldSnapshots(organizationId: string) {
   return LegalHoldServices.pruneOldSnapshotsService(organizationId);
 }
+export async function runDailySnapshotPass(organizationId: string) {
+  return LegalHoldServices.runDailySnapshotPass(organizationId);
+}
+export async function runWeeklyCleanupPass(organizationId: string) {
+  return LegalHoldServices.runWeeklyCleanupPass(organizationId);
+}
 export type {
+  DailySnapshotPassResult,
   HoldSnapshotDTO,
   ListSnapshotsOptions,
 } from "./src/internal/legal-hold";

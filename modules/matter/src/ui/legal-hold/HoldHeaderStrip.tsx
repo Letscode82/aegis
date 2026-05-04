@@ -16,7 +16,7 @@
  * /api/matter/[id]/holds/[holdId]/{issue,release} endpoints.
  */
 import React, { useState } from "react";
-import { Card, Pill, C, F, M, SR } from "@aegis/ui";
+import { Card, Pill, Sparkline, C, F, M, SR } from "@aegis/ui";
 import { DefensibilityBadge, JurisdictionPills, StatusPill } from "./badges";
 import type { HoldDetailDTO, LegalHoldStatusKey } from "./types";
 
@@ -36,6 +36,11 @@ export interface HoldHeaderStripProps {
   onEditTrigger?: () => void;
   /** Fired when the user clicks any jurisdiction pill. */
   onClickJurisdiction?: (code: string) => void;
+  /** Recent score snapshots for the sparkline. Optional; renders
+   *  nothing when empty / undefined. */
+  snapshotPoints?: Array<{ label: string; value: number }>;
+  /** Fired when the user clicks the sparkline. */
+  onOpenTrend?: () => void;
 }
 
 interface PrimaryAction {
@@ -119,6 +124,8 @@ export const HoldHeaderStrip: React.FC<HoldHeaderStripProps> = ({
   hasTriggerEvent = true,
   onEditTrigger,
   onClickJurisdiction,
+  snapshotPoints,
+  onOpenTrend,
 }) => {
   const [scopeOpen, setScopeOpen] = useState(false);
   const action = primaryActionFor(
@@ -230,7 +237,24 @@ export const HoldHeaderStrip: React.FC<HoldHeaderStripProps> = ({
           }}
         >
           {defensibilityScore !== null && (
-            <DefensibilityBadge score={defensibilityScore} />
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <DefensibilityBadge score={defensibilityScore} />
+              {snapshotPoints && snapshotPoints.length > 1 && (
+                <Sparkline
+                  points={snapshotPoints}
+                  width={90}
+                  height={22}
+                  ariaLabel="30-day defensibility trend"
+                  onClick={onOpenTrend}
+                />
+              )}
+            </div>
           )}
           <button
             type="button"

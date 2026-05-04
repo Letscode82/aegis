@@ -103,3 +103,20 @@ export interface ToastApi {
 }
 export const ToastProvider: React.FC<{ children?: ReactNode }>;
 export function useToast(): ToastApi;
+
+// Sparkline (sub-PR 4c.5)
+export interface SparklinePoint {
+  label: string;
+  value: number;
+}
+export interface SparklineProps {
+  points: SparklinePoint[];
+  width?: number;
+  height?: number;
+  min?: number;
+  max?: number;
+  color?: string;
+  onClick?: () => void;
+  ariaLabel?: string;
+}
+export const Sparkline: React.FC<SparklineProps>;

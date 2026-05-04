@@ -29,3 +29,6 @@ export { inputStyle, FormField } from "./atoms/form.jsx";
 
 // Toast / snackbar (sub-PR 4c.4)
 export { ToastProvider, useToast } from "./Toast";
+
+// Sparkline (sub-PR 4c.5) — reusable trend visualisation.
+export { Sparkline } from "./Sparkline";

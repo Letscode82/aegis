@@ -32,6 +32,7 @@ import { TriggerEventDialog } from "./TriggerEventDialog";
 import { IssueHoldConfirmDialog } from "./IssueHoldConfirmDialog";
 import { ReleaseHoldConfirmDialog } from "./ReleaseHoldConfirmDialog";
 import { JurisdictionPolicyPopover } from "./JurisdictionPolicyPopover";
+import { DefensibilityTrendModal } from "./DefensibilityTrendModal";
 import type {
   HoldDefensibilityScoreDTO,
   HoldEventDTO,
@@ -115,6 +116,10 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
   const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
   const [jurPopoverCode, setJurPopoverCode] = useState<string | null>(null);
+  const [trendOpen, setTrendOpen] = useState(false);
+  const [snapshots, setSnapshots] = useState<
+    Array<{ computedAt: string; score: number }>
+  >([]);
   // Custodian roster for the Issue dialog's preview list — fetched
   // lazily only when the dialog opens to keep the workspace mount
   // round-trip cheap.
@@ -144,6 +149,14 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
         setTriggerLoaded(true);
       })
       .catch(() => alive && setTriggerLoaded(true));
+    // Sparkline source — last 30 snapshots, oldest-first.
+    fetch(`${baseUrl}/snapshots?limit=30`)
+      .then((r) => (r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`)))
+      .then(
+        (rows: Array<{ computedAt: string; score: number }>) =>
+          alive && setSnapshots(rows),
+      )
+      .catch(() => alive && setSnapshots([]));
     return () => {
       alive = false;
     };
@@ -259,6 +272,11 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
         hasTriggerEvent={triggerLoaded ? !!trigger : true}
         onEditTrigger={canIssue ? () => setTriggerDialogOpen(true) : undefined}
         onClickJurisdiction={(code) => setJurPopoverCode(code)}
+        snapshotPoints={snapshots.map((s) => ({
+          label: s.computedAt.slice(0, 10),
+          value: s.score,
+        }))}
+        onOpenTrend={() => setTrendOpen(true)}
       />
 
       <HoldStatusRow
@@ -337,6 +355,14 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
           holdId={holdId}
           jurisdictionCode={jurPopoverCode}
           onClose={() => setJurPopoverCode(null)}
+        />
+      )}
+
+      {trendOpen && (
+        <DefensibilityTrendModal
+          matterId={matterId}
+          holdId={holdId}
+          onClose={() => setTrendOpen(false)}
         />
       )}
 
