@@ -53,23 +53,34 @@ export interface HoldDetailPageProps {
  * stable interface that survives the auth SDK swap.
  */
 function useHoldPermissions() {
-  const [perms, setPerms] = useState<Set<string>>(new Set());
+  const [state, setState] = useState<{
+    perms: Set<string>;
+    userId: string | null;
+  }>({ perms: new Set(), userId: null });
   useEffect(() => {
     let alive = true;
     fetch("/api/auth/current-user", { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d: { user?: { permissions?: string[] } } | null) => {
-        if (!alive) return;
-        setPerms(new Set(d?.user?.permissions ?? []));
-      })
+      .then(
+        (d: {
+          user?: { id?: string; permissions?: string[] };
+        } | null) => {
+          if (!alive) return;
+          setState({
+            perms: new Set(d?.user?.permissions ?? []),
+            userId: d?.user?.id ?? null,
+          });
+        },
+      )
       .catch(() => undefined);
     return () => {
       alive = false;
     };
   }, []);
   return {
-    canIssue: perms.has("matter:legal_hold:issue"),
-    canRelease: perms.has("matter:legal_hold:release"),
+    canIssue: state.perms.has("matter:legal_hold:issue"),
+    canRelease: state.perms.has("matter:legal_hold:release"),
+    userId: state.userId,
   };
 }
 
@@ -96,7 +107,7 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
 }) => {
   const baseUrl = `${endpoint}/${matterId}/holds/${holdId}`;
   const wide = useIsWide(1024);
-  const { canIssue, canRelease } = useHoldPermissions();
+  const { canIssue, canRelease, userId } = useHoldPermissions();
 
   const [summary, setSummary] = useState<HoldWorkspaceSummaryDTO | null>(null);
   const [score, setScore] = useState<HoldDefensibilityScoreDTO | null>(null);
@@ -399,6 +410,7 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
           holdId={holdId}
           canMutate={canIssue}
           canRelease={canRelease}
+          currentUserId={userId}
           onChange={reload}
           onSendReminders={() => {
             // 4c.2 surfaces the affordance; the actual escalation

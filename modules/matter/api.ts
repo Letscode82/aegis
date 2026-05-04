@@ -481,6 +481,37 @@ export async function exportHoldDefensibility(holdId: string) {
   return LegalHoldServices.exportHoldDefensibilityService(holdId);
 }
 
+// Saved views (4c.5, Item 16)
+export async function listSavedViews(
+  actor: { id: string; organizationId: string },
+  scope: import("@aegis/db").SavedViewScope,
+) {
+  return LegalHoldServices.listSavedViewsService(actor, scope);
+}
+export async function createSavedView(
+  input: import("./src/internal/legal-hold").CreateSavedViewInput,
+  actor: { id: string; organizationId: string },
+) {
+  return LegalHoldServices.createSavedViewService(input, actor);
+}
+export async function updateSavedView(
+  input: import("./src/internal/legal-hold").UpdateSavedViewInput,
+  actor: { id: string; organizationId: string },
+) {
+  return LegalHoldServices.updateSavedViewService(input, actor);
+}
+export async function deleteSavedView(
+  viewId: string,
+  actor: { id: string; organizationId: string },
+) {
+  return LegalHoldServices.deleteSavedViewService(viewId, actor);
+}
+export type {
+  CreateSavedViewInput,
+  SavedViewDTO,
+  UpdateSavedViewInput,
+} from "./src/internal/legal-hold";
+
 // Defensibility snapshots (4c.5, Item 15)
 export async function recordDefensibilitySnapshot(holdId: string) {
   return LegalHoldServices.recordDefensibilitySnapshotService(holdId);

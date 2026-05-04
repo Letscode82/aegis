@@ -114,6 +114,17 @@ export {
 } from "./services/reminders";
 export { decideEscalation, type EscalationDecision } from "./services/escalation";
 
+// Saved views (4c.5, Item 16)
+export {
+  createSavedViewService,
+  deleteSavedViewService,
+  listSavedViewsService,
+  updateSavedViewService,
+  type CreateSavedViewInput,
+  type SavedViewDTO,
+  type UpdateSavedViewInput,
+} from "./services/saved-views";
+
 // Defensibility
 export { getHoldDefensibilityScoreService } from "./services/defensibility";
 export {

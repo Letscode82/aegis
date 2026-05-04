@@ -25,6 +25,7 @@ import {
   type CustodianStatusFilter,
 } from "./CustodianSearchFilterBar";
 import { NoticeComposerDialog } from "./NoticeComposerDialog";
+import { SavedViewsDropdown } from "./SavedViewsDropdown";
 
 export interface CustodiansPanelProps {
   matterId: string;
@@ -33,6 +34,8 @@ export interface CustodiansPanelProps {
   canMutate: boolean;
   /** Permission gate for bulk-release and per-custodian release. */
   canRelease: boolean;
+  /** Resolved current-user id — drives saved-views ownership UX. */
+  currentUserId: string | null;
   /** Triggered when any custodian list mutation completes. */
   onChange: () => void;
   /** Fired when the bulk "Send reminders" chip is clicked. */
@@ -44,6 +47,7 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
   holdId,
   canMutate,
   canRelease,
+  currentUserId,
   onChange,
   onSendReminders,
 }) => {
@@ -432,6 +436,42 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
 
       {rows && rows.length > 0 && (
         <div style={{ marginTop: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "flex-start",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 6,
+            }}
+          >
+            <SavedViewsDropdown
+              scope="LEGAL_HOLD_CUSTODIANS"
+              currentUserId={currentUserId}
+              currentFilterState={{
+                query,
+                statuses: Array.from(statuses),
+                sortKey,
+              }}
+              applyDefaultOnMount
+              onApply={(state) => {
+                if (!state) {
+                  setQuery("");
+                  setStatuses(new Set(["all"]));
+                  setSortKey("recent-activity");
+                  return;
+                }
+                const s = state as {
+                  query?: string;
+                  statuses?: CustodianStatusFilter[];
+                  sortKey?: CustodianSortKey;
+                };
+                setQuery(s.query ?? "");
+                setStatuses(new Set(s.statuses ?? ["all"]));
+                setSortKey(s.sortKey ?? "recent-activity");
+              }}
+            />
+          </div>
           <CustodianSearchFilterBar
             query={query}
             onQueryChange={setQuery}
