@@ -1,10 +1,13 @@
 /**
- * TimelineRailCard — last 5 LegalHoldEvent rows in the rail. The
- * "View all" button opens a modal with the full chronological
- * stream (filterable by event type).
+ * TimelineRailCard — last 5 LegalHoldEvent rows in the rail. Clicking
+ * anywhere on the card opens `TimelineFullStreamModal` (rendered via
+ * a portal so the persisted `transform` on Aurora's `Card` ancestors
+ * doesn't trap `position: fixed`). The modal carries the full
+ * chronological stream filtered by event type.
  */
 import React, { useEffect, useMemo, useState } from "react";
 import { Card, SH, C, F, M } from "@aegis/ui";
+import { ModalShell } from "./ModalShell";
 import type { HoldEventDTO } from "./types";
 
 const TYPE_COLORS: Record<string, string> = {
@@ -57,8 +60,14 @@ export const TimelineRailCard: React.FC<TimelineRailCardProps> = ({
       .catch(() => setEvents([]));
   }, [matterId, holdId]);
 
+  function openModal() {
+    if (events && events.length > 0) setOpen(true);
+  }
+
+  const hasEvents = !!events && events.length > 0;
+
   return (
-    <Card>
+    <Card onClick={hasEvents ? openModal : undefined}>
       <div
         style={{
           display: "flex",
@@ -81,33 +90,38 @@ export const TimelineRailCard: React.FC<TimelineRailCardProps> = ({
           No events yet.
         </div>
       )}
-      {events && events.length > 0 && (
+      {hasEvents && (
         <div style={{ display: "grid", gap: 6, marginTop: 10 }}>
           {events.slice(0, 5).map((e) => (
             <TimelineLine key={e.id} event={e} />
           ))}
         </div>
       )}
-      {events && events.length > 5 && (
+      {hasEvents && (
         <button
           type="button"
-          onClick={() => setOpen(true)}
+          onClick={(e) => {
+            e.stopPropagation();
+            openModal();
+          }}
+          aria-label={`Open full timeline (${events.length} events)`}
           style={{
-            background: "transparent",
-            border: `1px solid ${C.br}`,
-            color: C.t1,
-            padding: "5px 10px",
-            borderRadius: 4,
-            fontFamily: F,
-            fontSize: 10.5,
-            cursor: "pointer",
-            letterSpacing: 0.3,
-            textTransform: "uppercase",
             marginTop: 10,
+            padding: "5px 0 0",
+            borderTop: `1px solid ${C.br}33`,
+            fontFamily: M,
+            fontSize: 9.5,
+            color: C.t3,
+            letterSpacing: 0.4,
+            textTransform: "uppercase",
+            textAlign: "center",
+            background: "transparent",
+            border: "none",
+            cursor: "pointer",
             width: "100%",
           }}
         >
-          View all {events.length}
+          View all {events.length} →
         </button>
       )}
       {open && events && (
@@ -159,97 +173,55 @@ const TimelineFullStreamModal: React.FC<{
   const filtered = filter ? events.filter((e) => e.type === filter) : events;
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Hold timeline"
-      onClick={onClose}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,.65)",
-        zIndex: 60,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      }}
+    <ModalShell
+      onClose={onClose}
+      ariaLabel="Hold timeline"
+      title="Hold timeline"
+      icon="🕒"
+      sub={`${events.length} events · twin-recorded with the chain-sealed AuditLog`}
+      maxWidth={800}
     >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          background: C.cd,
-          border: `1px solid ${C.brL}`,
-          padding: 18,
-          minWidth: 640,
-          maxWidth: 800,
-          maxHeight: "85vh",
-          overflowY: "auto",
-          fontFamily: F,
-          color: C.t1,
-        }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <SH icon="🕒" title="Hold timeline" sub={`${events.length} events · twin-recorded with the chain-sealed AuditLog`} />
-          <button
-            type="button"
-            onClick={onClose}
+      <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+        <FilterChip label="All" active={filter === ""} onClick={() => setFilter("")} />
+        {types.map((t) => (
+          <FilterChip
+            key={t}
+            label={t}
+            active={filter === t}
+            color={TYPE_COLORS[t] ?? C.t3}
+            onClick={() => setFilter(t)}
+          />
+        ))}
+      </div>
+
+      <div style={{ marginTop: 14, display: "grid", gap: 6 }}>
+        {filtered.map((e) => (
+          <div
+            key={e.id}
             style={{
-              background: "transparent",
-              border: `1px solid ${C.br}`,
-              color: C.t2,
-              padding: "2px 10px",
-              borderRadius: 4,
-              cursor: "pointer",
-              fontFamily: M,
+              display: "grid",
+              gridTemplateColumns: "150px 220px 1fr 120px",
+              gap: 8,
+              padding: "5px 6px",
               fontSize: 11,
+              fontFamily: F,
+              borderBottom: `1px solid ${C.br}22`,
             }}
           >
-            ✕
-          </button>
-        </div>
-
-        <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginTop: 12 }}>
-          <FilterChip label="All" active={filter === ""} onClick={() => setFilter("")} />
-          {types.map((t) => (
-            <FilterChip
-              key={t}
-              label={t}
-              active={filter === t}
-              color={TYPE_COLORS[t] ?? C.t3}
-              onClick={() => setFilter(t)}
-            />
-          ))}
-        </div>
-
-        <div style={{ marginTop: 14, display: "grid", gap: 6 }}>
-          {filtered.map((e) => (
-            <div
-              key={e.id}
-              style={{
-                display: "grid",
-                gridTemplateColumns: "150px 220px 1fr 120px",
-                gap: 8,
-                padding: "5px 6px",
-                fontSize: 11,
-                fontFamily: F,
-                borderBottom: `1px solid ${C.br}22`,
-              }}
-            >
-              <span style={{ fontFamily: M, fontSize: 10, color: C.t3 }}>
-                {new Date(e.occurredAt).toISOString().replace("T", " ").slice(0, 16)}
-              </span>
-              <span style={{ fontFamily: M, fontSize: 10, color: TYPE_COLORS[e.type] ?? C.tl }}>
-                {e.type}
-              </span>
-              <span style={{ color: C.t1 }}>{e.summary}</span>
-              <span style={{ fontFamily: M, fontSize: 9, color: C.t4 }}>
-                {e.actorType}:{e.actorId?.slice(0, 8) ?? "—"}…
-              </span>
-            </div>
-          ))}
-        </div>
+            <span style={{ fontFamily: M, fontSize: 10, color: C.t3 }}>
+              {new Date(e.occurredAt).toISOString().replace("T", " ").slice(0, 16)}
+            </span>
+            <span style={{ fontFamily: M, fontSize: 10, color: TYPE_COLORS[e.type] ?? C.tl }}>
+              {e.type}
+            </span>
+            <span style={{ color: C.t1 }}>{e.summary}</span>
+            <span style={{ fontFamily: M, fontSize: 9, color: C.t4 }}>
+              {e.actorType}:{e.actorId?.slice(0, 8) ?? "—"}…
+            </span>
+          </div>
+        ))}
       </div>
-    </div>
+    </ModalShell>
   );
 };
 

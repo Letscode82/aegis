@@ -167,7 +167,11 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
 
   const railCards = (
     <>
-      <DefensibilityRailCard matterId={matterId} holdId={holdId} />
+      <DefensibilityRailCard
+        matterId={matterId}
+        holdId={holdId}
+        score={score}
+      />
       <TimelineRailCard matterId={matterId} holdId={holdId} />
       <NoticesRailCard
         matterId={matterId}
