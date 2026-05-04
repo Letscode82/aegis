@@ -2,9 +2,14 @@
  * HoldCreateForm — minimal create flow. POSTs /api/matter/[id]/holds.
  * The hold lands in DRAFT state; a separate Issue action transitions
  * to ISSUED + assigns the hold number.
+ *
+ * Sub-PR 4c.4: scope-template dropdown auto-fills scope +
+ * jurisdictions when one is selected, and a "Save current as
+ * template" link captures the in-progress fields as a new template.
  */
-import React, { useState } from "react";
-import { Card, SH, C, F, M } from "@aegis/ui";
+import React, { useEffect, useState } from "react";
+import { Card, SH, C, F, M, useToast } from "@aegis/ui";
+import { SaveAsScopeTemplateDialog } from "./SaveAsScopeTemplateDialog";
 
 const inputStyle: React.CSSProperties = {
   background: C.s1,
@@ -27,18 +32,53 @@ export interface HoldCreateFormProps {
 
 const COMMON_JURISDICTIONS = ["US-CA", "US-NY", "US-FED", "EU", "UK", "CA-ON"];
 
+interface ScopeTemplateOption {
+  id: string;
+  name: string;
+  description: string | null;
+  scopeMarkdown: string;
+  defaultJurisdictions: string[];
+}
+
 export const HoldCreateForm: React.FC<HoldCreateFormProps> = ({
   matterId,
   endpoint = "/api/matter",
   onCreated,
   onCancel,
 }) => {
+  const toast = useToast();
   const [title, setTitle] = useState("");
   const [scope, setScope] = useState("");
   const [trigger, setTrigger] = useState("");
   const [jurisdictions, setJurisdictions] = useState<Set<string>>(new Set());
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [templates, setTemplates] = useState<ScopeTemplateOption[] | null>(
+    null,
+  );
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/admin/legal-hold/templates")
+      .then((r) => (r.ok ? r.json() : []))
+      .then((rows: ScopeTemplateOption[]) => {
+        if (!alive) return;
+        setTemplates(rows);
+      })
+      .catch(() => alive && setTemplates([]));
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  function applyTemplate(id: string) {
+    const t = templates?.find((x) => x.id === id);
+    if (!t) return;
+    setScope(t.scopeMarkdown);
+    setJurisdictions(new Set(t.defaultJurisdictions));
+    toast.info(`Applied scope template: ${t.name}`);
+  }
 
   function toggleJurisdiction(code: string) {
     setJurisdictions((prev) => {
@@ -79,6 +119,27 @@ export const HoldCreateForm: React.FC<HoldCreateFormProps> = ({
       <SH icon="✏️" title="New legal hold" sub="Lands in DRAFT — issue afterwards to assign a hold number and notify custodians" />
       <form onSubmit={submit} style={{ display: "grid", gap: 10 }}>
         <div>
+          <label style={{ fontSize: 10, color: C.t3, fontFamily: F }}>
+            Hold scope template
+          </label>
+          <select
+            defaultValue=""
+            onChange={(e) => {
+              if (e.target.value) applyTemplate(e.target.value);
+            }}
+            style={inputStyle}
+            disabled={!templates}
+          >
+            <option value="">(start blank)</option>
+            {(templates ?? []).map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+                {t.description ? ` — ${t.description}` : ""}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div>
           <label style={{ fontSize: 10, color: C.t3, fontFamily: F }}>Title</label>
           <input
             value={title}
@@ -98,6 +159,26 @@ export const HoldCreateForm: React.FC<HoldCreateFormProps> = ({
             rows={4}
             style={{ ...inputStyle, resize: "vertical" }}
           />
+          {scope.trim().length > 0 && (
+            <button
+              type="button"
+              onClick={() => setSaveTemplateOpen(true)}
+              style={{
+                background: "transparent",
+                border: "none",
+                color: C.bl,
+                fontFamily: F,
+                fontSize: 10.5,
+                marginTop: 4,
+                padding: 0,
+                cursor: "pointer",
+                textDecoration: "underline",
+                letterSpacing: 0.3,
+              }}
+            >
+              Save current as template →
+            </button>
+          )}
         </div>
         <div>
           <label style={{ fontSize: 10, color: C.t3, fontFamily: F }}>
@@ -180,6 +261,18 @@ export const HoldCreateForm: React.FC<HoldCreateFormProps> = ({
           </button>
         </div>
       </form>
+
+      {saveTemplateOpen && (
+        <SaveAsScopeTemplateDialog
+          scopeMarkdown={scope}
+          defaultJurisdictions={Array.from(jurisdictions)}
+          onClose={() => setSaveTemplateOpen(false)}
+          onSaved={(t) => {
+            setSaveTemplateOpen(false);
+            setTemplates((prev) => (prev ? [...prev, t] : [t]));
+          }}
+        />
+      )}
     </Card>
   );
 };

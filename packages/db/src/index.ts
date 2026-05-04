@@ -103,6 +103,7 @@ export type {
   LegalHoldCustodian,
   CustodianDataSource,
   HoldNoticeTemplate,
+  HoldScopeTemplate,
   HoldNoticeIssuance,
   LegalHoldEvent,
   HoldTriggerEvent,

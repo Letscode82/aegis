@@ -82,6 +82,8 @@ export enum Permission {
   // ── Admin ──────────────────────────────────────────────────────────
   AdminManageUsers             = "admin:manage_users",
   AdminManageRoles             = "admin:manage_roles",
+  /** Sub-PR 4c.4: hold-scope template CRUD. */
+  AdminLegalHoldTemplatesManage = "admin:legal_hold:templates_manage",
 }
 
 /** Every permission value as a flat string array. Used by the seed and

@@ -32,6 +32,8 @@ export { IssueHoldConfirmDialog } from "./IssueHoldConfirmDialog";
 export { ReleaseHoldConfirmDialog } from "./ReleaseHoldConfirmDialog";
 export { JurisdictionPolicyPopover } from "./JurisdictionPolicyPopover";
 export { HoldPolicyEditor } from "./HoldPolicyEditor";
+export { HoldScopeTemplatesAdmin } from "./HoldScopeTemplatesAdmin";
+export { SaveAsScopeTemplateDialog } from "./SaveAsScopeTemplateDialog";
 export { ModalShell } from "./ModalShell";
 export {
   DefensibilityBadge,
