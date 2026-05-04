@@ -76,6 +76,7 @@ model Organization {
   holdPolicy          OrganizationHoldPolicy?
   holdNoticeTemplates HoldNoticeTemplate[]
   holdScopeTemplates  HoldScopeTemplate[]
+  savedViews          SavedView[]
   departedRetentions  DepartedCustodianRetention[]
   agentDecisions      AgentDecision[]
   m365Credential      OrganizationM365Credential?
@@ -125,6 +126,8 @@ model User {
   custodianDataSourcesConfirmed CustodianDataSource[] @relation("CustodianDataSourceConfirmedBy")
   agentDecisionsApproved        AgentDecision[]       @relation("AgentDecisionApprovedBy")
   holdScopeTemplatesCreated     HoldScopeTemplate[]   @relation("HoldScopeTemplateCreatedBy")
+  savedViews                    SavedView[]                 @relation("SavedViewOwner")
+  noticeTemplateVersions        HoldNoticeTemplateVersion[] @relation("HoldNoticeTemplateVersionCreatedBy")
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -780,6 +783,7 @@ model LegalHold {
   events          LegalHoldEvent[]
   triggerEvents   HoldTriggerEvent[]
   departures      DepartedCustodianRetention[]
+  scoreSnapshots  HoldDefensibilityScoreSnapshot[]
 
   @@unique([organizationId, holdNumber])
   @@index([organizationId, status])
@@ -866,8 +870,9 @@ model HoldNoticeTemplate {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   issuances    HoldNoticeIssuance[]
+  versions     HoldNoticeTemplateVersion[]
 
   @@index([organizationId, jurisdictionKey, isActive])
 }
@@ -901,6 +906,89 @@ model HoldScopeTemplate {
 
   @@unique([organizationId, name])
   @@index([organizationId])
+}
+
+/// Defensibility score snapshots (sub-PR 4c.5, Item 15).
+///
+/// One row per (hold, computedAt). Written daily by the recurring
+/// snapshot job + on every score-affecting mutation (custodian add,
+/// ack, preservation confirm, release, etc.). The header strip's
+/// sparkline reads the most-recent N snapshots; the trend modal
+/// reads the full history.
+///
+/// Retention: 90 days at daily resolution, then weekly summaries
+/// kept indefinitely (cleanup job runs weekly).
+model HoldDefensibilityScoreSnapshot {
+  id             String   @id @default(cuid())
+  legalHoldId    String
+  score          Int
+  componentsJson Json
+  gapCount       Int
+  computedAt     DateTime @default(now())
+
+  legalHold LegalHold @relation(fields: [legalHoldId], references: [id], onDelete: Cascade)
+
+  @@index([legalHoldId, computedAt])
+}
+
+/// Saved views (sub-PR 4c.5, Item 16).
+///
+/// Filter + sort state persisted per scope (custodians list, holds
+/// list, audit log, …). Owned by a specific user; can be marked
+/// `isShared` to surface org-wide. `isDefault` makes the view auto-
+/// apply the next time the owner opens that scope.
+///
+/// `filterStateJson` is intentionally opaque to the DB layer — the
+/// shape varies per scope and the UI is responsible for serialising
+/// + deserialising. Treat it as a typed blob; do not query inside.
+model SavedView {
+  id              String         @id @default(cuid())
+  organizationId  String
+  ownerId         String
+  scope           SavedViewScope
+  name            String
+  filterStateJson Json
+  isShared        Boolean        @default(false)
+  isDefault       Boolean        @default(false)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  owner        User         @relation("SavedViewOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, scope, ownerId])
+  @@index([organizationId, scope, isShared])
+}
+
+enum SavedViewScope {
+  LEGAL_HOLD_CUSTODIANS
+  LEGAL_HOLDS_LIST
+  MATTER_LIST
+  AUDIT_LOG
+}
+
+/// Notice template version history (sub-PR 4c.5, Item 17).
+///
+/// Every save of a HoldNoticeTemplate writes one row here. The
+/// template's `version` + `bodyHash` columns mirror the latest
+/// version row. Older `HoldNoticeIssuance` rows still resolve
+/// against the matching version row by (templateId, version),
+/// so the notice viewer can reconstruct exactly what was sent.
+model HoldNoticeTemplateVersion {
+  id           String   @id @default(cuid())
+  templateId   String
+  version      Int
+  bodyMarkdown String
+  bodyHash     String
+  changeLog    String?
+  createdById  String
+  createdAt    DateTime @default(now())
+
+  template  HoldNoticeTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  createdBy User               @relation("HoldNoticeTemplateVersionCreatedBy", fields: [createdById], references: [id])
+
+  @@unique([templateId, version])
+  @@index([templateId, createdAt])
 }
 
 model HoldNoticeIssuance {

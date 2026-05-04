@@ -117,6 +117,14 @@ export { decideEscalation, type EscalationDecision } from "./services/escalation
 // Defensibility
 export { getHoldDefensibilityScoreService } from "./services/defensibility";
 export {
+  isoWeek,
+  listHoldSnapshotsService,
+  pruneOldSnapshotsService,
+  recordDefensibilitySnapshotService,
+  type HoldSnapshotDTO,
+  type ListSnapshotsOptions,
+} from "./services/defensibility-snapshot";
+export {
   exportHoldDefensibilityService,
   type HoldDefensibilityExport,
 } from "./services/export";

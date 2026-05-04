@@ -481,6 +481,24 @@ export async function exportHoldDefensibility(holdId: string) {
   return LegalHoldServices.exportHoldDefensibilityService(holdId);
 }
 
+// Defensibility snapshots (4c.5, Item 15)
+export async function recordDefensibilitySnapshot(holdId: string) {
+  return LegalHoldServices.recordDefensibilitySnapshotService(holdId);
+}
+export async function listHoldSnapshots(
+  holdId: string,
+  opts?: import("./src/internal/legal-hold").ListSnapshotsOptions,
+) {
+  return LegalHoldServices.listHoldSnapshotsService(holdId, opts);
+}
+export async function pruneOldSnapshots(organizationId: string) {
+  return LegalHoldServices.pruneOldSnapshotsService(organizationId);
+}
+export type {
+  HoldSnapshotDTO,
+  ListSnapshotsOptions,
+} from "./src/internal/legal-hold";
+
 // Bulk operations on custodians (4c.3, Item 6)
 export async function bulkMarkAcknowledged(
   input: import("./src/internal/legal-hold").BulkMarkAcknowledgedInput,
