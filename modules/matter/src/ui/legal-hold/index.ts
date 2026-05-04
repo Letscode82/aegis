@@ -30,6 +30,8 @@ export { BulkReleaseDialog } from "./BulkReleaseDialog";
 export { TriggerEventDialog } from "./TriggerEventDialog";
 export { IssueHoldConfirmDialog } from "./IssueHoldConfirmDialog";
 export { ReleaseHoldConfirmDialog } from "./ReleaseHoldConfirmDialog";
+export { JurisdictionPolicyPopover } from "./JurisdictionPolicyPopover";
+export { HoldPolicyEditor } from "./HoldPolicyEditor";
 export { ModalShell } from "./ModalShell";
 export {
   DefensibilityBadge,

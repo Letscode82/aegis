@@ -25,6 +25,9 @@ export {
   defensibilityColor,
 } from "./legal-hold";
 
+// Legal Hold admin surfaces (sub-PR 4c.4)
+export { HoldPolicyEditor } from "./legal-hold/HoldPolicyEditor";
+
 export type {
   MatterDTO,
   MatterPartyDTO,

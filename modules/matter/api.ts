@@ -438,6 +438,7 @@ export async function issueNotice(
 }
 
 // Policy
+export { effectiveCadenceDays } from "./src/internal/legal-hold";
 export async function getOrgHoldPolicy(organizationId: string) {
   return LegalHoldServices.getOrgHoldPolicy(organizationId);
 }

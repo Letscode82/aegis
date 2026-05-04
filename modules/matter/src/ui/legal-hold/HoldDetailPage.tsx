@@ -31,6 +31,7 @@ import { NoticeViewerModal } from "./NoticeViewerModal";
 import { TriggerEventDialog } from "./TriggerEventDialog";
 import { IssueHoldConfirmDialog } from "./IssueHoldConfirmDialog";
 import { ReleaseHoldConfirmDialog } from "./ReleaseHoldConfirmDialog";
+import { JurisdictionPolicyPopover } from "./JurisdictionPolicyPopover";
 import type {
   HoldDefensibilityScoreDTO,
   HoldEventDTO,
@@ -113,6 +114,7 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
   const [triggerDialogOpen, setTriggerDialogOpen] = useState(false);
   const [issueDialogOpen, setIssueDialogOpen] = useState(false);
   const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
+  const [jurPopoverCode, setJurPopoverCode] = useState<string | null>(null);
   // Custodian roster for the Issue dialog's preview list — fetched
   // lazily only when the dialog opens to keep the workspace mount
   // round-trip cheap.
@@ -256,6 +258,7 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
         canRelease={canRelease}
         hasTriggerEvent={triggerLoaded ? !!trigger : true}
         onEditTrigger={canIssue ? () => setTriggerDialogOpen(true) : undefined}
+        onClickJurisdiction={(code) => setJurPopoverCode(code)}
       />
 
       <HoldStatusRow
@@ -325,6 +328,15 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
             setIssueDialogOpen(false);
             reload();
           }}
+        />
+      )}
+
+      {jurPopoverCode && (
+        <JurisdictionPolicyPopover
+          matterId={matterId}
+          holdId={holdId}
+          jurisdictionCode={jurPopoverCode}
+          onClose={() => setJurPopoverCode(null)}
         />
       )}
 

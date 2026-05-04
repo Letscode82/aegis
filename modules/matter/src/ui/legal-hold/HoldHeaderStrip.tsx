@@ -34,6 +34,8 @@ export interface HoldHeaderStripProps {
   hasTriggerEvent?: boolean;
   /** Fired when the user clicks "Record / edit trigger event". */
   onEditTrigger?: () => void;
+  /** Fired when the user clicks any jurisdiction pill. */
+  onClickJurisdiction?: (code: string) => void;
 }
 
 interface PrimaryAction {
@@ -116,6 +118,7 @@ export const HoldHeaderStrip: React.FC<HoldHeaderStripProps> = ({
   canRelease,
   hasTriggerEvent = true,
   onEditTrigger,
+  onClickJurisdiction,
 }) => {
   const [scopeOpen, setScopeOpen] = useState(false);
   const action = primaryActionFor(
@@ -162,7 +165,10 @@ export const HoldHeaderStrip: React.FC<HoldHeaderStripProps> = ({
               {hold.holdNumber ?? "(draft)"}
             </span>
             <StatusPill status={hold.status} />
-            <JurisdictionPills codes={hold.jurisdictions} />
+            <JurisdictionPills
+              codes={hold.jurisdictions}
+              onClickCode={onClickJurisdiction}
+            />
             {hold.affectsDepartedCustodians && (
               <Pill t="Departed custodians" c={C.rd} />
             )}
