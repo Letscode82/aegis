@@ -135,6 +135,17 @@ PR #4 — Matter Management module — split into four sub-PRs:
        (Defensibility / Timeline / Notices). Adds
        `getHoldWorkspaceSummaryService` to extend the existing reads
        surface; introduces no new mutation endpoints.
+  4c.3 — Legal Hold critical operational gaps: notice composer
+       (4-step wizard with template selection, preview, recipient
+       picker, confirmation), admin mark-acknowledged with reason
+       capture, data source add with 3-mode dialog (M365 / typed /
+       manual), score math fix for empty denominators (renders as
+       `—`, weighted score excludes), bulk operations (send
+       reminder, mark acknowledged, release), notice viewer with
+       drill-in to rendered body and content hash, actor name
+       resolution across all surfaces. Real email sending stubbed
+       (sunset documented). Defensibility export schema bumped to
+       v2.
   4d — AI features: matter creation suggestions, similar matters,
        custodian discovery, draft generation. Real Claude calls
        replace the 4a keyword/static fallbacks.
@@ -173,6 +184,13 @@ the shared bit into a package or add it to the module's `api.ts`.
 | `modules/matter/src/internal/services/m365-graph-client.ts:applyPreservation` (graceful degradation on missing E5) | returns `M365EDiscoveryNotLicensedError` instead of throwing 403; legal-hold workflow falls back to non-Graph preservation modes | Graph eDiscovery API requires E5 + eDiscovery Premium. Customers without that tier should still get partial AEGIS functionality (preservation via copy-to-vault, manual collection). The defensibility scorecard records the gap as a structured component. | **Permanent.** The graceful path is a product requirement, not a temporary workaround. |
 | `modules/matter/src/internal/legal-hold/services/ai-mock.ts` | declares `HoldAIClient` interface + `MockHoldAIClient` implementation with deterministic stubs for `recommendCustodians`, `recommendCadence`, `draftNotice`, `explainScorecard`. `confidence` is `null` (signals "no model behind this") | Hold UI surfaces (custodian recommendations, cadence picker, notice drafting, scorecard narrative) need real-shaped data today. Real Claude calls land in 4d together with the `AgentDecision` lifecycle (every recommendation writes a row that must reach `APPROVED` before the corresponding mutation runs). | **Sunset at 4d.** The 4d sub-PR replaces the mock with `@aegis/ai`-routed Claude calls and writes `AgentDecision` rows; same return shape, no caller moves. |
 | `modules/matter/src/internal/legal-hold/services/defensibility.ts:getHoldDefensibilityScoreService` (narrative-explanation field) | omits `narrativeMarkdown` in 4b output; structured `components` + `gaps` ship deterministic | The deterministic six-component scorecard is fully implemented in 4b (custodian acknowledgment + re-attestation + data-source coverage + IT confirmation + notice-template integrity + audit-chain integrity). The AI-generated narrative explanation (D6) requires real Claude calls and ships in 4d. | **Sunset at 4d.** The 4d sub-PR adds the `narrativeMarkdown` field on `HoldDefensibilityScore`; deterministic structure stays unchanged. |
+| `modules/matter/src/internal/legal-hold/services/notice-composer.ts:composeAndSendNoticeService` | writes `HoldNoticeIssuance` + per-recipient `LegalHoldEvent` rows + chain-sealed AuditLog rows but does NOT send email. The notice-viewer drill-in shows "Recorded" for every recipient as the delivery status. | Real email delivery requires SMTP/SES/Outlook integration that is a separate product surface. The issuance + chain rows are sufficient defensibility evidence — the recipient roster, body hash, and template-version snapshot are court-ready today; only the per-recipient send-mechanism telemetry is missing. | **Sunset when first customer demands real delivery.** Replace the stub at the service level (the `deliveryStubbed` flag and the "Recorded" status string are the seams); the issuance, audit chain, and per-recipient REMINDER_SENT events all stay unchanged. |
+
+### Schema versioning notes (not exceptions, but worth documenting)
+
+| Surface | Bump | Notes |
+|---|---|---|
+| `HoldDefensibilityExport.$schema` | v1 → v2 (4c.3) | v1 reported `value: number` for every component, including a misleading 1.0 against an empty denominator. v2 reports `value: number \| null` and excludes null components from both the weighted sum and the divisor — overall score reflects only what's currently measurable. v1 readers can still parse v2 by treating null as missing. The overall `score` field shape is unchanged. |
 
 ### When this pattern is allowed
 - **Build-time / dev-only tooling.** Seed scripts, codegen, fixtures
@@ -714,6 +732,107 @@ the silent-downgrade footgun. Both stay through the swap.
   catalog coverage, diff helper) run in the default test stage.
 - Deep-link redirects added: `/admin/users` and `/admin/roles` 307 to
   `/?view=users` and `/?view=roles`.
+
+## What's new in sub-PR 4c.3 (Legal Hold critical operational gaps)
+
+Closes the eight critical operational gaps that the 4c.2 workspace
+restructure exposed but didn't fill. After this sub-PR, a legal-ops
+user can complete the full end-to-end workflow against the seeded
+`lh-snowflake` hold without leaving the workspace: create hold →
+add custodians → add data sources → preserve → issue notice →
+track acknowledgments → mark off-line acks → release.
+
+Pure UI + service work on top of the existing schema. No new
+migrations, no new external integrations, no real AI. The mock
+M365 / mock AI clients stay unchanged.
+
+- **Item 1 — notice composer 4-step wizard.** Replaces the 4c.2
+  single-input "Paste a template id…" dialog. New
+  `NoticeComposerDialog` walks template selection (jurisdiction-
+  ranked) → server-rendered preview against a representative
+  custodian (with inline edit) → recipient picker (default = all
+  unacknowledged, non-released) → confirm + send. New
+  `notice-composer.ts` service does the variable substitution
+  (`{{custodian.*}}`, `{{matter.*}}`, `{{hold.*}}`, `{{org.*}}`,
+  `{{notice.acknowledgmentLink}}`) and the `composeAndSendNotice`
+  path writes one `HoldNoticeIssuance` row + one
+  `REMINDER_SENT` event per recipient via `recordHoldEvent`. New
+  routes: `GET /notice-templates`, `POST /notices/preview`. The
+  `POST /notices` route accepts both legacy 4b and composer
+  payloads.
+- **Item 2 — admin-on-behalf acknowledgment.** New
+  `MarkAcknowledgedDialog` on each pending custodian row. New
+  `acknowledgment.ts` service writes
+  `acknowledgmentMetadata.source = "admin_marked"` plus reason
+  + witness + admin id; audit action
+  `matter.legal_hold.custodian.acknowledged_by_admin`
+  distinguishes from custodian self-service. Same DRAFT/ISSUED →
+  ACTIVE auto-promotion as the self-service path. Plus a `Copy
+  custodian acknowledgment link` button on each custodian that
+  copies the existing `/custodian/holds/[holdId]/acknowledge` URL.
+- **Item 3 — data source add (3-mode) + preservation actions.**
+  Replaces the "No data sources mapped" placeholder with a working
+  `DataSourceList` + `DataSourceAddDialog`. Three modes: M365
+  auto-discover (calls `enumerateDataSourcesForUser`, checkbox
+  list), typed entry (DataSourceType dropdown + identifier +
+  label), manual (free-form label, type=OTHER, optional metadata
+  JSON). Each row gains inline `Mark applied` and `Mark confirmed`
+  buttons that respect the applied-before-confirmed gate. Score
+  math reflects each transition immediately.
+- **Item 4 — defensibility score v2 (null-component handling).**
+  `ScoreComponent.value` is `number | null`. Null components are
+  excluded from both the weighted sum and the divisor — overall
+  reflects only what's currently measurable. UI renders null as
+  `—` with hover-text from `notApplicableReason`. Export schema
+  bumped to `aegis.legal-hold.defensibility.v2`. Re-attestation is
+  scoped to acknowledged custodians only; IT-confirmation is
+  scoped to applied data sources only.
+- **Item 5 — clickable last-activity in status row.** `Last
+  activity 4h ago` becomes a focusable button that opens
+  `TimelineFullStreamModal` pre-highlighting the most recent
+  event. Events are fetched once at HoldDetailPage level and
+  shared with the rail card (no duplicate fetch).
+- **Item 6 — bulk operations.** Checkbox column in
+  `CustodiansPanel` + `BulkActionToolbar` that appears when 1+
+  rows are selected. Three actions: send reminder (reuses the
+  composer wizard with pre-selected recipients), mark
+  acknowledged (`BulkMarkAcknowledgedDialog`), release
+  (`BulkReleaseDialog` with typed-confirmation step). Each runs
+  in a `prisma.$transaction` so partial failure rolls back. Each
+  writes one chain-sealed AuditLog row per affected custodian.
+- **Item 7 — notice viewer + drill-in.** Notices rail card surface
+  is click-activatable; opens `NoticeViewerModal` listing all
+  issuances. Click a row to drill into `NoticeDrillInModal` showing
+  the full reconstructed body (server re-renders the template at
+  the snapshotted version using stored issuance metadata),
+  recorded body hash (full, not abbreviated), recipient roster
+  with per-recipient delivery events, and the issuing actor's
+  resolved name. The defensibility-evidence answer to "what
+  exactly did the custodian receive on this date".
+- **Item 8 — actor name resolution.** New `resolveActorsService`
+  + `useActorResolver` hook + `<ActorDisplay>` component. Batches
+  USER lookups in one round-trip, scoped to actor's organization;
+  SYSTEM and AGENT actors render without a DB hit.
+  `TimelineFullStreamModal` and `NoticeDrillInModal` now show
+  `Marcus Reid · Admin` + role chip instead of
+  `USER:cmolpt48a...`. AGENT label is a 4d hook (today renders
+  generic "🤖 AEGIS Agent · AI"). Underlying actorId stays
+  available on hover.
+
+Net new lines:
+  - 7 new routes under `/api/matter/[id]/holds/[holdId]/`
+  - 1 new internal service module set: notice-composer,
+    notice-viewer, acknowledgment, actor-resolver, bulk
+  - 13 new UI components in `modules/matter/src/ui/legal-hold/`
+  - 4 new test files (defensibility-score, actor-resolver,
+    notice-composer, bulk-operations) — total matter tests
+    21 → 57
+
+No schema changes, no new migrations.
+
+Real email sending: documented exception added — the issuance +
+chain rows are court-ready today; SES/Outlook send integration is
+sunset when the first customer demands it.
 
 ## What's new in sub-PR 4c.2 (Legal Hold UX workspace)
 
