@@ -20,6 +20,7 @@ export {
   type ResolvedActorDTO,
 } from "./ActorDisplay";
 export { NoticesRailCard } from "./NoticesRailCard";
+export { NoticeComposerDialog } from "./NoticeComposerDialog";
 export { ModalShell } from "./ModalShell";
 export {
   DefensibilityBadge,

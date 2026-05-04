@@ -43,6 +43,18 @@ export {
   updateNoticeTemplateService,
 } from "./services/notice-template";
 
+// Notice composer (4c.3)
+export {
+  composeAndSendNoticeService,
+  getNoticeComposerPreviewService,
+  renderTemplate,
+  type ComposerPreviewInput,
+  type ComposerPreviewResult,
+  type ComposeAndSendInput,
+  type ComposeAndSendResult,
+  type NoticeComposerVariables,
+} from "./services/notice-composer";
+
 // Policy
 export {
   effectiveCadenceDays,

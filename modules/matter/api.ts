@@ -464,6 +464,28 @@ export async function exportHoldDefensibility(holdId: string) {
   return LegalHoldServices.exportHoldDefensibilityService(holdId);
 }
 
+// Notice composer (4c.3)
+export async function getNoticeComposerPreview(
+  input: import("./src/internal/legal-hold").ComposerPreviewInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.getNoticeComposerPreviewService(input, actor);
+}
+export async function composeAndSendNotice(
+  input: import("./src/internal/legal-hold").ComposeAndSendInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.composeAndSendNoticeService(input, actor);
+}
+export { renderTemplate } from "./src/internal/legal-hold";
+export type {
+  ComposerPreviewInput,
+  ComposerPreviewResult,
+  ComposeAndSendInput,
+  ComposeAndSendResult,
+  NoticeComposerVariables,
+} from "./src/internal/legal-hold";
+
 // Actor resolution for timelines, audit views, and notice "issued by".
 export async function resolveActors(
   organizationId: string,
