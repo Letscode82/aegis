@@ -84,3 +84,22 @@ export const FormField: React.FC<{ label: string; children?: ReactNode }>;
 export const inputStyle: CSSProperties;
 export const rc: (r: string) => string;
 export const pc: (p: string) => string;
+
+// Toast / snackbar (sub-PR 4c.4)
+export type ToastSeverity = "success" | "info" | "warning" | "error";
+export interface ToastOptions {
+  severity?: ToastSeverity;
+  /** ms to auto-dismiss; 0 = never. Default 4000 (errors 8000). */
+  duration?: number;
+}
+export interface ToastApi {
+  show: (message: string, options?: ToastOptions) => void;
+  success: (message: string, options?: Omit<ToastOptions, "severity">) => void;
+  info: (message: string, options?: Omit<ToastOptions, "severity">) => void;
+  warning: (message: string, options?: Omit<ToastOptions, "severity">) => void;
+  error: (message: string, options?: Omit<ToastOptions, "severity">) => void;
+  dismiss: (id: string) => void;
+  clear: () => void;
+}
+export const ToastProvider: React.FC<{ children?: ReactNode }>;
+export function useToast(): ToastApi;

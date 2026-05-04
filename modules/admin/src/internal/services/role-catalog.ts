@@ -131,8 +131,12 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
   },
   {
     domain: "Admin",
-    description: "Platform administration — users, roles.",
-    permissions: [Permission.AdminManageUsers, Permission.AdminManageRoles],
+    description: "Platform administration — users, roles, hold templates.",
+    permissions: [
+      Permission.AdminManageUsers,
+      Permission.AdminManageRoles,
+      Permission.AdminLegalHoldTemplatesManage,
+    ],
   },
 ];
 

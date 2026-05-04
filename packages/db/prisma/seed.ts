@@ -710,6 +710,64 @@ async function seedLegalHold(
     },
   });
 
+  // ── Hold scope templates (sub-PR 4c.4) ───────────────────────
+  // Two seeded examples so the create-hold dropdown has real-shaped
+  // options and the admin templates page isn't empty out of the box.
+  await prisma.holdScopeTemplate.upsert({
+    where: { id: "scope-tmpl-employment" },
+    update: {},
+    create: {
+      id: "scope-tmpl-employment",
+      organizationId: orgId,
+      name: "Employment dispute",
+      description:
+        "Generic employment-matter scope (US jurisdictions, ~3yr lookback)",
+      scopeMarkdown: [
+        "All electronic communications, documents, and HR records of the",
+        "named custodians for the period beginning 36 months prior to",
+        "trigger and continuing through release.",
+        "",
+        "Includes: M365 mailbox + OneDrive + SharePoint + Teams, HR system",
+        "(performance reviews, comp records, complaint filings),",
+        "Slack/Teams DMs, and any local device snapshots taken during the",
+        "preservation window.",
+        "",
+        "Excludes: personal devices not in BYOD program; calendar invites",
+        "older than the 36-month window unless responsive to a subsequent",
+        "amendment.",
+      ].join("\n"),
+      defaultJurisdictions: ["US-CA", "US-NY", "US-FED"],
+      createdById: adminUserId,
+    },
+  });
+  await prisma.holdScopeTemplate.upsert({
+    where: { id: "scope-tmpl-ip" },
+    update: {},
+    create: {
+      id: "scope-tmpl-ip",
+      organizationId: orgId,
+      name: "IP litigation",
+      description:
+        "IP-focused scope with broader engineering + research preservation",
+      scopeMarkdown: [
+        "All electronic communications, source-control history, design",
+        "documents, lab notebooks, and product specifications relating to",
+        "the disputed technology, beginning 60 months prior to trigger and",
+        "continuing through release.",
+        "",
+        "Includes: Engineering team mailboxes + Git/GitHub repos +",
+        "Confluence/Notion + Figma + design review tooling + invention",
+        "disclosure systems + patent docket.",
+        "",
+        "Special handling: maintain chain-of-custody for any source-control",
+        "exports; flag third-party licensed code for separate counsel",
+        "review before production.",
+      ].join("\n"),
+      defaultJurisdictions: ["US-FED", "US-CA", "EU-DE"],
+      createdById: adminUserId,
+    },
+  });
+
   // ── Custodians (Persons) ──────────────────────────────────────
   const custodianA = await prisma.person.upsert({
     where: { id: "p-cust-vp-eng" },

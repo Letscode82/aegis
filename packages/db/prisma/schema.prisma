@@ -75,6 +75,7 @@ model Organization {
 
   holdPolicy          OrganizationHoldPolicy?
   holdNoticeTemplates HoldNoticeTemplate[]
+  holdScopeTemplates  HoldScopeTemplate[]
   departedRetentions  DepartedCustodianRetention[]
   agentDecisions      AgentDecision[]
   m365Credential      OrganizationM365Credential?
@@ -123,6 +124,7 @@ model User {
   noticeIssuancesIssued         HoldNoticeIssuance[]  @relation("HoldNoticeIssuedBy")
   custodianDataSourcesConfirmed CustodianDataSource[] @relation("CustodianDataSourceConfirmedBy")
   agentDecisionsApproved        AgentDecision[]       @relation("AgentDecisionApprovedBy")
+  holdScopeTemplatesCreated     HoldScopeTemplate[]   @relation("HoldScopeTemplateCreatedBy")
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -713,6 +715,7 @@ enum PreservationAction {
 enum LegalHoldEventType {
   HOLD_DRAFTED
   TRIGGER_RECORDED
+  TRIGGER_UPDATED
   HOLD_ISSUED
   CUSTODIAN_ADDED
   CUSTODIAN_REMOVED
@@ -867,6 +870,37 @@ model HoldNoticeTemplate {
   issuances    HoldNoticeIssuance[]
 
   @@index([organizationId, jurisdictionKey, isActive])
+}
+
+/// Hold scope templates (sub-PR 4c.4, Item 12).
+///
+/// Pre-written scope language + default jurisdictions for common
+/// litigation patterns (employment dispute, IP litigation,
+/// regulatory inquiry, …). Selecting a template in the create-hold
+/// form auto-fills `scopeDescription` and `jurisdictions`; the user
+/// can edit before submitting.
+///
+/// `defaultCustodianFiltersJson` is reserved for a later pass that
+/// auto-discovers candidate custodians per template (e.g.
+/// "Engineering employees in California"). Today the field stays
+/// null and is reserved.
+model HoldScopeTemplate {
+  id                          String   @id @default(cuid())
+  organizationId              String
+  name                        String
+  description                 String?
+  scopeMarkdown               String
+  defaultJurisdictions        String[] @default([])
+  defaultCustodianFiltersJson Json?
+  createdById                 String
+  createdAt                   DateTime @default(now())
+  updatedAt                   DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation("HoldScopeTemplateCreatedBy", fields: [createdById], references: [id])
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
 }
 
 model HoldNoticeIssuance {

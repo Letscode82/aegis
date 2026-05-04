@@ -16,7 +16,13 @@ export {
 } from "./services/lifecycle";
 
 // Trigger
-export { recordHoldTriggerService } from "./services/trigger";
+export {
+  getHoldTriggerEventService,
+  recordHoldTriggerService,
+  updateHoldTriggerService,
+  type TriggerEventDTO,
+  type UpdateHoldTriggerInput,
+} from "./services/trigger";
 
 // Custodians
 export {
@@ -42,6 +48,18 @@ export {
   pickTemplateForJurisdiction,
   updateNoticeTemplateService,
 } from "./services/notice-template";
+
+// Hold scope templates (4c.4, Item 12)
+export {
+  createHoldScopeTemplateService,
+  deleteHoldScopeTemplateService,
+  getHoldScopeTemplateService,
+  listHoldScopeTemplatesService,
+  updateHoldScopeTemplateService,
+  type CreateHoldScopeTemplateInput,
+  type HoldScopeTemplateDTO,
+  type UpdateHoldScopeTemplateInput,
+} from "./services/hold-templates";
 
 // Bulk operations on custodians (4c.3, Item 6)
 export {

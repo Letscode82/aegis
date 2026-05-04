@@ -340,6 +340,22 @@ export async function recordHoldTrigger(
     actor,
   );
 }
+export async function getHoldTriggerEvent(
+  holdId: string,
+  organizationId: string,
+) {
+  return LegalHoldServices.getHoldTriggerEventService(holdId, organizationId);
+}
+export async function updateHoldTrigger(
+  input: import("./src/internal/legal-hold").UpdateHoldTriggerInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.updateHoldTriggerService(input, actor);
+}
+export type {
+  TriggerEventDTO,
+  UpdateHoldTriggerInput,
+} from "./src/internal/legal-hold";
 
 // Custodians
 export async function addHoldCustodian(
@@ -422,6 +438,7 @@ export async function issueNotice(
 }
 
 // Policy
+export { effectiveCadenceDays } from "./src/internal/legal-hold";
 export async function getOrgHoldPolicy(organizationId: string) {
   return LegalHoldServices.getOrgHoldPolicy(organizationId);
 }
@@ -516,6 +533,48 @@ export async function getNoticeIssuanceForViewer(
   );
 }
 export type { NoticeIssuanceForViewer } from "./src/internal/legal-hold";
+
+// Hold scope templates (4c.4, Item 12)
+export async function listHoldScopeTemplates(organizationId: string) {
+  return LegalHoldServices.listHoldScopeTemplatesService(organizationId);
+}
+export async function getHoldScopeTemplate(
+  organizationId: string,
+  templateId: string,
+) {
+  return LegalHoldServices.getHoldScopeTemplateService(
+    organizationId,
+    templateId,
+  );
+}
+export async function createHoldScopeTemplate(
+  input: import("./src/internal/legal-hold").CreateHoldScopeTemplateInput,
+  actor: { id: string; organizationId: string },
+) {
+  return LegalHoldServices.createHoldScopeTemplateService(input, actor);
+}
+export async function updateHoldScopeTemplate(
+  input: import("./src/internal/legal-hold").UpdateHoldScopeTemplateInput,
+  actor: { id: string; organizationId: string },
+) {
+  return LegalHoldServices.updateHoldScopeTemplateService(input, actor);
+}
+export async function deleteHoldScopeTemplate(
+  organizationId: string,
+  templateId: string,
+  actor: { id: string; organizationId: string },
+) {
+  return LegalHoldServices.deleteHoldScopeTemplateService(
+    organizationId,
+    templateId,
+    actor,
+  );
+}
+export type {
+  CreateHoldScopeTemplateInput,
+  HoldScopeTemplateDTO,
+  UpdateHoldScopeTemplateInput,
+} from "./src/internal/legal-hold";
 
 // Notice composer (4c.3)
 export async function getNoticeComposerPreview(

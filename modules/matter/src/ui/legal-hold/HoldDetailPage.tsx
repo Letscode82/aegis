@@ -28,6 +28,10 @@ import { TimelineRailCard } from "./TimelineRailCard";
 import { TimelineFullStreamModal } from "./TimelineFullStreamModal";
 import { NoticesRailCard } from "./NoticesRailCard";
 import { NoticeViewerModal } from "./NoticeViewerModal";
+import { TriggerEventDialog } from "./TriggerEventDialog";
+import { IssueHoldConfirmDialog } from "./IssueHoldConfirmDialog";
+import { ReleaseHoldConfirmDialog } from "./ReleaseHoldConfirmDialog";
+import { JurisdictionPolicyPopover } from "./JurisdictionPolicyPopover";
 import type {
   HoldDefensibilityScoreDTO,
   HoldEventDTO,
@@ -97,11 +101,26 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
   const [score, setScore] = useState<HoldDefensibilityScoreDTO | null>(null);
   const [events, setEvents] = useState<HoldEventDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
   const [reloadKey, setReloadKey] = useState(0);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [highlightEventId, setHighlightEventId] = useState<string | null>(null);
   const [noticeViewerOpen, setNoticeViewerOpen] = useState(false);
+  const [trigger, setTrigger] = useState<{
+    id: string;
+    eventDescription: string;
+    occurredAt: string;
+  } | null>(null);
+  const [triggerLoaded, setTriggerLoaded] = useState(false);
+  const [triggerDialogOpen, setTriggerDialogOpen] = useState(false);
+  const [issueDialogOpen, setIssueDialogOpen] = useState(false);
+  const [releaseDialogOpen, setReleaseDialogOpen] = useState(false);
+  const [jurPopoverCode, setJurPopoverCode] = useState<string | null>(null);
+  // Custodian roster for the Issue dialog's preview list — fetched
+  // lazily only when the dialog opens to keep the workspace mount
+  // round-trip cheap.
+  const [issuePreviewCustodians, setIssuePreviewCustodians] = useState<
+    { personId: string; personName: string }[]
+  >([]);
 
   useEffect(() => {
     let alive = true;
@@ -117,6 +136,14 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
       .then((r) => (r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`)))
       .then((rows: HoldEventDTO[]) => alive && setEvents(rows))
       .catch(() => alive && setEvents([]));
+    fetch(`${baseUrl}/trigger-event`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((t) => {
+        if (!alive) return;
+        setTrigger(t);
+        setTriggerLoaded(true);
+      })
+      .catch(() => alive && setTriggerLoaded(true));
     return () => {
       alive = false;
     };
@@ -127,35 +154,30 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
   }
 
   async function onIssue() {
-    setBusy(true);
+    // Pre-fetch the custodian roster so the confirm dialog can show
+    // names without a second wait.
     try {
-      const r = await fetch(`${baseUrl}/issue`, { method: "POST" });
-      if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
-      reload();
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setBusy(false);
+      const r = await fetch(`${baseUrl}/custodians`);
+      if (r.ok) {
+        const rows = (await r.json()) as Array<{
+          personId: string;
+          personName: string;
+        }>;
+        setIssuePreviewCustodians(
+          rows.map((r) => ({
+            personId: r.personId,
+            personName: r.personName,
+          })),
+        );
+      }
+    } catch {
+      // proceed regardless — dialog still renders with the count.
     }
+    setIssueDialogOpen(true);
   }
 
-  async function onRelease() {
-    const reason = window.prompt("Release reason:");
-    if (!reason) return;
-    setBusy(true);
-    try {
-      const r = await fetch(`${baseUrl}/release`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ releaseReason: reason }),
-      });
-      if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
-      reload();
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setBusy(false);
-    }
+  function onRelease() {
+    setReleaseDialogOpen(true);
   }
 
   if (error && !summary) {
@@ -232,9 +254,11 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
         custodianCount={summary.counts.custodians}
         onIssue={onIssue}
         onRelease={onRelease}
-        busy={busy}
         canIssue={canIssue}
         canRelease={canRelease}
+        hasTriggerEvent={triggerLoaded ? !!trigger : true}
+        onEditTrigger={canIssue ? () => setTriggerDialogOpen(true) : undefined}
+        onClickJurisdiction={(code) => setJurPopoverCode(code)}
       />
 
       <HoldStatusRow
@@ -267,6 +291,66 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
           events={events}
           highlightEventId={highlightEventId}
           onClose={() => setTimelineOpen(false)}
+        />
+      )}
+
+      {triggerDialogOpen && (
+        <TriggerEventDialog
+          matterId={matterId}
+          holdId={holdId}
+          existing={
+            trigger
+              ? {
+                  triggerEventId: trigger.id,
+                  eventDescription: trigger.eventDescription,
+                  occurredAt: trigger.occurredAt,
+                }
+              : null
+          }
+          onClose={() => setTriggerDialogOpen(false)}
+          onSaved={() => {
+            setTriggerDialogOpen(false);
+            reload();
+          }}
+        />
+      )}
+
+      {issueDialogOpen && (
+        <IssueHoldConfirmDialog
+          matterId={matterId}
+          holdId={holdId}
+          hold={summary.hold}
+          counts={summary.counts}
+          hasTriggerEvent={!!trigger}
+          custodians={issuePreviewCustodians}
+          onClose={() => setIssueDialogOpen(false)}
+          onIssued={() => {
+            setIssueDialogOpen(false);
+            reload();
+          }}
+        />
+      )}
+
+      {jurPopoverCode && (
+        <JurisdictionPolicyPopover
+          matterId={matterId}
+          holdId={holdId}
+          jurisdictionCode={jurPopoverCode}
+          onClose={() => setJurPopoverCode(null)}
+        />
+      )}
+
+      {releaseDialogOpen && (
+        <ReleaseHoldConfirmDialog
+          matterId={matterId}
+          holdId={holdId}
+          hold={summary.hold}
+          counts={summary.counts}
+          onClose={() => setReleaseDialogOpen(false)}
+          onReleased={() => {
+            setReleaseDialogOpen(false);
+            reload();
+          }}
         />
       )}
 

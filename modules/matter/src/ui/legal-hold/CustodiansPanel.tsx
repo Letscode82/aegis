@@ -12,13 +12,18 @@
  * narrows the visible list).
  */
 import React, { useEffect, useMemo, useState } from "react";
-import { Card, SH, Pill, C, F, M } from "@aegis/ui";
+import { Card, SH, Pill, C, F, M, useToast } from "@aegis/ui";
 import type { HoldCustodianDTO } from "./types";
 import { BulkActionToolbar } from "./BulkActionToolbar";
 import { BulkMarkAcknowledgedDialog } from "./BulkMarkAcknowledgedDialog";
 import { BulkReleaseDialog } from "./BulkReleaseDialog";
 import { CustodianRow } from "./CustodianRow";
 import { CustodianAddDialog } from "./CustodianAddDialog";
+import {
+  CustodianSearchFilterBar,
+  type CustodianSortKey,
+  type CustodianStatusFilter,
+} from "./CustodianSearchFilterBar";
 import { NoticeComposerDialog } from "./NoticeComposerDialog";
 
 export interface CustodiansPanelProps {
@@ -42,13 +47,52 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
   onChange,
   onSendReminders,
 }) => {
+  const toast = useToast();
   const [rows, setRows] = useState<HoldCustodianDTO[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const [adding, setAdding] = useState(false);
-  const [filterOverdue, setFilterOverdue] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [copiedToast, setCopiedToast] = useState<string | null>(null);
+
+  // Search / filter / sort — initial values seeded from URL query
+  // params so a refresh / shared link reproduces the view. We read
+  // window.location directly rather than depending on Next's router
+  // (matter package can't import next/router due to module-isolation
+  // rules), then push state changes via history.replaceState.
+  const [query, setQuery] = useState<string>(() => readUrlParam("q") ?? "");
+  const [statuses, setStatuses] = useState<Set<CustodianStatusFilter>>(() => {
+    const raw = readUrlParam("filter");
+    if (!raw) return new Set(["all"]);
+    return new Set(raw.split(",").filter(Boolean) as CustodianStatusFilter[]);
+  });
+  const [sortKey, setSortKey] = useState<CustodianSortKey>(() => {
+    const raw = readUrlParam("sort");
+    return (raw as CustodianSortKey) || "recent-activity";
+  });
+
+  // URL sync — encodes the filter set into ?q= / ?filter= / ?sort=.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    setOrDelete(params, "q", query.trim());
+    setOrDelete(
+      params,
+      "filter",
+      statuses.size === 0 || (statuses.size === 1 && statuses.has("all"))
+        ? ""
+        : Array.from(statuses)
+            .filter((s) => s !== "all")
+            .join(","),
+    );
+    setOrDelete(
+      params,
+      "sort",
+      sortKey === "recent-activity" ? "" : sortKey,
+    );
+    const qs = params.toString();
+    const newUrl = `${window.location.pathname}${qs ? `?${qs}` : ""}${window.location.hash}`;
+    window.history.replaceState(null, "", newUrl);
+  }, [query, statuses, sortKey]);
   // Bulk-selection + bulk-action state.
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkSendOpen, setBulkSendOpen] = useState(false);
@@ -88,29 +132,105 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
     return rows.filter((c) => c.departureRecordedAt).length;
   }, [rows]);
 
+  function statusOf(c: HoldCustodianDTO): CustodianStatusFilter {
+    if (c.releasedAt) return "released";
+    if (overdueIds.includes(c.personId)) return "overdue";
+    if (c.acknowledgedAt) return "acknowledged";
+    return "pending";
+  }
+
   const visibleRows = useMemo(() => {
     if (!rows) return [];
-    if (!filterOverdue) return rows;
-    return rows.filter((c) => overdueIds.includes(c.personId));
-  }, [rows, filterOverdue, overdueIds]);
+    const q = query.trim().toLowerCase();
+    let out = rows.filter((c) => {
+      // Search across name + email.
+      if (q) {
+        const hay = `${c.personName} ${c.personEmail ?? ""}`.toLowerCase();
+        if (!hay.includes(q)) return false;
+      }
+      // Status chips. "all" disables filtering entirely; otherwise the
+      // row matches any selected status. "with-conflicts" is a per-data-
+      // source flag.
+      if (statuses.size > 0 && !statuses.has("all")) {
+        const s = statusOf(c);
+        const matchesStatus = statuses.has(s);
+        const hasConflict = c.dataSources.some((d) => d.retentionPolicyConflict);
+        const matchesConflicts =
+          statuses.has("with-conflicts") && hasConflict;
+        if (!matchesStatus && !matchesConflicts) return false;
+      }
+      return true;
+    });
+
+    // Sort
+    out = [...out];
+    if (sortKey === "name-asc") {
+      out.sort((a, b) => a.personName.localeCompare(b.personName));
+    } else if (sortKey === "status") {
+      const order: Record<CustodianStatusFilter, number> = {
+        all: 9,
+        overdue: 0,
+        pending: 1,
+        acknowledged: 2,
+        released: 3,
+        "with-conflicts": 4,
+      };
+      out.sort((a, b) => order[statusOf(a)] - order[statusOf(b)]);
+    } else if (sortKey === "days-pending") {
+      const daysSinceCreate = (c: HoldCustodianDTO) =>
+        c.acknowledgedAt
+          ? Number.NEGATIVE_INFINITY
+          : c.nextReAttestationDueAt
+            ? Date.now() - new Date(c.nextReAttestationDueAt).getTime()
+            : 0;
+      out.sort((a, b) => daysSinceCreate(b) - daysSinceCreate(a));
+    } else {
+      // recent-activity: latest of acknowledgedAt / lastReAttestedAt /
+      // releasedAt / departureRecordedAt wins; null sorts last.
+      const lastTs = (c: HoldCustodianDTO) => {
+        const candidates = [
+          c.acknowledgedAt,
+          c.lastReAttestedAt,
+          c.releasedAt,
+          c.departureRecordedAt,
+        ]
+          .filter((s): s is string => !!s)
+          .map((s) => new Date(s).getTime());
+        return candidates.length > 0 ? Math.max(...candidates) : 0;
+      };
+      out.sort((a, b) => lastTs(b) - lastTs(a));
+    }
+    return out;
+  }, [rows, query, statuses, sortKey, overdueIds]);
+
+  function toggleStatus(s: CustodianStatusFilter) {
+    setStatuses((prev) => {
+      const next = new Set(prev);
+      if (s === "all") return new Set(["all"]);
+      next.delete("all");
+      if (next.has(s)) next.delete(s);
+      else next.add(s);
+      if (next.size === 0) next.add("all");
+      return next;
+    });
+  }
+
+  function nameFor(personId: string): string {
+    return rows?.find((c) => c.personId === personId)?.personName ?? personId;
+  }
 
   async function reAttest(personId: string) {
     setBusy(true);
     try {
-      // The legal-hold API's re-attest path is the same backend the
-      // custodian-side acknowledgment view uses; here we treat the
-      // admin-driven action as a re-attest stamp on behalf of the
-      // custodian (audit row records actor = current admin).
-      // The matter API exposes reAttestHold; the route lives at
-      // /api/matter/[id]/holds/[holdId]/custodians/[personId]/re-attest
-      // (added inline-future). 4c.2 surfaces the affordance even
-      // though the route is not yet wired — the button calls the
-      // existing acknowledge path which already touches lastReAttestedAt.
-      await fetch(
+      const r = await fetch(
         `/api/matter/${matterId}/holds/${holdId}/custodians/${personId}/acknowledge`,
         { method: "POST", headers: { "content-type": "application/json" }, body: "{}" },
       );
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+      toast.success(`Re-attestation request sent to ${nameFor(personId)}.`);
       reload();
+    } catch (e) {
+      toast.error(`Re-attest failed: ${String(e)}`);
     } finally {
       setBusy(false);
     }
@@ -121,12 +241,18 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
     if (!reason) return;
     setBusy(true);
     try {
-      await fetch(`/api/matter/${matterId}/holds/${holdId}/release`, {
+      const r = await fetch(`/api/matter/${matterId}/holds/${holdId}/release`, {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ releaseReason: reason, custodianPersonId: personId }),
       });
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+      toast.success(
+        `${nameFor(personId)} released from hold (reason: ${reason.slice(0, 60)}${reason.length > 60 ? "…" : ""}).`,
+      );
       reload();
+    } catch (e) {
+      toast.error(`Release failed: ${String(e)}`);
     } finally {
       setBusy(false);
     }
@@ -144,9 +270,10 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
         },
       );
       if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+      toast.success(`Preservation marked applied for ${nameFor(personId)}.`);
       reload();
     } catch (e) {
-      setError(String(e));
+      toast.error(`Apply preservation failed: ${String(e)}`);
     } finally {
       setBusy(false);
     }
@@ -172,15 +299,14 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard) {
         await navigator.clipboard.writeText(url);
-        setCopiedToast(
-          `Copied acknowledgment link for ${personName} (${personId.slice(0, 8)}…).`,
+        toast.success(
+          `Copied acknowledgment link for ${personName}.`,
         );
       } else {
-        setCopiedToast(`URL: ${url}`);
+        toast.info(`URL: ${url}`);
       }
-      setTimeout(() => setCopiedToast(null), 4000);
     } catch (e) {
-      setError(`Clipboard write failed: ${String(e)}`);
+      toast.error(`Clipboard write failed: ${String(e)}`);
     }
   }
 
@@ -192,9 +318,10 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
         { method: "POST" },
       );
       if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+      toast.success(`Preservation confirmed for ${nameFor(personId)}.`);
       reload();
     } catch (e) {
-      setError(String(e));
+      toast.error(`Confirm preservation failed: ${String(e)}`);
     } finally {
       setBusy(false);
     }
@@ -229,13 +356,17 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
             <ChipAction
               color={C.rd}
               label={`⚠ ${overdueIds.length} overdue acknowledgment${overdueIds.length === 1 ? "" : "s"}`}
-              actionLabel={filterOverdue ? "Show all" : "Send reminders"}
+              actionLabel={
+                statuses.has("overdue") && !statuses.has("all")
+                  ? "Show all"
+                  : "Send reminders"
+              }
               onClick={() => {
-                if (!filterOverdue) {
-                  setFilterOverdue(true);
+                if (!statuses.has("overdue") || statuses.has("all")) {
+                  setStatuses(new Set(["overdue"]));
                   onSendReminders(overdueIds);
                 } else {
-                  setFilterOverdue(false);
+                  setStatuses(new Set(["all"]));
                 }
               }}
             />
@@ -286,24 +417,6 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
         </div>
       )}
 
-      {copiedToast && (
-        <div
-          style={{
-            marginTop: 8,
-            padding: "5px 10px",
-            background: `${C.gn}15`,
-            border: `1px solid ${C.gn}55`,
-            borderRadius: 4,
-            color: C.gn,
-            fontFamily: M,
-            fontSize: 10.5,
-            letterSpacing: 0.3,
-          }}
-        >
-          {copiedToast}
-        </div>
-      )}
-
       {!rows && (
         <div style={{ color: C.t3, fontSize: 11, fontFamily: M, marginTop: 14 }}>
           Loading custodians…
@@ -319,6 +432,16 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
 
       {rows && rows.length > 0 && (
         <div style={{ marginTop: 12 }}>
+          <CustodianSearchFilterBar
+            query={query}
+            onQueryChange={setQuery}
+            statuses={statuses}
+            onToggleStatus={toggleStatus}
+            sortKey={sortKey}
+            onSortChange={setSortKey}
+            resultCount={visibleRows.length}
+            totalCount={rows.length}
+          />
           <BulkActionToolbar
             count={selectedIds.size}
             alreadyAckedCount={
@@ -383,15 +506,19 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
             <span>Sources</span>
             <span style={{ textAlign: "right" }}>Last</span>
           </div>
-          {visibleRows.length === 0 && filterOverdue && (
+          {visibleRows.length === 0 && rows && rows.length > 0 && (
             <div style={{ padding: 12, color: C.t3, fontSize: 11, fontFamily: M }}>
-              No overdue custodians. <span
-                onClick={() => setFilterOverdue(false)}
+              No custodians match the current filters.{" "}
+              <span
+                onClick={() => {
+                  setStatuses(new Set(["all"]));
+                  setQuery("");
+                }}
                 style={{ color: C.bl, cursor: "pointer" }}
                 role="button"
                 tabIndex={0}
               >
-                Show all
+                Clear filters
               </span>
             </div>
           )}
@@ -444,8 +571,14 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
                 onConfirmPreservation={(dsId) =>
                   confirmPreservation(c.personId, dsId)
                 }
-                onDataSourceAdded={reload}
-                onMarkedAcknowledged={reload}
+                onDataSourceAdded={() => {
+                  toast.success(`Data source added to ${c.personName}.`);
+                  reload();
+                }}
+                onMarkedAcknowledged={() => {
+                  toast.success(`${c.personName} marked acknowledged on behalf.`);
+                  reload();
+                }}
                 onCopyAckLink={() => copyAckLink(c.personId, c.personName)}
               />
             </div>
@@ -475,10 +608,9 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
           onIssued={(result) => {
             setBulkSendOpen(false);
             setSelectedIds(new Set());
-            setCopiedToast(
+            toast.success(
               `Reminder sent to ${result.recipientCount} custodian${result.recipientCount === 1 ? "" : "s"}.`,
             );
-            setTimeout(() => setCopiedToast(null), 4000);
             reload();
           }}
         />
@@ -500,8 +632,9 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
           onApplied={(succeeded) => {
             setBulkAckOpen(false);
             setSelectedIds(new Set());
-            setCopiedToast(`Marked ${succeeded} acknowledged.`);
-            setTimeout(() => setCopiedToast(null), 4000);
+            toast.success(
+              `Bulk action completed: ${succeeded} custodian${succeeded === 1 ? "" : "s"} marked acknowledged.`,
+            );
             reload();
           }}
         />
@@ -518,8 +651,9 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
           onApplied={(succeeded) => {
             setBulkReleaseOpen(false);
             setSelectedIds(new Set());
-            setCopiedToast(`Released ${succeeded} custodian(s).`);
-            setTimeout(() => setCopiedToast(null), 4000);
+            toast.success(
+              `Bulk action completed: ${succeeded} custodian${succeeded === 1 ? "" : "s"} released.`,
+            );
             reload();
           }}
         />
@@ -650,3 +784,18 @@ const EmptyState: React.FC<{
     )}
   </div>
 );
+
+function readUrlParam(name: string): string | null {
+  if (typeof window === "undefined") return null;
+  const v = new URLSearchParams(window.location.search).get(name);
+  return v && v.length > 0 ? v : null;
+}
+
+function setOrDelete(
+  params: URLSearchParams,
+  key: string,
+  value: string,
+): void {
+  if (value && value.length > 0) params.set(key, value);
+  else params.delete(key);
+}

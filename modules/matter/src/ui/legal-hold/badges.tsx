@@ -31,11 +31,39 @@ const JURISDICTION_COLOR: Record<string, string> = {
   UK: C.pp,
 };
 
-export const JurisdictionPills: React.FC<{ codes: string[] }> = ({ codes }) => (
+export const JurisdictionPills: React.FC<{
+  codes: string[];
+  /** Optional click handler — when provided, each pill becomes a button. */
+  onClickCode?: (code: string) => void;
+}> = ({ codes, onClickCode }) => (
   <span style={{ display: "inline-flex", gap: 4, flexWrap: "wrap" }}>
-    {codes.map((c) => (
-      <Pill key={c} t={c} c={JURISDICTION_COLOR[c] ?? C.t3} />
-    ))}
+    {codes.map((c) => {
+      const color = JURISDICTION_COLOR[c] ?? C.t3;
+      if (!onClickCode) return <Pill key={c} t={c} c={color} />;
+      return (
+        <button
+          key={c}
+          type="button"
+          onClick={() => onClickCode(c)}
+          aria-label={`Show policy detail for ${c}`}
+          style={{
+            background: `${color}18`,
+            border: `1px solid ${color}55`,
+            color,
+            padding: "2px 7px",
+            borderRadius: 4,
+            fontSize: 9.5,
+            fontWeight: 600,
+            fontFamily: M,
+            letterSpacing: 0.3,
+            lineHeight: "16px",
+            cursor: "pointer",
+          }}
+        >
+          {c}
+        </button>
+      );
+    })}
   </span>
 );
 
