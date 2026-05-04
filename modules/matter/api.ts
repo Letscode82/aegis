@@ -464,6 +464,33 @@ export async function exportHoldDefensibility(holdId: string) {
   return LegalHoldServices.exportHoldDefensibilityService(holdId);
 }
 
+// Bulk operations on custodians (4c.3, Item 6)
+export async function bulkMarkAcknowledged(
+  input: import("./src/internal/legal-hold").BulkMarkAcknowledgedInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.bulkMarkAcknowledgedService(input, actor);
+}
+export async function bulkReleaseCustodians(
+  input: import("./src/internal/legal-hold").BulkReleaseInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.bulkReleaseCustodiansService(input, actor);
+}
+export async function bulkSendReminder(
+  input: import("./src/internal/legal-hold").BulkSendReminderInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.bulkSendReminderService(input, actor);
+}
+export type {
+  BulkMarkAcknowledgedInput,
+  BulkReleaseInput,
+  BulkSendReminderInput,
+  BulkOutcomeRow,
+  BulkResult,
+} from "./src/internal/legal-hold";
+
 // Admin-on-behalf acknowledgment (4c.3, Item 2)
 export async function markCustodianAcknowledgedByAdmin(
   input: import("./src/internal/legal-hold").MarkAcknowledgedInput,

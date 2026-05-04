@@ -43,6 +43,18 @@ export {
   updateNoticeTemplateService,
 } from "./services/notice-template";
 
+// Bulk operations on custodians (4c.3, Item 6)
+export {
+  bulkMarkAcknowledgedService,
+  bulkReleaseCustodiansService,
+  bulkSendReminderService,
+  type BulkMarkAcknowledgedInput,
+  type BulkReleaseInput,
+  type BulkSendReminderInput,
+  type BulkOutcomeRow,
+  type BulkResult,
+} from "./services/bulk";
+
 // Admin-on-behalf acknowledgment (4c.3, Item 2)
 export {
   markCustodianAcknowledgedByAdminService,

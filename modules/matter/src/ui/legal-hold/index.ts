@@ -24,6 +24,9 @@ export { NoticeComposerDialog } from "./NoticeComposerDialog";
 export { NoticeViewerModal } from "./NoticeViewerModal";
 export { NoticeDrillInModal } from "./NoticeDrillInModal";
 export { MarkAcknowledgedDialog } from "./MarkAcknowledgedDialog";
+export { BulkActionToolbar } from "./BulkActionToolbar";
+export { BulkMarkAcknowledgedDialog } from "./BulkMarkAcknowledgedDialog";
+export { BulkReleaseDialog } from "./BulkReleaseDialog";
 export { ModalShell } from "./ModalShell";
 export {
   DefensibilityBadge,

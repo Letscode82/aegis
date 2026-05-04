@@ -288,6 +288,7 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
           matterId={matterId}
           holdId={holdId}
           canMutate={canIssue}
+          canRelease={canRelease}
           onChange={reload}
           onSendReminders={() => {
             // 4c.2 surfaces the affordance; the actual escalation

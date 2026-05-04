@@ -14,14 +14,20 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Card, SH, Pill, C, F, M } from "@aegis/ui";
 import type { HoldCustodianDTO } from "./types";
+import { BulkActionToolbar } from "./BulkActionToolbar";
+import { BulkMarkAcknowledgedDialog } from "./BulkMarkAcknowledgedDialog";
+import { BulkReleaseDialog } from "./BulkReleaseDialog";
 import { CustodianRow } from "./CustodianRow";
 import { CustodianAddDialog } from "./CustodianAddDialog";
+import { NoticeComposerDialog } from "./NoticeComposerDialog";
 
 export interface CustodiansPanelProps {
   matterId: string;
   holdId: string;
   /** Permission gate — set when actor has matter:legal_hold:issue. */
   canMutate: boolean;
+  /** Permission gate for bulk-release and per-custodian release. */
+  canRelease: boolean;
   /** Triggered when any custodian list mutation completes. */
   onChange: () => void;
   /** Fired when the bulk "Send reminders" chip is clicked. */
@@ -32,6 +38,7 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
   matterId,
   holdId,
   canMutate,
+  canRelease,
   onChange,
   onSendReminders,
 }) => {
@@ -42,6 +49,11 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
   const [filterOverdue, setFilterOverdue] = useState(false);
   const [busy, setBusy] = useState(false);
   const [copiedToast, setCopiedToast] = useState<string | null>(null);
+  // Bulk-selection + bulk-action state.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkSendOpen, setBulkSendOpen] = useState(false);
+  const [bulkAckOpen, setBulkAckOpen] = useState(false);
+  const [bulkReleaseOpen, setBulkReleaseOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -307,10 +319,29 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
 
       {rows && rows.length > 0 && (
         <div style={{ marginTop: 12 }}>
+          <BulkActionToolbar
+            count={selectedIds.size}
+            alreadyAckedCount={
+              rows.filter(
+                (c) => selectedIds.has(c.personId) && !!c.acknowledgedAt,
+              ).length
+            }
+            alreadyReleasedCount={
+              rows.filter(
+                (c) => selectedIds.has(c.personId) && !!c.releasedAt,
+              ).length
+            }
+            canIssue={canMutate}
+            canRelease={canRelease}
+            onClearSelection={() => setSelectedIds(new Set())}
+            onSendReminder={() => setBulkSendOpen(true)}
+            onMarkAck={() => setBulkAckOpen(true)}
+            onRelease={() => setBulkReleaseOpen(true)}
+          />
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "20px 1.6fr 130px 110px 130px 90px",
+              gridTemplateColumns: "32px 20px 1.6fr 130px 110px 130px 90px",
               gap: 10,
               padding: "6px 10px",
               fontSize: 9.5,
@@ -321,10 +352,31 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
               textTransform: "uppercase",
               fontFamily: F,
               borderBottom: `1px solid ${C.br}33`,
+              alignItems: "center",
             }}
-            aria-hidden="true"
           >
-            <span></span>
+            <span>
+              <input
+                type="checkbox"
+                aria-label="Select all custodians"
+                checked={
+                  visibleRows.length > 0 &&
+                  visibleRows.every((c) => selectedIds.has(c.personId))
+                }
+                onChange={(e) => {
+                  setSelectedIds((prev) => {
+                    const next = new Set(prev);
+                    if (e.target.checked) {
+                      visibleRows.forEach((c) => next.add(c.personId));
+                    } else {
+                      visibleRows.forEach((c) => next.delete(c.personId));
+                    }
+                    return next;
+                  });
+                }}
+              />
+            </span>
+            <span aria-hidden="true"></span>
             <span>Person</span>
             <span>Status</span>
             <span>Acknowledged</span>
@@ -344,26 +396,59 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
             </div>
           )}
           {visibleRows.map((c) => (
-            <CustodianRow
+            <div
               key={c.id}
-              matterId={matterId}
-              holdId={holdId}
-              custodian={c}
-              preservedSourceCount={c.dataSources.filter(
-                (d) => !!d.preservationConfirmedAt,
-              ).length}
-              canMutate={canMutate}
-              busy={busy}
-              onReAttest={() => reAttest(c.personId)}
-              onRelease={() => release(c.personId)}
-              onApplyPreservation={(dsId) => applyPreservation(c.personId, dsId)}
-              onConfirmPreservation={(dsId) =>
-                confirmPreservation(c.personId, dsId)
-              }
-              onDataSourceAdded={reload}
-              onMarkedAcknowledged={reload}
-              onCopyAckLink={() => copyAckLink(c.personId, c.personName)}
-            />
+              style={{
+                display: "grid",
+                gridTemplateColumns: "32px 1fr",
+                alignItems: "stretch",
+                borderBottom: `1px solid ${C.br}22`,
+              }}
+            >
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  justifyContent: "center",
+                  paddingTop: 11,
+                  cursor: "pointer",
+                }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <input
+                  type="checkbox"
+                  aria-label={`Select ${c.personName}`}
+                  checked={selectedIds.has(c.personId)}
+                  onChange={() =>
+                    setSelectedIds((prev) => {
+                      const next = new Set(prev);
+                      if (next.has(c.personId)) next.delete(c.personId);
+                      else next.add(c.personId);
+                      return next;
+                    })
+                  }
+                />
+              </label>
+              <CustodianRow
+                matterId={matterId}
+                holdId={holdId}
+                custodian={c}
+                preservedSourceCount={c.dataSources.filter(
+                  (d) => !!d.preservationConfirmedAt,
+                ).length}
+                canMutate={canMutate}
+                busy={busy}
+                onReAttest={() => reAttest(c.personId)}
+                onRelease={() => release(c.personId)}
+                onApplyPreservation={(dsId) => applyPreservation(c.personId, dsId)}
+                onConfirmPreservation={(dsId) =>
+                  confirmPreservation(c.personId, dsId)
+                }
+                onDataSourceAdded={reload}
+                onMarkedAcknowledged={reload}
+                onCopyAckLink={() => copyAckLink(c.personId, c.personName)}
+              />
+            </div>
           ))}
         </div>
       )}
@@ -376,6 +461,65 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
           onClose={() => setAdding(false)}
           onAdded={() => {
             setAdding(false);
+            reload();
+          }}
+        />
+      )}
+
+      {bulkSendOpen && rows && (
+        <NoticeComposerDialog
+          matterId={matterId}
+          holdId={holdId}
+          initialRecipientPersonIds={Array.from(selectedIds)}
+          onClose={() => setBulkSendOpen(false)}
+          onIssued={(result) => {
+            setBulkSendOpen(false);
+            setSelectedIds(new Set());
+            setCopiedToast(
+              `Reminder sent to ${result.recipientCount} custodian${result.recipientCount === 1 ? "" : "s"}.`,
+            );
+            setTimeout(() => setCopiedToast(null), 4000);
+            reload();
+          }}
+        />
+      )}
+
+      {bulkAckOpen && rows && (
+        <BulkMarkAcknowledgedDialog
+          matterId={matterId}
+          holdId={holdId}
+          custodians={rows
+            .filter(
+              (c) =>
+                selectedIds.has(c.personId) &&
+                !c.acknowledgedAt &&
+                !c.releasedAt,
+            )
+            .map((c) => ({ personId: c.personId, personName: c.personName }))}
+          onClose={() => setBulkAckOpen(false)}
+          onApplied={(succeeded) => {
+            setBulkAckOpen(false);
+            setSelectedIds(new Set());
+            setCopiedToast(`Marked ${succeeded} acknowledged.`);
+            setTimeout(() => setCopiedToast(null), 4000);
+            reload();
+          }}
+        />
+      )}
+
+      {bulkReleaseOpen && rows && (
+        <BulkReleaseDialog
+          matterId={matterId}
+          holdId={holdId}
+          custodians={rows
+            .filter((c) => selectedIds.has(c.personId) && !c.releasedAt)
+            .map((c) => ({ personId: c.personId, personName: c.personName }))}
+          onClose={() => setBulkReleaseOpen(false)}
+          onApplied={(succeeded) => {
+            setBulkReleaseOpen(false);
+            setSelectedIds(new Set());
+            setCopiedToast(`Released ${succeeded} custodian(s).`);
+            setTimeout(() => setCopiedToast(null), 4000);
             reload();
           }}
         />
