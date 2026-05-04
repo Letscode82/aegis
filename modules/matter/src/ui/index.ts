@@ -28,6 +28,7 @@ export {
 // Legal Hold admin surfaces (sub-PR 4c.4)
 export { HoldPolicyEditor } from "./legal-hold/HoldPolicyEditor";
 export { HoldScopeTemplatesAdmin } from "./legal-hold/HoldScopeTemplatesAdmin";
+export { NoticeTemplateEditor } from "./legal-hold/NoticeTemplateEditor";
 
 export type {
   MatterDTO,

@@ -481,6 +481,35 @@ export async function exportHoldDefensibility(holdId: string) {
   return LegalHoldServices.exportHoldDefensibilityService(holdId);
 }
 
+// Notice template version history (4c.5, Item 17)
+export async function listTemplateVersions(
+  templateId: string,
+  actor: { id: string; organizationId: string },
+) {
+  return LegalHoldServices.listTemplateVersionsService(templateId, actor);
+}
+export async function saveTemplateVersion(
+  input: import("./src/internal/legal-hold").SaveTemplateVersionInput,
+  actor: { id: string; organizationId: string },
+) {
+  return LegalHoldServices.saveTemplateVersionService(input, actor);
+}
+export async function getTemplateVersionByNumber(
+  templateId: string,
+  version: number,
+  actor: { id: string; organizationId: string },
+) {
+  return LegalHoldServices.getTemplateVersionByNumberService(
+    templateId,
+    version,
+    actor,
+  );
+}
+export type {
+  SaveTemplateVersionInput,
+  VersionDTO as TemplateVersionDTO,
+} from "./src/internal/legal-hold";
+
 // Saved views (4c.5, Item 16)
 export async function listSavedViews(
   actor: { id: string; organizationId: string },

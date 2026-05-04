@@ -114,6 +114,15 @@ export {
 } from "./services/reminders";
 export { decideEscalation, type EscalationDecision } from "./services/escalation";
 
+// Notice template version history (4c.5, Item 17)
+export {
+  getTemplateVersionByNumberService,
+  listTemplateVersionsService,
+  saveTemplateVersionService,
+  type SaveTemplateVersionInput,
+  type VersionDTO,
+} from "./services/notice-template-versions";
+
 // Saved views (4c.5, Item 16)
 export {
   createSavedViewService,
