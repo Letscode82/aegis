@@ -12,7 +12,8 @@
  */
 import React, { useState } from "react";
 import { Pill, C, F, M } from "@aegis/ui";
-import type { HoldCustodianDTO, HoldDataSourceDTO } from "./types";
+import { DataSourceList } from "./DataSourceList";
+import type { HoldCustodianDTO } from "./types";
 
 type RowStatus =
   | "pending"
@@ -53,23 +54,34 @@ function lastSignal(c: HoldCustodianDTO): string {
 }
 
 export interface CustodianRowProps {
+  matterId: string;
+  holdId: string;
   custodian: HoldCustodianDTO;
   /** Total preserved-source count for the row's headline. */
   preservedSourceCount: number;
   /** Inline actions — only rendered when the actor has matter:legal_hold:issue. */
   canMutate: boolean;
+  busy: boolean;
   onReAttest: () => void;
   onRelease: () => void;
+  onApplyPreservation: (dataSourceId: string) => void;
   onConfirmPreservation: (dataSourceId: string) => void;
+  /** Fired when a data source is added so the parent can refetch. */
+  onDataSourceAdded: () => void;
 }
 
 export const CustodianRow: React.FC<CustodianRowProps> = ({
+  matterId,
+  holdId,
   custodian,
   preservedSourceCount,
   canMutate,
+  busy,
   onReAttest,
   onRelease,
+  onApplyPreservation,
   onConfirmPreservation,
+  onDataSourceAdded,
 }) => {
   const [open, setOpen] = useState(false);
   const status = deriveStatus(custodian);
@@ -157,10 +169,17 @@ export const CustodianRow: React.FC<CustodianRowProps> = ({
           {custodian.acknowledgmentMetadata ? (
             <AcknowledgmentBlock metadata={custodian.acknowledgmentMetadata} />
           ) : null}
-          <SourceList
+          <DataSourceList
+            matterId={matterId}
+            holdId={holdId}
+            custodianPersonId={custodian.personId}
+            custodianName={custodian.personName}
             sources={custodian.dataSources}
             canMutate={canMutate}
-            onConfirmPreservation={onConfirmPreservation}
+            busy={busy}
+            onApply={onApplyPreservation}
+            onConfirm={onConfirmPreservation}
+            onAdded={onDataSourceAdded}
           />
           {canMutate && status !== "released" && (
             <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
@@ -225,89 +244,6 @@ const AcknowledgmentBlock: React.FC<{ metadata: unknown }> = ({ metadata }) => {
           </span>
         )}
       </div>
-    </div>
-  );
-};
-
-const TYPE_ICON: Record<string, string> = {
-  EMAIL_MAILBOX: "✉",
-  ARCHIVED_MAILBOX: "📦",
-  DEPARTED_USER_MAILBOX: "👤",
-  ONEDRIVE: "💾",
-  SHAREPOINT_SITE: "🗂",
-  TEAMS_CHANNEL: "#",
-  TEAMS_DM: "💬",
-  TEAMS_PRIVATE_CHANNEL: "🔒",
-  SLACK_CHANNEL: "#",
-  SLACK_DM: "💬",
-  GOOGLE_DRIVE: "💾",
-  GOOGLE_CHAT: "💬",
-  EPHEMERAL_CHAT_AUTO_DELETE: "⏱",
-  LOCAL_DEVICE: "💻",
-  PHYSICAL_FILES: "📁",
-  THIRD_PARTY_SAAS: "🔗",
-  OTHER: "?",
-};
-
-const SourceList: React.FC<{
-  sources: HoldDataSourceDTO[];
-  canMutate: boolean;
-  onConfirmPreservation: (id: string) => void;
-}> = ({ sources, canMutate, onConfirmPreservation }) => {
-  if (sources.length === 0) {
-    return (
-      <div style={{ color: C.t4, fontSize: 10.5, fontFamily: M }}>
-        No data sources mapped to this custodian.
-      </div>
-    );
-  }
-  return (
-    <div style={{ display: "grid", gap: 4 }}>
-      {sources.map((d) => {
-        const confirmed = !!d.preservationConfirmedAt;
-        const conflict = d.retentionPolicyConflict;
-        return (
-          <div
-            key={d.id}
-            style={{
-              display: "grid",
-              gridTemplateColumns: "20px 1.4fr 200px 130px 110px",
-              gap: 8,
-              alignItems: "center",
-              padding: "5px 6px",
-              fontSize: 10.5,
-              fontFamily: F,
-              borderBottom: `1px solid ${C.br}22`,
-            }}
-          >
-            <span style={{ fontFamily: M, color: C.t3 }} aria-hidden="true">
-              {TYPE_ICON[d.type] ?? "•"}
-            </span>
-            <span style={{ color: C.t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {d.displayLabel}
-            </span>
-            <span style={{ fontFamily: M, fontSize: 9.5, color: C.t3 }}>
-              {d.type} · {d.preservationAction}
-            </span>
-            <span style={{ fontFamily: M, fontSize: 9.5, color: confirmed ? C.gn : C.am }}>
-              {confirmed ? "✓ confirmed" : "preservation pending"}
-              {conflict && " · ⚠ conflict"}
-            </span>
-            <span style={{ textAlign: "right" }}>
-              {!confirmed && canMutate && (
-                <button
-                  type="button"
-                  onClick={() => onConfirmPreservation(d.id)}
-                  style={miniBtn(C.gn)}
-                  aria-label={`Mark preservation confirmed for ${d.displayLabel}`}
-                >
-                  Mark confirmed
-                </button>
-              )}
-            </span>
-          </div>
-        );
-      })}
     </div>
   );
 };

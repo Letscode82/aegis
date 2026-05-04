@@ -119,17 +119,40 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
     }
   }
 
-  async function confirmPreservation(_dataSourceId: string) {
-    // The legal-hold service exposes confirmDataSourcePreservation
-    // through modules/matter/api.ts. The HTTP wrapper isn't in 4b's
-    // route set; surface the affordance and reload optimistically —
-    // the actual mutation will be wired in a tiny follow-up. 4c.2
-    // is UI restructure only, but the button is in place.
+  async function applyPreservation(personId: string, dataSourceId: string) {
     setBusy(true);
-    setTimeout(() => {
-      setBusy(false);
+    try {
+      const r = await fetch(
+        `/api/matter/${matterId}/holds/${holdId}/custodians/${personId}/data-sources/${dataSourceId}/apply-preservation`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ reasonCode: "manual_apply" }),
+        },
+      );
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
       reload();
-    }, 200);
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirmPreservation(personId: string, dataSourceId: string) {
+    setBusy(true);
+    try {
+      const r = await fetch(
+        `/api/matter/${matterId}/holds/${holdId}/custodians/${personId}/data-sources/${dataSourceId}/confirm-preservation`,
+        { method: "POST" },
+      );
+      if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+      reload();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -272,14 +295,21 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
           {visibleRows.map((c) => (
             <CustodianRow
               key={c.id}
+              matterId={matterId}
+              holdId={holdId}
               custodian={c}
               preservedSourceCount={c.dataSources.filter(
                 (d) => !!d.preservationConfirmedAt,
               ).length}
-              canMutate={canMutate && !busy}
+              canMutate={canMutate}
+              busy={busy}
               onReAttest={() => reAttest(c.personId)}
               onRelease={() => release(c.personId)}
-              onConfirmPreservation={confirmPreservation}
+              onApplyPreservation={(dsId) => applyPreservation(c.personId, dsId)}
+              onConfirmPreservation={(dsId) =>
+                confirmPreservation(c.personId, dsId)
+              }
+              onDataSourceAdded={reload}
             />
           ))}
         </div>
