@@ -70,9 +70,11 @@ export {
 // Reads
 export {
   getCustodianHoldViewService,
+  getHoldWorkspaceSummaryService,
   getLegalHoldByIdService,
   listHoldEventsService,
   listLegalHoldsService,
+  type HoldWorkspaceSummary,
 } from "./services/reads";
 
 // Errors / sentinels

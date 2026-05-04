@@ -40,6 +40,7 @@ export interface HoldCustodianDTO {
   personName: string;
   personEmail: string | null;
   acknowledgedAt: string | null;
+  acknowledgmentMetadata: unknown | null;
   lastReAttestedAt: string | null;
   nextReAttestationDueAt: string | null;
   releasedAt: string | null;
@@ -91,4 +92,27 @@ export interface HoldDefensibilityScoreDTO {
     message: string;
     count: number;
   }>;
+}
+
+export interface HoldWorkspaceCounts {
+  custodians: number;
+  custodiansAcknowledged: number;
+  custodiansPending: number;
+  custodiansOverdue: number;
+  custodiansReleased: number;
+  custodiansDeparted: number;
+  dataSources: number;
+  dataSourcesPreserved: number;
+  dataSourcesItConfirmed: number;
+  dataSourcesConflict: number;
+  notices: number;
+  events: number;
+}
+
+export interface HoldWorkspaceSummaryDTO {
+  hold: HoldDetailDTO;
+  counts: HoldWorkspaceCounts;
+  lastActivityAt: string | null;
+  nextReminderDueAt: string | null;
+  cadenceDays: number;
 }

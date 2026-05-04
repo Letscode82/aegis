@@ -454,6 +454,9 @@ export async function listHoldEvents(holdId: string, limit?: number) {
 export async function getCustodianHoldView(holdId: string, personId: string) {
   return LegalHoldServices.getCustodianHoldViewService(holdId, personId);
 }
+export async function getHoldWorkspaceSummary(holdId: string) {
+  return LegalHoldServices.getHoldWorkspaceSummaryService(holdId);
+}
 export async function getHoldDefensibilityScore(holdId: string) {
   return LegalHoldServices.getHoldDefensibilityScoreService(holdId);
 }

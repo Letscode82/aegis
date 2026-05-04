@@ -37,6 +37,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         personName: r.person.name,
         personEmail: r.person.email,
         acknowledgedAt: r.acknowledgedAt?.toISOString() ?? null,
+        acknowledgmentMetadata: r.acknowledgmentMetadata ?? null,
         lastReAttestedAt: r.lastReAttestedAt?.toISOString() ?? null,
         nextReAttestationDueAt: r.nextReAttestationDueAt?.toISOString() ?? null,
         releasedAt: r.releasedAt?.toISOString() ?? null,
