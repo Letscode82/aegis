@@ -43,6 +43,18 @@ export {
   updateNoticeTemplateService,
 } from "./services/notice-template";
 
+// Admin-on-behalf acknowledgment (4c.3, Item 2)
+export {
+  markCustodianAcknowledgedByAdminService,
+  type MarkAcknowledgedInput,
+} from "./services/acknowledgment";
+
+// Notice viewer drill-in (4c.3, Item 7)
+export {
+  getNoticeIssuanceForViewerService,
+  type NoticeIssuanceForViewer,
+} from "./services/notice-viewer";
+
 // Notice composer (4c.3)
 export {
   composeAndSendNoticeService,

@@ -21,6 +21,9 @@ export {
 } from "./ActorDisplay";
 export { NoticesRailCard } from "./NoticesRailCard";
 export { NoticeComposerDialog } from "./NoticeComposerDialog";
+export { NoticeViewerModal } from "./NoticeViewerModal";
+export { NoticeDrillInModal } from "./NoticeDrillInModal";
+export { MarkAcknowledgedDialog } from "./MarkAcknowledgedDialog";
 export { ModalShell } from "./ModalShell";
 export {
   DefensibilityBadge,

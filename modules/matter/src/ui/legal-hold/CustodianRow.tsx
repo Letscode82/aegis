@@ -13,6 +13,7 @@
 import React, { useState } from "react";
 import { Pill, C, F, M } from "@aegis/ui";
 import { DataSourceList } from "./DataSourceList";
+import { MarkAcknowledgedDialog } from "./MarkAcknowledgedDialog";
 import type { HoldCustodianDTO } from "./types";
 
 type RowStatus =
@@ -68,6 +69,10 @@ export interface CustodianRowProps {
   onConfirmPreservation: (dataSourceId: string) => void;
   /** Fired when a data source is added so the parent can refetch. */
   onDataSourceAdded: () => void;
+  /** Fired when admin marks the custodian acknowledged on behalf. */
+  onMarkedAcknowledged: () => void;
+  /** Fired when the user clicks `Copy custodian acknowledgment link`. */
+  onCopyAckLink: () => void;
 }
 
 export const CustodianRow: React.FC<CustodianRowProps> = ({
@@ -82,8 +87,11 @@ export const CustodianRow: React.FC<CustodianRowProps> = ({
   onApplyPreservation,
   onConfirmPreservation,
   onDataSourceAdded,
+  onMarkedAcknowledged,
+  onCopyAckLink,
 }) => {
   const [open, setOpen] = useState(false);
+  const [markAckOpen, setMarkAckOpen] = useState(false);
   const status = deriveStatus(custodian);
   const sourceCount = custodian.dataSources.length;
 
@@ -182,7 +190,23 @@ export const CustodianRow: React.FC<CustodianRowProps> = ({
             onAdded={onDataSourceAdded}
           />
           {canMutate && status !== "released" && (
-            <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+            <div
+              style={{
+                display: "flex",
+                gap: 6,
+                marginTop: 6,
+                flexWrap: "wrap",
+              }}
+            >
+              {!custodian.acknowledgedAt && status !== "departed" && (
+                <button
+                  type="button"
+                  onClick={() => setMarkAckOpen(true)}
+                  style={miniBtn(C.gn)}
+                >
+                  Mark acknowledged on behalf
+                </button>
+              )}
               {status !== "departed" && (
                 <button
                   type="button"
@@ -194,6 +218,13 @@ export const CustodianRow: React.FC<CustodianRowProps> = ({
               )}
               <button
                 type="button"
+                onClick={onCopyAckLink}
+                style={miniBtn(C.t3)}
+              >
+                Copy custodian acknowledgment link
+              </button>
+              <button
+                type="button"
                 onClick={onRelease}
                 style={miniBtn(C.rd)}
               >
@@ -202,6 +233,20 @@ export const CustodianRow: React.FC<CustodianRowProps> = ({
             </div>
           )}
         </div>
+      )}
+
+      {markAckOpen && (
+        <MarkAcknowledgedDialog
+          matterId={matterId}
+          holdId={holdId}
+          custodianPersonId={custodian.personId}
+          custodianName={custodian.personName}
+          onClose={() => setMarkAckOpen(false)}
+          onMarked={() => {
+            setMarkAckOpen(false);
+            onMarkedAcknowledged();
+          }}
+        />
       )}
     </div>
   );

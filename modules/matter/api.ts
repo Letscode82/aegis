@@ -464,6 +464,32 @@ export async function exportHoldDefensibility(holdId: string) {
   return LegalHoldServices.exportHoldDefensibilityService(holdId);
 }
 
+// Admin-on-behalf acknowledgment (4c.3, Item 2)
+export async function markCustodianAcknowledgedByAdmin(
+  input: import("./src/internal/legal-hold").MarkAcknowledgedInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.markCustodianAcknowledgedByAdminService(
+    input,
+    actor,
+  );
+}
+export type { MarkAcknowledgedInput } from "./src/internal/legal-hold";
+
+// Notice viewer drill-in (4c.3, Item 7)
+export async function getNoticeIssuanceForViewer(
+  holdId: string,
+  issuanceId: string,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.getNoticeIssuanceForViewerService(
+    holdId,
+    issuanceId,
+    actor,
+  );
+}
+export type { NoticeIssuanceForViewer } from "./src/internal/legal-hold";
+
 // Notice composer (4c.3)
 export async function getNoticeComposerPreview(
   input: import("./src/internal/legal-hold").ComposerPreviewInput,

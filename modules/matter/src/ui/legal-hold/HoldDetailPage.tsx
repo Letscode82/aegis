@@ -27,6 +27,7 @@ import { DefensibilityRailCard } from "./DefensibilityRailCard";
 import { TimelineRailCard } from "./TimelineRailCard";
 import { TimelineFullStreamModal } from "./TimelineFullStreamModal";
 import { NoticesRailCard } from "./NoticesRailCard";
+import { NoticeViewerModal } from "./NoticeViewerModal";
 import type {
   HoldDefensibilityScoreDTO,
   HoldEventDTO,
@@ -100,6 +101,7 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
   const [reloadKey, setReloadKey] = useState(0);
   const [timelineOpen, setTimelineOpen] = useState(false);
   const [highlightEventId, setHighlightEventId] = useState<string | null>(null);
+  const [noticeViewerOpen, setNoticeViewerOpen] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -192,6 +194,7 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
         matterId={matterId}
         holdId={holdId}
         canMutate={canIssue}
+        onOpenViewer={() => setNoticeViewerOpen(true)}
       />
     </>
   );
@@ -248,6 +251,14 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
             : undefined
         }
       />
+
+      {noticeViewerOpen && (
+        <NoticeViewerModal
+          matterId={matterId}
+          holdId={holdId}
+          onClose={() => setNoticeViewerOpen(false)}
+        />
+      )}
 
       {timelineOpen && events && (
         <TimelineFullStreamModal

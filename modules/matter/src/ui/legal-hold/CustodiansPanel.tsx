@@ -41,6 +41,7 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
   const [adding, setAdding] = useState(false);
   const [filterOverdue, setFilterOverdue] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [copiedToast, setCopiedToast] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -136,6 +137,38 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
       setError(String(e));
     } finally {
       setBusy(false);
+    }
+  }
+
+  /**
+   * Generates the custodian-side acknowledgment URL and copies it
+   * to the clipboard. The URL points at the existing 4b
+   * `/custodian/holds/[holdId]/acknowledge` page; the page
+   * resolves the current user's matterId + personId via the
+   * existing `/api/custodian/hold-context` endpoint.
+   *
+   * 4c.3 surfaces the affordance with a basic shareable URL. A
+   * follow-up will add HMAC-signed tokens (see notice-link.ts —
+   * scaffolded but not yet exposed) so the link can be shared with
+   * a custodian who isn't yet logged in. The current URL still
+   * works for any logged-in custodian on this hold.
+   */
+  async function copyAckLink(personId: string, personName: string) {
+    const origin =
+      typeof window !== "undefined" ? window.location.origin : "";
+    const url = `${origin}/custodian/holds/${holdId}/acknowledge`;
+    try {
+      if (typeof navigator !== "undefined" && navigator.clipboard) {
+        await navigator.clipboard.writeText(url);
+        setCopiedToast(
+          `Copied acknowledgment link for ${personName} (${personId.slice(0, 8)}…).`,
+        );
+      } else {
+        setCopiedToast(`URL: ${url}`);
+      }
+      setTimeout(() => setCopiedToast(null), 4000);
+    } catch (e) {
+      setError(`Clipboard write failed: ${String(e)}`);
     }
   }
 
@@ -241,6 +274,24 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
         </div>
       )}
 
+      {copiedToast && (
+        <div
+          style={{
+            marginTop: 8,
+            padding: "5px 10px",
+            background: `${C.gn}15`,
+            border: `1px solid ${C.gn}55`,
+            borderRadius: 4,
+            color: C.gn,
+            fontFamily: M,
+            fontSize: 10.5,
+            letterSpacing: 0.3,
+          }}
+        >
+          {copiedToast}
+        </div>
+      )}
+
       {!rows && (
         <div style={{ color: C.t3, fontSize: 11, fontFamily: M, marginTop: 14 }}>
           Loading custodians…
@@ -310,6 +361,8 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
                 confirmPreservation(c.personId, dsId)
               }
               onDataSourceAdded={reload}
+              onMarkedAcknowledged={reload}
+              onCopyAckLink={() => copyAckLink(c.personId, c.personName)}
             />
           ))}
         </div>
