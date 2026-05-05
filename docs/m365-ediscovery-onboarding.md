@@ -60,6 +60,18 @@ assignments. This is needed for siteSource preservation.
 
 ## Step 3: Connect AEGIS
 
+> **Operator pre-flight (post-deploy only):** sub-PR 4c.1 added a
+> new `admin:m365:manage` permission. Existing admin role rows in
+> tenants seeded before the deploy carry the older 38-permission
+> bundle and won't have the new permission until the seed re-runs.
+> The `/admin/m365` read views (status cards) tolerate this — they
+> accept `admin:m365:manage` OR `admin:manage_users` — but the
+> Connect / Test / Disconnect buttons require `admin:m365:manage`.
+> Run `pnpm db:migrate:deploy && pnpm db:seed` against the
+> production database after deploying. The seed is idempotent and
+> rewrites `Role.permissions` for every canonical role; no data is
+> lost.
+
 In AEGIS:
 
 1. Navigate to **Admin → M365 Integration** (`/admin/m365`).
