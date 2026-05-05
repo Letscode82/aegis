@@ -3,13 +3,19 @@
  *
  * Round-trips Graph /organization to confirm the resolved
  * credentials work. Updates lastVerifiedAt + lastErrorMessage on
- * the OrganizationM365Credential row when one exists. Permission-
- * gated to admin:manage_users (the same role that manages auth).
+ * the OrganizationM365Credential row when one exists.
+ *
+ * Permission gate: admin:m365:manage OR admin:manage_users.
+ * Sub-PR 4c.1 swapped the gate from admin:manage_users to
+ * admin:m365:manage; that broke production because seeded admin
+ * role rows didn't carry the new 39th permission yet. We accept
+ * either to keep existing admins able to verify while still
+ * recognising the new connection-management permission.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission } from "@aegis/auth";
 import { verifyM365Credentials } from "@aegis/matter";
-import { requireActor } from "../../../../lib/matter-actor";
+import { requireActorAny } from "../../../../lib/matter-actor";
 
 export default async function handler(
   req: NextApiRequest,
@@ -19,7 +25,10 @@ export default async function handler(
     res.setHeader("Allow", "GET,POST");
     return res.status(405).json({ error: "Method not allowed" });
   }
-  const actor = await requireActor(req, res, Permission.AdminM365Manage);
+  const actor = await requireActorAny(req, res, [
+    Permission.AdminM365Manage,
+    Permission.AdminManageUsers,
+  ]);
   if (!actor) return;
   try {
     const result = await verifyM365Credentials(actor.organizationId);
