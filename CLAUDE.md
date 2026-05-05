@@ -217,6 +217,7 @@ the shared bit into a package or add it to the module's `api.ts`.
 | `modules/matter/src/internal/services/m365-graph-client.ts:provisionMatterBindings` (Teams channel creation) | requires a pre-existing `AEGIS-Matters` Team in the customer tenant; does not auto-create the parent Team | Auto-creating a parent Team requires `Group.ReadWrite.All` and `Team.Create` which 4c deliberately did not request — smaller permission surface = easier admin consent in production. The dev tenant has the parent Team pre-seeded; production customer onboarding includes a "create AEGIS parent Team" runbook step. | **Permanent design decision.** |
 | `modules/matter/src/internal/services/m365-graph-client.ts:applyPreservation` (graceful degradation on missing E5) | returns `M365EDiscoveryNotLicensedError` instead of throwing 403; legal-hold workflow falls back to non-Graph preservation modes | Graph eDiscovery API requires E5 + eDiscovery Premium. Customers without that tier should still get partial AEGIS functionality (preservation via copy-to-vault, manual collection). The defensibility scorecard records the gap as a structured component. | **Permanent.** The graceful path is a product requirement, not a temporary workaround. |
 | eDiscovery Graph methods route through `M365GraphDelegatedClient` (delegated user token via Device Code OAuth) instead of the app-only `M365GraphClient` | Microsoft's `/security/cases/...` endpoints do not honor application-permissions tokens (confirmed via Microsoft Q&A late 2025). Every legal-tech incumbent (Mitratech, Relativity, Exterro) handles this with a dedicated M365 service account. Sub-PR 4c.1 adds `M365GraphDelegatedClient` + `RoutedM365Client` so the three eDiscovery methods (`applyPreservation`, `releasePreservation`, `preserveDepartedMailbox`) route through delegated auth while the other five Graph methods stay app-only. | **Sunset if Microsoft ships an app-only fix for `/security/cases/...`** — otherwise permanent. The dual-factory shape stays sustainable either way: the routing table is one source of truth and the migration is "delete one row, add one row" if Microsoft closes the gap. |
+| `@azure/msal-node` is exact-pinned in `modules/matter/package.json` (no caret) | `m365-graph-delegated-auth.ts:defaultExchanger` calls `acquireTokenByRefreshToken` — a public-but-undocumented MSAL API. MSAL has reorganised internal APIs across minor versions in the past, so a caret-range bump could break the refresh path silently | **Sunset** — the 4c.1-cleanup-round-1 follow-up replaces `acquireTokenByRefreshToken` with a direct HTTP POST to `/oauth2/v2.0/token` (`grant_type=refresh_token`), the same pattern `m365-graph-device-code.ts` already uses. Once the rewrite lands, the pin can be relaxed back to a caret range. |
 | `modules/matter/src/internal/legal-hold/services/ai-mock.ts` | declares `HoldAIClient` interface + `MockHoldAIClient` implementation with deterministic stubs for `recommendCustodians`, `recommendCadence`, `draftNotice`, `explainScorecard`. `confidence` is `null` (signals "no model behind this") | Hold UI surfaces (custodian recommendations, cadence picker, notice drafting, scorecard narrative) need real-shaped data today. Real Claude calls land in 4d together with the `AgentDecision` lifecycle (every recommendation writes a row that must reach `APPROVED` before the corresponding mutation runs). | **Sunset at 4d.** The 4d sub-PR replaces the mock with `@aegis/ai`-routed Claude calls and writes `AgentDecision` rows; same return shape, no caller moves. |
 | `modules/matter/src/internal/legal-hold/services/defensibility.ts:getHoldDefensibilityScoreService` (narrative-explanation field) | omits `narrativeMarkdown` in 4b output; structured `components` + `gaps` ship deterministic | The deterministic six-component scorecard is fully implemented in 4b (custodian acknowledgment + re-attestation + data-source coverage + IT confirmation + notice-template integrity + audit-chain integrity). The AI-generated narrative explanation (D6) requires real Claude calls and ships in 4d. | **Sunset at 4d.** The 4d sub-PR adds the `narrativeMarkdown` field on `HoldDefensibilityScore`; deterministic structure stays unchanged. |
 | `modules/matter/src/internal/legal-hold/services/notice-composer.ts:composeAndSendNoticeService` | writes `HoldNoticeIssuance` + per-recipient `LegalHoldEvent` rows + chain-sealed AuditLog rows but does NOT send email. The notice-viewer drill-in shows "Recorded" for every recipient as the delivery status. | Real email delivery requires SMTP/SES/Outlook integration that is a separate product surface. The issuance + chain rows are sufficient defensibility evidence — the recipient roster, body hash, and template-version snapshot are court-ready today; only the per-recipient send-mechanism telemetry is missing. | **Sunset when first customer demands real delivery.** Replace the stub at the service level (the `deliveryStubbed` flag and the "Recorded" status string are the seams); the issuance, audit chain, and per-recipient REMINDER_SENT events all stay unchanged. |
@@ -735,6 +736,49 @@ admin) keeps `pnpm dev` zero-config, and the production guard prevents
 the silent-downgrade footgun. Both stay through the swap.
 
 ---
+
+## What's new in sub-PR 4c.1 cleanup (post-demo polish)
+
+Mechanical follow-up to the 4c.1 + post-4c.1 hotfix landings (PRs
+#28-#33). No behaviour change to the working OAuth/eDiscovery flow.
+
+- **Wires the Graph SDK retry handler that was built but never
+  attached.** `buildClient()` previously passed `middleware:
+  undefined` and discarded `buildRetryHandlerOptions`'s return.
+  429s and 5xx now go through a `RetryHandler(options)` constructed
+  from `DEFAULT_THROTTLE_POLICY`, matching the throttle module's
+  documented promise.
+- **Consolidates two parallel credential resolvers.** PR #31 added a
+  duplicate `resolveClientSecret` in `m365-graph-device-code.ts`;
+  this PR deletes it and points both call sites at the canonical
+  `resolveCredentialsForOrg`. While there, tightens the empty-decrypt
+  fallthrough so a per-org row whose secret unwraps to `""` falls
+  through cleanly to env-var creds.
+- **Pins `@azure/msal-node` exact** (no caret). New documented
+  exception entry; sunset path is to replace
+  `acquireTokenByRefreshToken` with direct HTTP.
+- **Deletes two dead `getM365Client()` accessor stubs** (one in
+  `m365.ts`, one in `m365-factory.ts`). Grep-confirmed zero callers.
+- **Standardises admin endpoint error/success shape.** All five
+  endpoints under `/api/admin/m365/delegated-*` return
+  `{ ok: true, ...data }` on success and
+  `{ ok: false, error: { code, message } }` on failure. Stable
+  `code` values (`METHOD_NOT_ALLOWED`, `MISSING_SESSION_ID`,
+  `M365_NOT_CONFIGURED`, `DELEGATED_TEST_FAILED`, …) replace the
+  three different shapes that drifted.
+- **Replaces `console.error` with `logAudit`** in
+  `delegated-connect/initiate` and `delegated-disconnect`. Every
+  M365 admin endpoint now emits a chain-sealed audit row on
+  failure (`m365.delegated.connect.failed`,
+  `m365.delegated.disconnect.failed`); nothing relies on
+  `console.error` for visibility.
+- **Hygiene:** `createHash` import moved from the bottom of
+  `m365-graph-delegated-auth.ts` to the top with the other imports;
+  dead `ConfidentialClientApplication` destructure removed from the
+  same file's `defaultExchanger`.
+
+Net new tests: retry-middleware-installed assertion + empty-decrypt
+fallthrough regression (117 → 119 matter tests).
 
 ## What's new in sub-PR 4c.1 (eDiscovery delegated authentication)
 

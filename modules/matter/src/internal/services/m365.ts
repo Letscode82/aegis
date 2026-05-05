@@ -280,8 +280,3 @@ export class MockM365Client implements M365Client {
     ];
   }
 }
-
-/** Factory; 4c will swap the implementation here. */
-export function getM365Client(): M365Client {
-  return new MockM365Client();
-}

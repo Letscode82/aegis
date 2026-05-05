@@ -17,6 +17,9 @@ interface FakeRow {
   clientId: string;
   /** v1-prefixed encrypted plaintext (test helper). */
   encryptedClientSecret: Buffer | null;
+  isActive: boolean;
+  graphBaseUrl: string;
+  rotatedAt: Date | null;
   delegatedRefreshToken: Buffer | null;
   delegatedAccountUpn: string | null;
   delegatedAuthorizedAt: Date | null;
@@ -54,12 +57,16 @@ function resetDb() {
     organizationId: "org-1",
     tenantId: "tenant-x",
     clientId: "client-x",
-    // Pre-encrypted (v1pl prefix + plaintext) so resolveClientSecret
-    // unwraps to "secret-xyz" without needing the real encryptSecret.
+    // Pre-encrypted (v1pl prefix + plaintext) so the canonical
+    // resolveCredentialsForOrg unwraps to "secret-xyz" without
+    // needing the real encryptSecret.
     encryptedClientSecret: Buffer.concat([
       Buffer.from("v1pl"),
       Buffer.from("secret-xyz", "utf8"),
     ]),
+    isActive: true,
+    graphBaseUrl: "https://graph.microsoft.com",
+    rotatedAt: null,
     delegatedRefreshToken: null,
     delegatedAccountUpn: null,
     delegatedAuthorizedAt: null,
@@ -117,6 +124,9 @@ vi.mock("@aegis/db", () => {
             tenantId: (create.tenantId as string) ?? "",
             clientId: (create.clientId as string) ?? "",
             encryptedClientSecret: null,
+            isActive: true,
+            graphBaseUrl: "https://graph.microsoft.com",
+            rotatedAt: null,
             delegatedRefreshToken: null,
             delegatedAccountUpn: null,
             delegatedAuthorizedAt: null,
@@ -753,6 +763,60 @@ describe("Device Code orchestrator (DB-backed)", () => {
       else process.env.M365_CLIENT_SECRET = prev;
       delete process.env.M365_TENANT_ID;
       delete process.env.M365_CLIENT_ID;
+    }
+  });
+
+  it("per-org row whose secret decrypts to empty falls through to env var", async () => {
+    // Regression: pre-cleanup, two parallel resolvers diverged. The
+    // factory-side resolver returned empty string when the per-org
+    // row's encrypted secret unwrapped to "" (e.g. placeholder bytes
+    // stored by an early seed); the device-code-side resolver fell
+    // through to the env var. After consolidation, the canonical
+    // resolver does the right thing in both call sites.
+    FAKE_DB.row = {
+      ...FAKE_DB.row!,
+      // v1pl prefix only — decrypts to empty plaintext.
+      encryptedClientSecret: Buffer.from("v1pl"),
+    };
+    const prev = {
+      secret: process.env.M365_CLIENT_SECRET,
+      tenant: process.env.M365_TENANT_ID,
+      client: process.env.M365_CLIENT_ID,
+    };
+    process.env.M365_CLIENT_SECRET = "env-fallback-secret";
+    process.env.M365_TENANT_ID = "tenant-x";
+    process.env.M365_CLIENT_ID = "client-x";
+    const recorded: URLSearchParams[] = [];
+    setOAuthHttpClient({
+      post: vi.fn(async (_url: string, body: URLSearchParams) => {
+        recorded.push(body);
+        return {
+          status: 200,
+          json: {
+            device_code: "DC-empty",
+            user_code: "EMPTY",
+            verification_uri: "https://microsoft.com/devicelogin",
+            expires_in: 900,
+            interval: 5,
+          },
+        };
+      }),
+    });
+    try {
+      await initiateDeviceCodeFlow({
+        organizationId: "org-1",
+        tenantId: "tenant-x",
+        clientId: "client-x",
+        authorizedById: "u-admin",
+      });
+      expect(recorded[0]!.get("client_secret")).toBe("env-fallback-secret");
+    } finally {
+      if (prev.secret === undefined) delete process.env.M365_CLIENT_SECRET;
+      else process.env.M365_CLIENT_SECRET = prev.secret;
+      if (prev.tenant === undefined) delete process.env.M365_TENANT_ID;
+      else process.env.M365_TENANT_ID = prev.tenant;
+      if (prev.client === undefined) delete process.env.M365_CLIENT_ID;
+      else process.env.M365_CLIENT_ID = prev.client;
     }
   });
 

@@ -6,6 +6,10 @@
  * fail-loud with M365DelegatedAuthRequiredError in production until
  * a re-authorize completes.
  *
+ * Response shape (sub-PR 4c.1 cleanup):
+ *   200 { ok: true }
+ *   4xx { ok: false, error: { code, message } }
+ *
  * Permission: admin:m365:manage.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -20,7 +24,10 @@ export default async function handler(
 ) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
-    return res.status(405).json({ error: "Method not allowed" });
+    return res.status(405).json({
+      ok: false,
+      error: { code: "METHOD_NOT_ALLOWED", message: "Method not allowed" },
+    });
   }
   const actor = await requireActor(req, res, Permission.AdminM365Manage);
   if (!actor) return;
@@ -39,9 +46,21 @@ export default async function handler(
     });
     return res.status(200).json({ ok: true });
   } catch (err) {
-    console.error("[delegated-disconnect] failed:", err);
-    return res
-      .status(500)
-      .json({ error: String((err as Error)?.message ?? err) });
+    const e = err as { name?: string; message?: string };
+    const code = e.name ?? "DELEGATED_DISCONNECT_FAILED";
+    const message = (e.message ?? String(err)).slice(0, 240);
+    await logAudit({
+      organizationId: actor.organizationId,
+      actorId: actor.id,
+      actorType: "USER",
+      action: "m365.delegated.disconnect.failed",
+      resourceType: "OrganizationM365Credential",
+      resourceId: actor.organizationId,
+      metadata: { errorCode: code, errorMessage: message },
+    });
+    return res.status(500).json({
+      ok: false,
+      error: { code, message },
+    });
   }
 }

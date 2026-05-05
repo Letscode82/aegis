@@ -19,7 +19,14 @@
  * one layer up at the call site (withGraphAudit).
  */
 import { ClientSecretCredential } from "@azure/identity";
-import { Client } from "@microsoft/microsoft-graph-client";
+import {
+  AuthenticationHandler,
+  Client,
+  HTTPMessageHandler,
+  RetryHandler,
+  RetryHandlerOptions,
+  TelemetryHandler,
+} from "@microsoft/microsoft-graph-client";
 import {
   decryptSecret,
   prisma,
@@ -28,7 +35,6 @@ import {
 import { mapGraphError } from "./m365-graph-errors";
 import {
   DEFAULT_THROTTLE_POLICY,
-  buildRetryHandlerOptions,
 } from "./m365-graph-throttle";
 import { withGraphAudit } from "./m365-graph-audit";
 import type { M365VerifyResult } from "./m365-graph-types";
@@ -76,22 +82,29 @@ export async function resolveCredentialsForOrg(
     where: { organizationId },
   });
   if (row && row.isActive) {
-    let plaintext: string;
+    let plaintext: string | null = null;
     try {
       plaintext = decryptSecret(row.encryptedClientSecret as Buffer);
     } catch {
-      // Bad cipher / wrong version — treat as not configured rather
-      // than crash. The admin /admin/m365 page surfaces the error.
-      return null;
+      // Bad cipher / wrong version — treat as not configured. Falls
+      // through to the env-var path below so a misencoded per-org
+      // row doesn't lock out an otherwise-working deployment.
     }
-    return {
-      source: "per-org",
-      tenantId: row.tenantId,
-      clientId: row.clientId,
-      clientSecret: plaintext,
-      fingerprint: `org:${secretFingerprint(plaintext)}:${row.rotatedAt?.getTime() ?? "init"}`,
-      graphBaseUrl: row.graphBaseUrl,
-    };
+    // An empty plaintext also counts as not configured — Microsoft
+    // would reject the OAuth call and the operator would see a
+    // confusing AADSTS error instead of MISSING_CREDENTIALS. This
+    // matches what the post-PR-31 device-code-side resolver was
+    // doing; this fix consolidates the two checks into one.
+    if (plaintext && plaintext.length > 0) {
+      return {
+        source: "per-org",
+        tenantId: row.tenantId,
+        clientId: row.clientId,
+        clientSecret: plaintext,
+        fingerprint: `org:${secretFingerprint(plaintext)}:${row.rotatedAt?.getTime() ?? "init"}`,
+        graphBaseUrl: row.graphBaseUrl,
+      };
+    }
   }
 
   const tenantId = process.env.M365_TENANT_ID;
@@ -127,33 +140,49 @@ function buildClient(creds: ResolvedCredentials): Client {
     creds.clientId,
     creds.clientSecret,
   );
-  // The SDK's TokenCredentialAuthenticationProvider takes care of
-  // token caching via @azure/identity's in-process cache.
-  // initWithMiddleware lets us layer in retry handler options without
-  // touching the auth pipeline. The SDK ships sane defaults that we
-  // refine via buildRetryHandlerOptions.
-  const client = Client.initWithMiddleware({
-    authProvider: {
-      getAccessToken: async (): Promise<string> => {
-        const token = await credential.getToken(
-          `${creds.graphBaseUrl}/.default`,
-        );
-        if (!token) throw new Error("ClientSecretCredential returned null token");
-        return token.token;
-      },
+  const authProvider = {
+    getAccessToken: async (): Promise<string> => {
+      const token = await credential.getToken(
+        `${creds.graphBaseUrl}/.default`,
+      );
+      if (!token) throw new Error("ClientSecretCredential returned null token");
+      return token.token;
     },
-    middleware: undefined,
-    debugLogging: false,
-    fetchOptions: {},
-    customHosts: undefined,
+  };
+  // Build the SDK middleware chain manually so the RetryHandler is
+  // constructed with our `DEFAULT_THROTTLE_POLICY` rather than the
+  // SDK's defaults. Order is fixed by the SDK's contract:
+  //
+  //   AuthenticationHandler → RetryHandler → TelemetryHandler → HTTPMessageHandler
+  //
+  // The previous implementation passed `middleware: undefined` and
+  // separately called `buildRetryHandlerOptions(...)` while
+  // discarding the return value — so 429s and 5xx surfaced as
+  // `M365ThrottleExceededError` after a single attempt instead of
+  // being absorbed by the middleware as the throttle module's
+  // comment promised.
+  const policy = DEFAULT_THROTTLE_POLICY;
+  const retryOptions = new RetryHandlerOptions(
+    policy.backoffBaseMs / 1000, // seconds — SDK convention
+    policy.maxRetries,
+    (_delay, attempt, _request, _options, response) => {
+      if (attempt >= policy.maxRetries) return false;
+      if (response.status === 429) return true;
+      if (response.status >= 500 && response.status < 600) return true;
+      return false;
+    },
+  );
+  const auth = new AuthenticationHandler(authProvider);
+  const retry = new RetryHandler(retryOptions);
+  const telemetry = new TelemetryHandler();
+  const http = new HTTPMessageHandler();
+  auth.setNext(retry);
+  retry.setNext(telemetry);
+  telemetry.setNext(http);
+  return Client.initWithMiddleware({
+    middleware: auth,
     defaultVersion: "v1.0",
-  } as unknown as Parameters<typeof Client.initWithMiddleware>[0]);
-  // Apply retry policy options through the SDK's setting hook.
-  // (The SDK exposes retry config via middleware options; for the
-  // base client we just keep DEFAULT_THROTTLE_POLICY as the
-  // caller-side reference.)
-  void buildRetryHandlerOptions(DEFAULT_THROTTLE_POLICY);
-  return client;
+  });
 }
 
 /**

@@ -115,12 +115,15 @@ export const AdminM365Status: React.FC = () => {
       const r = await fetch("/api/admin/m365/delegated-connect/initiate", {
         method: "POST",
       });
-      if (!r.ok) {
-        const body = (await r.json().catch(() => ({}))) as { error?: string };
-        throw new Error(body.error ?? `HTTP ${r.status}`);
+      const body = (await r.json().catch(() => ({}))) as Partial<{
+        ok: boolean;
+        error: { code: string; message: string };
+      }> &
+        Partial<InitiateResult>;
+      if (!r.ok || body.ok === false) {
+        throw new Error(body.error?.message ?? `HTTP ${r.status}`);
       }
-      const init = (await r.json()) as InitiateResult;
-      setConnectModal(init);
+      setConnectModal(body as InitiateResult);
     } catch (e) {
       setConnectError(String((e as Error).message ?? e));
       setConnectStatus("error");
@@ -139,11 +142,17 @@ export const AdminM365Status: React.FC = () => {
       const r = await fetch("/api/admin/m365/delegated-disconnect", {
         method: "POST",
       });
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      const body = (await r.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: { code?: string; message?: string };
+      };
+      if (!r.ok || body.ok === false) {
+        throw new Error(body.error?.message ?? `HTTP ${r.status}`);
+      }
       toast.success("Delegated authorization disconnected");
       await reload();
     } catch (e) {
-      toast.error(`Disconnect failed: ${String(e)}`);
+      toast.error(`Disconnect failed: ${String((e as Error).message ?? e)}`);
     }
   }
 
