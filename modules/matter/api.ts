@@ -418,6 +418,18 @@ export async function confirmDataSourcePreservation(
 }
 
 // Notice templates
+export async function listNoticeTemplates(organizationId: string) {
+  return LegalHoldServices.listNoticeTemplatesService(organizationId);
+}
+export async function getNoticeTemplateById(
+  organizationId: string,
+  templateId: string,
+) {
+  return LegalHoldServices.getNoticeTemplateByIdService(
+    organizationId,
+    templateId,
+  );
+}
 export async function createNoticeTemplate(
   input: import("./src/internal/legal-hold").CreateNoticeTemplateInput,
   actor: import("./src/internal/legal-hold").HoldActor,

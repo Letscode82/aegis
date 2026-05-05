@@ -60,6 +60,31 @@ export async function updateNoticeTemplateService(
   });
 }
 
+/**
+ * List notice templates for an org. Sub-PR 4c.1 — feeds the new
+ * /admin/legal-hold/notice-templates list page so the visual editor
+ * has a discoverable index entry. Sorted: active first, then most
+ * recently updated.
+ */
+export async function listNoticeTemplatesService(
+  organizationId: string,
+): Promise<HoldNoticeTemplate[]> {
+  return prisma.holdNoticeTemplate.findMany({
+    where: { organizationId },
+    orderBy: [{ isActive: "desc" }, { updatedAt: "desc" }],
+  });
+}
+
+/** Read a single notice template scoped to the org. */
+export async function getNoticeTemplateByIdService(
+  organizationId: string,
+  templateId: string,
+): Promise<HoldNoticeTemplate | null> {
+  return prisma.holdNoticeTemplate.findFirst({
+    where: { id: templateId, organizationId },
+  });
+}
+
 /** Returns a template best-matching the requested jurisdiction key. */
 export async function pickTemplateForJurisdiction(
   organizationId: string,

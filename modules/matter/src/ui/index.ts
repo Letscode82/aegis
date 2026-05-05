@@ -31,6 +31,12 @@ export { HoldScopeTemplatesAdmin } from "./legal-hold/HoldScopeTemplatesAdmin";
 export { NoticeTemplateEditor } from "./legal-hold/NoticeTemplateEditor";
 export { CustodianPortalHome } from "./legal-hold/CustodianPortalHome";
 
+// Legal Hold maintenance jobs admin (sub-PR 4c.1)
+export { JobsAdmin } from "./legal-hold/JobsAdmin";
+
+// Notice template admin list (sub-PR 4c.1)
+export { NoticeTemplatesAdmin } from "./legal-hold/NoticeTemplatesAdmin";
+
 export type {
   MatterDTO,
   MatterPartyDTO,

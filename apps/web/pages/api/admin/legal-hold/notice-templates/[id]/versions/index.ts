@@ -1,8 +1,11 @@
 /**
- * GET  /api/admin/legal-hold/templates/[id]/versions
+ * GET  /api/admin/legal-hold/notice-templates/[id]/versions
  *      List version history (newest first).
- * POST /api/admin/legal-hold/templates/[id]/versions
+ * POST /api/admin/legal-hold/notice-templates/[id]/versions
  *      Save a new version. Body: { bodyMarkdown, changeLog? }
+ *
+ * Sub-PR 4c.1 — re-housed from /templates/[id]/versions (which lived
+ * alongside scope-template routes) to a dedicated path.
  *
  * Both gated by `admin:legal_hold:templates_manage`.
  */
@@ -57,8 +60,10 @@ export default async function handler(
       );
       return res.status(201).json(result);
     } catch (err) {
-      console.error("[template-versions POST] failed:", err);
-      return res.status(500).json({ error: String(err) });
+      console.error("[notice-template-versions POST] failed:", err);
+      return res
+        .status(500)
+        .json({ error: String((err as Error)?.message ?? err) });
     }
   }
 

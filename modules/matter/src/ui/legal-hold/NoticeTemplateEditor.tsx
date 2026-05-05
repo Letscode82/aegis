@@ -123,7 +123,7 @@ export const NoticeTemplateEditor: React.FC<NoticeTemplateEditorProps> = ({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   function reload() {
-    fetch(`/api/admin/legal-hold/templates/${templateId}`)
+    fetch(`/api/admin/legal-hold/notice-templates/${templateId}`)
       .then((r) => (r.ok ? r.json() : Promise.reject(`HTTP ${r.status}`)))
       .then((t: Template) => {
         setTemplate(t);
@@ -131,7 +131,7 @@ export const NoticeTemplateEditor: React.FC<NoticeTemplateEditorProps> = ({
         setPreviewBody(renderPreview(t.bodyMarkdown));
       })
       .catch((e) => toast.error(String(e)));
-    fetch(`/api/admin/legal-hold/templates/${templateId}/versions`)
+    fetch(`/api/admin/legal-hold/notice-templates/${templateId}/versions`)
       .then((r) => (r.ok ? r.json() : []))
       .then(setVersions)
       .catch(() => setVersions([]));
@@ -177,7 +177,7 @@ export const NoticeTemplateEditor: React.FC<NoticeTemplateEditorProps> = ({
     if (!template) return;
     try {
       const r = await fetch(
-        `/api/admin/legal-hold/templates/${templateId}`,
+        `/api/admin/legal-hold/notice-templates/${templateId}`,
         {
           method: "PUT",
           headers: { "content-type": "application/json" },
@@ -490,7 +490,7 @@ export const NoticeTemplateEditor: React.FC<NoticeTemplateEditorProps> = ({
             setSubmitting(true);
             try {
               const r = await fetch(
-                `/api/admin/legal-hold/templates/${templateId}/versions`,
+                `/api/admin/legal-hold/notice-templates/${templateId}/versions`,
                 {
                   method: "POST",
                   headers: { "content-type": "application/json" },

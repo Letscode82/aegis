@@ -44,7 +44,9 @@ export {
 // Notice templates
 export {
   createNoticeTemplateService,
+  getNoticeTemplateByIdService,
   issueNoticeService,
+  listNoticeTemplatesService,
   pickTemplateForJurisdiction,
   updateNoticeTemplateService,
 } from "./services/notice-template";

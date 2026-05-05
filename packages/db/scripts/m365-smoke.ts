@@ -77,11 +77,13 @@ async function main() {
     });
   });
 
-  // 2. enumerateDataSourcesForUser — pick the first candidate or
-  //    fall back to a known service-account UPN. Without a real user
-  //    in the tenant we just attempt a known-stable UPN; the smoke
-  //    script tolerates 404s.
-  const probeUpn = process.env.M365_SMOKE_USER_UPN ?? "noreply@" + (env.tenant ?? "");
+  // 2. enumerateDataSourcesForUser — UPN-shaped input now resolves to
+  //    the Graph user GUID transparently inside the client (sub-PR
+  //    4c.1 cleanup, Item 5). Pick the first candidate from step 1
+  //    when available; fall back to M365_SMOKE_USER_UPN env var.
+  const probeUpn =
+    process.env.M365_SMOKE_USER_UPN ??
+    "aegisadmin@" + (env.tenant?.includes(".") ? env.tenant : "6bs6wq.onmicrosoft.com");
   await timed("enumerateDataSourcesForUser", async () => {
     const sources = await client.enumerateDataSourcesForUser(probeUpn);
     console.log(`  → ${sources.length} source(s) for ${probeUpn}`);
@@ -110,9 +112,20 @@ async function main() {
   }
 
   // 4. applyPreservation — the eDiscovery dance. Uses the seeded
-  //    hold's id so re-runs hit existing case.
+  //    hold's id so re-runs hit existing case. Sub-PR 4c.1: this
+  //    method now routes through M365GraphDelegatedClient when the
+  //    org has stored a delegated refresh token. In dev without
+  //    delegated auth, it falls back to the mock; the smoke script
+  //    documents which path was taken.
   const hold = await prisma.legalHold.findFirst({ where: { id: "lh-snowflake" } });
   if (hold) {
+    const credRow = await prisma.organizationM365Credential.findUnique({
+      where: { organizationId: org.id },
+    });
+    const delegatedConfigured = !!credRow?.delegatedRefreshToken;
+    console.log(
+      `\n[applyPreservation] auth path: ${delegatedConfigured ? "delegated (real eDiscovery)" : "mock fallback (run /admin/m365 Device Code first for real path)"}`,
+    );
     await timed("applyPreservation", async () => {
       const result = await client.applyPreservation({
         custodianExternalIdentifier: probeUpn,
@@ -123,6 +136,16 @@ async function main() {
       });
       console.log(`  → ok=${result.ok} ref=${result.upstreamReferenceId ?? "(none)"}`);
     });
+    if (delegatedConfigured) {
+      await timed("releasePreservation", async () => {
+        await client.releasePreservation({
+          custodianExternalIdentifier: probeUpn,
+          dataSourceExternalIdentifier: probeUpn,
+          type: "EMAIL_MAILBOX",
+        });
+        console.log(`  → release ok`);
+      });
+    }
   } else {
     console.log("[skip] hold lh-snowflake not found");
   }
