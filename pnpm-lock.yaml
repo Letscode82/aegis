@@ -149,6 +149,9 @@ importers:
       '@azure/identity':
         specifier: 4.4.1
         version: 4.4.1
+      '@azure/msal-node':
+        specifier: 2.16.3
+        version: 2.16.3
       '@microsoft/microsoft-graph-client':
         specifier: 3.0.7
         version: 3.0.7(@azure/identity@4.4.1)

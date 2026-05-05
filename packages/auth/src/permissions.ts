@@ -84,6 +84,9 @@ export enum Permission {
   AdminManageRoles             = "admin:manage_roles",
   /** Sub-PR 4c.4: hold-scope template CRUD. */
   AdminLegalHoldTemplatesManage = "admin:legal_hold:templates_manage",
+  /** Sub-PR 4c.1: M365 connection management — app-only credentials
+   *  and the eDiscovery delegated-auth Device Code flow. */
+  AdminM365Manage              = "admin:m365:manage",
 }
 
 /** Every permission value as a flat string array. Used by the seed and

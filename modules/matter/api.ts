@@ -710,6 +710,8 @@ export {
 } from "./src/internal/services/m365-graph-auth";
 
 export {
+  M365DelegatedAuthExpiredError,
+  M365DelegatedAuthRequiredError,
   M365EDiscoveryNotLicensedError,
   M365GraphAuthError,
   M365GraphError,
@@ -717,6 +719,27 @@ export {
   M365TenantUnreachableError,
   M365ThrottleExceededError,
 } from "./src/internal/services/m365-graph-errors";
+
+// ── M365 delegated authentication (sub-PR 4c.1) ───────────────────
+
+export {
+  clearDelegatedTokens,
+  getDelegatedAuthStatus,
+  getFreshDelegatedAccessToken,
+  setRefreshTokenExchanger,
+  type DelegatedAuthStatus,
+  type RefreshTokenExchanger,
+} from "./src/internal/services/m365-graph-delegated-auth";
+
+export {
+  initiateDeviceCodeFlow,
+  pollDeviceCodeFlow,
+  setDeviceCodeFactory,
+  type DeviceCodeFactory,
+  type InitiateDeviceCodeInput,
+  type InitiateDeviceCodeResult,
+  type PollDeviceCodeResult,
+} from "./src/internal/services/m365-graph-device-code";
 
 export type {
   M365ConnectionStatus,

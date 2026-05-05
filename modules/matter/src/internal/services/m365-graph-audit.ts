@@ -27,6 +27,11 @@ export interface GraphAuditContext {
   actorType?: AuditActorType;
   /** Optional resource linkage — when the call is on behalf of a hold. */
   resource?: { type: string; id: string };
+  /** Extra audit metadata. Sub-PR 4c.1 records `authMode` here so
+   *  defensibility queries can reconstruct which auth path serviced
+   *  each call ("app" for app-only client-credentials, "delegated"
+   *  for the eDiscovery service-account flow). */
+  metadata?: Record<string, unknown>;
 }
 
 /**
@@ -56,6 +61,7 @@ export async function withGraphAudit<T>(
         statusCode: 200,
         tenantId: ctx.tenantId,
         durationMs,
+        ...(ctx.metadata ?? {}),
       },
     });
     return result;
@@ -81,6 +87,7 @@ export async function withGraphAudit<T>(
         errorName: e.name ?? "Error",
         tenantId: ctx.tenantId,
         durationMs,
+        ...(ctx.metadata ?? {}),
       },
     });
     throw err;

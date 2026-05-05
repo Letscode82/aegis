@@ -1616,6 +1616,22 @@ model OrganizationM365Credential {
   /// when this changes.
   rotatedAt             DateTime?
 
+  // ── Delegated authentication (sub-PR 4c.1) ─────────────────────────
+  // Microsoft's eDiscovery endpoints don't honor application-permissions
+  // tokens; they require a delegated user token. AEGIS uses a dedicated
+  // M365 service account authorized once per org via Device Code OAuth.
+  // The refresh token is encrypted at rest with the same v1 prefix
+  // pattern as `encryptedClientSecret` (sunset to KMS before first
+  // paying customer per CLAUDE.md "Documented exceptions").
+  delegatedRefreshToken     Bytes?
+  delegatedAccountUpn       String?
+  delegatedAuthorizedAt     DateTime?
+  delegatedAuthorizedById   String?
+  delegatedTokenExpiresAt   DateTime?
+  delegatedLastRefreshedAt  DateTime?
+  delegatedLastRefreshError String?
+  delegatedScopesGranted    String[]
+
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, isActive])

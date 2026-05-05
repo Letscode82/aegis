@@ -578,16 +578,24 @@ export class M365GraphClient implements M365Client {
   async enumerateDataSourcesForUser(
     externalIdentifier: string,
   ): Promise<EnumeratedDataSource[]> {
+    // Sub-PR 4c.1 cleanup: callers occasionally pass an email or an
+    // AEGIS person id where Graph's `/users/{id}/...` endpoints want
+    // a GUID or UPN. Resolve once here so legacy callers don't have
+    // to thread a `resolveGraphUserId` step through their callsites.
+    // GUID-shaped strings (8-4-4-4-12 hex) and `*@*` UPNs both pass
+    // through `/users/{id}` directly; anything else attempts a
+    // best-effort lookup before falling back unchanged.
+    const resolvedId = await this.resolveGraphUserIdentifier(externalIdentifier);
     const out: EnumeratedDataSource[] = [];
 
     // Mailbox.
     const hasMailbox = await this.tryGet(
-      `/users/${externalIdentifier}/mailboxSettings`,
+      `/users/${resolvedId}/mailboxSettings`,
     );
     if (hasMailbox) {
       out.push({
         type: "EMAIL_MAILBOX",
-        externalIdentifier: `exchange:${externalIdentifier}`,
+        externalIdentifier: `exchange:${resolvedId}`,
         displayLabel: "Exchange mailbox",
         retentionPolicy: "graph-default",
         retentionPolicyConflict: false,
@@ -596,7 +604,7 @@ export class M365GraphClient implements M365Client {
 
     // OneDrive.
     const drive = await this.tryGet<{ id?: string; webUrl?: string }>(
-      `/users/${externalIdentifier}/drive`,
+      `/users/${resolvedId}/drive`,
     );
     if (drive?.id) {
       out.push({
@@ -610,7 +618,7 @@ export class M365GraphClient implements M365Client {
 
     // Teams DMs (one-on-one chats).
     const chats = await this.tryGet<{ value?: Array<{ id: string }> }>(
-      `/users/${externalIdentifier}/chats?$filter=chatType eq 'oneOnOne'&$top=1`,
+      `/users/${resolvedId}/chats?$filter=chatType eq 'oneOnOne'&$top=1`,
     );
     if (chats?.value && chats.value.length > 0 && chats.value[0]) {
       out.push({
@@ -624,7 +632,7 @@ export class M365GraphClient implements M365Client {
 
     // Joined Teams channels.
     const teams = await this.tryGet<{ value?: Array<{ id: string }> }>(
-      `/users/${externalIdentifier}/joinedTeams?$top=10`,
+      `/users/${resolvedId}/joinedTeams?$top=10`,
     );
     if (teams?.value) {
       for (const team of teams.value) {
@@ -639,6 +647,49 @@ export class M365GraphClient implements M365Client {
     }
 
     return out;
+  }
+
+  /**
+   * Per-call cache so a single `enumerateDataSourcesForUser` call
+   * doesn't lookup the same email twice across mailbox/drive/teams
+   * endpoints. Per-instance map; lifetime matches the cached graph
+   * client itself (m365-graph-auth).
+   */
+  private readonly userIdCache = new Map<string, string>();
+
+  /**
+   * Sub-PR 4c.1 — resolve an email/UPN/AEGIS-id input to whatever
+   * Graph's `/users/{id}` endpoints accept. Strategy:
+   *
+   *   - GUID-shaped → return as-is (Graph accepts).
+   *   - Email-shaped → return as-is (Graph accepts UPN/email).
+   *   - Otherwise → attempt a directory lookup (`/users/{x}`); on
+   *     success return the resolved `id`; on failure return the
+   *     input unchanged so the upstream tryGet returns 404 (matches
+   *     the legacy behaviour for missing users).
+   */
+  private async resolveGraphUserIdentifier(input: string): Promise<string> {
+    if (this.userIdCache.has(input)) return this.userIdCache.get(input) as string;
+    const isGuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+      input,
+    );
+    if (isGuid || input.includes("@")) {
+      this.userIdCache.set(input, input);
+      return input;
+    }
+    try {
+      const resp = (await this.graph.api(`/users/${input}`).select("id").get()) as {
+        id?: string;
+      };
+      if (resp?.id) {
+        this.userIdCache.set(input, resp.id);
+        return resp.id;
+      }
+    } catch {
+      // Fallthrough: caller's tryGet handles 404 gracefully.
+    }
+    this.userIdCache.set(input, input);
+    return input;
   }
 
   /**

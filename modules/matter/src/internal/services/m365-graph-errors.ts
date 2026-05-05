@@ -109,6 +109,58 @@ export class M365TenantUnreachableError extends M365GraphError {
 }
 
 /**
+ * Sub-PR 4c.1 — eDiscovery operation called but no delegated-auth
+ * refresh token is stored for the org. The admin must run the Device
+ * Code flow at /admin/m365 before eDiscovery operations can proceed.
+ *
+ * In production (NODE_ENV=production) this error is fatal; in dev
+ * the factory falls back to MockM365Client so the workflow stays
+ * walkable without external creds.
+ */
+export class M365DelegatedAuthRequiredError extends M365GraphError {
+  constructor(
+    message: string,
+    opts: {
+      correlationId?: string | null;
+      endpoint?: string | null;
+    } = {},
+  ) {
+    super(message, opts);
+    this.name = "M365DelegatedAuthRequiredError";
+  }
+}
+
+/**
+ * Sub-PR 4c.1 — the stored delegated refresh token was rejected by
+ * Microsoft (rotated password, MFA re-enrollment, revoked token).
+ * Surfaces in /admin/m365 as a re-authorize banner.
+ */
+export class M365DelegatedAuthExpiredError extends M365GraphError {
+  /** Microsoft AADSTS code if recoverable, else null. */
+  public readonly upstreamCode: string | null;
+  /** Human-readable message from Microsoft if available. */
+  public readonly upstreamMessage: string | null;
+  /** Last successful refresh, for the admin UI banner. */
+  public readonly lastWorkingAt: Date | null;
+  constructor(
+    message: string,
+    opts: {
+      correlationId?: string | null;
+      endpoint?: string | null;
+      upstreamCode?: string | null;
+      upstreamMessage?: string | null;
+      lastWorkingAt?: Date | null;
+    } = {},
+  ) {
+    super(message, opts);
+    this.name = "M365DelegatedAuthExpiredError";
+    this.upstreamCode = opts.upstreamCode ?? null;
+    this.upstreamMessage = opts.upstreamMessage ?? null;
+    this.lastWorkingAt = opts.lastWorkingAt ?? null;
+  }
+}
+
+/**
  * Resource not found at the Graph endpoint (e.g. eDiscovery custodian
  * id no longer exists because the case was deleted out-of-band).
  * Distinct from auth so callers can decide whether to recreate.
