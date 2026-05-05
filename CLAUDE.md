@@ -217,7 +217,6 @@ the shared bit into a package or add it to the module's `api.ts`.
 | `modules/matter/src/internal/services/m365-graph-client.ts:provisionMatterBindings` (Teams channel creation) | requires a pre-existing `AEGIS-Matters` Team in the customer tenant; does not auto-create the parent Team | Auto-creating a parent Team requires `Group.ReadWrite.All` and `Team.Create` which 4c deliberately did not request — smaller permission surface = easier admin consent in production. The dev tenant has the parent Team pre-seeded; production customer onboarding includes a "create AEGIS parent Team" runbook step. | **Permanent design decision.** |
 | `modules/matter/src/internal/services/m365-graph-client.ts:applyPreservation` (graceful degradation on missing E5) | returns `M365EDiscoveryNotLicensedError` instead of throwing 403; legal-hold workflow falls back to non-Graph preservation modes | Graph eDiscovery API requires E5 + eDiscovery Premium. Customers without that tier should still get partial AEGIS functionality (preservation via copy-to-vault, manual collection). The defensibility scorecard records the gap as a structured component. | **Permanent.** The graceful path is a product requirement, not a temporary workaround. |
 | eDiscovery Graph methods route through `M365GraphDelegatedClient` (delegated user token via Device Code OAuth) instead of the app-only `M365GraphClient` | Microsoft's `/security/cases/...` endpoints do not honor application-permissions tokens (confirmed via Microsoft Q&A late 2025). Every legal-tech incumbent (Mitratech, Relativity, Exterro) handles this with a dedicated M365 service account. Sub-PR 4c.1 adds `M365GraphDelegatedClient` + `RoutedM365Client` so the three eDiscovery methods (`applyPreservation`, `releasePreservation`, `preserveDepartedMailbox`) route through delegated auth while the other five Graph methods stay app-only. | **Sunset if Microsoft ships an app-only fix for `/security/cases/...`** — otherwise permanent. The dual-factory shape stays sustainable either way: the routing table is one source of truth and the migration is "delete one row, add one row" if Microsoft closes the gap. |
-| Device Code OAuth sessions live in a `Map<sessionId, DeviceCodeSession>` in module scope (`m365-graph-device-code.ts`) rather than a database row | The Device Code flow is short-lived (≤15 minutes from initiate to user sign-in) and admin-only. A serialized session table would add complexity for a flow whose total in-flight count per org is exactly 0 or 1 at any time. The Connect button is in admin UI only. | **Permanent.** Multi-instance deployments must complete the flow on the same Node process that initiated it (the load balancer's stickiness window covers a 60-second flow). If horizontal scale ever invalidates this, replace the in-process Map with a Redis-backed map; the surface (`initiate` / `poll`) doesn't change. |
 | `modules/matter/src/internal/legal-hold/services/ai-mock.ts` | declares `HoldAIClient` interface + `MockHoldAIClient` implementation with deterministic stubs for `recommendCustodians`, `recommendCadence`, `draftNotice`, `explainScorecard`. `confidence` is `null` (signals "no model behind this") | Hold UI surfaces (custodian recommendations, cadence picker, notice drafting, scorecard narrative) need real-shaped data today. Real Claude calls land in 4d together with the `AgentDecision` lifecycle (every recommendation writes a row that must reach `APPROVED` before the corresponding mutation runs). | **Sunset at 4d.** The 4d sub-PR replaces the mock with `@aegis/ai`-routed Claude calls and writes `AgentDecision` rows; same return shape, no caller moves. |
 | `modules/matter/src/internal/legal-hold/services/defensibility.ts:getHoldDefensibilityScoreService` (narrative-explanation field) | omits `narrativeMarkdown` in 4b output; structured `components` + `gaps` ship deterministic | The deterministic six-component scorecard is fully implemented in 4b (custodian acknowledgment + re-attestation + data-source coverage + IT confirmation + notice-template integrity + audit-chain integrity). The AI-generated narrative explanation (D6) requires real Claude calls and ships in 4d. | **Sunset at 4d.** The 4d sub-PR adds the `narrativeMarkdown` field on `HoldDefensibilityScore`; deterministic structure stays unchanged. |
 | `modules/matter/src/internal/legal-hold/services/notice-composer.ts:composeAndSendNoticeService` | writes `HoldNoticeIssuance` + per-recipient `LegalHoldEvent` rows + chain-sealed AuditLog rows but does NOT send email. The notice-viewer drill-in shows "Recorded" for every recipient as the delivery status. | Real email delivery requires SMTP/SES/Outlook integration that is a separate product surface. The issuance + chain rows are sufficient defensibility evidence — the recipient roster, body hash, and template-version snapshot are court-ready today; only the per-recipient send-mechanism telemetry is missing. | **Sunset when first customer demands real delivery.** Replace the stub at the service level (the `deliveryStubbed` flag and the "Recorded" status string are the seams); the issuance, audit chain, and per-recipient REMINDER_SENT events all stay unchanged. |
@@ -762,12 +761,16 @@ refreshed in the background.
   Microsoft refusal, surfaces typed
   `M365DelegatedAuthExpiredError` with the AADSTS code on the audit
   ledger and clears the cache.
-- New service `m365-graph-device-code.ts`: session state machine
-  over MSAL's `acquireTokenByDeviceCode`. Stores in-flight sessions
-  in a module-scoped Map (short-lived, admin-only flow — no DB
-  persistence). On success, `persistDelegatedTokens()` writes the
-  encrypted refresh token + account UPN + expiry. Pluggable
-  `DeviceCodeFactory` for tests.
+- New service `m365-graph-device-code.ts`: stateless polling loop
+  against Microsoft's `/oauth2/v2.0/devicecode` and `/oauth2/v2.0/token`
+  endpoints. Sessions are persisted in `M365DeviceCodeSession` so
+  any Lambda instance can service `/initiate` and any other
+  instance can service `/poll` — the long opaque `device_code`
+  lives in the row. On the first authorized response, tokens are
+  written to `OrganizationM365Credential` in the same transaction
+  that flips the session row to `completed`. Concurrent polls
+  serialise on the row update; only one persists. Pluggable
+  `OAuthHttpClient` for tests.
 - New eDiscovery client `M365GraphDelegatedClient`: implements the
   three eDiscovery methods using the delegated authProvider closure.
   Every Graph call still goes through `withGraphAudit` and records
@@ -808,11 +811,9 @@ refreshed in the background.
   becomes a 307 redirect. Closes smoke-test D3.
 - New customer onboarding runbook at
   `docs/m365-ediscovery-onboarding.md` (3 steps, 15 minutes).
-- Two new entries in the Documented exceptions table: eDiscovery
+- One new entry in the Documented exceptions table: eDiscovery
   delegated-auth routing (sunset only if Microsoft fixes the
-  app-only gap), in-process Device Code session map (permanent;
-  document the load-balancer-stickiness implication for
-  multi-instance deployments). Existing crypto exception updated to
+  app-only gap). Existing crypto exception updated to
   cover the new delegated-refresh-token field — both ride the same
   KMS migration.
 

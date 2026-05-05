@@ -80,6 +80,7 @@ model Organization {
   departedRetentions  DepartedCustodianRetention[]
   agentDecisions      AgentDecision[]
   m365Credential      OrganizationM365Credential?
+  m365DeviceCodeSessions M365DeviceCodeSession[]
 
   @@index([name])
 }
@@ -128,6 +129,7 @@ model User {
   holdScopeTemplatesCreated     HoldScopeTemplate[]   @relation("HoldScopeTemplateCreatedBy")
   savedViews                    SavedView[]                 @relation("SavedViewOwner")
   noticeTemplateVersions        HoldNoticeTemplateVersion[] @relation("HoldNoticeTemplateVersionCreatedBy")
+  m365DeviceCodeSessions        M365DeviceCodeSession[]     @relation("M365DeviceCodeSessionInitiator")
 
   @@unique([organizationId, email])
   @@index([organizationId])
@@ -1635,4 +1637,71 @@ model OrganizationM365Credential {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, isActive])
+}
+
+/// Persisted Device Code OAuth flow session (sub-PR 4c.1 follow-up).
+///
+/// Why this lives in the database. Vercel serverless dispatches each
+/// HTTP request to one of N Lambda instances at random. The 4c.1
+/// implementation kept session state in a `Map<sessionId, …>` in
+/// module scope on a single instance — `/initiate` would write the
+/// session to instance A, but `/poll` requests round-robined across
+/// every instance. Instances B/C/D returned SESSION_NOT_FOUND;
+/// Microsoft eventually issued tokens to whichever instance happened
+/// to receive the in-flight `/poll` at the moment of sign-in
+/// completion, but that instance had no session row to update —
+/// tokens were silently discarded and `/admin/m365` stayed at
+/// NOT CONNECTED.
+///
+/// Persisting to Postgres makes the flow stateless across instances:
+/// any `/poll` request reads the `device_code` (the long opaque
+/// Microsoft handle) from the row and polls the Microsoft `/token`
+/// endpoint directly. The first poll to receive an authorized
+/// response writes the tokens to `OrganizationM365Credential` and
+/// flips this row to `completed` in a transaction.
+///
+/// Lifecycle:
+///   pending  → initiate wrote the row; user hasn't signed in yet
+///   completed → tokens persisted; row can be discarded
+///   expired   → 15-min TTL elapsed without sign-in
+///   error     → Microsoft refused (access_denied, invalid_client, …)
+///
+/// Cleanup: rows with `expiresAt < now() - 24h` are eligible for
+/// pruning; the prune service is exposed to the admin /jobs page.
+/// Rows are small (< 1 KB each) so the cleanup is opportunistic.
+model M365DeviceCodeSession {
+  id              String    @id @default(cuid())
+  organizationId  String
+  initiatedById   String
+  /// Long opaque code Microsoft returned at /devicecode. Used by
+  /// every `/poll` to ask /token "are tokens ready yet". NOT shown
+  /// to the user — this is the polling secret, not the display code.
+  deviceCode      String
+  /// 4-character display code shown to the user in the admin UI
+  /// modal. They paste this at https://microsoft.com/devicelogin.
+  userCode        String
+  verificationUri String
+  expiresAt       DateTime
+  pollIntervalSec Int       @default(5)
+  /// Reserved. The current implementation calls Microsoft's OAuth
+  /// endpoints directly so MSAL is not in the path; this column
+  /// stays nullable so a future MSAL-based implementation has a
+  /// place to serialise its token-acquisition cache without a
+  /// schema bump.
+  msalCacheJson   String?
+  status          String    @default("pending")
+  completedAt     DateTime?
+  /// Set when status is `completed` so the UI can confirm which
+  /// account signed in without rebuilding from the audit log.
+  accountUpn      String?
+  /// JSON-array of OAuth scope strings Microsoft actually granted.
+  scopesGrantedJson Json    @default("[]")
+  errorMessage    String?
+  createdAt       DateTime  @default(now())
+
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  initiatedBy     User         @relation("M365DeviceCodeSessionInitiator", fields: [initiatedById], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@index([expiresAt])
 }

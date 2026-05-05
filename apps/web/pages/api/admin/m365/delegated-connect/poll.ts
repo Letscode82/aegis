@@ -1,16 +1,21 @@
 /**
  * GET /api/admin/m365/delegated-connect/poll?sessionId=...
  *
- * Polls the in-flight Device Code session. Returns the current
- * state machine value:
+ * Polls a Device Code session. Returns the current state machine
+ * value:
  *
  *   pending   → user hasn't entered the code yet
  *   connected → tokens stored; client should refresh /admin/m365
  *   expired   → device code TTL elapsed
  *   error     → other failure (Microsoft refused, network, etc.)
  *
- * The endpoint is safe to poll every 2-3 seconds; sessions are
- * in-process state, no DB hit.
+ * Sessions live in `M365DeviceCodeSession` (sub-PR 4c.1 follow-up)
+ * so any Lambda instance can service the poll — the long opaque
+ * `device_code` is read from the row and passed straight to
+ * Microsoft's `/token` endpoint. The first instance to receive an
+ * authorized response writes tokens to OrganizationM365Credential
+ * in a transaction; concurrent polls observe status='completed' and
+ * short-circuit.
  *
  * Permission: admin:m365:manage.
  */
@@ -33,6 +38,6 @@ export default async function handler(
   if (typeof sessionId !== "string") {
     return res.status(400).json({ error: "sessionId required" });
   }
-  const result = pollDeviceCodeFlow(sessionId);
+  const result = await pollDeviceCodeFlow(sessionId);
   return res.status(200).json(result);
 }

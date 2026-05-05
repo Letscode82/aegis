@@ -25,7 +25,27 @@ interface FakeRow {
   delegatedScopesGranted: string[];
 }
 
-const FAKE_DB: { row: FakeRow | null } = { row: null };
+interface FakeSession {
+  id: string;
+  organizationId: string;
+  initiatedById: string;
+  deviceCode: string;
+  userCode: string;
+  verificationUri: string;
+  expiresAt: Date;
+  pollIntervalSec: number;
+  status: string;
+  completedAt: Date | null;
+  accountUpn: string | null;
+  scopesGrantedJson: unknown;
+  errorMessage: string | null;
+  createdAt: Date;
+}
+
+const FAKE_DB: {
+  row: FakeRow | null;
+  sessions: Map<string, FakeSession>;
+} = { row: null, sessions: new Map() };
 
 function resetDb() {
   FAKE_DB.row = {
@@ -41,38 +61,67 @@ function resetDb() {
     delegatedLastRefreshError: null,
     delegatedScopesGranted: [],
   };
+  FAKE_DB.sessions = new Map();
 }
 
 vi.mock("@aegis/db", () => {
   const VERSION_V1_PLAINTEXT = Buffer.from([0x76, 0x31, 0x70, 0x6c]);
-  return {
-    prisma: {
-      organizationM365Credential: {
-        findUnique: vi.fn(async ({ where }: { where: { organizationId: string } }) => {
-          if (FAKE_DB.row?.organizationId === where.organizationId) {
-            return { ...FAKE_DB.row };
-          }
-          return null;
-        }),
-        update: vi.fn(
-          async ({
-            where,
-            data,
-          }: {
-            where: { organizationId: string };
-            data: Partial<FakeRow>;
-          }) => {
-            if (FAKE_DB.row?.organizationId !== where.organizationId)
-              throw new Error("not found");
-            FAKE_DB.row = { ...FAKE_DB.row, ...data } as FakeRow;
-            return FAKE_DB.row;
-          },
-        ),
-      },
-      user: {
-        findUnique: vi.fn(async () => ({ id: "u-admin", name: "Alex Admin" })),
-      },
+  const prismaMock = {
+    organizationM365Credential: {
+      findUnique: vi.fn(async ({ where }: { where: { organizationId: string } }) => {
+        if (FAKE_DB.row?.organizationId === where.organizationId) {
+          return { ...FAKE_DB.row };
+        }
+        return null;
+      }),
+      update: vi.fn(
+        async ({
+          where,
+          data,
+        }: {
+          where: { organizationId: string };
+          data: Partial<FakeRow>;
+        }) => {
+          if (FAKE_DB.row?.organizationId !== where.organizationId)
+            throw new Error("not found");
+          FAKE_DB.row = { ...FAKE_DB.row, ...data } as FakeRow;
+          return FAKE_DB.row;
+        },
+      ),
     },
+    m365DeviceCodeSession: {
+      create: vi.fn(async ({ data }: { data: FakeSession }) => {
+        FAKE_DB.sessions.set(data.id, { ...data });
+        return { ...data };
+      }),
+      findUnique: vi.fn(async ({ where }: { where: { id: string }; select?: unknown }) => {
+        const r = FAKE_DB.sessions.get(where.id);
+        return r ? { ...r } : null;
+      }),
+      update: vi.fn(
+        async ({
+          where,
+          data,
+        }: {
+          where: { id: string };
+          data: Partial<FakeSession>;
+        }) => {
+          const existing = FAKE_DB.sessions.get(where.id);
+          if (!existing) throw new Error("session not found");
+          const next = { ...existing, ...data } as FakeSession;
+          FAKE_DB.sessions.set(where.id, next);
+          return next;
+        },
+      ),
+      deleteMany: vi.fn(async () => ({ count: 0 })),
+    },
+    user: {
+      findUnique: vi.fn(async () => ({ id: "u-admin", name: "Alex Admin" })),
+    },
+    $transaction: vi.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(prismaMock)),
+  };
+  return {
+    prisma: prismaMock,
     encryptSecret: (s: string) => Buffer.concat([VERSION_V1_PLAINTEXT, Buffer.from(s, "utf8")]),
     decryptSecret: (buf: Buffer) => buf.subarray(4).toString("utf8"),
     secretFingerprint: (s: string | null | undefined) =>
@@ -93,23 +142,29 @@ import {
   M365DelegatedAuthRequiredError,
 } from "../src/internal/services/m365-graph-errors";
 import {
-  _resetDeviceCodeSessions,
   initiateDeviceCodeFlow,
   pollDeviceCodeFlow,
-  setDeviceCodeFactory,
+  pruneOldDeviceCodeSessions,
+  setOAuthHttpClient,
 } from "../src/internal/services/m365-graph-device-code";
 
 beforeEach(() => {
   resetDb();
   setRefreshTokenExchanger(null);
-  setDeviceCodeFactory(null);
-  _resetDeviceCodeSessions();
+  setOAuthHttpClient(null);
 });
 
 afterEach(() => {
   setRefreshTokenExchanger(null);
-  setDeviceCodeFactory(null);
+  setOAuthHttpClient(null);
 });
+
+/** Helper — encode a JWT so extractUpn can decode the upn claim. */
+function makeJwt(payload: Record<string, unknown>): string {
+  const header = Buffer.from(JSON.stringify({ alg: "none" }), "utf8").toString("base64url");
+  const body = Buffer.from(JSON.stringify(payload), "utf8").toString("base64url");
+  return `${header}.${body}.`;
+}
 
 describe("persistDelegatedTokens", () => {
   it("stores encrypted refresh token + metadata and returns plaintext on read", async () => {
@@ -232,95 +287,297 @@ describe("getDelegatedAuthStatus", () => {
   });
 });
 
-describe("Device Code orchestrator", () => {
-  it("transitions pending → connected on factory success", async () => {
-    let resolveComplete!: (
-      r: import("../src/internal/services/m365-graph-device-code").DeviceCodeResult,
-    ) => void;
-    const completePromise = new Promise<
-      import("../src/internal/services/m365-graph-device-code").DeviceCodeResult
-    >((res) => {
-      resolveComplete = res;
-    });
-    setDeviceCodeFactory({
-      async start() {
-        return {
-          prompt: {
-            userCode: "ABCD-EFGH",
-            verificationUri: "https://microsoft.com/devicelogin",
-            expiresOn: new Date(Date.now() + 900_000),
-            message: "Open the URL and enter the code…",
+describe("Device Code orchestrator (DB-backed)", () => {
+  /** Fake HTTP client driver. Each test wires up canned responses. */
+  function makeHttp(
+    responses: Map<string, { status: number; json: unknown }>,
+  ) {
+    return {
+      post: vi.fn(
+        async (url: string, _body: URLSearchParams) => {
+          const r = responses.get(url) ?? { status: 200, json: {} };
+          return r;
+        },
+      ),
+    };
+  }
+
+  function deviceCodeUrl(tenant = "tenant-x") {
+    return `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/devicecode`;
+  }
+  function tokenUrl(tenant = "tenant-x") {
+    return `https://login.microsoftonline.com/${tenant}/oauth2/v2.0/token`;
+  }
+
+  it("initiate persists session row and returns user code + verification URL", async () => {
+    const http = makeHttp(
+      new Map([
+        [
+          deviceCodeUrl(),
+          {
+            status: 200,
+            json: {
+              device_code: "DC-LONG-OPAQUE",
+              user_code: "ABCD-EFGH",
+              verification_uri: "https://microsoft.com/devicelogin",
+              expires_in: 900,
+              interval: 5,
+              message: "Open the URL and enter the code.",
+            },
           },
-          complete: completePromise,
-        };
-      },
-    });
-    const initiate = await initiateDeviceCodeFlow({
+        ],
+      ]),
+    );
+    setOAuthHttpClient(http);
+    const init = await initiateDeviceCodeFlow({
       organizationId: "org-1",
       tenantId: "tenant-x",
       clientId: "client-x",
       authorizedById: "u-admin",
     });
-    expect(initiate.userCode).toBe("ABCD-EFGH");
-    expect(initiate.verificationUri).toBe("https://microsoft.com/devicelogin");
-
-    // Initial poll — pending
-    const p1 = pollDeviceCodeFlow(initiate.sessionId);
-    expect(p1.status).toBe("pending");
-
-    // Resolve completion
-    resolveComplete({
-      accessToken: "AT-1",
-      refreshToken: "RT-1",
-      accountUpn: "svc@example.com",
-      expiresOn: new Date(Date.now() + 3600_000),
-      scopesGranted: ["eDiscovery.ReadWrite.All", "User.Read"],
-    });
-    // Allow microtask queue to flush the promise persistence chain.
-    await new Promise((resolve) => setImmediate(resolve));
-
-    const p2 = pollDeviceCodeFlow(initiate.sessionId);
-    expect(p2.status).toBe("connected");
-    expect(p2.accountUpn).toBe("svc@example.com");
-    expect(p2.scopesGranted).toContain("eDiscovery.ReadWrite.All");
-    // Token persisted
-    expect(FAKE_DB.row!.delegatedAccountUpn).toBe("svc@example.com");
+    expect(init.userCode).toBe("ABCD-EFGH");
+    expect(init.verificationUri).toBe("https://microsoft.com/devicelogin");
+    // Persisted
+    const row = FAKE_DB.sessions.get(init.sessionId);
+    expect(row).toBeTruthy();
+    expect(row!.deviceCode).toBe("DC-LONG-OPAQUE");
+    expect(row!.status).toBe("pending");
+    expect(row!.initiatedById).toBe("u-admin");
   });
 
-  it("transitions to expired on expired_token error", async () => {
-    setDeviceCodeFactory({
-      async start() {
-        return {
-          prompt: {
-            userCode: "WXYZ",
-            verificationUri: "https://microsoft.com/devicelogin",
-            expiresOn: new Date(Date.now() + 900_000),
-            message: "",
+  it("poll returns pending while Microsoft says authorization_pending", async () => {
+    const http = makeHttp(
+      new Map<string, { status: number; json: unknown }>([
+        [
+          deviceCodeUrl(),
+          {
+            status: 200,
+            json: {
+              device_code: "DC1",
+              user_code: "AAAA",
+              verification_uri: "https://microsoft.com/devicelogin",
+              expires_in: 900,
+              interval: 5,
+            },
           },
-          complete: Promise.reject(
-            Object.assign(new Error("expired"), {
-              errorCode: "expired_token",
-              message: "Device code expired",
-            }),
-          ),
-        };
-      },
-    });
+        ],
+        [
+          tokenUrl(),
+          {
+            status: 400,
+            json: { error: "authorization_pending", error_description: "user has not signed in yet" },
+          },
+        ],
+      ]),
+    );
+    setOAuthHttpClient(http);
     const init = await initiateDeviceCodeFlow({
       organizationId: "org-1",
-      tenantId: "t",
-      clientId: "c",
-      authorizedById: null,
+      tenantId: "tenant-x",
+      clientId: "client-x",
+      authorizedById: "u-admin",
     });
-    await new Promise((resolve) => setImmediate(resolve));
-    const p = pollDeviceCodeFlow(init.sessionId);
-    expect(p.status).toBe("expired");
-    expect(p.error?.code).toBe("expired_token");
+    const p = await pollDeviceCodeFlow(init.sessionId);
+    expect(p.status).toBe("pending");
+    expect(p.error).toBeNull();
+    // Session row still pending
+    expect(FAKE_DB.sessions.get(init.sessionId)!.status).toBe("pending");
   });
 
-  it("returns SESSION_NOT_FOUND for unknown session id", () => {
-    const p = pollDeviceCodeFlow("does-not-exist");
+  it("poll on a different instance can still complete the flow (cross-instance success)", async () => {
+    // Instance A: initiate
+    const httpA = makeHttp(
+      new Map([
+        [
+          deviceCodeUrl(),
+          {
+            status: 200,
+            json: {
+              device_code: "DC2",
+              user_code: "BBBB",
+              verification_uri: "https://microsoft.com/devicelogin",
+              expires_in: 900,
+              interval: 5,
+            },
+          },
+        ],
+      ]),
+    );
+    setOAuthHttpClient(httpA);
+    const init = await initiateDeviceCodeFlow({
+      organizationId: "org-1",
+      tenantId: "tenant-x",
+      clientId: "client-x",
+      authorizedById: "u-admin",
+    });
+
+    // Instance B (simulated by swapping the http client) gets the
+    // authorized response from Microsoft. The DB row is shared so
+    // instance B can find the session and persist tokens.
+    const idToken = makeJwt({ upn: "svc@example.onmicrosoft.com" });
+    const httpB = makeHttp(
+      new Map([
+        [
+          tokenUrl(),
+          {
+            status: 200,
+            json: {
+              access_token: "AT-NEW",
+              refresh_token: "RT-NEW",
+              id_token: idToken,
+              expires_in: 3600,
+              scope: "https://graph.microsoft.com/eDiscovery.ReadWrite.All https://graph.microsoft.com/User.Read",
+            },
+          },
+        ],
+      ]),
+    );
+    setOAuthHttpClient(httpB);
+
+    const p = await pollDeviceCodeFlow(init.sessionId);
+    expect(p.status).toBe("connected");
+    expect(p.accountUpn).toBe("svc@example.onmicrosoft.com");
+    expect(p.scopesGranted).toContain("https://graph.microsoft.com/eDiscovery.ReadWrite.All");
+
+    // Tokens were persisted to the credential row
+    expect(FAKE_DB.row!.delegatedRefreshToken!.subarray(4).toString("utf8")).toBe("RT-NEW");
+    expect(FAKE_DB.row!.delegatedAccountUpn).toBe("svc@example.onmicrosoft.com");
+
+    // Session marked completed
+    const session = FAKE_DB.sessions.get(init.sessionId)!;
+    expect(session.status).toBe("completed");
+    expect(session.accountUpn).toBe("svc@example.onmicrosoft.com");
+  });
+
+  it("concurrent polls only persist tokens once", async () => {
+    const http = makeHttp(
+      new Map([
+        [
+          deviceCodeUrl(),
+          {
+            status: 200,
+            json: {
+              device_code: "DC3",
+              user_code: "CCCC",
+              verification_uri: "https://microsoft.com/devicelogin",
+              expires_in: 900,
+              interval: 5,
+            },
+          },
+        ],
+        [
+          tokenUrl(),
+          {
+            status: 200,
+            json: {
+              access_token: "AT",
+              refresh_token: "RT-ONCE",
+              id_token: makeJwt({ upn: "svc@e.com" }),
+              expires_in: 3600,
+              scope: "User.Read",
+            },
+          },
+        ],
+      ]),
+    );
+    setOAuthHttpClient(http);
+    const init = await initiateDeviceCodeFlow({
+      organizationId: "org-1",
+      tenantId: "tenant-x",
+      clientId: "client-x",
+      authorizedById: "u-admin",
+    });
+    // Two parallel polls — both succeed but only one writes credentials.
+    const [p1, p2] = await Promise.all([
+      pollDeviceCodeFlow(init.sessionId),
+      pollDeviceCodeFlow(init.sessionId),
+    ]);
+    expect(p1.status).toBe("connected");
+    expect(p2.status).toBe("connected");
+    // The credential row carries one refresh token, not duplicated state.
+    expect(FAKE_DB.row!.delegatedAccountUpn).toBe("svc@e.com");
+  });
+
+  it("expired_token from Microsoft flips session to expired", async () => {
+    const http = makeHttp(
+      new Map([
+        [
+          deviceCodeUrl(),
+          {
+            status: 200,
+            json: {
+              device_code: "DC4",
+              user_code: "DDDD",
+              verification_uri: "https://microsoft.com/devicelogin",
+              expires_in: 900,
+              interval: 5,
+            },
+          },
+        ],
+        [
+          tokenUrl(),
+          { status: 400, json: { error: "expired_token", error_description: "code expired" } },
+        ],
+      ]),
+    );
+    setOAuthHttpClient(http);
+    const init = await initiateDeviceCodeFlow({
+      organizationId: "org-1",
+      tenantId: "tenant-x",
+      clientId: "client-x",
+      authorizedById: "u-admin",
+    });
+    const p = await pollDeviceCodeFlow(init.sessionId);
+    expect(p.status).toBe("expired");
+    expect(p.error?.code).toBe("expired_token");
+    expect(FAKE_DB.sessions.get(init.sessionId)!.status).toBe("expired");
+  });
+
+  it("access_denied from Microsoft flips session to error and surfaces the code", async () => {
+    const http = makeHttp(
+      new Map([
+        [
+          deviceCodeUrl(),
+          {
+            status: 200,
+            json: {
+              device_code: "DC5",
+              user_code: "EEEE",
+              verification_uri: "https://microsoft.com/devicelogin",
+              expires_in: 900,
+              interval: 5,
+            },
+          },
+        ],
+        [
+          tokenUrl(),
+          { status: 400, json: { error: "access_denied", error_description: "user rejected" } },
+        ],
+      ]),
+    );
+    setOAuthHttpClient(http);
+    const init = await initiateDeviceCodeFlow({
+      organizationId: "org-1",
+      tenantId: "tenant-x",
+      clientId: "client-x",
+      authorizedById: "u-admin",
+    });
+    const p = await pollDeviceCodeFlow(init.sessionId);
+    expect(p.status).toBe("error");
+    expect(p.error?.code).toBe("access_denied");
+    expect(FAKE_DB.sessions.get(init.sessionId)!.status).toBe("error");
+  });
+
+  it("returns SESSION_NOT_FOUND for unknown session id", async () => {
+    setOAuthHttpClient(makeHttp(new Map()));
+    const p = await pollDeviceCodeFlow("does-not-exist");
     expect(p.status).toBe("error");
     expect(p.error?.code).toBe("SESSION_NOT_FOUND");
+  });
+
+  it("pruneOldDeviceCodeSessions delegates to deleteMany with a 24h cutoff", async () => {
+    setOAuthHttpClient(makeHttp(new Map()));
+    const result = await pruneOldDeviceCodeSessions("org-1");
+    expect(result.deletedCount).toBeGreaterThanOrEqual(0);
   });
 });

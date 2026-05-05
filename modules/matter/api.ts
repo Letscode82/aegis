@@ -746,10 +746,11 @@ export {
 export {
   initiateDeviceCodeFlow,
   pollDeviceCodeFlow,
-  setDeviceCodeFactory,
-  type DeviceCodeFactory,
+  pruneOldDeviceCodeSessions,
+  setOAuthHttpClient,
   type InitiateDeviceCodeInput,
   type InitiateDeviceCodeResult,
+  type OAuthHttpClient,
   type PollDeviceCodeResult,
 } from "./src/internal/services/m365-graph-device-code";
 

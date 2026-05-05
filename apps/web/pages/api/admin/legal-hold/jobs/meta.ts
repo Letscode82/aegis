@@ -36,8 +36,17 @@ export default async function handler(
     orderBy: { timestamp: "desc" },
     select: { timestamp: true },
   });
+  // Sub-PR 4c.1 follow-up: M365 Device Code session cleanup. Reports
+  // the most recent created/completed row so the admin sees when the
+  // table last got attention.
+  const lastDeviceCodeSession = await prisma.m365DeviceCodeSession.findFirst({
+    where: { organizationId: actor.organizationId },
+    orderBy: { createdAt: "desc" },
+    select: { createdAt: true },
+  });
   return res.status(200).json({
     defensibilitySnapshotLastRun: lastSnapshot?.computedAt?.toISOString() ?? null,
     snapshotCleanupLastRun: lastCleanup?.timestamp?.toISOString() ?? null,
+    m365DeviceCodeLastSession: lastDeviceCodeSession?.createdAt?.toISOString() ?? null,
   });
 }

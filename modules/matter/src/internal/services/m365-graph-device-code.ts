@@ -1,158 +1,105 @@
 /**
- * Device Code OAuth orchestration (sub-PR 4c.1).
+ * Device Code OAuth orchestration — DB-backed sessions (sub-PR 4c.1
+ * follow-up).
  *
  * Microsoft's eDiscovery endpoints require a delegated user token.
  * The standard non-interactive UX for service accounts is the OAuth
  * 2.0 Device Authorization grant ("Device Code"):
  *
- *   1. AEGIS asks Microsoft for a device-code session.
- *   2. UI displays the user code + verification URL.
+ *   1. AEGIS asks Microsoft for a device-code session via
+ *      /oauth2/v2.0/devicecode.
+ *   2. UI displays the user_code + verification_uri.
  *   3. The operator opens https://microsoft.com/devicelogin in a
  *      separate tab and signs in as the dedicated service account.
- *   4. AEGIS polls Microsoft for completion. On success it receives
- *      access token + refresh token.
+ *   4. AEGIS polls Microsoft's /oauth2/v2.0/token endpoint with
+ *      `grant_type=urn:ietf:params:oauth:grant-type:device_code` and
+ *      the long opaque `device_code`. Microsoft returns
+ *      `authorization_pending` until the user completes sign-in,
+ *      then issues access + refresh tokens.
  *   5. We persist the encrypted refresh token via
- *      `persistDelegatedTokens()`.
+ *      `persistDelegatedTokens()` and mark the session row complete.
  *
- * The `DeviceCodeOrchestrator` here is a thin state machine over MSAL
- * Node's `acquireTokenByDeviceCode` API. The polling lifecycle is:
+ * Why DB-backed. The 4c.1 implementation kept session state in a
+ * `Map<sessionId, …>` in module scope. On Vercel that breaks: every
+ * `/poll` request is dispatched to a different Lambda instance, none
+ * of which has the session in memory. Tokens were lost. Storing the
+ * `device_code` in `M365DeviceCodeSession` makes every poll
+ * stateless — any instance can read the row and ask Microsoft for
+ * tokens. The first poll to receive an authorized response writes
+ * tokens in a transaction; concurrent polls see the row already in
+ * `completed` state and short-circuit.
  *
- *   pending  → user hasn't entered the code yet
- *   complete → tokens stored, session can be discarded
- *   error    → MSAL surfaced an error (network, expired code, etc.)
- *   expired  → device code TTL elapsed without user interaction
- *
- * The orchestrator is intentionally injectable: the production wiring
- * uses MSAL via `@azure/msal-node`; tests can pass a stubbed
- * `DeviceCodeFactory` that returns a controllable promise.
+ * The flow uses Microsoft's OAuth endpoints directly rather than
+ * MSAL's `acquireTokenByDeviceCode` because that helper is a single
+ * blocking call — incompatible with stateless polling. The two
+ * Microsoft endpoints (`/devicecode`, `/token`) are well documented
+ * and stable.
  */
 import { randomUUID } from "node:crypto";
+import { prisma } from "@aegis/db";
 import {
   DELEGATED_SCOPES,
   persistDelegatedTokens,
 } from "./m365-graph-delegated-auth";
 
-export interface DeviceCodePromptInfo {
-  userCode: string;
-  verificationUri: string;
-  expiresOn: Date;
-  message: string;
+/** Default poll interval if Microsoft doesn't specify one. */
+const DEFAULT_POLL_INTERVAL_SEC = 5;
+
+/** Microsoft Device Code endpoints — tenant id is interpolated. */
+function deviceCodeEndpoint(tenantId: string): string {
+  return `https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/devicecode`;
 }
 
-export interface DeviceCodeResult {
-  accessToken: string;
-  refreshToken: string;
-  accountUpn: string;
-  expiresOn: Date;
-  scopesGranted: readonly string[];
+function tokenEndpoint(tenantId: string): string {
+  return `https://login.microsoftonline.com/${encodeURIComponent(tenantId)}/oauth2/v2.0/token`;
 }
+
+// ────────────────────────────────────────────────────────────────────
+// Pluggable HTTP layer (for tests)
+// ────────────────────────────────────────────────────────────────────
 
 /**
- * Pluggable device-code provider. The default implementation wires
- * MSAL Node; tests inject a stub.
- *
- * `start()` kicks off the device-code request. It returns the prompt
- * info (user code + verification URL) and a `complete` promise that
- * resolves when the user signs in (or rejects with an error). The
- * caller (orchestrator) awaits `complete` to extract refresh token.
+ * Tests inject a deterministic HTTP responder via `setOAuthHttpClient`
+ * so we don't burn Microsoft round-trips and tests stay in the
+ * default `pnpm test` lane.
  */
-export interface DeviceCodeFactory {
-  start(input: {
-    tenantId: string;
-    clientId: string;
-    scopes: readonly string[];
-  }): Promise<{
-    prompt: DeviceCodePromptInfo;
-    complete: Promise<DeviceCodeResult>;
-  }>;
+export interface OAuthHttpClient {
+  post(
+    url: string,
+    body: URLSearchParams,
+  ): Promise<{ status: number; json: unknown }>;
 }
 
-let factory: DeviceCodeFactory | null = null;
+let httpClient: OAuthHttpClient | null = null;
 
-export function setDeviceCodeFactory(next: DeviceCodeFactory | null): void {
-  factory = next;
+export function setOAuthHttpClient(client: OAuthHttpClient | null): void {
+  httpClient = client;
 }
 
-async function defaultFactory(): Promise<DeviceCodeFactory> {
-  const { PublicClientApplication } = await import("@azure/msal-node");
+async function defaultHttp(): Promise<OAuthHttpClient> {
   return {
-    async start({ tenantId, clientId, scopes }) {
-      const pca = new PublicClientApplication({
-        auth: {
-          clientId,
-          authority: `https://login.microsoftonline.com/${tenantId}`,
-        },
+    async post(url, body) {
+      const resp = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: body.toString(),
       });
-      // `acquireTokenByDeviceCode` invokes `deviceCodeCallback` with
-      // the user code + URL synchronously, then returns a promise
-      // that resolves when the user signs in.
-      let resolvePrompt!: (info: DeviceCodePromptInfo) => void;
-      const promptPromise = new Promise<DeviceCodePromptInfo>((resolve) => {
-        resolvePrompt = resolve;
-      });
-      const filteredScopes = scopes.filter((s) => s !== "offline_access");
-      const acquirePromise = pca.acquireTokenByDeviceCode({
-        deviceCodeCallback: (info) => {
-          resolvePrompt({
-            userCode: info.userCode,
-            verificationUri: info.verificationUri,
-            expiresOn: new Date(Date.now() + (info.expiresIn ?? 900) * 1000),
-            message: info.message ?? "",
-          });
-        },
-        scopes: filteredScopes,
-      }) as unknown as Promise<{
-        accessToken: string;
-        expiresOn: Date | null;
-        account: { username?: string; homeAccountId?: string } | null;
-        scopes?: string[];
-      } | null>;
-      const prompt = await promptPromise;
-      const complete = (async (): Promise<DeviceCodeResult> => {
-        const result = await acquirePromise;
-        if (!result) {
-          throw new Error("MSAL acquireTokenByDeviceCode returned null");
-        }
-        // Pull refresh token from MSAL's in-memory cache. MSAL exposes
-        // it via `serializeCache()`.
-        const cacheJson = pca.getTokenCache().serialize();
-        const refreshToken = extractRefreshToken(cacheJson);
-        if (!refreshToken) {
-          throw new Error(
-            "Device code flow succeeded but no refresh token in MSAL cache. " +
-              "Verify `offline_access` was requested.",
-          );
-        }
-        return {
-          accessToken: result.accessToken,
-          refreshToken,
-          accountUpn: result.account?.username ?? "",
-          expiresOn: result.expiresOn ?? new Date(Date.now() + 3600_000),
-          scopesGranted: result.scopes ?? scopes,
-        };
-      })();
-      return { prompt, complete };
+      const json = (await resp.json().catch(() => null)) as unknown;
+      return { status: resp.status, json };
     },
   };
 }
 
-function extractRefreshToken(cacheJson: string): string | null {
-  try {
-    const parsed = JSON.parse(cacheJson) as {
-      RefreshToken?: Record<string, { secret?: string }>;
-    };
-    if (!parsed.RefreshToken) return null;
-    for (const entry of Object.values(parsed.RefreshToken)) {
-      if (entry?.secret) return entry.secret;
-    }
-    return null;
-  } catch {
-    return null;
-  }
+async function postOAuth(
+  url: string,
+  body: URLSearchParams,
+): Promise<{ status: number; json: unknown }> {
+  const client = httpClient ?? (await defaultHttp());
+  return client.post(url, body);
 }
 
 // ────────────────────────────────────────────────────────────────────
-// Session state machine
+// Status surface
 // ────────────────────────────────────────────────────────────────────
 
 export type DeviceCodeStatus =
@@ -161,26 +108,9 @@ export type DeviceCodeStatus =
   | "error"
   | "expired";
 
-interface DeviceCodeSession {
-  sessionId: string;
-  organizationId: string;
-  authorizedById: string | null;
-  prompt: DeviceCodePromptInfo;
-  status: DeviceCodeStatus;
-  result: DeviceCodeResult | null;
-  error: { code: string; message: string } | null;
-  startedAt: Date;
-}
-
-/**
- * Module-scoped session map. Sessions are short-lived (≤15 min, the
- * device code TTL); we don't bother with a database row. Sessions
- * are bound to a single Node process — for multi-instance deployments
- * the operator must complete the flow on the same instance that
- * served the initial /initiate call. This is acceptable because the
- * Connect button is admin-only and the flow takes <60 seconds.
- */
-const SESSIONS = new Map<string, DeviceCodeSession>();
+// ────────────────────────────────────────────────────────────────────
+// Initiate
+// ────────────────────────────────────────────────────────────────────
 
 export interface InitiateDeviceCodeInput {
   organizationId: string;
@@ -197,67 +127,77 @@ export interface InitiateDeviceCodeResult {
   message: string;
 }
 
+/**
+ * Begins a Device Code session. Calls Microsoft's `/devicecode`
+ * endpoint, persists the response in `M365DeviceCodeSession`, and
+ * returns the user-facing user_code + verification URL.
+ *
+ * Throws if Microsoft refuses the request (invalid client id,
+ * unsupported scope, etc.). The `/initiate` API endpoint translates
+ * the throw into a 5xx with the Microsoft error.
+ */
 export async function initiateDeviceCodeFlow(
   input: InitiateDeviceCodeInput,
 ): Promise<InitiateDeviceCodeResult> {
-  const fac = factory ?? (await defaultFactory());
-  const { prompt, complete } = await fac.start({
-    tenantId: input.tenantId,
-    clientId: input.clientId,
-    scopes: DELEGATED_SCOPES,
+  if (!input.authorizedById) {
+    throw new Error(
+      "initiateDeviceCodeFlow requires authorizedById — anonymous initiates are not allowed",
+    );
+  }
+  const body = new URLSearchParams({
+    client_id: input.clientId,
+    scope: DELEGATED_SCOPES.join(" "),
   });
-  const sessionId = randomUUID();
-  const session: DeviceCodeSession = {
-    sessionId,
-    organizationId: input.organizationId,
-    authorizedById: input.authorizedById,
-    prompt,
-    status: "pending",
-    result: null,
-    error: null,
-    startedAt: new Date(),
+  const resp = await postOAuth(deviceCodeEndpoint(input.tenantId), body);
+  if (resp.status >= 400 || !resp.json || typeof resp.json !== "object") {
+    const err = (resp.json ?? {}) as { error?: string; error_description?: string };
+    throw new Error(
+      `Microsoft /devicecode rejected: ${err.error ?? "unknown"} ` +
+        `(${err.error_description ?? `HTTP ${resp.status}`})`,
+    );
+  }
+  const j = resp.json as {
+    device_code?: string;
+    user_code?: string;
+    verification_uri?: string;
+    expires_in?: number;
+    interval?: number;
+    message?: string;
   };
-  SESSIONS.set(sessionId, session);
-
-  // Background-await the completion. We don't `await` here so the
-  // initiate endpoint can return fast.
-  void complete
-    .then(async (result) => {
-      session.result = result;
-      session.status = "connected";
-      try {
-        await persistDelegatedTokens({
-          organizationId: input.organizationId,
-          refreshToken: result.refreshToken,
-          accountUpn: result.accountUpn,
-          authorizedById: input.authorizedById,
-          accessTokenExpiresAt: result.expiresOn,
-          scopesGranted: result.scopesGranted,
-          initialAccessToken: result.accessToken,
-        });
-      } catch (err) {
-        session.status = "error";
-        session.error = {
-          code: "PERSIST_FAILED",
-          message: String(err),
-        };
-      }
-    })
-    .catch((err: unknown) => {
-      const e = err as { errorCode?: string; message?: string };
-      const code = e.errorCode ?? "DEVICE_CODE_FAILED";
-      session.status = code.includes("expired_token") ? "expired" : "error";
-      session.error = { code, message: e.message ?? String(err) };
-    });
-
+  if (!j.device_code || !j.user_code || !j.verification_uri) {
+    throw new Error(
+      "Microsoft /devicecode response missing required fields (device_code / user_code / verification_uri)",
+    );
+  }
+  const expiresAt = new Date(Date.now() + (j.expires_in ?? 900) * 1000);
+  const sessionId = randomUUID();
+  await prisma.m365DeviceCodeSession.create({
+    data: {
+      id: sessionId,
+      organizationId: input.organizationId,
+      initiatedById: input.authorizedById,
+      deviceCode: j.device_code,
+      userCode: j.user_code,
+      verificationUri: j.verification_uri,
+      expiresAt,
+      pollIntervalSec: j.interval ?? DEFAULT_POLL_INTERVAL_SEC,
+      status: "pending",
+    },
+  });
   return {
     sessionId,
-    userCode: prompt.userCode,
-    verificationUri: prompt.verificationUri,
-    expiresAt: prompt.expiresOn.toISOString(),
-    message: prompt.message,
+    userCode: j.user_code,
+    verificationUri: j.verification_uri,
+    expiresAt: expiresAt.toISOString(),
+    message:
+      j.message ??
+      `Open ${j.verification_uri} and enter code ${j.user_code}.`,
   };
 }
+
+// ────────────────────────────────────────────────────────────────────
+// Poll
+// ────────────────────────────────────────────────────────────────────
 
 export interface PollDeviceCodeResult {
   status: DeviceCodeStatus;
@@ -266,8 +206,24 @@ export interface PollDeviceCodeResult {
   error: { code: string; message: string } | null;
 }
 
-export function pollDeviceCodeFlow(sessionId: string): PollDeviceCodeResult {
-  const session = SESSIONS.get(sessionId);
+/**
+ * Stateless poll. Reads the session row, checks expiry, and asks
+ * Microsoft's `/token` endpoint whether the user has completed
+ * sign-in. On `authorization_pending` returns `pending`; on success
+ * persists tokens to OrganizationM365Credential in the same
+ * transaction that flips this row to `completed`.
+ *
+ * Concurrent polls (multiple Lambda instances polling the same
+ * session simultaneously) are safe: the first to win the row update
+ * persists tokens, the others see status='completed' and return
+ * the cached result.
+ */
+export async function pollDeviceCodeFlow(
+  sessionId: string,
+): Promise<PollDeviceCodeResult> {
+  const session = await prisma.m365DeviceCodeSession.findUnique({
+    where: { id: sessionId },
+  });
   if (!session) {
     return {
       status: "error",
@@ -276,24 +232,278 @@ export function pollDeviceCodeFlow(sessionId: string): PollDeviceCodeResult {
       error: { code: "SESSION_NOT_FOUND", message: "Unknown sessionId" },
     };
   }
-  // Garbage-collect terminal sessions after 60s so the map doesn't grow.
-  if (
-    (session.status === "connected" ||
-      session.status === "error" ||
-      session.status === "expired") &&
-    Date.now() - session.startedAt.getTime() > 60_000
-  ) {
-    SESSIONS.delete(sessionId);
+
+  // Already terminal — short-circuit.
+  if (session.status === "completed") {
+    return {
+      status: "connected",
+      accountUpn: session.accountUpn,
+      scopesGranted: parseScopes(session.scopesGrantedJson),
+      error: null,
+    };
   }
+  if (session.status === "expired" || session.status === "error") {
+    return {
+      status: session.status as DeviceCodeStatus,
+      accountUpn: null,
+      scopesGranted: [],
+      error: session.errorMessage
+        ? { code: deriveErrorCode(session.status, session.errorMessage), message: session.errorMessage }
+        : null,
+    };
+  }
+
+  // TTL check before bothering Microsoft.
+  if (session.expiresAt.getTime() < Date.now()) {
+    await prisma.m365DeviceCodeSession
+      .update({
+        where: { id: sessionId },
+        data: {
+          status: "expired",
+          errorMessage: "Device code TTL elapsed before user signed in",
+        },
+      })
+      .catch(() => undefined);
+    return {
+      status: "expired",
+      accountUpn: null,
+      scopesGranted: [],
+      error: { code: "expired_token", message: "Device code TTL elapsed" },
+    };
+  }
+
+  // Resolve the tenant + client id from the org's credential row.
+  // The session itself stores deviceCode but not tenantId — those
+  // belong to the per-org credential row, which we re-resolve at
+  // poll time so a credential rotation between initiate and poll
+  // is handled safely.
+  const cred = await prisma.organizationM365Credential.findUnique({
+    where: { organizationId: session.organizationId },
+  });
+  const tenantId = cred?.tenantId ?? process.env.M365_TENANT_ID;
+  const clientId = cred?.clientId ?? process.env.M365_CLIENT_ID;
+  if (!tenantId || !clientId) {
+    await markSessionError(
+      sessionId,
+      "M365 credentials missing — cannot poll for tokens",
+    );
+    return {
+      status: "error",
+      accountUpn: null,
+      scopesGranted: [],
+      error: {
+        code: "MISSING_CREDENTIALS",
+        message: "M365 credentials no longer configured for this org",
+      },
+    };
+  }
+
+  // Ask Microsoft.
+  const body = new URLSearchParams({
+    grant_type: "urn:ietf:params:oauth:grant-type:device_code",
+    client_id: clientId,
+    device_code: session.deviceCode,
+  });
+  const resp = await postOAuth(tokenEndpoint(tenantId), body);
+  const j = (resp.json ?? {}) as {
+    error?: string;
+    error_description?: string;
+    access_token?: string;
+    refresh_token?: string;
+    id_token?: string;
+    expires_in?: number;
+    scope?: string;
+  };
+
+  // Microsoft returns 400 with error=authorization_pending while we wait.
+  if (resp.status === 400 || resp.status === 401) {
+    if (j.error === "authorization_pending" || j.error === "slow_down") {
+      return {
+        status: "pending",
+        accountUpn: null,
+        scopesGranted: [],
+        error: null,
+      };
+    }
+    if (j.error === "expired_token") {
+      await markSessionExpired(sessionId, j.error_description ?? "expired_token");
+      return {
+        status: "expired",
+        accountUpn: null,
+        scopesGranted: [],
+        error: { code: "expired_token", message: j.error_description ?? "expired_token" },
+      };
+    }
+    // access_denied, invalid_client, invalid_grant, …
+    const code = j.error ?? "TOKEN_ERROR";
+    const msg = j.error_description ?? `HTTP ${resp.status}`;
+    await markSessionError(sessionId, `${code}: ${msg}`);
+    return {
+      status: "error",
+      accountUpn: null,
+      scopesGranted: [],
+      error: { code, message: msg },
+    };
+  }
+  if (resp.status >= 500 || !j.access_token || !j.refresh_token) {
+    // Don't terminalise on 5xx — let the next poll retry.
+    if (resp.status >= 500) {
+      return {
+        status: "pending",
+        accountUpn: null,
+        scopesGranted: [],
+        error: null,
+      };
+    }
+    const code = j.error ?? "MISSING_TOKENS";
+    const msg = j.error_description ?? "Microsoft response lacked tokens";
+    await markSessionError(sessionId, `${code}: ${msg}`);
+    return {
+      status: "error",
+      accountUpn: null,
+      scopesGranted: [],
+      error: { code, message: msg },
+    };
+  }
+
+  // Success — Microsoft issued tokens. Persist atomically.
+  const accountUpn = extractUpn(j.id_token, j.access_token) ?? "";
+  const scopesGranted = j.scope ? j.scope.split(" ").filter(Boolean) : [...DELEGATED_SCOPES];
+  const expiresAt = new Date(Date.now() + (j.expires_in ?? 3600) * 1000);
+
+  // Use a transaction so the session-completion flip and the credential
+  // update either both happen or neither does. Concurrent polls will
+  // serialise on the row update; the second one will read
+  // status='completed' on the next loop and return without re-persisting.
+  try {
+    await prisma.$transaction(async (tx) => {
+      // Re-read inside the transaction; if another instance already
+      // completed the session, skip the persist to avoid duplicate
+      // credential writes.
+      const fresh = await tx.m365DeviceCodeSession.findUnique({
+        where: { id: sessionId },
+        select: { status: true },
+      });
+      if (!fresh || fresh.status !== "pending") return;
+
+      await tx.m365DeviceCodeSession.update({
+        where: { id: sessionId },
+        data: {
+          status: "completed",
+          completedAt: new Date(),
+          accountUpn,
+          scopesGrantedJson: scopesGranted,
+        },
+      });
+      await persistDelegatedTokens({
+        organizationId: session.organizationId,
+        refreshToken: j.refresh_token!,
+        accountUpn,
+        authorizedById: session.initiatedById,
+        accessTokenExpiresAt: expiresAt,
+        scopesGranted,
+        initialAccessToken: j.access_token,
+      });
+    });
+  } catch (err) {
+    await markSessionError(sessionId, `PERSIST_FAILED: ${String(err)}`);
+    return {
+      status: "error",
+      accountUpn: null,
+      scopesGranted: [],
+      error: { code: "PERSIST_FAILED", message: String(err) },
+    };
+  }
+
   return {
-    status: session.status,
-    accountUpn: session.result?.accountUpn ?? null,
-    scopesGranted: session.result ? [...session.result.scopesGranted] : [],
-    error: session.error,
+    status: "connected",
+    accountUpn,
+    scopesGranted,
+    error: null,
   };
 }
 
-/** Test-only — drop all in-flight sessions. */
-export function _resetDeviceCodeSessions(): void {
-  SESSIONS.clear();
+// ────────────────────────────────────────────────────────────────────
+// Cleanup
+// ────────────────────────────────────────────────────────────────────
+
+/**
+ * Prune Device Code sessions older than 24 hours. Rows are tiny
+ * (< 1 KB) so this is opportunistic — no harm in skipping.
+ */
+export async function pruneOldDeviceCodeSessions(
+  organizationId?: string,
+): Promise<{ deletedCount: number }> {
+  const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000);
+  const result = await prisma.m365DeviceCodeSession.deleteMany({
+    where: {
+      ...(organizationId ? { organizationId } : {}),
+      createdAt: { lt: cutoff },
+    },
+  });
+  return { deletedCount: result.count };
+}
+
+// ────────────────────────────────────────────────────────────────────
+// Helpers
+// ────────────────────────────────────────────────────────────────────
+
+function parseScopes(json: unknown): string[] {
+  if (Array.isArray(json)) return json.filter((s): s is string => typeof s === "string");
+  return [];
+}
+
+function deriveErrorCode(status: string, errorMessage: string): string {
+  if (status === "expired") return "expired_token";
+  const colonIdx = errorMessage.indexOf(":");
+  return colonIdx > 0 ? errorMessage.slice(0, colonIdx) : "DEVICE_CODE_FAILED";
+}
+
+async function markSessionExpired(sessionId: string, message: string): Promise<void> {
+  await prisma.m365DeviceCodeSession
+    .update({
+      where: { id: sessionId },
+      data: { status: "expired", errorMessage: message },
+    })
+    .catch(() => undefined);
+}
+
+async function markSessionError(sessionId: string, message: string): Promise<void> {
+  await prisma.m365DeviceCodeSession
+    .update({
+      where: { id: sessionId },
+      data: { status: "error", errorMessage: message },
+    })
+    .catch(() => undefined);
+}
+
+/**
+ * Extract the signed-in account's UPN from the id_token (preferred)
+ * or fall back to the access_token's `upn` / `unique_name` /
+ * `preferred_username` claim. Microsoft Graph access tokens carry
+ * one of those for delegated tokens.
+ */
+function extractUpn(
+  idToken: string | undefined,
+  accessToken: string,
+): string | null {
+  for (const jwt of [idToken, accessToken]) {
+    if (!jwt) continue;
+    const parts = jwt.split(".");
+    if (parts.length < 2 || !parts[1]) continue;
+    try {
+      const payload = JSON.parse(
+        Buffer.from(parts[1], "base64").toString("utf8"),
+      ) as Record<string, unknown>;
+      const upn =
+        (typeof payload.upn === "string" && payload.upn) ||
+        (typeof payload.preferred_username === "string" && payload.preferred_username) ||
+        (typeof payload.unique_name === "string" && payload.unique_name) ||
+        (typeof payload.email === "string" && payload.email);
+      if (upn) return upn;
+    } catch {
+      // Try the next token.
+    }
+  }
+  return null;
 }

@@ -151,8 +151,16 @@ immediately.
   chain-sealed audit row tagged with `authMode: "delegated"` so
   defensibility queries can reconstruct exactly which auth path
   serviced each request.
-- The Device Code flow itself is short-lived (15-minute TTL on the
-  user code) and runs entirely in-process within a single AEGIS
-  Node.js instance. There is no temporary session table; if you
-  click Connect on instance A and the load balancer routes the next
-  poll to instance B, the flow fails — re-click Connect.
+- The Device Code flow is short-lived (15-minute TTL on the user
+  code). Sessions persist in `M365DeviceCodeSession` so the flow
+  works across multi-instance deployments — initiate on Lambda A,
+  poll across A/B/C, complete on whichever instance happens to
+  receive the authorized response from Microsoft. Tokens are
+  written to `OrganizationM365Credential` in the same transaction
+  that flips the session row to `completed`, so concurrent polls
+  can't double-write.
+- Old session rows accumulate slowly (one per Connect attempt).
+  The admin "Legal Hold maintenance jobs" page exposes a manual
+  cleanup trigger (`POST /api/admin/jobs/m365-device-code-cleanup`)
+  that prunes anything older than 24 hours. Each row is < 1 KB so
+  this is opportunistic — skipping the cleanup doesn't hurt.

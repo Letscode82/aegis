@@ -13,12 +13,15 @@ import { Card, SH, C, F, M, useToast } from "@aegis/ui";
 interface JobMeta {
   defensibilitySnapshotLastRun: string | null;
   snapshotCleanupLastRun: string | null;
+  m365DeviceCodeLastSession: string | null;
 }
+
+type JobKind = "snapshot" | "cleanup" | "m365-device-code";
 
 export const JobsAdmin: React.FC = () => {
   const toast = useToast();
   const [meta, setMeta] = useState<JobMeta | null>(null);
-  const [running, setRunning] = useState<null | "snapshot" | "cleanup">(null);
+  const [running, setRunning] = useState<null | JobKind>(null);
 
   const reload = useCallback(async () => {
     try {
@@ -33,12 +36,14 @@ export const JobsAdmin: React.FC = () => {
     void reload();
   }, [reload]);
 
-  async function runJob(kind: "snapshot" | "cleanup") {
+  async function runJob(kind: JobKind) {
     setRunning(kind);
     const endpoint =
       kind === "snapshot"
         ? "/api/admin/jobs/defensibility-snapshot"
-        : "/api/admin/jobs/defensibility-cleanup";
+        : kind === "cleanup"
+          ? "/api/admin/jobs/defensibility-cleanup"
+          : "/api/admin/jobs/m365-device-code-cleanup";
     try {
       const r = await fetch(endpoint, { method: "POST" });
       const body = (await r.json().catch(() => ({}))) as {
@@ -56,9 +61,13 @@ export const JobsAdmin: React.FC = () => {
         toast.success(
           `Snapshot job ran — ${body.written ?? 0} written, ${body.skipped ?? 0} skipped (${body.attempted ?? 0} active holds)`,
         );
-      } else {
+      } else if (kind === "cleanup") {
         toast.success(
           `Cleanup job ran — ${body.deletedCount ?? 0} snapshot(s) thinned`,
+        );
+      } else {
+        toast.success(
+          `Device Code cleanup ran — ${body.deletedCount ?? 0} expired session(s) pruned`,
         );
       }
       await reload();
@@ -93,6 +102,15 @@ export const JobsAdmin: React.FC = () => {
           lastRun={meta?.snapshotCleanupLastRun ?? null}
           running={running === "cleanup"}
           onRun={() => runJob("cleanup")}
+          ctaLabel="Run cleanup now"
+        />
+
+        <JobRow
+          title="M365 Device Code Session Cleanup"
+          description="Deletes expired/completed Device Code OAuth sessions older than 24 hours from the M365DeviceCodeSession table. Rows are tiny so this is opportunistic cleanup."
+          lastRun={meta?.m365DeviceCodeLastSession ?? null}
+          running={running === "m365-device-code"}
+          onRun={() => runJob("m365-device-code")}
           ctaLabel="Run cleanup now"
         />
       </Card>
