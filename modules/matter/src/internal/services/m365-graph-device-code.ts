@@ -134,19 +134,97 @@ export type DeviceCodeStatus =
  */
 async function resolveClientSecret(
   organizationId: string,
-): Promise<string | null> {
+): Promise<{ secret: string | null; source: "per-org" | "env" | "none" }> {
   const cred = await prisma.organizationM365Credential
     .findUnique({ where: { organizationId } })
     .catch(() => null);
   if (cred?.encryptedClientSecret) {
     try {
-      return decryptSecret(cred.encryptedClientSecret as Buffer);
+      const plaintext = decryptSecret(cred.encryptedClientSecret as Buffer);
+      if (plaintext.length > 0) {
+        return { secret: plaintext, source: "per-org" };
+      }
+      // Decrypted to empty — fall through to env-var fallback.
     } catch {
       // Bad cipher / wrong version — treat as not configured. The
       // env-var fallback below still has a chance.
     }
   }
-  return process.env.M365_CLIENT_SECRET ?? null;
+  const envSecret = process.env.M365_CLIENT_SECRET;
+  if (envSecret && envSecret.length > 0) {
+    return { secret: envSecret, source: "env" };
+  }
+  return { secret: null, source: "none" };
+}
+
+/**
+ * Build marker emitted once per cold start so Vercel logs confirm
+ * this exact bundle is the one running. If "[m365-device-code] BUILD
+ * 2026-05-09-debug" never shows up in logs after the deploy, the
+ * deploy is stale.
+ */
+const BUILD_MARKER = "2026-05-09-debug-client-secret";
+console.log(
+  `[m365-device-code] BUILD ${BUILD_MARKER} (module loaded — cold-start)`,
+);
+
+/**
+ * Diagnostic logger. Prints body **key names** (never values) plus
+ * a small set of metadata fields so Vercel logs can answer
+ * "is client_secret actually in the body Microsoft sees?".
+ *
+ * Sub-PR 4c.1 follow-up — debugging persistent AADSTS7000218 after
+ * the client_secret fix in PR #31 supposedly landed. This branch
+ * logs unconditionally so we don't need an env-var toggle to see
+ * the diagnostics. After we identify the cause, we'll either remove
+ * the logs or gate them on M365_DEVICE_CODE_DEBUG=1.
+ */
+function debugLogTokenRequest(opts: {
+  url: string;
+  body: URLSearchParams;
+  source: "per-org" | "env" | "none";
+  secretLength: number;
+  organizationId: string;
+}): void {
+  const keys = Array.from(opts.body.keys()).sort();
+  const hasSecret = keys.includes("client_secret");
+  console.log(
+    "[m365-device-code]",
+    JSON.stringify({
+      event: "oauth-request",
+      build: BUILD_MARKER,
+      url: opts.url,
+      bodyKeys: keys,
+      hasClientSecret: hasSecret,
+      clientSecretSource: opts.source,
+      clientSecretLength: opts.secretLength,
+      organizationId: opts.organizationId,
+    }),
+  );
+}
+
+function debugLogTokenResponse(opts: {
+  url: string;
+  status: number;
+  errorCode: string | null;
+  errorDescription: string | null;
+  organizationId: string;
+}): void {
+  console.log(
+    "[m365-device-code]",
+    JSON.stringify({
+      event: "oauth-response",
+      build: BUILD_MARKER,
+      url: opts.url,
+      status: opts.status,
+      errorCode: opts.errorCode,
+      // Truncate to keep logs small; first 240 chars are enough to
+      // see the AADSTS code + parameter name.
+      errorDescriptionPrefix:
+        opts.errorDescription?.slice(0, 240) ?? null,
+      organizationId: opts.organizationId,
+    }),
+  );
 }
 
 // ────────────────────────────────────────────────────────────────────
@@ -188,7 +266,8 @@ export async function initiateDeviceCodeFlow(
   // AEGIS's Entra app registration is a confidential client; Microsoft
   // requires `client_secret` in the body for both /devicecode and
   // /token. See `resolveClientSecret` for the full rationale.
-  const clientSecret = await resolveClientSecret(input.organizationId);
+  const { secret: clientSecret, source: secretSource } =
+    await resolveClientSecret(input.organizationId);
   if (!clientSecret) {
     throw new Error(
       "M365_CLIENT_SECRET (or per-org encryptedClientSecret) is required " +
@@ -201,9 +280,23 @@ export async function initiateDeviceCodeFlow(
     client_secret: clientSecret,
     scope: DELEGATED_SCOPES.join(" "),
   });
+  debugLogTokenRequest({
+    url: deviceCodeEndpoint(input.tenantId),
+    body,
+    source: secretSource,
+    secretLength: clientSecret.length,
+    organizationId: input.organizationId,
+  });
   const resp = await postOAuth(deviceCodeEndpoint(input.tenantId), body);
   if (resp.status >= 400 || !resp.json || typeof resp.json !== "object") {
     const err = (resp.json ?? {}) as { error?: string; error_description?: string };
+    debugLogTokenResponse({
+      url: deviceCodeEndpoint(input.tenantId),
+      status: resp.status,
+      errorCode: err.error ?? null,
+      errorDescription: err.error_description ?? null,
+      organizationId: input.organizationId,
+    });
     throw new Error(
       `Microsoft /devicecode rejected: ${err.error ?? "unknown"} ` +
         `(${err.error_description ?? `HTTP ${resp.status}`})`,
@@ -339,8 +432,21 @@ export async function pollDeviceCodeFlow(
   // /token endpoint rejects Device Code requests that omit
   // `client_secret` with AADSTS7000218. We re-resolve at every poll so a
   // post-initiate secret rotation is handled.
-  const clientSecret = await resolveClientSecret(session.organizationId);
+  const { secret: clientSecret, source: secretSource } =
+    await resolveClientSecret(session.organizationId);
   if (!tenantId || !clientId || !clientSecret) {
+    console.log(
+      "[m365-device-code]",
+      JSON.stringify({
+        event: "missing-credentials",
+        build: BUILD_MARKER,
+        organizationId: session.organizationId,
+        hasTenantId: !!tenantId,
+        hasClientId: !!clientId,
+        clientSecretSource: secretSource,
+        clientSecretLength: clientSecret?.length ?? 0,
+      }),
+    );
     await markSessionError(
       sessionId,
       "M365 credentials missing — cannot poll for tokens",
@@ -363,6 +469,13 @@ export async function pollDeviceCodeFlow(
     client_id: clientId,
     client_secret: clientSecret,
     device_code: session.deviceCode,
+  });
+  debugLogTokenRequest({
+    url: tokenEndpoint(tenantId),
+    body,
+    source: secretSource,
+    secretLength: clientSecret.length,
+    organizationId: session.organizationId,
   });
   const resp = await postOAuth(tokenEndpoint(tenantId), body);
   const j = (resp.json ?? {}) as {
@@ -397,6 +510,13 @@ export async function pollDeviceCodeFlow(
     // access_denied, invalid_client, invalid_grant, …
     const code = j.error ?? "TOKEN_ERROR";
     const msg = j.error_description ?? `HTTP ${resp.status}`;
+    debugLogTokenResponse({
+      url: tokenEndpoint(tenantId),
+      status: resp.status,
+      errorCode: code,
+      errorDescription: msg,
+      organizationId: session.organizationId,
+    });
     await markSessionError(sessionId, `${code}: ${msg}`);
     return {
       status: "error",
@@ -430,6 +550,17 @@ export async function pollDeviceCodeFlow(
   const accountUpn = extractUpn(j.id_token, j.access_token) ?? "";
   const scopesGranted = j.scope ? j.scope.split(" ").filter(Boolean) : [...DELEGATED_SCOPES];
   const expiresAt = new Date(Date.now() + (j.expires_in ?? 3600) * 1000);
+  console.log(
+    "[m365-device-code]",
+    JSON.stringify({
+      event: "oauth-token-success",
+      build: BUILD_MARKER,
+      organizationId: session.organizationId,
+      hasIdToken: !!j.id_token,
+      accountUpnPresent: !!accountUpn,
+      scopesGrantedCount: scopesGranted.length,
+    }),
+  );
 
   // Use a transaction so the session-completion flip and the credential
   // update either both happen or neither does. Concurrent polls will
