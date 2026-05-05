@@ -91,23 +91,59 @@ export interface PersistDelegatedTokensInput {
   /** First access token returned by Microsoft — populates cache so
    *  the next call doesn't burn a refresh round-trip. */
   initialAccessToken?: string;
+  /**
+   * App-only credentials needed to populate the row's non-nullable
+   * columns when the upsert hits the create branch. Required for
+   * env-var-only deployments where no `OrganizationM365Credential`
+   * row exists yet — the persist is the row's first appearance.
+   *
+   * For deployments that pre-configured per-org credentials via the
+   * admin UI, the update branch ignores these fields (the row's
+   * existing tenant/client/secret are already populated and stay
+   * authoritative).
+   */
+  tenantId: string;
+  clientId: string;
+  /** Plaintext app-only client secret; encrypted before storage. */
+  clientSecret: string;
 }
 
 export async function persistDelegatedTokens(
   input: PersistDelegatedTokensInput,
 ): Promise<void> {
   const { encryptSecret } = await import("@aegis/db");
-  const encrypted = encryptSecret(input.refreshToken);
-  await prisma.organizationM365Credential.update({
+  const encryptedRefresh = encryptSecret(input.refreshToken);
+  const now = new Date();
+  // Upsert (not update) so env-var-only deployments — which never
+  // create an OrganizationM365Credential row up front — get one
+  // materialised on first Connect. Without this, the .update() in
+  // the previous implementation failed with "Record to update not
+  // found" and the user's tokens were lost despite a successful
+  // Microsoft sign-in.
+  await prisma.organizationM365Credential.upsert({
     where: { organizationId: input.organizationId },
-    data: {
-      delegatedRefreshToken: encrypted,
+    update: {
+      delegatedRefreshToken: encryptedRefresh,
       delegatedAccountUpn: input.accountUpn,
-      delegatedAuthorizedAt: new Date(),
+      delegatedAuthorizedAt: now,
       delegatedAuthorizedById: input.authorizedById,
       delegatedTokenExpiresAt: input.accessTokenExpiresAt,
-      delegatedLastRefreshedAt: new Date(),
+      delegatedLastRefreshedAt: now,
       delegatedLastRefreshError: null,
+      delegatedScopesGranted: [...input.scopesGranted],
+    },
+    create: {
+      organizationId: input.organizationId,
+      tenantId: input.tenantId,
+      clientId: input.clientId,
+      encryptedClientSecret: encryptSecret(input.clientSecret),
+      isActive: true,
+      delegatedRefreshToken: encryptedRefresh,
+      delegatedAccountUpn: input.accountUpn,
+      delegatedAuthorizedAt: now,
+      delegatedAuthorizedById: input.authorizedById,
+      delegatedTokenExpiresAt: input.accessTokenExpiresAt,
+      delegatedLastRefreshedAt: now,
       delegatedScopesGranted: [...input.scopesGranted],
     },
   });
