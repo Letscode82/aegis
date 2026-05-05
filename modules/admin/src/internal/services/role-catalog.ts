@@ -10,7 +10,7 @@
 import { Permission, type RoleName } from "@aegis/auth";
 
 export const ROLE_DESCRIPTIONS: Record<RoleName, string> = {
-  admin: "Platform owner. All 37 permissions including admin domain.",
+  admin: "Platform owner. All 39 permissions including admin domain.",
   gc: "General Counsel. Full reads + most writes + audit + manage users.",
   attorney: "In-house attorney. Reads + writes within assigned matters.",
   paralegal: "Paralegals. Reads + intake/matter writes; no spend approvals.",
@@ -136,6 +136,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       Permission.AdminManageUsers,
       Permission.AdminManageRoles,
       Permission.AdminLegalHoldTemplatesManage,
+      Permission.AdminM365Manage,
     ],
   },
 ];
@@ -183,6 +184,8 @@ export const PERMISSION_LABELS: Partial<Record<Permission, string>> = {
   [Permission.AuditReadAll]: "Read the platform audit ledger",
   [Permission.AdminManageUsers]: "Add / remove / edit users",
   [Permission.AdminManageRoles]: "Edit role permission sets",
+  [Permission.AdminLegalHoldTemplatesManage]: "Manage hold scope templates",
+  [Permission.AdminM365Manage]: "Manage M365 connection (app-only + eDiscovery delegated)",
 };
 
 export function permissionLabel(p: Permission): string {
