@@ -36,7 +36,7 @@
  * and stable.
  */
 import { randomUUID } from "node:crypto";
-import { prisma } from "@aegis/db";
+import { decryptSecret, prisma } from "@aegis/db";
 import {
   DELEGATED_SCOPES,
   persistDelegatedTokens,
@@ -109,6 +109,47 @@ export type DeviceCodeStatus =
   | "expired";
 
 // ────────────────────────────────────────────────────────────────────
+// OAuth credential resolution
+// ────────────────────────────────────────────────────────────────────
+
+/**
+ * Resolve the OAuth `client_secret` for an org so it can be included
+ * in Device Code POST bodies. AEGIS's Entra app registration is a
+ * **confidential client** (it has a configured client secret), and
+ * Microsoft's `/devicecode` and `/token` endpoints reject confidential-
+ * client requests that omit `client_secret`:
+ *
+ *   AADSTS7000218: The request body must contain the following
+ *   parameter: 'client_assertion' or 'client_secret'.
+ *
+ * The 4c.1 Device Code rewrite (PR #30) replaced MSAL with direct HTTP
+ * calls; MSAL's `ConfidentialClientApplication` had been silently
+ * adding the secret. The direct path has to add it explicitly.
+ *
+ * Resolution order matches the existing m365-graph-auth.ts factory:
+ *   1. per-org `OrganizationM365Credential` row (decrypt the stored
+ *      secret),
+ *   2. M365_CLIENT_SECRET env var,
+ *   3. null — caller fails out.
+ */
+async function resolveClientSecret(
+  organizationId: string,
+): Promise<string | null> {
+  const cred = await prisma.organizationM365Credential
+    .findUnique({ where: { organizationId } })
+    .catch(() => null);
+  if (cred?.encryptedClientSecret) {
+    try {
+      return decryptSecret(cred.encryptedClientSecret as Buffer);
+    } catch {
+      // Bad cipher / wrong version — treat as not configured. The
+      // env-var fallback below still has a chance.
+    }
+  }
+  return process.env.M365_CLIENT_SECRET ?? null;
+}
+
+// ────────────────────────────────────────────────────────────────────
 // Initiate
 // ────────────────────────────────────────────────────────────────────
 
@@ -144,8 +185,20 @@ export async function initiateDeviceCodeFlow(
       "initiateDeviceCodeFlow requires authorizedById — anonymous initiates are not allowed",
     );
   }
+  // AEGIS's Entra app registration is a confidential client; Microsoft
+  // requires `client_secret` in the body for both /devicecode and
+  // /token. See `resolveClientSecret` for the full rationale.
+  const clientSecret = await resolveClientSecret(input.organizationId);
+  if (!clientSecret) {
+    throw new Error(
+      "M365_CLIENT_SECRET (or per-org encryptedClientSecret) is required " +
+        "for the Device Code flow. Configure app-only credentials at " +
+        "/admin/m365 first, then retry Connect.",
+    );
+  }
   const body = new URLSearchParams({
     client_id: input.clientId,
+    client_secret: clientSecret,
     scope: DELEGATED_SCOPES.join(" "),
   });
   const resp = await postOAuth(deviceCodeEndpoint(input.tenantId), body);
@@ -282,7 +335,12 @@ export async function pollDeviceCodeFlow(
   });
   const tenantId = cred?.tenantId ?? process.env.M365_TENANT_ID;
   const clientId = cred?.clientId ?? process.env.M365_CLIENT_ID;
-  if (!tenantId || !clientId) {
+  // AEGIS's Entra app registration is a confidential client; Microsoft's
+  // /token endpoint rejects Device Code requests that omit
+  // `client_secret` with AADSTS7000218. We re-resolve at every poll so a
+  // post-initiate secret rotation is handled.
+  const clientSecret = await resolveClientSecret(session.organizationId);
+  if (!tenantId || !clientId || !clientSecret) {
     await markSessionError(
       sessionId,
       "M365 credentials missing — cannot poll for tokens",
@@ -298,10 +356,12 @@ export async function pollDeviceCodeFlow(
     };
   }
 
-  // Ask Microsoft.
+  // Ask Microsoft. `client_secret` is required because the Entra app
+  // registration is a confidential client.
   const body = new URLSearchParams({
     grant_type: "urn:ietf:params:oauth:grant-type:device_code",
     client_id: clientId,
+    client_secret: clientSecret,
     device_code: session.deviceCode,
   });
   const resp = await postOAuth(tokenEndpoint(tenantId), body);

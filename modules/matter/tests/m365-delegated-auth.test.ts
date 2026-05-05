@@ -15,6 +15,8 @@ interface FakeRow {
   organizationId: string;
   tenantId: string;
   clientId: string;
+  /** v1-prefixed encrypted plaintext (test helper). */
+  encryptedClientSecret: Buffer | null;
   delegatedRefreshToken: Buffer | null;
   delegatedAccountUpn: string | null;
   delegatedAuthorizedAt: Date | null;
@@ -52,6 +54,12 @@ function resetDb() {
     organizationId: "org-1",
     tenantId: "tenant-x",
     clientId: "client-x",
+    // Pre-encrypted (v1pl prefix + plaintext) so resolveClientSecret
+    // unwraps to "secret-xyz" without needing the real encryptSecret.
+    encryptedClientSecret: Buffer.concat([
+      Buffer.from("v1pl"),
+      Buffer.from("secret-xyz", "utf8"),
+    ]),
     delegatedRefreshToken: null,
     delegatedAccountUpn: null,
     delegatedAuthorizedAt: null,
@@ -566,6 +574,104 @@ describe("Device Code orchestrator (DB-backed)", () => {
     expect(p.status).toBe("error");
     expect(p.error?.code).toBe("access_denied");
     expect(FAKE_DB.sessions.get(init.sessionId)!.status).toBe("error");
+  });
+
+  it("includes client_secret in /devicecode and /token POST bodies (confidential client)", async () => {
+    // Regression test for AADSTS7000218. AEGIS's Entra app
+    // registration is a confidential client; Microsoft requires
+    // client_secret in the body for both Device Code endpoints.
+    const recorded: Array<{ url: string; body: URLSearchParams }> = [];
+    const idToken = makeJwt({ upn: "svc@example.com" });
+    const http = {
+      post: vi.fn(async (url: string, body: URLSearchParams) => {
+        recorded.push({ url, body });
+        if (url.endsWith("/devicecode")) {
+          return {
+            status: 200,
+            json: {
+              device_code: "DC-LONG",
+              user_code: "ABCD",
+              verification_uri: "https://microsoft.com/devicelogin",
+              expires_in: 900,
+              interval: 5,
+            },
+          };
+        }
+        return {
+          status: 200,
+          json: {
+            access_token: "AT",
+            refresh_token: "RT",
+            id_token: idToken,
+            expires_in: 3600,
+            scope: "User.Read",
+          },
+        };
+      }),
+    };
+    setOAuthHttpClient(http);
+
+    const init = await initiateDeviceCodeFlow({
+      organizationId: "org-1",
+      tenantId: "tenant-x",
+      clientId: "client-x",
+      authorizedById: "u-admin",
+    });
+    expect(recorded[0]!.url).toContain("/devicecode");
+    expect(recorded[0]!.body.get("client_secret")).toBe("secret-xyz");
+    expect(recorded[0]!.body.get("client_id")).toBe("client-x");
+
+    const p = await pollDeviceCodeFlow(init.sessionId);
+    expect(p.status).toBe("connected");
+    const tokenCall = recorded.find((r) => r.url.endsWith("/token"));
+    expect(tokenCall).toBeTruthy();
+    expect(tokenCall!.body.get("client_secret")).toBe("secret-xyz");
+    expect(tokenCall!.body.get("grant_type")).toBe(
+      "urn:ietf:params:oauth:grant-type:device_code",
+    );
+    expect(tokenCall!.body.get("device_code")).toBe("DC-LONG");
+  });
+
+  it("env var fallback supplies client_secret when no per-org row exists", async () => {
+    // Simulate "credentials only configured via env" — clear per-org row.
+    FAKE_DB.row = null;
+    const prev = process.env.M365_CLIENT_SECRET;
+    process.env.M365_CLIENT_SECRET = "env-secret-abc";
+    process.env.M365_TENANT_ID = "tenant-env";
+    process.env.M365_CLIENT_ID = "client-env";
+
+    const recorded: Array<URLSearchParams> = [];
+    const http = {
+      post: vi.fn(async (_url: string, body: URLSearchParams) => {
+        recorded.push(body);
+        return {
+          status: 200,
+          json: {
+            device_code: "DC2",
+            user_code: "EFGH",
+            verification_uri: "https://microsoft.com/devicelogin",
+            expires_in: 900,
+            interval: 5,
+          },
+        };
+      }),
+    };
+    setOAuthHttpClient(http);
+
+    try {
+      await initiateDeviceCodeFlow({
+        organizationId: "org-1",
+        tenantId: "tenant-env",
+        clientId: "client-env",
+        authorizedById: "u-admin",
+      });
+      expect(recorded[0]!.get("client_secret")).toBe("env-secret-abc");
+    } finally {
+      if (prev === undefined) delete process.env.M365_CLIENT_SECRET;
+      else process.env.M365_CLIENT_SECRET = prev;
+      delete process.env.M365_TENANT_ID;
+      delete process.env.M365_CLIENT_ID;
+    }
   });
 
   it("returns SESSION_NOT_FOUND for unknown session id", async () => {
