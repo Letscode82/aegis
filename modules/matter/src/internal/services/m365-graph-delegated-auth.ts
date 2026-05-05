@@ -38,6 +38,7 @@
  * `encryptSecret` v1-prefix helper as `encryptedClientSecret`. The
  * sunset path (KMS) is shared — see CLAUDE.md "Documented exceptions".
  */
+import { createHash } from "node:crypto";
 import { decryptSecret, prisma } from "@aegis/db";
 import {
   M365DelegatedAuthExpiredError,
@@ -278,10 +279,14 @@ export function setRefreshTokenExchanger(
 
 async function defaultExchanger(): Promise<RefreshTokenExchanger> {
   // Lazy import keeps msal-node out of the bundle when only app-only
-  // auth is in use (CI, mock-only tests).
-  const { ConfidentialClientApplication, PublicClientApplication } =
-    await import("@azure/msal-node");
-  void ConfidentialClientApplication;
+  // auth is in use (CI, mock-only tests). The msal-node version is
+  // pinned exactly in package.json (no caret) because the call below
+  // uses the public-but-undocumented `acquireTokenByRefreshToken`
+  // API; minor-version bumps have reorganised internal APIs in the
+  // past. Sunset path: replace with direct HTTP to /oauth2/v2.0/token
+  // (grant_type=refresh_token), the same pattern that
+  // m365-graph-device-code.ts already uses.
+  const { PublicClientApplication } = await import("@azure/msal-node");
   return {
     async exchange({ tenantId, clientId, refreshToken, scopes }) {
       const pca = new PublicClientApplication({
@@ -421,8 +426,6 @@ export async function getFreshDelegatedAccessToken(
 // ────────────────────────────────────────────────────────────────────
 // Helpers
 // ────────────────────────────────────────────────────────────────────
-
-import { createHash } from "node:crypto";
 
 function hashRefreshToken(token: string): string {
   return createHash("sha256").update(token, "utf8").digest("hex").slice(0, 16);

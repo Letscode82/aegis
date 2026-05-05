@@ -36,11 +36,12 @@
  * and stable.
  */
 import { randomUUID } from "node:crypto";
-import { decryptSecret, prisma } from "@aegis/db";
+import { prisma } from "@aegis/db";
 import {
   DELEGATED_SCOPES,
   persistDelegatedTokens,
 } from "./m365-graph-delegated-auth";
+import { resolveCredentialsForOrg } from "./m365-graph-auth";
 
 /** Default poll interval if Microsoft doesn't specify one. */
 const DEFAULT_POLL_INTERVAL_SEC = 5;
@@ -109,55 +110,6 @@ export type DeviceCodeStatus =
   | "expired";
 
 // ────────────────────────────────────────────────────────────────────
-// OAuth credential resolution
-// ────────────────────────────────────────────────────────────────────
-
-/**
- * Resolve the OAuth `client_secret` for an org so it can be included
- * in Device Code POST bodies. AEGIS's Entra app registration is a
- * **confidential client** (it has a configured client secret), and
- * Microsoft's `/devicecode` and `/token` endpoints reject confidential-
- * client requests that omit `client_secret`:
- *
- *   AADSTS7000218: The request body must contain the following
- *   parameter: 'client_assertion' or 'client_secret'.
- *
- * The 4c.1 Device Code rewrite (PR #30) replaced MSAL with direct HTTP
- * calls; MSAL's `ConfidentialClientApplication` had been silently
- * adding the secret. The direct path has to add it explicitly.
- *
- * Resolution order matches the existing m365-graph-auth.ts factory:
- *   1. per-org `OrganizationM365Credential` row (decrypt the stored
- *      secret),
- *   2. M365_CLIENT_SECRET env var,
- *   3. null — caller fails out.
- */
-async function resolveClientSecret(
-  organizationId: string,
-): Promise<{ secret: string | null; source: "per-org" | "env" | "none" }> {
-  const cred = await prisma.organizationM365Credential
-    .findUnique({ where: { organizationId } })
-    .catch(() => null);
-  if (cred?.encryptedClientSecret) {
-    try {
-      const plaintext = decryptSecret(cred.encryptedClientSecret as Buffer);
-      if (plaintext.length > 0) {
-        return { secret: plaintext, source: "per-org" };
-      }
-      // Decrypted to empty — fall through to env-var fallback.
-    } catch {
-      // Bad cipher / wrong version — treat as not configured. The
-      // env-var fallback below still has a chance.
-    }
-  }
-  const envSecret = process.env.M365_CLIENT_SECRET;
-  if (envSecret && envSecret.length > 0) {
-    return { secret: envSecret, source: "env" };
-  }
-  return { secret: null, source: "none" };
-}
-
-// ────────────────────────────────────────────────────────────────────
 // Initiate
 // ────────────────────────────────────────────────────────────────────
 
@@ -195,11 +147,10 @@ export async function initiateDeviceCodeFlow(
   }
   // AEGIS's Entra app registration is a confidential client; Microsoft
   // requires `client_secret` in the body for both /devicecode and
-  // /token. See `resolveClientSecret` for the full rationale.
-  const { secret: clientSecret } = await resolveClientSecret(
-    input.organizationId,
-  );
-  if (!clientSecret) {
+  // /token. Re-use the canonical credential resolver in
+  // `m365-graph-auth.ts` rather than maintaining a parallel one here.
+  const creds = await resolveCredentialsForOrg(input.organizationId);
+  if (!creds) {
     throw new Error(
       "M365_CLIENT_SECRET (or per-org encryptedClientSecret) is required " +
         "for the Device Code flow. Configure app-only credentials at " +
@@ -208,7 +159,7 @@ export async function initiateDeviceCodeFlow(
   }
   const body = new URLSearchParams({
     client_id: input.clientId,
-    client_secret: clientSecret,
+    client_secret: creds.clientSecret,
     scope: DELEGATED_SCOPES.join(" "),
   });
   const resp = await postOAuth(deviceCodeEndpoint(input.tenantId), body);
@@ -335,24 +286,11 @@ export async function pollDeviceCodeFlow(
     };
   }
 
-  // Resolve the tenant + client id from the org's credential row.
-  // The session itself stores deviceCode but not tenantId — those
-  // belong to the per-org credential row, which we re-resolve at
-  // poll time so a credential rotation between initiate and poll
-  // is handled safely.
-  const cred = await prisma.organizationM365Credential.findUnique({
-    where: { organizationId: session.organizationId },
-  });
-  const tenantId = cred?.tenantId ?? process.env.M365_TENANT_ID;
-  const clientId = cred?.clientId ?? process.env.M365_CLIENT_ID;
-  // AEGIS's Entra app registration is a confidential client; Microsoft's
-  // /token endpoint rejects Device Code requests that omit
-  // `client_secret` with AADSTS7000218. We re-resolve at every poll so a
-  // post-initiate secret rotation is handled.
-  const { secret: clientSecret } = await resolveClientSecret(
-    session.organizationId,
-  );
-  if (!tenantId || !clientId || !clientSecret) {
+  // Re-resolve credentials at every poll so a credential rotation
+  // between initiate and poll is handled safely. Single source of
+  // truth: `resolveCredentialsForOrg` in m365-graph-auth.ts.
+  const creds = await resolveCredentialsForOrg(session.organizationId);
+  if (!creds) {
     await markSessionError(
       sessionId,
       "M365 credentials missing — cannot poll for tokens",
@@ -367,6 +305,7 @@ export async function pollDeviceCodeFlow(
       },
     };
   }
+  const { tenantId, clientId, clientSecret } = creds;
 
   // Ask Microsoft. `client_secret` is required because the Entra app
   // registration is a confidential client.
