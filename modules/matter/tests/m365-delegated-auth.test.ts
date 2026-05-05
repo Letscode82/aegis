@@ -96,6 +96,41 @@ vi.mock("@aegis/db", () => {
           return FAKE_DB.row;
         },
       ),
+      upsert: vi.fn(
+        async ({
+          where,
+          update,
+          create,
+        }: {
+          where: { organizationId: string };
+          update: Partial<FakeRow>;
+          create: Partial<FakeRow> & { organizationId: string };
+        }) => {
+          if (FAKE_DB.row?.organizationId === where.organizationId) {
+            FAKE_DB.row = { ...FAKE_DB.row, ...update } as FakeRow;
+            return FAKE_DB.row;
+          }
+          // Create branch — env-var-only deployment hitting the upsert
+          // for the first time. Synthesise a row from `create`.
+          const created: FakeRow = {
+            organizationId: where.organizationId,
+            tenantId: (create.tenantId as string) ?? "",
+            clientId: (create.clientId as string) ?? "",
+            encryptedClientSecret: null,
+            delegatedRefreshToken: null,
+            delegatedAccountUpn: null,
+            delegatedAuthorizedAt: null,
+            delegatedAuthorizedById: null,
+            delegatedTokenExpiresAt: null,
+            delegatedLastRefreshedAt: null,
+            delegatedLastRefreshError: null,
+            delegatedScopesGranted: [],
+            ...create,
+          } as FakeRow;
+          FAKE_DB.row = created;
+          return created;
+        },
+      ),
     },
     m365DeviceCodeSession: {
       create: vi.fn(async ({ data }: { data: FakeSession }) => {
@@ -184,6 +219,9 @@ describe("persistDelegatedTokens", () => {
       accessTokenExpiresAt: new Date(Date.now() + 3600_000),
       scopesGranted: ["eDiscovery.ReadWrite.All"],
       initialAccessToken: "AT-cached",
+      tenantId: "tenant-x",
+      clientId: "client-x",
+      clientSecret: "secret-xyz",
     });
     const row = FAKE_DB.row!;
     expect(row.delegatedRefreshToken).toBeTruthy();
@@ -201,6 +239,41 @@ describe("persistDelegatedTokens", () => {
     const fresh = await getFreshDelegatedAccessToken("org-1");
     expect(fresh.accessToken).toBe("AT-cached");
     expect(fresh.accountUpn).toBe("svc@example.onmicrosoft.com");
+  });
+
+  it("upsert create path materialises a row when no per-org credential exists (env-var-only deployment)", async () => {
+    // Regression for the production "Record to update not found"
+    // failure: env-var-only deployments have no
+    // OrganizationM365Credential row until Connect succeeds. The
+    // persist must create one rather than failing the update.
+    FAKE_DB.row = null;
+    await persistDelegatedTokens({
+      organizationId: "org-2",
+      refreshToken: "RT-new-row",
+      accountUpn: "svc@env-only.example",
+      authorizedById: "u-admin",
+      accessTokenExpiresAt: new Date(Date.now() + 3600_000),
+      scopesGranted: ["eDiscovery.ReadWrite.All"],
+      tenantId: "tenant-from-env",
+      clientId: "client-from-env",
+      clientSecret: "secret-from-env",
+    });
+    const row = FAKE_DB.row!;
+    expect(row.organizationId).toBe("org-2");
+    expect(row.tenantId).toBe("tenant-from-env");
+    expect(row.clientId).toBe("client-from-env");
+    // Both secrets are encrypted with the v1pl prefix.
+    expect(row.encryptedClientSecret!.subarray(0, 4).toString("utf8")).toBe(
+      "v1pl",
+    );
+    expect(row.encryptedClientSecret!.subarray(4).toString("utf8")).toBe(
+      "secret-from-env",
+    );
+    expect(row.delegatedRefreshToken!.subarray(4).toString("utf8")).toBe(
+      "RT-new-row",
+    );
+    expect(row.delegatedAccountUpn).toBe("svc@env-only.example");
+    expect(row.delegatedScopesGranted).toEqual(["eDiscovery.ReadWrite.All"]);
   });
 });
 
@@ -220,6 +293,9 @@ describe("getFreshDelegatedAccessToken", () => {
       authorizedById: "u-admin",
       accessTokenExpiresAt: new Date(Date.now() - 1000),
       scopesGranted: ["eDiscovery.ReadWrite.All"],
+      tenantId: "tenant-x",
+      clientId: "client-x",
+      clientSecret: "secret-xyz",
     });
     const newExpiry = new Date(Date.now() + 3600_000);
     const exchanger = {
@@ -247,6 +323,9 @@ describe("getFreshDelegatedAccessToken", () => {
       authorizedById: "u-admin",
       accessTokenExpiresAt: new Date(Date.now() - 1000),
       scopesGranted: [],
+      tenantId: "tenant-x",
+      clientId: "client-x",
+      clientSecret: "secret-xyz",
     });
     setRefreshTokenExchanger({
       exchange: vi.fn(async () => {
@@ -279,6 +358,9 @@ describe("getDelegatedAuthStatus", () => {
       authorizedById: "u-admin",
       accessTokenExpiresAt: new Date(Date.now() + 3600_000),
       scopesGranted: ["eDiscovery.ReadWrite.All", "User.Read"],
+      tenantId: "tenant-x",
+      clientId: "client-x",
+      clientSecret: "secret-xyz",
     });
     const s = await getDelegatedAuthStatus("org-1");
     expect(s.configured).toBe(true);
