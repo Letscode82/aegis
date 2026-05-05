@@ -30,14 +30,27 @@ export default async function handler(
 ) {
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
-    return res.status(405).json({ error: "Method not allowed" });
+    return res.status(405).json({
+      ok: false,
+      error: { code: "METHOD_NOT_ALLOWED", message: "Method not allowed" },
+    });
   }
   const actor = await requireActor(req, res, Permission.AdminM365Manage);
   if (!actor) return;
   const sessionId = req.query.sessionId;
   if (typeof sessionId !== "string") {
-    return res.status(400).json({ error: "sessionId required" });
+    return res.status(400).json({
+      ok: false,
+      error: {
+        code: "MISSING_SESSION_ID",
+        message: "sessionId query parameter is required",
+      },
+    });
   }
   const result = await pollDeviceCodeFlow(sessionId);
-  return res.status(200).json(result);
+  // Poll's response IS the state-machine value; wrap in `ok: true`
+  // so the success/failure discrimination follows the same shape as
+  // the other admin endpoints. UI consumers read body.status etc.
+  // unchanged.
+  return res.status(200).json({ ok: true, ...result });
 }

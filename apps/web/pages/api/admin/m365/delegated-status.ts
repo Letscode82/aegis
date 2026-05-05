@@ -23,7 +23,10 @@ export default async function handler(
 ) {
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");
-    return res.status(405).json({ error: "Method not allowed" });
+    return res.status(405).json({
+      ok: false,
+      error: { code: "METHOD_NOT_ALLOWED", message: "Method not allowed" },
+    });
   }
   const actor = await requireActorAny(req, res, [
     Permission.AdminM365Manage,
@@ -31,5 +34,5 @@ export default async function handler(
   ]);
   if (!actor) return;
   const status = await getDelegatedAuthStatus(actor.organizationId);
-  return res.status(200).json(status);
+  return res.status(200).json({ ok: true, ...status });
 }
