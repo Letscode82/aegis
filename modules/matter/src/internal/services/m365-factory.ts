@@ -151,15 +151,3 @@ export async function getM365ClientForOrg(
     process.env.NODE_ENV !== "production",
   );
 }
-
-/**
- * Synchronous, org-agnostic accessor preserved for 4a callers
- * (matter-bind provisioning paths that haven't migrated to the
- * org-scoped factory yet). Always returns the mock — the real
- * factory needs an org id to resolve credentials.
- *
- * New callers in 4c+ should use `getM365ClientForOrg(orgId)`.
- */
-export function getM365Client(): M365Client {
-  return MOCK_FALLBACK;
-}
