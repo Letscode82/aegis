@@ -19,7 +19,7 @@ export default async function handler(
     res.setHeader("Allow", "GET,POST");
     return res.status(405).json({ error: "Method not allowed" });
   }
-  const actor = await requireActor(req, res, Permission.AdminManageUsers);
+  const actor = await requireActor(req, res, Permission.AdminM365Manage);
   if (!actor) return;
   try {
     const result = await verifyM365Credentials(actor.organizationId);

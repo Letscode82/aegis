@@ -1,13 +1,14 @@
 /**
- * GET /api/admin/m365/sync-status
+ * GET /api/admin/m365/delegated-status
  *
- * Per-org connection status for the /admin/m365 page. Does NOT call
- * Graph — just reports the resolved credential mode and the last
- * verified timestamp. Cheap and safe to poll.
+ * Returns the current delegated-auth state for the actor's org.
+ * Cheap: hits the OrganizationM365Credential row, no Graph calls.
+ *
+ * Permission: admin:m365:manage.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission } from "@aegis/auth";
-import { getM365ConnectionStatus } from "@aegis/matter";
+import { getDelegatedAuthStatus } from "@aegis/matter";
 import { requireActor } from "../../../../lib/matter-actor";
 
 export default async function handler(
@@ -20,6 +21,6 @@ export default async function handler(
   }
   const actor = await requireActor(req, res, Permission.AdminM365Manage);
   if (!actor) return;
-  const status = await getM365ConnectionStatus(actor.organizationId);
+  const status = await getDelegatedAuthStatus(actor.organizationId);
   return res.status(200).json(status);
 }
