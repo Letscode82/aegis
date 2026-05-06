@@ -180,6 +180,22 @@ PR #4 — Matter Management module — split into four sub-PRs:
        service shape is pg-boss-ready and a worker runtime swap
        is the only change needed to wire scheduled execution
        (documented exception below).
+  4d.0 — Counsel-Driven Hold Wizard. Five-step guided flow
+       (Scope & Trigger → Custodians → Data Sources with live M365
+       auto-discovery + SharePoint picker → Notice → Review &
+       Issue) accessible from a `+ NEW HOLD (GUIDED)` button on
+       the matter workspace. Real-time progress panel during
+       issuance via SSE — composes the existing
+       issueLegalHoldService + applyDataSourcePreservationService
+       + composeAndSendNoticeService into one ordered flow whose
+       events stream to the wizard's ProgressPanel. Per-data-
+       source status badges (Pending / On Hold / Error / Released)
+       with single-click retry land in the workspace; the
+       `DataSourcePreservationStatus` enum joins
+       `CustodianDataSource`. Ships the
+       `enumerateDataSourcesForUser` `$top` fix that was blocking
+       the smoke test. Replaces nothing — the power-user
+       single-page flow stays as-is.
   4d — AI features: matter creation suggestions, similar matters,
        custodian discovery, draft generation. Real Claude calls
        replace the 4a keyword/static fallbacks.
@@ -736,6 +752,92 @@ admin) keeps `pnpm dev` zero-config, and the production guard prevents
 the silent-downgrade footgun. Both stay through the swap.
 
 ---
+
+## What's new in sub-PR 4d.0 (counsel-driven Hold Wizard)
+
+Five-step guided creation flow that closes the visible UX gap from
+a Relativity-vs-AEGIS feature audit: M365 data-source auto-
+discovery, per-source status badges, real-time progress during
+issuance, single-click retry on Microsoft errors, SharePoint
+target selection per custodian. The existing single-page workspace
+stays unchanged for power users — the wizard is a parallel entry
+point.
+
+- **`enumerateDataSourcesForUser` `$top` fix.** Microsoft Graph
+  rejects `$top=N` on `/users/{id}/chats`, `/joinedTeams`, etc.
+  with "Query option 'Top' is not allowed." — that was blocking
+  the smoke test. New `m365-graph-pagination.ts` exports
+  `fetchAllPaged` (walks every `@odata.nextLink`) and
+  `fetchFirstPage` for "do any rows exist" checks. The
+  enumeration path now uses it.
+- **`DataSourcePreservationStatus` enum.** Five-state lifecycle
+  on `CustodianDataSource` (NOT_REQUESTED / PENDING / ON_HOLD /
+  ERROR / RELEASED). Migration backfills from legacy timestamps
+  so deployed workspaces render correctly without a re-apply
+  pass. `applyDataSourcePreservationService` flips PENDING/ERROR;
+  `confirmDataSourcePreservationService` flips ON_HOLD.
+- **SharePoint enumeration.**
+  `enumerateSharePointSitesForUser(input)` on the `M365Client`
+  interface with mock + real-Graph implementations. Real client
+  combines `/users/{id}/followedSites` + `/sites?search="<keyword>"`
+  with a recommendation heuristic that pre-checks
+  matter-keyword matches.
+- **Issue-with-progress orchestrator.** New
+  `issueHoldWithProgress(input, actor)` async generator composes
+  the existing services into one ordered event stream:
+
+      issue.hold-record → issue.custodians → issue.purview
+        → issue.purview.cust:<personId>
+          → issue.purview.cust:<personId>.ds:<dsId>
+      → issue.notices → issue.audit → complete
+
+  Per-source failure does NOT abort — final summary records
+  partial success so the wizard can show "2 of 3 preserved". A
+  snapshot fallback (`getIssueStatusSnapshot`) backs the
+  reconnect path.
+- **Three new endpoints.**
+  - `POST /api/matter/[id]/holds/[holdId]/issue-with-progress` —
+    Server-Sent Events stream; the wizard's ProgressPanel parses
+    each `data:` frame as a typed `IssueProgressEvent`.
+  - `GET /api/matter/[id]/holds/[holdId]/issue-status` — snapshot
+    fallback the panel polls if SSE drops.
+  - `POST /api/matter/[id]/holds/[holdId]/custodians/[personId]/data-sources/[dsId]/retry`
+    — single-source retry the workspace status-badge "Retry"
+    button fires.
+  - `POST /api/matter/[id]/holds/discover-data-sources` — live
+    discovery the wizard's Step 3 calls. Best-effort per
+    custodian; one failure doesn't abort the others.
+  - `POST /api/matter/people` — inline custodian create from
+    Step 2's "+ Add new custodian" form.
+- **Hold Wizard UI.** New component family under
+  `modules/matter/src/ui/legal-hold/wizard/`. Shell coordinates
+  step navigation + per-step validation gating + cross-step state
+  auto-saved to localStorage keyed by matterId. Five steps each
+  own their form; Step 5 orchestrates create-hold +
+  attach-custodians + attach-sources, then hands off to
+  `ProgressPanel` which streams the SSE issue.
+- **`DataSourceStatusBadge` + retry wiring.** Workspace
+  per-source rows render the new lifecycle as a colored pill;
+  ERROR badges include an inline `Retry` button that fires the
+  retry endpoint and refreshes the parent custodian list on
+  success.
+- **`+ NEW HOLD (GUIDED)`** button alongside the existing
+  `+ New hold` shortcut on the matter workspace. Routes to
+  `/matter/[id]/new-hold-wizard`.
+
+Net new lines:
+  - 1 schema migration (additive, 1 enum + 1 column)
+  - 6 new internal services + types
+    (m365-graph-pagination, issue-hold-progress, retry-data-source,
+     plus new SharePoint enum on the M365 client)
+  - 5 new API endpoints
+  - 1 new component family (wizard) + 1 new shared component
+    (DataSourceStatusBadge)
+  - 2 new test files (m365-graph-pagination, issue-hold-progress)
+    — total matter tests 119 → 130
+
+No new entries in the documented-exceptions table. No changes to
+the working OAuth/eDiscovery flow.
 
 ## What's new in sub-PR 4c.1 cleanup (post-demo polish)
 

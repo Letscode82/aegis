@@ -16,6 +16,7 @@
 import React from "react";
 import { C, F, M } from "@aegis/ui";
 import type { HoldDataSourceDTO } from "./types";
+import { DataSourceStatusBadge } from "./DataSourceStatusBadge";
 
 export const TYPE_ICON: Record<string, string> = {
   EMAIL_MAILBOX: "✉",
@@ -43,6 +44,16 @@ export interface DataSourceRowProps {
   busy: boolean;
   onApply: (dsId: string) => void;
   onConfirm: (dsId: string) => void;
+  /** Sub-PR 4d.0 — context the new lifecycle badge needs to fire
+   *  the per-source `Retry` endpoint. When omitted, the badge
+   *  renders read-only (no retry button) so legacy callers don't
+   *  break. */
+  matterId?: string;
+  holdId?: string;
+  personId?: string;
+  /** Refresh hook called after a successful retry so the parent
+   *  re-fetches its custodian list. */
+  onAfterRetry?: () => void;
 }
 
 export const DataSourceRow: React.FC<DataSourceRowProps> = ({
@@ -51,6 +62,10 @@ export const DataSourceRow: React.FC<DataSourceRowProps> = ({
   busy,
   onApply,
   onConfirm,
+  matterId,
+  holdId,
+  personId,
+  onAfterRetry,
 }) => {
   const applied = !!d.preservationAppliedAt;
   const confirmed = !!d.preservationConfirmedAt;
@@ -90,15 +105,39 @@ export const DataSourceRow: React.FC<DataSourceRowProps> = ({
         style={{
           fontFamily: M,
           fontSize: 9.5,
-          color: confirmed ? C.gn : applied ? C.bl : C.am,
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 6,
+          color: C.t3,
         }}
       >
-        {confirmed
-          ? "✓ confirmed"
-          : applied
-            ? "● applied"
-            : "○ pending"}
-        {conflict && " · ⚠ conflict"}
+        {matterId && holdId && personId ? (
+          <DataSourceStatusBadge
+            matterId={matterId}
+            holdId={holdId}
+            personId={personId}
+            dataSourceId={d.id}
+            status={d.preservationStatus}
+            preservationAppliedAt={d.preservationAppliedAt}
+            preservationConfirmedAt={d.preservationConfirmedAt}
+            preservationFailureReason={d.preservationFailureReason ?? null}
+            onAfterRetry={onAfterRetry}
+          />
+        ) : (
+          // Back-compat — legacy text status when context is missing.
+          <span style={{ color: confirmed ? C.gn : applied ? C.bl : C.am }}>
+            {confirmed
+              ? "✓ confirmed"
+              : applied
+                ? "● applied"
+                : "○ pending"}
+          </span>
+        )}
+        {conflict && (
+          <span style={{ color: C.am }} aria-label="Retention policy conflict">
+            ⚠ conflict
+          </span>
+        )}
       </span>
       <span
         style={{
