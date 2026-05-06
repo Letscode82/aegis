@@ -13,7 +13,7 @@
  * sources, including ticked SharePoint sites.
  */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Pill, SH, C, F, M } from "@aegis/ui";
+import { Pill, SH, C, M } from "@aegis/ui";
 import type {
   CustodianDiscovery,
   DiscoveredDataSource,
@@ -238,7 +238,7 @@ export const Step3DataSources: React.FC<WizardStepProps> = ({
                 update({ skipAutoDiscovery: e.target.checked })
               }
             />
-            Skip auto-discovery — I'll add sources manually after issue
+            Skip auto-discovery — I&apos;ll add sources manually after issue
           </label>
         </div>
 

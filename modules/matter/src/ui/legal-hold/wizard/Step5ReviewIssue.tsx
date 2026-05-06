@@ -19,7 +19,7 @@
  * the Purview round-trip live.
  */
 import React, { useMemo, useState } from "react";
-import { Pill, SH, C, F, M, useToast } from "@aegis/ui";
+import { SH, C, F, M, useToast } from "@aegis/ui";
 import type { WizardStepProps, DiscoveredDataSource, DiscoveredSharePointSite } from "./types";
 
 export interface Step5ReviewIssueProps extends WizardStepProps {

@@ -206,6 +206,7 @@ export function useActorResolver(
     // `inputs` is intentionally not in the deps array — `sig` is its
     // content-derived signature and refires when content changes,
     // avoiding the new-array-every-render thrash.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matterId, holdId, sig]);
 
   return lookup;

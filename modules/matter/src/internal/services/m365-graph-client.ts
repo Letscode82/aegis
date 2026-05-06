@@ -14,7 +14,7 @@
  * workflow degrades on `M365EDiscoveryNotLicensedError`.
  */
 import type { Client } from "@microsoft/microsoft-graph-client";
-import type { Matter } from "@aegis/db";
+import type { DataSourceType, Matter, PreservationAction } from "@aegis/db";
 import type {
   ApplyPreservationInput,
   CandidateCustodian,
@@ -31,7 +31,6 @@ import type {
   ReleasePreservationInput,
   SharePointSiteCandidate,
 } from "./m365";
-import type { DataSourceType, PreservationAction } from "@aegis/db";
 import {
   M365GraphError,
   M365GraphNotFoundError,

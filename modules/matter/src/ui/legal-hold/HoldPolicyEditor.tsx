@@ -86,6 +86,7 @@ export const HoldPolicyEditor: React.FC = () => {
     };
     // The toast handle is stable across renders via the provider's
     // `useMemo`; the load only needs to fire once at mount.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function addRow() {

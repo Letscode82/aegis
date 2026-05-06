@@ -472,7 +472,7 @@ const ManualPane: React.FC<{
       >
         Manual entry creates a free-form data-source row of type{" "}
         <span style={{ fontFamily: M, color: C.t2 }}>OTHER</span>. Use this
-        for physical files, third-party SaaS that AEGIS can't auto-discover,
+        for physical files, third-party SaaS that AEGIS can&apos;t auto-discover,
         or interim records pending integration.
       </div>
       <Field label="Display label">

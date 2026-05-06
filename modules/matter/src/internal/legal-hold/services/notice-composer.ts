@@ -23,7 +23,6 @@ import {
   bodyHash,
   prisma,
   type HoldNoticeIssuance,
-  type HoldNoticeTemplate,
 } from "@aegis/db";
 import type { HoldActor } from "../types";
 import { recordHoldEvent } from "./timeline";

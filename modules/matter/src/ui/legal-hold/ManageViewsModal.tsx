@@ -79,7 +79,7 @@ export const ManageViewsModal: React.FC<ManageViewsModalProps> = ({
     >
       {views.length === 0 ? (
         <div style={{ color: C.t3, fontFamily: M, fontSize: 11 }}>
-          You don't own any saved views for this surface yet.
+          You don&apos;t own any saved views for this surface yet.
         </div>
       ) : (
         <div style={{ display: "grid", gap: 8 }}>

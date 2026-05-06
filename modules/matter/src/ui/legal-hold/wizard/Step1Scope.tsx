@@ -192,7 +192,7 @@ export const Step1Scope: React.FC<WizardStepProps> = ({
         </div>
         Jurisdictions inherit from the matter; you can override per
         hold. Scope templates fast-fill common language patterns —
-        they're admin-managed at <code>/admin/legal-hold/templates</code>.
+        they&apos;re admin-managed at <code>/admin/legal-hold/templates</code>.
         <br />
         <br />
         The trigger date and description seed the trigger-event audit

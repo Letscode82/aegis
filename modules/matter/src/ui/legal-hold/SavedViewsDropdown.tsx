@@ -61,8 +61,10 @@ export const SavedViewsDropdown: React.FC<SavedViewsDropdownProps> = ({
   }
 
   useEffect(() => {
-    // Re-fetch only when scope changes; reload() is stable.
+    // Re-fetch only when scope changes; reload() is a stable
+    // component-body closure.
     reload();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scope]);
 
   // Auto-apply default view once per mount when caller opts in.
@@ -79,6 +81,7 @@ export const SavedViewsDropdown: React.FC<SavedViewsDropdownProps> = ({
       onApply(own.filterState);
     }
     setDefaultApplied(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [applyDefaultOnMount, views, currentUserId, defaultApplied]);
 
   const own = (views ?? []).filter((v) => v.ownerId === currentUserId);

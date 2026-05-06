@@ -230,7 +230,7 @@ export const NoticeDrillInModal: React.FC<NoticeDrillInModalProps> = ({
                 fontStyle: "italic",
               }}
             >
-              Delivery status reads "Recorded" — the issuance + chain rows
+              Delivery status reads {`"Recorded"`} — the issuance + chain rows
               ARE the defensibility evidence today; SES/Outlook send
               integration is a separate surface (sunset documented).
             </div>

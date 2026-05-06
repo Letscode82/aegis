@@ -14,7 +14,7 @@
  * hop is short).
  */
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Pill, SH, C, F, M } from "@aegis/ui";
+import { SH, C, F, M } from "@aegis/ui";
 
 interface IssueProgressEvent {
   type:

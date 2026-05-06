@@ -205,6 +205,11 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
       out.sort((a, b) => lastTs(b) - lastTs(a));
     }
     return out;
+    // `statusOf` is a stable function defined in the component body
+    // (not a closure over any reactive state), so omitting it from
+    // the deps is intentional — including it would refire useMemo on
+    // every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [rows, query, statuses, sortKey, overdueIds]);
 
   function toggleStatus(s: CustodianStatusFilter) {

@@ -95,8 +95,8 @@ export const CustodianPortalHome: React.FC = () => {
             lineHeight: 1.5,
           }}
         >
-          Every legal hold you've been listed as a custodian on. Click any
-          row to view the notice and acknowledge.
+          Every legal hold you&apos;ve been listed as a custodian on.
+          Click any row to view the notice and acknowledge.
         </p>
       </header>
 
@@ -126,7 +126,7 @@ export const CustodianPortalHome: React.FC = () => {
               marginTop: 6,
             }}
           >
-            You're not currently listed as a custodian on any active legal
+            You&apos;re not currently listed as a custodian on any active legal
             hold. If you believe you should be, contact your legal-ops team.
           </p>
         </Card>

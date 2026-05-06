@@ -256,7 +256,7 @@ export class MockM365Client implements M365Client {
       },
     ];
     return all.filter(
-      (c) =>
+      (_c) =>
         seed.includes("snowflake") ||
         seed.includes("msa") ||
         seed.includes("priya") ||

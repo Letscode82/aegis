@@ -3,7 +3,7 @@ import { C, F, M, SR, Pill, Dot, Stat, Bar, Card, SH, WorkflowSteps, ApprovalBad
 import { MissionControlBriefing, MatterRiskBadge, buildBriefingContext } from "@aegis/intake";
 import { INTEGRATIONS, ARCH_LAYERS } from "../data/integrations";
 import { CASES } from "../data/cases";
-import { GOVERNANCE } from "../data/governance";
+import { GOVERNANCE as _GOVERNANCE } from "../data/governance";
 import { ALL_ALERTS, ALL_APPROVALS } from "../data/aggregate";
 import { BRAIN_QUERIES } from "../data/brain";
 import { OCM_FIRMS } from "../data/ocm";
@@ -273,7 +273,7 @@ export function OCMView(){
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:14}}>
       {/* Scorecard */}
       <Card d={50}><div style={{fontSize:11,fontWeight:600,color:C.pp,marginBottom:8,letterSpacing:1}}>PERFORMANCE SCORECARD</div>
-        {Object.entries(f.scorecard).map(([k,v],i)=><div key={k} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 0",borderBottom:`1px solid ${C.br}22`}}>
+        {Object.entries(f.scorecard).map(([k,v])=><div key={k} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 0",borderBottom:`1px solid ${C.br}22`}}>
           <span style={{fontSize:10,color:C.t2,textTransform:"capitalize"}}>{k}</span>
           <div style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:50}}><Bar pct={v*20} c={v>=4.5?C.gn:v>=3.5?C.am:C.rd}/></div><span style={{fontFamily:M,fontSize:10,color:v>=4.5?C.gn:v>=3.5?C.am:C.rd,fontWeight:600}}>{v}</span></div>
         </div>)}</Card>
@@ -292,7 +292,7 @@ export function OCMView(){
     {/* Invoices */}
     <Card d={140}>
       <div style={{fontSize:11,fontWeight:600,color:C.am,marginBottom:8,letterSpacing:1}}>RECENT INVOICES — AI REVIEW</div>
-      {f.invoices.map((inv,i)=><div key={inv.id} style={{display:"grid",gridTemplateColumns:"120px 100px 90px 80px 80px 1fr",padding:"8px 10px",borderBottom:`1px solid ${C.br}22`,fontSize:11,alignItems:"center"}}>
+      {f.invoices.map((inv)=><div key={inv.id} style={{display:"grid",gridTemplateColumns:"120px 100px 90px 80px 80px 1fr",padding:"8px 10px",borderBottom:`1px solid ${C.br}22`,fontSize:11,alignItems:"center"}}>
         <span style={{fontFamily:M,color:C.bl,fontSize:10}}>{inv.id}</span>
         <span style={{fontFamily:M,color:C.t1,fontWeight:600}}>${(inv.amount/1000).toFixed(0)}K</span>
         <span style={{fontSize:10,color:C.t3}}>{inv.submitted}</span>
@@ -367,7 +367,7 @@ export function CyberView(){
     {/* Insurance & Approvals */}
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginTop:12}}>
       <Card d={200}><div style={{fontSize:11,fontWeight:600,color:C.tl,marginBottom:8,letterSpacing:1}}>🛡️ INSURANCE</div>
-        {Object.entries({Carrier:inc.insurance.carrier,"Policy Limit":inc.insurance.policyLimit,Deductible:inc.insurance.deductible,"Claim Ref":inc.insurance.claimRef}).map(([k,v],i)=>
+        {Object.entries({Carrier:inc.insurance.carrier,"Policy Limit":inc.insurance.policyLimit,Deductible:inc.insurance.deductible,"Claim Ref":inc.insurance.claimRef}).map(([k,v])=>
           <div key={k} style={{display:"flex",justifyContent:"space-between",padding:"4px 0",borderBottom:`1px solid ${C.br}22`}}><span style={{fontSize:10,color:C.t3}}>{k}</span><span style={{fontSize:10,color:C.t1,fontFamily:M}}>{v}</span></div>)}</Card>
       <Card d={230}><div style={{fontSize:11,fontWeight:600,color:C.am,marginBottom:8,letterSpacing:1}}>✅ APPROVALS</div>
         {inc.approvals.map((a,i)=><div key={i} style={{padding:"6px 8px",borderBottom:`1px solid ${C.br}22`}}>
@@ -657,8 +657,8 @@ export function MissionControlView(){
   const[tickerIdx,setTickerIdx]=useState(0);
   useEffect(()=>{const t=setInterval(()=>setTickerIdx(i=>(i+1)%TICKERS.length),3500);return()=>clearInterval(t);},[]);
 
-  const totalExposure=CASES.reduce((a,c)=>a+parseFloat(c.exposure.replace(/[^0-9.]/g,""))||0,0);
-  const criticalCount=ALL_ALERTS.filter(a=>a.sev==="critical").length;
+  const _totalExposure=CASES.reduce((a,c)=>a+parseFloat(c.exposure.replace(/[^0-9.]/g,""))||0,0);
+  const _criticalCount=ALL_ALERTS.filter(a=>a.sev==="critical").length;
   const postureScore=72; // computed enterprise posture
 
   const domains=[
