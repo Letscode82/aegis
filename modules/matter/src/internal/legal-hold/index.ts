@@ -15,6 +15,24 @@ export {
   releaseLegalHoldService,
 } from "./services/lifecycle";
 
+// Issue with progress (sub-PR 4d.0 — wizard SSE flow)
+export {
+  issueHoldWithProgress,
+  getIssueStatusSnapshot,
+} from "./services/issue-hold-progress";
+export type {
+  IssueProgressEvent,
+  IssueStatusSnapshot,
+  IssueWithProgressInput,
+} from "./services/issue-hold-progress";
+
+// Single-source retry (sub-PR 4d.0 — workspace status badge "Retry")
+export {
+  DataSourceNotInErrorStateError,
+  retryDataSourcePreservationService,
+} from "./services/retry-data-source";
+export type { RetryDataSourceInput } from "./services/retry-data-source";
+
 // Trigger
 export {
   getHoldTriggerEventService,

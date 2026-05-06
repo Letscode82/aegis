@@ -717,6 +717,28 @@ enum PreservationAction {
   PRESERVATION_FAILED
 }
 
+/// Per-data-source preservation lifecycle (sub-PR 4d.0).
+///
+/// Five states surfaced in the hold workspace as colored badges so
+/// counsel can see at a glance which sources are actually preserved
+/// at Microsoft vs. queued vs. failed. Distinct from
+/// `PreservationAction` (which describes the kind of preservation
+/// requested) — this is the lifecycle of THAT request.
+enum DataSourcePreservationStatus {
+  /// Hold created but applyPreservation has not yet been called.
+  NOT_REQUESTED
+  /// Request sent to Microsoft Purview, awaiting confirmation that
+  /// the preservation lock is active.
+  PENDING
+  /// Microsoft confirmed preservation lock active.
+  ON_HOLD
+  /// Microsoft returned an error; needs retry. The
+  /// `preservationFailureReason` carries the Microsoft message.
+  ERROR
+  /// Hold released (releasePreservation succeeded).
+  RELEASED
+}
+
 enum LegalHoldEventType {
   HOLD_DRAFTED
   TRIGGER_RECORDED
@@ -836,6 +858,11 @@ model CustodianDataSource {
   externalIdentifier        String
   displayLabel              String
   preservationAction        PreservationAction @default(LEGAL_HOLD_IN_PLACE)
+  /// Lifecycle of the preservation push to Microsoft (sub-PR 4d.0).
+  /// Defaults to NOT_REQUESTED on row create; transitions to
+  /// PENDING when applyPreservation is in flight, ON_HOLD on
+  /// confirmation, ERROR on failure, RELEASED on hold release.
+  preservationStatus        DataSourcePreservationStatus @default(NOT_REQUESTED)
   preservationAppliedAt     DateTime?
   preservationConfirmedAt   DateTime?
   preservationConfirmedById String?

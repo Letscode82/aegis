@@ -56,6 +56,18 @@ export interface HoldDataSourceDTO {
   preservationAppliedAt: string | null;
   preservationConfirmedAt: string | null;
   retentionPolicyConflict: boolean;
+  /** Sub-PR 4d.0 — lifecycle status surfaced as a colored badge.
+   *  Optional for back-compat with reads that haven't been
+   *  re-rolled to include it; the badge defaults to deriving from
+   *  the timestamps in that case. */
+  preservationStatus?:
+    | "NOT_REQUESTED"
+    | "PENDING"
+    | "ON_HOLD"
+    | "ERROR"
+    | "RELEASED";
+  /** Microsoft / IT failure reason if status === "ERROR". */
+  preservationFailureReason?: string | null;
 }
 
 export interface HoldEventDTO {

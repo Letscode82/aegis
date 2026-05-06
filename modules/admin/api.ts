@@ -38,7 +38,6 @@ import {
 import type {
   AdminActor,
   InviteUserInput,
-  Permission,
   RoleDetail,
   RoleSummary,
   UpdateRolePermissionsInput,

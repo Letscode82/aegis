@@ -18,7 +18,6 @@ import type {
   ChecklistItemDTO,
   MatterStatus,
 } from "./types";
-import { LegalHoldPanel } from "./legal-hold-panel";
 import { HoldListTab, HoldDetailPage, HoldCreateForm } from "./legal-hold";
 
 type TabKey =
@@ -814,8 +813,9 @@ const TasksPanel: React.FC<{ matterId: string; onChanged: () => void }> = ({
 
   useEffect(() => {
     reload();
-    // We deliberately reload only when matterId changes; reload reference
-    // is stable enough for our needs.
+    // We deliberately reload only when matterId changes; reload
+    // reference is a stable component-body closure.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matterId]);
 
   async function addTask(e: React.FormEvent) {
@@ -1115,6 +1115,16 @@ const HoldsTab: React.FC<{ matterId: string }> = ({ matterId }) => {
       matterId={matterId}
       onSelect={(id: string) => setView(id)}
       onCreate={() => setView("create")}
+      onCreateGuided={() => {
+        // Sub-PR 4d.0: guided wizard lives at its own route so the
+        // five-step shell has the full viewport. Navigate via
+        // window.location to avoid pulling next/router into the
+        // matter module (module-isolation rule — packages don't
+        // depend on next).
+        if (typeof window !== "undefined") {
+          window.location.assign(`/matter/${matterId}/new-hold-wizard`);
+        }
+      }}
     />
   );
 };

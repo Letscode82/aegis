@@ -679,7 +679,7 @@ const Step4Confirm: React.FC<{
       AEGIS records the issuance and audit chain immediately. Real email
       delivery is a separate integration (sunset condition: when
       SES/Outlook/SMTP integration ships). Recipients in the audit log
-      show "Recorded" until the delivery surface lands.
+      show {`"Recorded"`} until the delivery surface lands.
     </div>
   </div>
 );

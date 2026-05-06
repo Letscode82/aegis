@@ -4,7 +4,7 @@ import { AICopilot, IntakeView } from "@aegis/intake";
 import { useCurrentUser } from "@aegis/auth/react";
 import { NAV } from "./data/nav";
 import { ALL_APPROVALS, ALL_ALERTS } from "./data/aggregate";
-import { DailyView, AlertsView, ApprovalsView, ContractsView, RegulatoryView, LitigationView, ComplianceView, SpendView, GovernanceView } from "./views/v72";
+import { DailyView, AlertsView, ApprovalsView, ContractsView, RegulatoryView, LitigationView as _LitigationView, ComplianceView as _ComplianceView, SpendView, GovernanceView } from "./views/v72";
 import { MissionControlView, BoardReportView, BrainView, OCMView, CyberView, WorkflowBuilderView, ArchitectureView, RiskGraphView, ScenariosView } from "./views/v8";
 import { MatterManagementShell, AuditLogShell } from "./views/matter-shell.jsx";
 import { AdminUsersShell, AdminRolesShell } from "./views/admin-shell.jsx";

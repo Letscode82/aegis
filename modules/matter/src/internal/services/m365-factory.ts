@@ -78,6 +78,11 @@ class RoutedM365Client implements M365Client {
   enumerateDataSourcesForUser(externalIdentifier: string) {
     return this.appOnly.enumerateDataSourcesForUser(externalIdentifier);
   }
+  enumerateSharePointSitesForUser(
+    input: Parameters<M365Client["enumerateSharePointSitesForUser"]>[0],
+  ) {
+    return this.appOnly.enumerateSharePointSitesForUser(input);
+  }
 
   // ── Delegated methods — eDiscovery surface ──────────────────────
 

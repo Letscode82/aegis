@@ -14,10 +14,11 @@
  * workflow degrades on `M365EDiscoveryNotLicensedError`.
  */
 import type { Client } from "@microsoft/microsoft-graph-client";
-import type { Matter } from "@aegis/db";
+import type { DataSourceType, Matter, PreservationAction } from "@aegis/db";
 import type {
   ApplyPreservationInput,
   CandidateCustodian,
+  EnumerateSharePointSitesInput,
   EnumeratedDataSource,
   HoldScopeQuery,
   M365Client,
@@ -28,14 +29,15 @@ import type {
   PreservationResult,
   PreserveDepartedInput,
   ReleasePreservationInput,
+  SharePointSiteCandidate,
 } from "./m365";
-import type { DataSourceType, PreservationAction } from "@aegis/db";
 import {
   M365GraphError,
   M365GraphNotFoundError,
   mapGraphError,
 } from "./m365-graph-errors";
 import { withGraphAudit } from "./m365-graph-audit";
+import { fetchFirstPage } from "./m365-graph-pagination";
 
 /** Maximum tries on `applyHold` polling before declaring "applying". */
 const APPLY_HOLD_POLL_MAX = 6;
@@ -616,34 +618,52 @@ export class M365GraphClient implements M365Client {
       });
     }
 
-    // Teams DMs (one-on-one chats).
-    const chats = await this.tryGet<{ value?: Array<{ id: string }> }>(
-      `/users/${resolvedId}/chats?$filter=chatType eq 'oneOnOne'&$top=1`,
-    );
-    if (chats?.value && chats.value.length > 0 && chats.value[0]) {
+    // Teams DMs (one-on-one chats). Sub-PR 4d.0: Microsoft Graph
+    // rejects `$top` on `/users/{id}/chats` with "Query option
+    // 'Top' is not allowed." Use native pagination — first page is
+    // enough to answer "does this user have any DMs?".
+    let chatsValue: Array<{ id: string }> = [];
+    try {
+      chatsValue = await fetchFirstPage<{ id: string }>(
+        this.graph,
+        `/users/${resolvedId}/chats?$filter=chatType eq 'oneOnOne'`,
+      );
+    } catch (err) {
+      // 404 / permission gap — same gracefully-empty behaviour as
+      // the previous tryGet path. Audit middleware on the chained
+      // calls already records the failure.
+      if (!(err as { statusCode?: number }).statusCode) throw err;
+    }
+    if (chatsValue.length > 0 && chatsValue[0]) {
       out.push({
         type: "TEAMS_DM",
-        externalIdentifier: chats.value[0].id,
+        externalIdentifier: chatsValue[0].id,
         displayLabel: "Teams DMs",
         retentionPolicy: "tenant-default",
         retentionPolicyConflict: false,
       });
     }
 
-    // Joined Teams channels.
-    const teams = await this.tryGet<{ value?: Array<{ id: string }> }>(
-      `/users/${resolvedId}/joinedTeams?$top=10`,
-    );
-    if (teams?.value) {
-      for (const team of teams.value) {
-        out.push({
-          type: "TEAMS_CHANNEL",
-          externalIdentifier: team.id,
-          displayLabel: `Teams channel ${team.id}`,
-          retentionPolicy: "tenant-default",
-          retentionPolicyConflict: false,
-        });
-      }
+    // Joined Teams channels — same `$top` rejection applies.
+    let teamsValue: Array<{ id: string; displayName?: string }> = [];
+    try {
+      teamsValue = await fetchFirstPage<{
+        id: string;
+        displayName?: string;
+      }>(this.graph, `/users/${resolvedId}/joinedTeams`);
+    } catch (err) {
+      if (!(err as { statusCode?: number }).statusCode) throw err;
+    }
+    for (const team of teamsValue) {
+      out.push({
+        type: "TEAMS_CHANNEL",
+        externalIdentifier: team.id,
+        displayLabel: team.displayName
+          ? `Teams: ${team.displayName}`
+          : `Teams channel ${team.id}`,
+        retentionPolicy: "tenant-default",
+        retentionPolicyConflict: false,
+      });
     }
 
     return out;
@@ -720,6 +740,104 @@ export class M365GraphClient implements M365Client {
       if (err instanceof M365GraphNotFoundError) return null;
       throw err;
     }
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // SharePoint site enumeration (sub-PR 4d.0)
+  // ────────────────────────────────────────────────────────────────
+
+  /**
+   * Returns SharePoint sites the custodian has access to so the
+   * wizard's Step 3 picker can render checkboxes per site. Microsoft's
+   * Graph API doesn't have a single "sites this user can edit"
+   * endpoint, so we combine two reads:
+   *
+   *   1. /users/{id}/followedSites — sites the user actively follows.
+   *      Reliable indicator of relevance.
+   *   2. /sites?search=<keyword>   — full-tenant search by display name.
+   *      Used when keywords are supplied; the recommendation engine
+   *      pre-checks matches.
+   *
+   * Both lists are de-duped by `webUrl`. Results without a
+   * `webUrl` (rare; root site shells) are skipped — applyHold needs
+   * the URL.
+   *
+   * The recommendation heuristic for v1: a site is `recommended:
+   * true` if its name or path matches any keyword case-insensitively.
+   * No keywords → nothing pre-checked, counsel ticks manually.
+   */
+  async enumerateSharePointSitesForUser(
+    input: EnumerateSharePointSitesInput,
+  ): Promise<SharePointSiteCandidate[]> {
+    const resolvedId = await this.resolveGraphUserIdentifier(
+      input.externalIdentifier,
+    );
+    const keywords = (input.recommendKeywords ?? [])
+      .map((k) => k.trim())
+      .filter((k) => k.length >= 2);
+    const byUrl = new Map<string, SharePointSiteCandidate>();
+
+    interface RawSite {
+      webUrl?: string;
+      displayName?: string;
+      name?: string;
+      isPersonalSite?: boolean;
+    }
+
+    const followed = (await this.tryGet<{ value?: RawSite[] }>(
+      `/users/${resolvedId}/followedSites`,
+    )) ?? { value: [] };
+    for (const s of followed.value ?? []) {
+      if (!s.webUrl) continue;
+      byUrl.set(s.webUrl, this.shapeSiteCandidate(s, keywords, "Followed"));
+    }
+
+    if (keywords.length > 0) {
+      // Search per keyword and merge — Graph's search endpoint is
+      // single-term-friendly, and combining via OR semantics from the
+      // client side keeps the matching deterministic.
+      for (const k of keywords) {
+        const escaped = k.replace(/"/g, '\\"');
+        const hits = (await this.tryGet<{ value?: RawSite[] }>(
+          `/sites?search="${escaped}"`,
+        )) ?? { value: [] };
+        for (const s of hits.value ?? []) {
+          if (!s.webUrl || byUrl.has(s.webUrl)) continue;
+          byUrl.set(
+            s.webUrl,
+            this.shapeSiteCandidate(s, keywords, `Matches keyword "${k}"`),
+          );
+        }
+      }
+    }
+
+    return Array.from(byUrl.values());
+  }
+
+  private shapeSiteCandidate(
+    raw: { webUrl?: string; displayName?: string; name?: string; isPersonalSite?: boolean },
+    keywords: readonly string[],
+    sourceRationale: string,
+  ): SharePointSiteCandidate {
+    const webUrl = raw.webUrl ?? "";
+    const displayName = raw.displayName ?? raw.name ?? webUrl;
+    const haystack = `${displayName} ${webUrl}`.toLowerCase();
+    const matched = keywords.find((k) => haystack.includes(k.toLowerCase()));
+    const isPersonal =
+      raw.isPersonalSite === true || webUrl.includes("/personal/");
+    return {
+      webUrl,
+      displayName,
+      siteType: isPersonal
+        ? "personal"
+        : webUrl.includes("/teams/") || webUrl.includes("-team")
+          ? "team"
+          : "communication",
+      recommended: !!matched && !isPersonal,
+      rationale: matched
+        ? `${sourceRationale} · matches "${matched}"`
+        : sourceRationale,
+    };
   }
 
   // Surface for the contract tests; not part of the public M365Client

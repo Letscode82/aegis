@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { C, F, M, SR, Pill, Dot, Stat, Bar, Card, SH, WorkflowSteps, ApprovalBadge, rc, pc } from "@aegis/ui";
+import { C, F as _F, M, SR as _SR, Pill, Dot, Stat, Bar, Card, SH, WorkflowSteps, ApprovalBadge, rc, pc } from "@aegis/ui";
 import { TODAY_TASKS } from "../data/today-tasks";
 import { CONTRACTS } from "../data/contracts";
 import { REGULATIONS } from "../data/regulations";

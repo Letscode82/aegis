@@ -270,7 +270,7 @@ export const CustodianAttestationView: React.FC<CustodianAttestationViewProps> =
                 Acknowledged at {new Date().toISOString().replace("T", " ").slice(0, 16)}
               </div>
               <div style={{ marginTop: 8, color: C.t3 }}>
-                The hold remains in effect until released. You'll be
+                The hold remains in effect until released. You&apos;ll be
                 contacted if more information is needed. Keep this page or
                 your confirmation email for your records.
               </div>

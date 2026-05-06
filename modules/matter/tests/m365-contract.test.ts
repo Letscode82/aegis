@@ -154,6 +154,57 @@ describe("M365 contract — mock vs real return shape parity", () => {
     }
   });
 
+  it("enumerateSharePointSitesForUser returns SharePointSiteCandidate[] on both", async () => {
+    const mock = new MockM365Client();
+    const real = new M365GraphClient(
+      makeStubGraph({
+        "/users/u1/followedSites": {
+          value: [
+            {
+              webUrl: "https://contoso.sharepoint.com/sites/legal",
+              displayName: "Legal",
+            },
+            {
+              webUrl: "https://contoso.sharepoint.com/sites/random",
+              displayName: "Random",
+            },
+          ],
+        },
+        '/sites?search="contracts"': {
+          value: [
+            {
+              webUrl: "https://contoso.sharepoint.com/sites/contracts",
+              displayName: "Contracts",
+            },
+          ],
+        },
+      }),
+      "tenant-fixture",
+      "org-fixture",
+    );
+    const a = await mock.enumerateSharePointSitesForUser({
+      externalIdentifier: "u1",
+      recommendKeywords: ["legal"],
+    });
+    const b = await real.enumerateSharePointSitesForUser({
+      externalIdentifier: "u1",
+      recommendKeywords: ["contracts"],
+    });
+    const required = ["webUrl", "displayName", "siteType", "recommended"];
+    for (const row of [...a, ...b]) {
+      for (const k of required) expect(row).toHaveProperty(k);
+    }
+    // Real client merges followedSites + search results, dedupes by webUrl.
+    const realUrls = b.map((s) => s.webUrl);
+    expect(realUrls).toContain("https://contoso.sharepoint.com/sites/legal");
+    expect(realUrls).toContain("https://contoso.sharepoint.com/sites/contracts");
+    // Recommendation engine pre-checks keyword matches.
+    const contracts = b.find(
+      (s) => s.webUrl === "https://contoso.sharepoint.com/sites/contracts",
+    );
+    expect(contracts?.recommended).toBe(true);
+  });
+
   it("applyPreservation returns PreservationResult shape on both", async () => {
     const mock = new MockM365Client();
     const input: ApplyPreservationInput = {

@@ -88,8 +88,9 @@ export const BulkMarkAcknowledgedDialog: React.FC<BulkMarkAcknowledgedDialogProp
             marginBottom: 12,
           }}
         >
-          One reason applies to every custodian in the batch. Each gets its
-          own acknowledgment row with metadata.source = "admin_marked".
+          One reason applies to every custodian in the batch. Each gets
+          its own acknowledgment row with{" "}
+          {`metadata.source = "admin_marked"`}.
         </div>
 
         <div

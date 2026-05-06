@@ -13,7 +13,12 @@ export interface HoldListTabProps {
   endpoint?: string;
   /** Called when a row is clicked. apps/web wires Next.js navigation. */
   onSelect?: (holdId: string) => void;
+  /** Existing power-user single-page create flow. */
   onCreate?: () => void;
+  /** Sub-PR 4d.0 — guided wizard. When provided, the workspace
+   *  surfaces a primary `+ NEW HOLD (GUIDED)` button alongside the
+   *  existing `+ New hold` shortcut. */
+  onCreateGuided?: () => void;
 }
 
 export const HoldListTab: React.FC<HoldListTabProps> = ({
@@ -21,6 +26,7 @@ export const HoldListTab: React.FC<HoldListTabProps> = ({
   endpoint = "/api/matter",
   onSelect,
   onCreate,
+  onCreateGuided,
 }) => {
   const [holds, setHolds] = useState<HoldSummaryDTO[] | null>(null);
   const [scores, setScores] = useState<Record<string, number | null>>({});
@@ -55,27 +61,48 @@ export const HoldListTab: React.FC<HoldListTabProps> = ({
     <Card>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <SH icon="🛑" title="Legal holds" sub={`${holds?.length ?? 0} on this matter`} />
-        {onCreate && (
-          <button
-            type="button"
-            onClick={onCreate}
-            style={{
-              background: C.bl,
-              border: "none",
-              color: C.bg,
-              padding: "6px 12px",
-              fontFamily: F,
-              fontWeight: 700,
-              fontSize: 11,
-              borderRadius: 4,
-              cursor: "pointer",
-              letterSpacing: 0.5,
-              textTransform: "uppercase",
-            }}
-          >
-            + New hold
-          </button>
-        )}
+        <div style={{ display: "flex", gap: 8 }}>
+          {onCreate && (
+            <button
+              type="button"
+              onClick={onCreate}
+              style={{
+                background: "transparent",
+                border: `1px solid ${C.brL}`,
+                color: C.t1,
+                padding: "6px 12px",
+                fontFamily: F,
+                fontWeight: 600,
+                fontSize: 11,
+                borderRadius: 4,
+                cursor: "pointer",
+              }}
+            >
+              + New hold
+            </button>
+          )}
+          {onCreateGuided && (
+            <button
+              type="button"
+              onClick={onCreateGuided}
+              style={{
+                background: C.bl,
+                border: "none",
+                color: C.bg,
+                padding: "6px 14px",
+                fontFamily: F,
+                fontWeight: 700,
+                fontSize: 11,
+                borderRadius: 4,
+                cursor: "pointer",
+                letterSpacing: 0.5,
+                textTransform: "uppercase",
+              }}
+            >
+              + New hold (Guided)
+            </button>
+          )}
+        </div>
       </div>
       {error && (
         <div style={{ color: C.rd, fontSize: 11, fontFamily: M, marginTop: 8 }}>{error}</div>

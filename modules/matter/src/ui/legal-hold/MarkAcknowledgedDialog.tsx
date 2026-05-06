@@ -99,9 +99,9 @@ export const MarkAcknowledgedDialog: React.FC<MarkAcknowledgedDialogProps> = ({
       >
         Use this when the custodian acknowledged via phone, in person, or paper.
         The acknowledgment metadata records you as the admin who marked it,
-        plus the reason you provide. The custodian's status flips to
-        "acknowledged" identically to a self-service ack — the timeline +
-        audit log distinguish them.
+        plus the reason you provide. The custodian&apos;s status flips
+        to {`"acknowledged"`} identically to a self-service ack — the
+        timeline + audit log distinguish them.
       </div>
 
       <Field label="Reason (required)">

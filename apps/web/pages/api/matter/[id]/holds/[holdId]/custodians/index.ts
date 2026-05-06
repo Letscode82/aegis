@@ -50,6 +50,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           preservationAppliedAt: d.preservationAppliedAt?.toISOString() ?? null,
           preservationConfirmedAt: d.preservationConfirmedAt?.toISOString() ?? null,
           retentionPolicyConflict: d.retentionPolicyConflict,
+          // Sub-PR 4d.0 — lifecycle status drives the workspace's
+          // colored badges + Retry button.
+          preservationStatus: d.preservationStatus,
+          preservationFailureReason: d.preservationFailureReason ?? null,
         })),
       })),
     );

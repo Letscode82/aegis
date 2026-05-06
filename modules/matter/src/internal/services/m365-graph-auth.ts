@@ -301,8 +301,9 @@ export async function verifyM365Credentials(
     };
   }
   try {
-    const orgInfo: { id: string; verifiedDomains?: { name?: string }[] } | undefined =
-      await withGraphAudit(
+    // The /organization round-trip's payload is discarded — we only
+    // need the success/failure signal to update lastVerifiedAt.
+    await withGraphAudit<{ id: string; verifiedDomains?: { name?: string }[] } | undefined>(
         {
           organizationId,
           endpoint: "/organization",

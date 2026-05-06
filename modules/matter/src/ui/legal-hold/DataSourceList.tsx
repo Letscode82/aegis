@@ -108,6 +108,10 @@ export const DataSourceList: React.FC<DataSourceListProps> = ({
               busy={busy}
               onApply={onApply}
               onConfirm={onConfirm}
+              matterId={matterId}
+              holdId={holdId}
+              personId={custodianPersonId}
+              onAfterRetry={onAdded}
             />
           ))}
         </div>

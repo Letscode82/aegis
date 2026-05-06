@@ -109,7 +109,7 @@ export const SaveViewDialog: React.FC<SaveViewDialogProps> = ({
           <span style={{ fontWeight: 600 }}>Share with my org</span>
           <div style={{ fontSize: 10, color: C.t3 }}>
             Other users in your organization will see this view in their
-            "Shared views" list.
+            {`"Shared views"`} list.
           </div>
         </span>
       </label>

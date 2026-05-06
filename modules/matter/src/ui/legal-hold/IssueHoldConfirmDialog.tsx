@@ -273,7 +273,7 @@ export const IssueHoldConfirmDialog: React.FC<IssueHoldConfirmDialogProps> = ({
           marginBottom: 6,
         }}
       >
-        Type the hold's title{" "}
+        Type the hold&apos;s title{" "}
         <code
           style={{
             background: C.s1,

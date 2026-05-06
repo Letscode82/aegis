@@ -37,6 +37,15 @@ export { JobsAdmin } from "./legal-hold/JobsAdmin";
 // Notice template admin list (sub-PR 4c.1)
 export { NoticeTemplatesAdmin } from "./legal-hold/NoticeTemplatesAdmin";
 
+// Hold Wizard (sub-PR 4d.0 — counsel-driven five-step flow)
+export { HoldWizard } from "./legal-hold/wizard/HoldWizard";
+
+// Per-data-source lifecycle badge with inline Retry (sub-PR 4d.0)
+export {
+  DataSourceStatusBadge,
+  type DataSourceLifecycleStatus,
+} from "./legal-hold/DataSourceStatusBadge";
+
 export type {
   MatterDTO,
   MatterPartyDTO,
