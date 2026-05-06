@@ -766,3 +766,32 @@ export type {
   EnumerateSharePointSitesInput,
   SharePointSiteCandidate,
 } from "./src/internal/services/m365";
+
+// Wizard / progress orchestration (sub-PR 4d.0)
+export async function issueHoldWithProgressGen(
+  input: import("./src/internal/legal-hold").IssueWithProgressInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.issueHoldWithProgress(input, actor);
+}
+export async function getIssueStatusSnapshot(
+  holdId: string,
+  organizationId: string,
+) {
+  return LegalHoldServices.getIssueStatusSnapshot(holdId, organizationId);
+}
+export {
+  DataSourceNotInErrorStateError,
+} from "./src/internal/legal-hold";
+export async function retryDataSourcePreservation(
+  input: import("./src/internal/legal-hold").RetryDataSourceInput,
+  actor: import("./src/internal/legal-hold").HoldActor,
+) {
+  return LegalHoldServices.retryDataSourcePreservationService(input, actor);
+}
+export type {
+  IssueProgressEvent,
+  IssueStatusSnapshot,
+  IssueWithProgressInput,
+  RetryDataSourceInput,
+} from "./src/internal/legal-hold";
