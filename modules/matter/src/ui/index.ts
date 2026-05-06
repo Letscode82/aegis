@@ -37,6 +37,9 @@ export { JobsAdmin } from "./legal-hold/JobsAdmin";
 // Notice template admin list (sub-PR 4c.1)
 export { NoticeTemplatesAdmin } from "./legal-hold/NoticeTemplatesAdmin";
 
+// Hold Wizard (sub-PR 4d.0 — counsel-driven five-step flow)
+export { HoldWizard } from "./legal-hold/wizard/HoldWizard";
+
 export type {
   MatterDTO,
   MatterPartyDTO,

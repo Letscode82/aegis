@@ -1115,6 +1115,16 @@ const HoldsTab: React.FC<{ matterId: string }> = ({ matterId }) => {
       matterId={matterId}
       onSelect={(id: string) => setView(id)}
       onCreate={() => setView("create")}
+      onCreateGuided={() => {
+        // Sub-PR 4d.0: guided wizard lives at its own route so the
+        // five-step shell has the full viewport. Navigate via
+        // window.location to avoid pulling next/router into the
+        // matter module (module-isolation rule — packages don't
+        // depend on next).
+        if (typeof window !== "undefined") {
+          window.location.assign(`/matter/${matterId}/new-hold-wizard`);
+        }
+      }}
     />
   );
 };
