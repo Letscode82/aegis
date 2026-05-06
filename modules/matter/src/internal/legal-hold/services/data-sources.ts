@@ -125,6 +125,12 @@ export async function applyDataSourcePreservationService(
       preservationAction: result.ok
         ? ds.preservationAction
         : "PRESERVATION_FAILED",
+      // Sub-PR 4d.0: lifecycle status surfaces in the workspace as
+      // colored badges. PENDING here means "we sent the request,
+      // confirmation has not arrived yet" — confirmDataSourcePreservation
+      // flips PENDING → ON_HOLD. On failure, jump straight to ERROR
+      // so retry button appears immediately.
+      preservationStatus: result.ok ? "PENDING" : "ERROR",
     },
   });
 
@@ -165,6 +171,9 @@ export async function confirmDataSourcePreservationService(
     data: {
       preservationConfirmedAt: confirmedAt,
       preservationConfirmedById: actor.id,
+      // Sub-PR 4d.0: confirm flips PENDING → ON_HOLD. We don't
+      // touch ERROR rows here — those need retry first.
+      preservationStatus: "ON_HOLD",
     },
   });
 

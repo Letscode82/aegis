@@ -36,6 +36,7 @@ import {
   mapGraphError,
 } from "./m365-graph-errors";
 import { withGraphAudit } from "./m365-graph-audit";
+import { fetchFirstPage } from "./m365-graph-pagination";
 
 /** Maximum tries on `applyHold` polling before declaring "applying". */
 const APPLY_HOLD_POLL_MAX = 6;
@@ -616,34 +617,52 @@ export class M365GraphClient implements M365Client {
       });
     }
 
-    // Teams DMs (one-on-one chats).
-    const chats = await this.tryGet<{ value?: Array<{ id: string }> }>(
-      `/users/${resolvedId}/chats?$filter=chatType eq 'oneOnOne'&$top=1`,
-    );
-    if (chats?.value && chats.value.length > 0 && chats.value[0]) {
+    // Teams DMs (one-on-one chats). Sub-PR 4d.0: Microsoft Graph
+    // rejects `$top` on `/users/{id}/chats` with "Query option
+    // 'Top' is not allowed." Use native pagination — first page is
+    // enough to answer "does this user have any DMs?".
+    let chatsValue: Array<{ id: string }> = [];
+    try {
+      chatsValue = await fetchFirstPage<{ id: string }>(
+        this.graph,
+        `/users/${resolvedId}/chats?$filter=chatType eq 'oneOnOne'`,
+      );
+    } catch (err) {
+      // 404 / permission gap — same gracefully-empty behaviour as
+      // the previous tryGet path. Audit middleware on the chained
+      // calls already records the failure.
+      if (!(err as { statusCode?: number }).statusCode) throw err;
+    }
+    if (chatsValue.length > 0 && chatsValue[0]) {
       out.push({
         type: "TEAMS_DM",
-        externalIdentifier: chats.value[0].id,
+        externalIdentifier: chatsValue[0].id,
         displayLabel: "Teams DMs",
         retentionPolicy: "tenant-default",
         retentionPolicyConflict: false,
       });
     }
 
-    // Joined Teams channels.
-    const teams = await this.tryGet<{ value?: Array<{ id: string }> }>(
-      `/users/${resolvedId}/joinedTeams?$top=10`,
-    );
-    if (teams?.value) {
-      for (const team of teams.value) {
-        out.push({
-          type: "TEAMS_CHANNEL",
-          externalIdentifier: team.id,
-          displayLabel: `Teams channel ${team.id}`,
-          retentionPolicy: "tenant-default",
-          retentionPolicyConflict: false,
-        });
-      }
+    // Joined Teams channels — same `$top` rejection applies.
+    let teamsValue: Array<{ id: string; displayName?: string }> = [];
+    try {
+      teamsValue = await fetchFirstPage<{
+        id: string;
+        displayName?: string;
+      }>(this.graph, `/users/${resolvedId}/joinedTeams`);
+    } catch (err) {
+      if (!(err as { statusCode?: number }).statusCode) throw err;
+    }
+    for (const team of teamsValue) {
+      out.push({
+        type: "TEAMS_CHANNEL",
+        externalIdentifier: team.id,
+        displayLabel: team.displayName
+          ? `Teams: ${team.displayName}`
+          : `Teams channel ${team.id}`,
+        retentionPolicy: "tenant-default",
+        retentionPolicyConflict: false,
+      });
     }
 
     return out;
