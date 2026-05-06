@@ -760,3 +760,9 @@ export type {
 } from "./src/internal/services/m365-graph-types";
 
 export { getM365ClientForOrg } from "./src/internal/services/m365-factory";
+
+export type {
+  EnumeratedDataSource,
+  EnumerateSharePointSitesInput,
+  SharePointSiteCandidate,
+} from "./src/internal/services/m365";

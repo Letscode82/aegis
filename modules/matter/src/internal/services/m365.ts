@@ -86,6 +86,35 @@ export interface EnumeratedDataSource {
   retentionPolicyConflict: boolean;
 }
 
+/**
+ * SharePoint site candidate for the wizard's Step 3 site picker
+ * (sub-PR 4d.0). Returned by `enumerateSharePointSitesForUser`.
+ *
+ * `recommended` is a heuristic — true when the site name or path
+ * matches matter-related keywords (matter title, opposing party,
+ * scope keywords). Counsel sees recommended sites pre-checked,
+ * untickable; non-recommended sites are unchecked, tickable.
+ */
+export interface SharePointSiteCandidate {
+  webUrl: string;
+  displayName: string;
+  siteType: "personal" | "team" | "communication";
+  estimatedSize?: string;
+  recommended: boolean;
+  /** Reason the recommendation engine picked (or didn't pick) this site.
+   *  Surfaces in the picker as a hover tooltip. */
+  rationale?: string;
+}
+
+export interface EnumerateSharePointSitesInput {
+  /** UPN, email, or Graph user GUID — same shape as enumerateDataSourcesForUser. */
+  externalIdentifier: string;
+  /** Keywords for the recommendation engine; typically matter title +
+   *  opposing-party name + key scope words. Empty array → nothing
+   *  pre-checked. */
+  recommendKeywords?: readonly string[];
+}
+
 export interface ApplyPreservationInput {
   custodianExternalIdentifier: string;
   dataSourceExternalIdentifier: string;
@@ -142,6 +171,13 @@ export interface M365Client {
 
   /** 4b — sunset 4c. Map an org user to their available data sources (typed). */
   enumerateDataSourcesForUser(externalIdentifier: string): Promise<EnumeratedDataSource[]>;
+
+  /** 4d.0. Enumerate SharePoint sites the user has access to, for the
+   *  wizard's per-custodian site picker. Defaults to recommendation-
+   *  based pre-checking driven by the supplied `recommendKeywords`. */
+  enumerateSharePointSitesForUser(
+    input: EnumerateSharePointSitesInput,
+  ): Promise<SharePointSiteCandidate[]>;
 }
 
 /**
@@ -276,6 +312,42 @@ export class MockM365Client implements M365Client {
         displayLabel: "Teams DMs",
         retentionPolicy: "30d-auto-delete",
         retentionPolicyConflict: true,
+      },
+    ];
+  }
+
+  async enumerateSharePointSitesForUser(
+    input: EnumerateSharePointSitesInput,
+  ): Promise<SharePointSiteCandidate[]> {
+    // Deterministic mock — three representative sites so the wizard
+    // picker has shape to render against in CI / local dev.
+    const keywords = (input.recommendKeywords ?? []).map((k) => k.toLowerCase());
+    const matches = (name: string): boolean =>
+      keywords.length > 0 && keywords.some((k) => name.toLowerCase().includes(k));
+    return [
+      {
+        webUrl: `https://contoso.sharepoint.com/sites/legal`,
+        displayName: "Legal",
+        siteType: "team",
+        estimatedSize: "4.2 GB",
+        recommended: matches("legal") || matches("matter"),
+        rationale: "Department site",
+      },
+      {
+        webUrl: `https://contoso.sharepoint.com/sites/contracts`,
+        displayName: "Contracts",
+        siteType: "team",
+        estimatedSize: "1.8 GB",
+        recommended: matches("contract") || matches("msa"),
+        rationale: "Matter-relevant content area",
+      },
+      {
+        webUrl: `https://contoso.sharepoint.com/personal/${input.externalIdentifier}`,
+        displayName: "OneDrive (personal)",
+        siteType: "personal",
+        estimatedSize: "0.6 GB",
+        recommended: false,
+        rationale: "Personal site — opt-in only",
       },
     ];
   }

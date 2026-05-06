@@ -18,6 +18,7 @@ import type { Matter } from "@aegis/db";
 import type {
   ApplyPreservationInput,
   CandidateCustodian,
+  EnumerateSharePointSitesInput,
   EnumeratedDataSource,
   HoldScopeQuery,
   M365Client,
@@ -28,6 +29,7 @@ import type {
   PreservationResult,
   PreserveDepartedInput,
   ReleasePreservationInput,
+  SharePointSiteCandidate,
 } from "./m365";
 import type { DataSourceType, PreservationAction } from "@aegis/db";
 import {
@@ -739,6 +741,104 @@ export class M365GraphClient implements M365Client {
       if (err instanceof M365GraphNotFoundError) return null;
       throw err;
     }
+  }
+
+  // ────────────────────────────────────────────────────────────────
+  // SharePoint site enumeration (sub-PR 4d.0)
+  // ────────────────────────────────────────────────────────────────
+
+  /**
+   * Returns SharePoint sites the custodian has access to so the
+   * wizard's Step 3 picker can render checkboxes per site. Microsoft's
+   * Graph API doesn't have a single "sites this user can edit"
+   * endpoint, so we combine two reads:
+   *
+   *   1. /users/{id}/followedSites — sites the user actively follows.
+   *      Reliable indicator of relevance.
+   *   2. /sites?search=<keyword>   — full-tenant search by display name.
+   *      Used when keywords are supplied; the recommendation engine
+   *      pre-checks matches.
+   *
+   * Both lists are de-duped by `webUrl`. Results without a
+   * `webUrl` (rare; root site shells) are skipped — applyHold needs
+   * the URL.
+   *
+   * The recommendation heuristic for v1: a site is `recommended:
+   * true` if its name or path matches any keyword case-insensitively.
+   * No keywords → nothing pre-checked, counsel ticks manually.
+   */
+  async enumerateSharePointSitesForUser(
+    input: EnumerateSharePointSitesInput,
+  ): Promise<SharePointSiteCandidate[]> {
+    const resolvedId = await this.resolveGraphUserIdentifier(
+      input.externalIdentifier,
+    );
+    const keywords = (input.recommendKeywords ?? [])
+      .map((k) => k.trim())
+      .filter((k) => k.length >= 2);
+    const byUrl = new Map<string, SharePointSiteCandidate>();
+
+    interface RawSite {
+      webUrl?: string;
+      displayName?: string;
+      name?: string;
+      isPersonalSite?: boolean;
+    }
+
+    const followed = (await this.tryGet<{ value?: RawSite[] }>(
+      `/users/${resolvedId}/followedSites`,
+    )) ?? { value: [] };
+    for (const s of followed.value ?? []) {
+      if (!s.webUrl) continue;
+      byUrl.set(s.webUrl, this.shapeSiteCandidate(s, keywords, "Followed"));
+    }
+
+    if (keywords.length > 0) {
+      // Search per keyword and merge — Graph's search endpoint is
+      // single-term-friendly, and combining via OR semantics from the
+      // client side keeps the matching deterministic.
+      for (const k of keywords) {
+        const escaped = k.replace(/"/g, '\\"');
+        const hits = (await this.tryGet<{ value?: RawSite[] }>(
+          `/sites?search="${escaped}"`,
+        )) ?? { value: [] };
+        for (const s of hits.value ?? []) {
+          if (!s.webUrl || byUrl.has(s.webUrl)) continue;
+          byUrl.set(
+            s.webUrl,
+            this.shapeSiteCandidate(s, keywords, `Matches keyword "${k}"`),
+          );
+        }
+      }
+    }
+
+    return Array.from(byUrl.values());
+  }
+
+  private shapeSiteCandidate(
+    raw: { webUrl?: string; displayName?: string; name?: string; isPersonalSite?: boolean },
+    keywords: readonly string[],
+    sourceRationale: string,
+  ): SharePointSiteCandidate {
+    const webUrl = raw.webUrl ?? "";
+    const displayName = raw.displayName ?? raw.name ?? webUrl;
+    const haystack = `${displayName} ${webUrl}`.toLowerCase();
+    const matched = keywords.find((k) => haystack.includes(k.toLowerCase()));
+    const isPersonal =
+      raw.isPersonalSite === true || webUrl.includes("/personal/");
+    return {
+      webUrl,
+      displayName,
+      siteType: isPersonal
+        ? "personal"
+        : webUrl.includes("/teams/") || webUrl.includes("-team")
+          ? "team"
+          : "communication",
+      recommended: !!matched && !isPersonal,
+      rationale: matched
+        ? `${sourceRationale} · matches "${matched}"`
+        : sourceRationale,
+    };
   }
 
   // Surface for the contract tests; not part of the public M365Client
