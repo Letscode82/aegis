@@ -1,0 +1,19 @@
+Daniel,
+
+I need to formally escalate a concern.
+
+After the meeting last week where I was placed on a PIP, I want to put on the record that I believe this is retaliation for the report I filed in October about the engineering team culture under Samira. Specifically the report flagging differential treatment in PR reviews and 1:1 frequency between male and female engineers.
+
+The timing of the PIP — six weeks after that report and two weeks after Samira learned about it — is not coincidental. The performance issues being cited are not new and were never raised as PIP-level concerns until now.
+
+I am asking for:
+
+  1. A written explanation of why the PIP was initiated now and not earlier.
+  2. The data behind the "missed commitments" claim. I dispute the characterization and have specific timeline evidence.
+  3. An independent reviewer outside Samira's reporting chain.
+
+I would also like to understand what protections I have under company anti-retaliation policy while this PIP is active.
+
+Sending this from my personal account because I don't trust corporate IT to keep this confidential.
+
+— Sarah

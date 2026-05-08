@@ -1,0 +1,11 @@
+Carlos,
+
+Following up on our call — I think we're in alignment but want it on the record.
+
+Snowflake's pricing increase is unjustified given clause 8.2 was clearly mutual when we executed in 2024. Their account team is now claiming "interpretive ambiguity" on §8.2 to anchor a higher renewal number, but the negotiation history (which I have in writing — Marcus has the file) shows both sides agreed it was bilateral at the time.
+
+If they hold at 14%, we should be prepared to move to a 1yr extension and run a proper RFP. I don't think we should reward post-hoc reinterpretation of the IP language with a long-term commit at premium pricing.
+
+cc Marcus so we're aligned on the negotiation posture.
+
+— Alex

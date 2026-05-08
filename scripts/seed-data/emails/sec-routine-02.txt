@@ -1,0 +1,20 @@
+Carlos,
+
+Confirmed. Three immediate actions on our side:
+
+1. Issuing a litigation hold today. Custodians: you, me, Lena, Alex (Sales), and the controller and accounting close team. This goes through AEGIS and you'll get a notice; please acknowledge promptly when it arrives.
+
+2. Engaging Kirby Wood as outside securities counsel. Their senior partner James Reilly led the Northwind 2022 PCAOB matter, so he knows our environment.
+
+3. We'll respond to the SEC within the 30-day window but not before we've completed our own internal review. Voluntary informal cooperation does not require us to respond at the speed of their convenience.
+
+Lena will coordinate the hold internally. Susan from Kirby Wood will handle the SEC interface from our side starting next week.
+
+Until further notice:
+  - No discussion of the SEC matter on Slack
+  - No speculative communications about what they might or might not be looking for
+  - All substantive analysis through Kirby Wood and our office, on the privileged track
+
+Carlos, can we slot 30 min tomorrow to walk through the Q3 revenue facts? I want a structured factual baseline before Kirby Wood's first call.
+
+— Marcus

@@ -1,0 +1,23 @@
+Carlos, Alex,
+
+First-tranche document production outline for the SEC response. We're targeting May 12 for the first delivery.
+
+Tranche 1 (May 12):
+  - Q3 close package and revenue recognition memo
+  - Channel partner master agreements (Apex, Bridgepoint)
+  - Q3 channel sell-in statements of work
+  - Auditor working papers covering Q3 revenue review
+  - Management memo on Q3 close (the one in the close package)
+
+Tranche 2 (June 9, conditional on SEC's follow-up scope):
+  - Internal communications about Q3 close — date-bounded, custodians limited to: Carlos, the controller, the close team lead, and Alex
+  - Channel partner sell-through reporting from Q4
+
+Process:
+  - Kirby Wood's e-discovery team will pull and review tranche 2 communications
+  - We'll claim privilege on legal-only communications and use a structured privilege log
+  - Production format is per SEC guidance (TIFF + load file + native files for spreadsheets)
+
+Carlos, Alex — please continue routing all SEC-related discussions through Lena or me. Susan at Kirby Wood is now the formal point of contact for SEC interactions; do not respond to any SEC outreach directly.
+
+— Marcus

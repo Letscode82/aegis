@@ -1,0 +1,23 @@
+Carlos, Marcus,
+
+Channel partner contracts list for Q3, complete:
+
+  Apex Distribution
+    - Master agreement: 2024-03-15
+    - Q3 statement of work: 2025-09-30
+    - Volume: $3.4M sell-in
+    - Sell-through Q4 status: 78% sold through, 22% returned (within contractual return rights)
+
+  Bridgepoint Resellers
+    - Master agreement: 2024-08-22
+    - Q3 statement of work: 2025-09-30
+    - Volume: $2.1M sell-in
+    - Sell-through Q4 status: 92% sold through, 8% returned
+
+Both channel programs operate under our standard channel-partner master agreement (template v3.2). Return rights are 90 days from sell-in, exercised per contract terms.
+
+I have the master agreements and the Q3 statements of work in the contracts repository. Carlos and Marcus — happy to flag specific line items if useful.
+
+For the SEC response, the core position is straightforward: ASC 606 treatment was consistent with company policy and auditor sign-off. I don't see what the SEC's concern is unless they've heard something we haven't.
+
+— Alex

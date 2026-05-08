@@ -1,0 +1,11 @@
+Alex,
+
+Got it. Two flags from my side before we counter:
+
+1. The §6 egress language as drafted is broader than industry-standard. It would prevent legitimate analytics workflows we already do today. I want Lena to redline that section before we respond. Adding her here.
+
+2. Their pricing escalator (14% YoY) compounds badly across 3yr — that's effectively a 48% cumulative increase. Carlos's cost scenarios will be useful, but on the legal side the term length matters because it constrains our ability to renegotiate if pricing materially diverges from market.
+
+Lena — can you take a first pass at §6 and §8 (the IP-assignment language) and flag anything that diverges from our MSA playbook v2? Marcus and I will hold on the substantive response until we have your redlines.
+
+— Marcus

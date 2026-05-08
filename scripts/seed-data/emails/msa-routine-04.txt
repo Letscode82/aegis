@@ -1,0 +1,18 @@
+Team,
+
+Finance ran the scenarios Alex requested. Headline:
+
+  Year-over-year escalator    3yr cumulative cost   Δ vs current run-rate
+  3%                          ~$7.6M                +9%
+  7%                          ~$8.2M                +18%
+  14% (their ask)             ~$9.1M                +31%
+
+Two observations from the finance side:
+
+1. We're not in a position where we have to accept their term. Snowflake's main competitor pricing (per our market check last quarter) is roughly 8–11% lower per-credit. The 14% escalator only makes sense to them if they're betting on switching costs being prohibitive.
+
+2. The 3yr commit also locks our payment-terms exposure. If we're going to take 3yr, I'd want some structural protection — either MFN-style pricing review, or a one-time exit clause if their list price drops materially.
+
+Net: I'd counter at 5% YoY with the structural protection. If they push back, we have leverage to walk to a 1yr extension.
+
+— Carlos

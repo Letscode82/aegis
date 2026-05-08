@@ -1,0 +1,16 @@
+Marcus, Alex,
+
+Synergy reconciliation complete. Revised numbers below match what's in the integration plan v2.
+
+Original Acme management model:    $8.0M annualized within 12 months
+Our independent re-modeled ask:    $5.5M annualized within 18 months
+Difference attributable to:
+  - Headcount reduction: $1.4M overstated (their model assumed full-team reduction; we modeled retention of perception-stack engineers)
+  - Vendor consolidation: $0.6M overstated (their model assumed our Snowflake licensing scales linearly; ours scales with per-seat)
+  - Real-estate consolidation: $0.5M overstated (their model assumed lease early-termination free; we modeled remaining term costs)
+
+Net: their model is achievable in the optimistic case, but our model is the prudent underwriting basis. I'd recommend the board memo cite both with our number as the base case.
+
+Recommend we hold valuation at the floor of our pre-diligence range. Anything above that requires a stronger view on the IP-stack integration timing, which Thomas's memo says is contingent.
+
+— Carlos

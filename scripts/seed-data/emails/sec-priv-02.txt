@@ -1,0 +1,26 @@
+[ATTORNEY-CLIENT PRIVILEGE]
+
+Carlos,
+
+Privileged.
+
+Privilege strategy for the SEC response, summarized for your operating awareness.
+
+We will assert privilege over:
+  1. All communications between you and our office about Q3 revenue treatment from April 3 forward (the date the inquiry letter arrived).
+  2. All communications with Kirby Wood from the engagement date forward.
+  3. Internal analysis memos prepared at our direction in response to the inquiry.
+
+We will NOT assert privilege over:
+  1. Pre-inquiry communications about Q3 close. Those are normal-course business communications and any privilege claim would look constructed.
+  2. Auditor working papers (auditors aren't covered by attorney-client privilege; we may have selective work-product protection on direction-from-counsel categories but won't get the rest).
+  3. Channel-partner communications. These are operational and would not get privilege protection.
+
+Practical implications for you:
+  - Going forward, any analysis you do in response to my requests should be on email or in documents addressed to me, with a privilege marking. Not in unmarked spreadsheets or independent memos.
+  - Any communications about the SEC matter on Slack or in unmarked email could weaken our privilege position. Channel everything through email to legal with the marking.
+  - Susan at Kirby Wood will be on a separate privileged email thread. CC her on substantive analysis.
+
+Lena will track privilege log entries as we go. We'll review the log before any production.
+
+— Marcus

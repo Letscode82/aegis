@@ -1,0 +1,38 @@
+{
+  "matterId": "m-acme-acquisition",
+  "title": "Project Atlas — Acquisition of Acme Robotics, Inc.",
+  "type": "MA",
+  "jurisdiction": "US-DE",
+  "leadAttorney": "marcus",
+  "custodianKeys": ["marcus", "thomas", "alex", "carlos"],
+  "emails": [
+    { "id": "acme-routine-01", "from": "alex", "to": ["marcus", "carlos"], "cc": [], "subject": "Project Atlas — initial diligence checklist", "privileged": false, "bodyTemplate": "acme-routine-01.txt", "sentAt": "2026-03-04T15:11:00Z" },
+    { "id": "acme-routine-02", "from": "carlos", "to": ["alex"], "cc": ["marcus"], "subject": "Project Atlas — financial diligence first pass", "privileged": false, "bodyTemplate": "acme-routine-02.txt", "sentAt": "2026-03-12T22:50:00Z" },
+    { "id": "acme-routine-03", "from": "thomas", "to": ["marcus"], "cc": ["alex"], "subject": "Project Atlas — Acme IP audit summary", "privileged": false, "bodyTemplate": "acme-routine-03.txt", "sentAt": "2026-03-19T17:00:00Z" },
+    { "id": "acme-routine-04", "from": "alex", "to": ["marcus"], "cc": [], "subject": "Project Atlas — integration plan v2", "privileged": false, "bodyTemplate": "acme-routine-04.txt", "sentAt": "2026-04-01T14:25:00Z" },
+    { "id": "acme-routine-05", "from": "carlos", "to": ["marcus", "alex"], "cc": [], "subject": "Project Atlas — synergy targets reconciled", "privileged": false, "bodyTemplate": "acme-routine-05.txt", "sentAt": "2026-04-08T19:48:00Z" },
+    { "id": "acme-routine-06", "from": "marcus", "to": ["alex", "carlos", "thomas"], "cc": [], "subject": "Project Atlas — board approval timing", "privileged": false, "bodyTemplate": "acme-routine-06.txt", "sentAt": "2026-04-19T16:11:00Z" },
+    { "id": "acme-priv-01", "from": "marcus", "to": ["thomas"], "cc": [], "subject": "[ATTORNEY-CLIENT PRIVILEGE] Project Atlas — IP risk memo", "privileged": true, "bodyTemplate": "acme-priv-01.txt", "sentAt": "2026-03-21T15:33:00Z" },
+    { "id": "acme-priv-02", "from": "marcus", "to": ["carlos"], "cc": [], "subject": "[ATTORNEY-CLIENT PRIVILEGE] Project Atlas — valuation contingencies", "privileged": true, "bodyTemplate": "acme-priv-02.txt", "sentAt": "2026-04-09T18:42:00Z" }
+  ],
+  "sharepoint": {
+    "siteKey": "board",
+    "documents": [
+      { "fileName": "Project-Atlas-overview.docx", "folder": "Project Atlas", "privileged": false, "templateKey": "atlas-overview" },
+      { "fileName": "Acme-financial-diligence.xlsx", "folder": "Project Atlas/Diligence", "privileged": false, "templateKey": "atlas-fin-diligence" },
+      { "fileName": "Acme-IP-audit.docx", "folder": "Project Atlas/Diligence", "privileged": false, "templateKey": "atlas-ip-audit" },
+      { "fileName": "Acme-integration-plan-v2.docx", "folder": "Project Atlas/Integration", "privileged": false, "templateKey": "atlas-integration" },
+      { "fileName": "Acme-cap-table-and-synergy-model.xlsx", "folder": "Project Atlas/Diligence", "privileged": false, "templateKey": "atlas-cap-table" },
+      { "fileName": "Acme-management-presentation.docx", "folder": "Project Atlas/Diligence", "privileged": false, "templateKey": "atlas-mgmt-presentation" },
+      { "fileName": "Atlas-board-memo-March.docx", "folder": "Project Atlas/Privileged - Board Memos", "privileged": true, "templateKey": "atlas-board-memo-march" },
+      { "fileName": "Atlas-board-memo-April.docx", "folder": "Project Atlas/Privileged - Board Memos", "privileged": true, "templateKey": "atlas-board-memo-april" },
+      { "fileName": "Atlas-IP-risk-memo.docx", "folder": "Project Atlas/Privileged - Counsel Work Product", "privileged": true, "templateKey": "atlas-ip-risk-memo" },
+      { "fileName": "Atlas-valuation-contingencies.docx", "folder": "Project Atlas/Privileged - Counsel Work Product", "privileged": true, "templateKey": "atlas-valuation-contingencies" }
+    ]
+  },
+  "onedrive": [
+    { "userKey": "alex", "fileName": "Atlas-pitch-deck-draft.docx", "templateKey": "atlas-pitch-deck" },
+    { "userKey": "alex", "fileName": "Atlas-stakeholder-map.docx", "templateKey": "atlas-stakeholder-map" },
+    { "userKey": "carlos", "fileName": "Atlas-synergy-model-working.xlsx", "templateKey": "atlas-synergy-working" }
+  ]
+}

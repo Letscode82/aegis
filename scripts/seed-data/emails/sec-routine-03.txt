@@ -1,0 +1,17 @@
+Alex, Marcus,
+
+Q3 2025 revenue cut-off context. This is responsive to the question Marcus asked yesterday.
+
+Q3 close happened on Sept 30, 2025. Five enterprise contracts were booked in the final week:
+
+  - Voltcorp expansion: $4.2M ARR, signed Sept 26, fulfilled Oct 1 (treated as Q3)
+  - Mira Health renewal: $2.8M ARR, signed Sept 29, no service start delta
+  - Kestrel Logistics: $1.6M ARR, signed Sept 30, fulfilled Sept 30
+  - Channel deal — Apex Distribution: $3.4M, signed Sept 30, channel sell-through Q4
+  - Channel deal — Bridgepoint Resellers: $2.1M, signed Sept 30, sell-through Q4
+
+The two channel deals are where I expect the SEC question lands. Both were structured as sell-in to the channel partner with reasonable indicators of sell-through demand. Revenue was recognized at sell-in per ASC 606, consistent with our standard treatment for that channel program.
+
+Auditors signed off on the treatment at the time. The memo is in the Q3 close package. There's nothing irregular here — but I see how it could look to an outside reviewer who's only seen the headline number.
+
+— Carlos

@@ -1,0 +1,28 @@
+[ATTORNEY-CLIENT PRIVILEGE]
+
+Carlos,
+
+Privileged.
+
+Reading your synergy reconciliation alongside Thomas's IP audit, I'd like you to model two scenarios beyond the base case for the board memo:
+
+Scenario A — IP-stack overlap resolved favorably (~50% probability per Thomas):
+  - Full $5.5M synergy achieved on schedule
+  - No additional perception-stack legal spend
+  - Standard valuation
+
+Scenario B — IP-stack overlap requires consolidation / abandonment (~40% probability):
+  - $5.5M synergy achievable but on a 24-month rather than 18-month curve
+  - Add ~$1.5M legal cost over 18 months
+  - Recommend valuation discount of 6–9% from base case
+
+Scenario C — Interference proceeding goes against us (~10% probability):
+  - Synergy capped at $3.5M because we're licensing back the contested IP
+  - $3-4M legal spend
+  - Material valuation reduction; recommend renegotiation or walk-away triggers
+
+I do not want this in the board memo. I want it in our privileged file as the structured risk view we use to evaluate offers and counterproposals from Acme's side. Save to the privileged folder.
+
+If you can have these in shape by April 18 we have a week of cushion before the memo finalizes.
+
+— Marcus

@@ -1,0 +1,27 @@
+[ATTORNEY WORK PRODUCT]
+
+Lena,
+
+Privileged work product. Save to the privileged folder on the finance site.
+
+Initial exposure assessment, structured for the response strategy.
+
+Underlying transaction analysis:
+  - Q3 sell-in to channel partners totaling $5.5M
+  - ASC 606 treatment as point-in-time recognition at sell-in
+  - Standard contractual return rights (90 days)
+  - Q4 sell-through: 78% Apex, 92% Bridgepoint
+
+Risk view:
+  - The accounting position appears defensible on its face — channel program structure and return-rights treatment are within bounds.
+  - However, the magnitude of Q3 sell-in relative to historical channel volume (3.6x average) is the kind of pattern that draws scrutiny. If the SEC has a tip suggesting the sell-in was orchestrated to hit a Q3 number, the analysis becomes harder.
+  - Auditor sign-off is supportive but not dispositive — auditors review treatment, not motive.
+
+Open factual questions for the response strategy:
+  1. What was the sales team's communication with channel partners about Q3 timing? Specifically was there any commitment around extended return rights or repurchase obligations beyond the standard 90 days?
+  2. Were any of the Q3 close meetings or communications about pulling deals into Q3 documented in ways that could be read as revenue manipulation?
+  3. Did anyone in the close process flag concerns at the time?
+
+Please pull communication samples for the relevant custodians, date-bounded Aug 1 – Sept 30, that touch any of those three questions. I want to know what we have before Kirby Wood asks.
+
+— Marcus

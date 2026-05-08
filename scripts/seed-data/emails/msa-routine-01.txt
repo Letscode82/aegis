@@ -1,0 +1,15 @@
+Marcus,
+
+Snowflake's renewal team came back today. They want to push us to a 3-year term with a 14% annual price escalator, plus expanded data-egress provisions in §6 that I think we should push back on.
+
+Headline asks from their side:
+  - 3yr commit (vs current 2yr)
+  - 14% YoY price escalation
+  - Tightened data-egress restrictions in §6
+  - Renewal of SLA credits unchanged
+
+My take: term and SLA are negotiable. The egress language is a real concern given how Engineering uses the warehouse for analytics export. Carlos, can you cost out scenarios at 3% / 7% / 14% so we can counter-propose with data?
+
+I've asked Snowflake's account team for a redlined draft by EOW. Once that lands I'll forward to you and Marcus for review.
+
+— Alex

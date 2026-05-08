@@ -1,0 +1,19 @@
+[ATTORNEY-CLIENT PRIVILEGE — ATTORNEY WORK PRODUCT]
+
+Thomas,
+
+Privileged work product. Do not forward.
+
+Want to make sure we have a structured IP-risk memo on file before the board presentation. Three categories I want documented:
+
+  1. Acme's existing portfolio: cleanliness, encumbrances, third-party challenges, assignment-of-record issues. Your initial summary touched these — I want them written up with risk ratings.
+
+  2. The perception-stack overlap with our pending application. This is the biggest risk in the deal. Document: probability of interference proceeding, estimated cost / timeline, possible outcomes (consolidation, abandonment, license-back). I want a recommendation on whether we treat this as a closing condition or a reps-and-warranties matter.
+
+  3. Open-source remediation. Document the specific incompatible licenses, products affected, and proposed 90-day remediation plan as a covenant. This is a board-level risk if we don't structure it carefully — a public AGPL trigger post-close would be embarrassing.
+
+For each, I want a one-page summary with risk rating (Low / Medium / High / Critical), open questions, and proposed mitigations. The board version will summarize; the work-product version is for our file.
+
+Save to the Project Atlas privileged folder. Send me a draft by April 17.
+
+— Marcus

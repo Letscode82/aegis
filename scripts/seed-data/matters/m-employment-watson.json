@@ -1,0 +1,36 @@
+{
+  "matterId": "m-employment-watson",
+  "title": "Watson v. Northwind — Wrongful Termination & Retaliation",
+  "type": "EMPLOYMENT",
+  "jurisdiction": "US-CA",
+  "leadAttorney": "marcus",
+  "custodianKeys": ["marcus", "lena", "samira", "rebecca", "sarah", "daniel"],
+  "emails": [
+    { "id": "watson-routine-01", "from": "daniel", "to": ["samira"], "cc": [], "subject": "Sarah Watson — Q4 performance discussion", "privileged": false, "bodyTemplate": "watson-routine-01.txt", "sentAt": "2025-12-05T17:42:00Z" },
+    { "id": "watson-routine-02", "from": "samira", "to": ["daniel"], "cc": [], "subject": "RE: Sarah Watson — Q4 performance discussion", "privileged": false, "bodyTemplate": "watson-routine-02.txt", "sentAt": "2025-12-05T22:11:00Z" },
+    { "id": "watson-routine-03", "from": "daniel", "to": ["samira"], "cc": [], "subject": "Sarah Watson — PIP draft for review", "privileged": false, "bodyTemplate": "watson-routine-03.txt", "sentAt": "2026-01-08T15:30:00Z" },
+    { "id": "watson-routine-04", "from": "samira", "to": ["sarah"], "cc": ["daniel"], "subject": "1:1 follow-up — PIP timeline", "privileged": false, "bodyTemplate": "watson-routine-04.txt", "sentAt": "2026-01-15T20:18:00Z" },
+    { "id": "watson-routine-05", "from": "sarah", "to": ["daniel"], "cc": [], "subject": "Concern about retaliation — escalation", "privileged": false, "bodyTemplate": "watson-routine-05.txt", "sentAt": "2026-01-29T01:14:00Z" },
+    { "id": "watson-routine-06", "from": "daniel", "to": ["samira"], "cc": [], "subject": "Watson — termination logistics", "privileged": false, "bodyTemplate": "watson-routine-06.txt", "sentAt": "2026-02-12T14:45:00Z" },
+    { "id": "watson-routine-07", "from": "rebecca", "to": ["samira"], "cc": [], "subject": "Watson handoff — dashboard project status", "privileged": false, "bodyTemplate": "watson-routine-07.txt", "sentAt": "2026-02-13T16:02:00Z" },
+    { "id": "watson-routine-08", "from": "daniel", "to": ["samira", "marcus"], "cc": [], "subject": "Watson exit completed — preservation steps", "privileged": false, "bodyTemplate": "watson-routine-08.txt", "sentAt": "2026-02-14T20:33:00Z" },
+    { "id": "watson-priv-01", "from": "marcus", "to": ["daniel"], "cc": ["lena"], "subject": "[ATTORNEY-CLIENT PRIVILEGE] Watson PIP — legal review", "privileged": true, "bodyTemplate": "watson-priv-01.txt", "sentAt": "2026-01-09T16:25:00Z" },
+    { "id": "watson-priv-02", "from": "marcus", "to": ["daniel", "samira"], "cc": ["lena"], "subject": "[ATTORNEY-CLIENT PRIVILEGE] Watson retaliation allegation — response strategy", "privileged": true, "bodyTemplate": "watson-priv-02.txt", "sentAt": "2026-01-30T15:20:00Z" }
+  ],
+  "sharepoint": {
+    "siteKey": "engineering",
+    "documents": [
+      { "fileName": "Watson-2025-Q3-performance-review.docx", "folder": "HR/Performance Reviews", "privileged": false, "templateKey": "watson-q3-review" },
+      { "fileName": "Watson-2025-Q4-performance-review.docx", "folder": "HR/Performance Reviews", "privileged": false, "templateKey": "watson-q4-review" },
+      { "fileName": "Watson-PIP-2026-01-15.docx", "folder": "HR/PIPs", "privileged": false, "templateKey": "watson-pip" },
+      { "fileName": "dashboard-handoff-notes.docx", "folder": "Projects/Dashboard", "privileged": false, "templateKey": "watson-handoff" },
+      { "fileName": "Watson-termination-notice.docx", "folder": "HR/Privileged - Termination", "privileged": true, "templateKey": "watson-termination-notice" }
+    ]
+  },
+  "onedrive": [
+    { "userKey": "sarah", "fileName": "dashboard-architecture-draft.docx", "templateKey": "watson-dashboard-arch" },
+    { "userKey": "sarah", "fileName": "personal-work-notes.docx", "templateKey": "watson-personal-notes" },
+    { "userKey": "daniel", "fileName": "Watson-1on1-log.docx", "templateKey": "watson-1on1-log" },
+    { "userKey": "daniel", "fileName": "Watson-termination-checklist.docx", "templateKey": "watson-term-checklist" }
+  ]
+}

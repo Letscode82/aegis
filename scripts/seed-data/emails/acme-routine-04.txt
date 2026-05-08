@@ -1,0 +1,15 @@
+Marcus,
+
+Integration plan v2 in the Atlas folder, incorporating Carlos's synergy reconciliation and Thomas's IP findings.
+
+Headline changes from v1:
+  - Org integration moved from "complete by close" to "phased over 6 months"
+  - Synergy targets reduced from $8M annual to $5.5M (Carlos's revised model)
+  - IP-stack integration now contingent on resolving the perception-stack overlap (Thomas's flag)
+  - Open-source remediation plan added as a 90-day post-close action item
+
+I think the plan now reflects diligence reality rather than the aspirational version we started with. The board memo I'm drafting for next week will reference these revisions explicitly so the board sees the diligence-driven adjustments.
+
+Marcus — I'd like 30 min Friday to walk through the IP-related close conditions before we finalize.
+
+— Alex

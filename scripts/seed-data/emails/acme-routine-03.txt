@@ -1,0 +1,21 @@
+Marcus,
+
+IP audit summary on Atlas — full memo in the diligence folder.
+
+Patents (14 issued):
+  - 11 are core to their product. Clean prosecution history. No third-party challenges currently.
+  - 2 are speculative / blue-sky and arguably non-essential to the acquisition rationale.
+  - 1 has a co-inventor (former CTO, departed 2023) whose assignment we should verify before close. Their counsel has confirmed the assignment was executed but the recorded version at the USPTO is the wrong revision. Fixable but flag.
+
+Pending applications (30):
+  - 23 are continuations / divisionals of the issued portfolio
+  - 7 are net-new and material to the product roadmap
+  - One pending application overlaps with our own pending in the perception-stack space. We should look at this carefully — there's a meaningful risk of either an interference proceeding or a need to consolidate during prosecution.
+
+Trademarks: clean.
+
+Open-source compliance: hairy. Acme has been less rigorous than us about license compatibility. Two of their core products incorporate AGPL-licensed components in ways that could trigger source disclosure if redistributed. I want a structured remediation plan as a closing condition, not a representation we accept on faith.
+
+Litigation: one open patent dispute with a small competitor (Mira Robotics). Acme is the defendant. Their assessment is "nuisance suit, expected to settle for under $200K." I want to validate that independently with their litigation counsel.
+
+— Thomas

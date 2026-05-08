@@ -1,0 +1,51 @@
+{
+  "$schema": "Northwind Industries — 5 SharePoint team sites for the AEGIS dev tenant.",
+  "$comment": "Members are referenced by users.json `key`. The orchestrator resolves keys to UPNs at run time. Owners must also appear in members. Each site uses the modern team-site template (no M365 group provisioning here — orchestrator uses Set-PnPSite or Graph site templates as appropriate).",
+  "sites": [
+    {
+      "key": "legal",
+      "urlSlug": "legal",
+      "displayName": "Legal Team Site",
+      "description": "Internal workspace for the Northwind Legal team — playbooks, matter folders, retention schedules.",
+      "owners": ["marcus"],
+      "members": ["marcus", "priya", "lena", "thomas"],
+      "template": "modernTeamSite"
+    },
+    {
+      "key": "contracts",
+      "urlSlug": "contracts",
+      "displayName": "Contracts Repository",
+      "description": "Executed agreements, in-flight redlines, MSA / DPA / SOW templates.",
+      "owners": ["marcus"],
+      "members": ["marcus", "priya", "alex", "carlos"],
+      "template": "modernTeamSite"
+    },
+    {
+      "key": "engineering",
+      "urlSlug": "engineering",
+      "displayName": "Engineering Team Site",
+      "description": "Technical specifications, architecture decision records, design reviews.",
+      "owners": ["samira"],
+      "members": ["samira", "rebecca", "sarah", "lena"],
+      "template": "modernTeamSite"
+    },
+    {
+      "key": "finance",
+      "urlSlug": "finance",
+      "displayName": "Finance Team Site",
+      "description": "Quarterly close packages, financial models, audit working papers.",
+      "owners": ["carlos"],
+      "members": ["carlos", "marcus"],
+      "template": "modernTeamSite"
+    },
+    {
+      "key": "board",
+      "urlSlug": "board",
+      "displayName": "Board Materials",
+      "description": "Board memoranda, M&A diligence rooms, executive strategy documents.",
+      "owners": ["marcus"],
+      "members": ["marcus", "carlos", "alex"],
+      "template": "modernTeamSite"
+    }
+  ]
+}

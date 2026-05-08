@@ -1,0 +1,11 @@
+Marcus, Alex,
+
+I had Engineering review the proposed §8.2 IP-assignment language. Two concerns we'd want addressed before signing:
+
+1. The "derivative works" definition is broad enough that it could be read to capture our internal analytics extensions to the warehouse. We'd want a carve-out for customer-developed transformations that don't expose Snowflake's underlying schema or query optimizer logic.
+
+2. The clause currently doesn't distinguish between pre-existing IP and IP developed during the term. Standard industry language has a "background IP" carve-out. Without one, anything we build on top of the platform during the term arguably gets co-owned.
+
+Both are addressable in redlines. Happy to join a working session if it's useful — or I can have one of my staff engineers walk through specific scenarios with Lena directly.
+
+— Samira

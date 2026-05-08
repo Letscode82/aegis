@@ -1,0 +1,19 @@
+Alex, Marcus,
+
+First-pass financial diligence on Atlas. Detailed model and schedules are in the diligence folder; headline below.
+
+Top-line:
+  - 2025 revenue: $42.1M (audited)
+  - Growth trajectory: 38% YoY 2023→2024, 21% 2024→2025 (deceleration)
+  - Gross margin: 62% (consistent with category)
+  - Cash position: $11.8M, ~14 months runway at current burn
+  - 2025 EBITDA: ($3.4M) — they're still investing through losses
+
+Concerns:
+  - Customer concentration: top 3 customers are 41% of revenue. Top 1 (Voltcorp, 18%) signed a 2yr deal that's up for renewal in Q4.
+  - Deferred revenue treatment is aggressive on two enterprise contracts. I want our auditors to confirm before we underwrite the multiple.
+  - Their forecasted synergies in the integration plan look optimistic — they're modeling ~$8M in annual savings within 12 months that I don't see how to achieve without significant headcount reduction.
+
+I have a working synergy model in OneDrive (working draft, not for circulation yet). Will refine after Marcus and Thomas's IP audit lands — IP-related contingencies could move the valuation materially.
+
+— Carlos

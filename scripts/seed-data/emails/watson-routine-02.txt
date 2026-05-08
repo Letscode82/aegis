@@ -1,0 +1,15 @@
+Daniel,
+
+Yes, let's talk. My read is consistent with yours.
+
+Q3 specifics from my side:
+
+  - Dashboard project: she missed two consecutive sprint commitments. Rebecca rebuilt the auth module from scratch in week 3 because Sarah's PRs weren't landing.
+  - Code review behavior: I've personally seen her dismiss review comments from senior engineers multiple times this quarter. Pattern, not one-off.
+  - 1:1s: she's been reluctant to acknowledge feedback. Last 1:1 (Nov 22) ended with her saying she felt the team was "set up against her."
+
+I want to be careful here — she's been with us 4 years and there were two strong years before this. But the trajectory is clear and Q4 isn't trending up.
+
+Slot is on your calendar for next Tuesday.
+
+— Samira

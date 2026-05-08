@@ -1,0 +1,31 @@
+{
+  "matterId": "m-snowflake-msa",
+  "title": "Snowflake MSA — Renewal & Re-papering",
+  "type": "TRANSACTIONAL",
+  "jurisdiction": "US-CA",
+  "leadAttorney": "marcus",
+  "custodianKeys": ["marcus", "alex", "carlos", "samira", "lena"],
+  "emails": [
+    { "id": "msa-routine-01", "from": "alex", "to": ["marcus"], "cc": ["carlos"], "subject": "Snowflake MSA renewal — opening positions", "privileged": false, "bodyTemplate": "msa-routine-01.txt", "sentAt": "2026-04-02T16:18:00Z" },
+    { "id": "msa-routine-02", "from": "marcus", "to": ["alex"], "cc": ["lena"], "subject": "RE: Snowflake MSA renewal — opening positions", "privileged": false, "bodyTemplate": "msa-routine-02.txt", "sentAt": "2026-04-02T22:41:00Z" },
+    { "id": "msa-routine-03", "from": "samira", "to": ["marcus", "alex"], "cc": [], "subject": "Snowflake — engineering impact of clause 8.2", "privileged": false, "bodyTemplate": "msa-routine-03.txt", "sentAt": "2026-04-09T19:02:00Z" },
+    { "id": "msa-routine-04", "from": "carlos", "to": ["marcus", "alex"], "cc": [], "subject": "Snowflake renewal — finance view", "privileged": false, "bodyTemplate": "msa-routine-04.txt", "sentAt": "2026-04-15T14:30:00Z" },
+    { "id": "msa-routine-05", "from": "alex", "to": ["carlos"], "cc": ["marcus"], "subject": "Snowflake's pricing increase", "privileged": false, "bodyTemplate": "msa-routine-05.txt", "sentAt": "2026-04-22T18:55:00Z" },
+    { "id": "msa-priv-01", "from": "marcus", "to": ["lena"], "cc": [], "subject": "[ATTORNEY-CLIENT PRIVILEGE] IP §8.2 interpretation — Snowflake", "privileged": true, "bodyTemplate": "msa-priv-01.txt", "sentAt": "2026-04-11T15:14:00Z" },
+    { "id": "msa-priv-02", "from": "lena", "to": ["marcus"], "cc": [], "subject": "[ATTORNEY-CLIENT PRIVILEGE] RE: IP §8.2 interpretation — Snowflake", "privileged": true, "bodyTemplate": "msa-priv-02.txt", "sentAt": "2026-04-11T22:08:00Z" }
+  ],
+  "sharepoint": {
+    "siteKey": "contracts",
+    "documents": [
+      { "fileName": "MSA-Snowflake-2024-executed.docx", "folder": "Snowflake", "privileged": false, "templateKey": "msa-snowflake-executed" },
+      { "fileName": "MSA-renewal-redlines-2026-Q1.docx", "folder": "Snowflake", "privileged": false, "templateKey": "msa-snowflake-redlines" },
+      { "fileName": "IP-clause-8.2-analysis.docx", "folder": "Snowflake/Privileged - Attorney Work Product", "privileged": true, "templateKey": "msa-snowflake-ip-analysis" }
+    ]
+  },
+  "onedrive": [
+    { "userKey": "marcus", "fileName": "Snowflake-renewal-internal-memo-draft.docx", "templateKey": "msa-snowflake-internal-memo" },
+    { "userKey": "marcus", "fileName": "Snowflake-call-notes-2026-04-09.docx", "templateKey": "msa-snowflake-call-notes" },
+    { "userKey": "alex", "fileName": "Snowflake-pricing-model.xlsx", "templateKey": "msa-snowflake-pricing" },
+    { "userKey": "samira", "fileName": "Snowflake-technical-impact.docx", "templateKey": "msa-snowflake-tech-impact" }
+  ]
+}

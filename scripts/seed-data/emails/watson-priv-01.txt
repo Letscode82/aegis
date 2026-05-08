@@ -1,0 +1,17 @@
+[ATTORNEY-CLIENT PRIVILEGE]
+
+Daniel,
+
+Privileged. Do not forward outside legal/HR.
+
+I've reviewed the PIP draft you circulated. Two concerns from a litigation-defensibility standpoint:
+
+1. The objectives are tied to the dashboard project, which is the same project where Watson has been raising concerns about workload allocation. If she does claim retaliation later, the choice of project as the PIP vehicle is going to be the first thing plaintiff's counsel attacks. I'd consider broadening to project-agnostic competency objectives instead — collaboration, code review behavior, sprint commitment accuracy as standalone metrics.
+
+2. The 60-day window is fine but the bi-weekly checkpoints need to be documented contemporaneously by Samira. Verbal-only checkpoints are nearly impossible to defend later.
+
+Recommendation: we should also do a "contemporaneous" file note now describing the prior performance concerns and why they didn't earlier rise to PIP. Without that, the PIP looks engineered and the timeline reads as pretextual. I can draft a template Daniel and Samira fill in independently.
+
+Lena, please pull together the prior performance documentation back to mid-2024 so we have the full record before the PIP starts. Save to the privileged folder on the engineering site.
+
+— Marcus

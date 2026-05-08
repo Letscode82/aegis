@@ -1,0 +1,17 @@
+[ATTORNEY-CLIENT PRIVILEGE — ATTORNEY WORK PRODUCT]
+
+Marcus,
+
+Attorney-client privileged. Will move detailed analysis to the working document as you suggested.
+
+Initial read after going through the 2024 file:
+
+1. The executed §8.2 language tracks our MSA playbook v2 verbatim — bilateral assignment of jointly-developed derivatives, with each party retaining background IP. There is no plausible textual ambiguity. The phrase Snowflake's team is now hanging on ("either party may") is in the carve-out clause for solo-developed extensions, not the assignment provision itself.
+
+2. The 2024 negotiation correspondence is unambiguous. Snowflake's then-counsel (Anika Reddy at Wilson & Brody) explicitly confirmed bilateral intent in two separate emails dated 2024-05-08 and 2024-05-22. Both are in the file.
+
+3. Comparable deals — three other Snowflake MSAs from the comparable-deals folder all use the same bilateral §8.2 language. Their position is not industry-standard and not their own standard.
+
+Will have the structured memo to you by next Friday. Strongly recommend we not concede any "ambiguity" framing in our response, even pro forma — the moment we accept the framing we've conceded ground.
+
+— Lena

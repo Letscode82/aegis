@@ -1,0 +1,18 @@
+[ATTORNEY-CLIENT PRIVILEGE — ATTORNEY WORK PRODUCT]
+
+Daniel, Samira,
+
+Privileged work product. Do not forward.
+
+Watson's Jan 29 email has now created a duty-to-preserve trigger. We are formally past the "reasonably anticipated litigation" threshold. Effective immediately:
+
+  1. I'll issue a litigation hold notice through AEGIS today covering Daniel, Samira, Rebecca, and Marcus's office. Sarah is also a custodian (her own communications are preserved as evidence).
+  2. No deletion of anything matter-related — emails, Slack, Jira, GitHub, Drive, voicemail. This applies to anything tangentially related to Watson's tenure, not just the PIP.
+  3. The PIP itself proceeds as planned. We do not modify or pause it in response to the retaliation allegation, because that itself can be cited as evidence of retaliation. We document objections through formal HR channels.
+  4. I am engaging Bradford & Lane (Susan Park) as outside employment counsel. All future strategic communications related to the retaliation allegation should be CC'd to her once she's formally engaged.
+
+Lena will be the day-to-day point of contact internally. She'll send a separate kickoff with the hold details.
+
+A reminder on email discipline: we are now in a posture where every communication about Watson is potentially discoverable. Treat accordingly.
+
+— Marcus

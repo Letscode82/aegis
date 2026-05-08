@@ -1,0 +1,17 @@
+Marcus, Carlos,
+
+Project Atlas — diligence kicks off Monday. Initial checklist below; I'd like to get heads-up on which workstreams you each want to lead.
+
+Workstreams:
+  1. Financial diligence — Carlos
+  2. IP audit — Marcus / Thomas (Acme has 14 patents, ~30 pending applications)
+  3. Customer-contract review — sales ops and Marcus's office
+  4. Employment / org structure — HR and Marcus
+  5. Regulatory / privacy — Marcus, Privacy lead
+  6. Integration plan — me
+
+Target close: end of Q3. The data room access is set up; I'll send credentials separately. Acme is being responsive — first batch of docs landed yesterday.
+
+This needs to stay tight internally. Code name "Atlas" in all communications, Acme not mentioned by name in subject lines or shared docs. Standard M&A protocol.
+
+— Alex

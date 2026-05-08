@@ -1,0 +1,21 @@
+[ATTORNEY-CLIENT PRIVILEGE — ATTORNEY WORK PRODUCT]
+
+Lena,
+
+Attorney-client privileged. Do not forward.
+
+Snowflake's account team is now anchoring on an "ambiguity" reading of §8.2 to justify their 14% escalator. The position is, in my view, not legally defensible — but I want a structured analysis before we put anything in writing back to them, because if this goes to dispute the analysis becomes the foundation of our position.
+
+Three things I need from you:
+
+1. Pull the negotiation history from the 2024 file (Priya has the box; tell her I asked). Specifically I want every redline iteration of §8.2 plus the email exchange between counsel where the bilateral language was confirmed.
+
+2. Compare the executed §8.2 language to the §8.2 language in the three other Snowflake MSAs we have visibility into (those are in the comparable-deals folder — Priya again).
+
+3. Draft a memo (privileged work product, addressed to me) that addresses: (a) plain-language reading of executed §8.2; (b) consistency with industry-standard bilateral IP assignment; (c) negotiation history showing intent; (d) Snowflake's current "ambiguity" position and why it's pretextual.
+
+I don't want this in email beyond what's necessary. Move to a working document on the contracts site, in the privileged folder.
+
+Timeline: end of next week. The redlines back to Snowflake will reference your analysis indirectly so we want it complete before we respond substantively.
+
+— Marcus

@@ -1,0 +1,16 @@
+Samira,
+
+PIP draft attached (or at least, the doc is in the HR/PIPs folder under Watson's name).
+
+Structure:
+
+  - 60-day cycle starting Jan 15
+  - Three measurable objectives tied to dashboard project deliverables
+  - Bi-weekly checkpoints with you
+  - Final review on March 15
+
+Please review and tell me if the objectives are realistic and tied to work she'd be doing anyway. I don't want this to read as engineered for failure, and the legal team will look at it through that lens too.
+
+I've got Marcus's office on standby for legal review once you've signed off.
+
+— Daniel

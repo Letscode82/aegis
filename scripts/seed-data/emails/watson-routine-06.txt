@@ -1,0 +1,17 @@
+Samira,
+
+Termination is set for Friday Feb 14, 4:00 PM PT.
+
+Logistics:
+
+  - Final 1:1 in your office at 4:00 with me present
+  - IT will revoke credentials at 4:30 PT (Slack, M365, GitHub, Jira, AWS)
+  - Laptop pickup arranged via courier from her home Saturday
+  - Severance package: 8 weeks + accrued PTO, conditioned on signed separation agreement (Marcus's office handling)
+  - COBRA paperwork mailed Monday
+
+Please don't communicate any of this to the team until Monday morning. I'll send a brief team-wide note Monday at 9.
+
+Reminder: do NOT engage with her on the retaliation allegation in any 1:1 or async — that's now in legal's lane. If she raises it Friday, redirect to me.
+
+— Daniel

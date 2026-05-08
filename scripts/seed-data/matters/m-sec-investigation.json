@@ -1,0 +1,32 @@
+{
+  "matterId": "m-sec-investigation",
+  "title": "SEC Informal Inquiry — Q3 2025 Revenue Recognition",
+  "type": "REGULATORY",
+  "jurisdiction": "US-FED",
+  "leadAttorney": "marcus",
+  "custodianKeys": ["marcus", "lena", "carlos", "alex"],
+  "emails": [
+    { "id": "sec-routine-01", "from": "carlos", "to": ["marcus"], "cc": [], "subject": "SEC inquiry letter — received today", "privileged": false, "bodyTemplate": "sec-routine-01.txt", "sentAt": "2026-04-03T18:42:00Z" },
+    { "id": "sec-routine-02", "from": "marcus", "to": ["carlos"], "cc": ["lena"], "subject": "RE: SEC inquiry letter — initial response plan", "privileged": false, "bodyTemplate": "sec-routine-02.txt", "sentAt": "2026-04-03T22:14:00Z" },
+    { "id": "sec-routine-03", "from": "carlos", "to": ["alex", "marcus"], "cc": [], "subject": "Q3 2025 revenue cut-off — context for SEC question", "privileged": false, "bodyTemplate": "sec-routine-03.txt", "sentAt": "2026-04-09T20:00:00Z" },
+    { "id": "sec-routine-04", "from": "alex", "to": ["carlos", "marcus"], "cc": [], "subject": "Q3 deals — channel partner contracts list", "privileged": false, "bodyTemplate": "sec-routine-04.txt", "sentAt": "2026-04-12T16:38:00Z" },
+    { "id": "sec-routine-05", "from": "marcus", "to": ["carlos", "alex"], "cc": ["lena"], "subject": "SEC document production — first tranche outline", "privileged": false, "bodyTemplate": "sec-routine-05.txt", "sentAt": "2026-04-22T15:55:00Z" },
+    { "id": "sec-priv-01", "from": "marcus", "to": ["lena"], "cc": [], "subject": "[ATTORNEY WORK PRODUCT] SEC inquiry — exposure assessment", "privileged": true, "bodyTemplate": "sec-priv-01.txt", "sentAt": "2026-04-04T14:08:00Z" },
+    { "id": "sec-priv-02", "from": "marcus", "to": ["carlos"], "cc": ["lena"], "subject": "[ATTORNEY-CLIENT PRIVILEGE] SEC response — privilege strategy", "privileged": true, "bodyTemplate": "sec-priv-02.txt", "sentAt": "2026-04-15T18:30:00Z" }
+  ],
+  "sharepoint": {
+    "siteKey": "finance",
+    "documents": [
+      { "fileName": "Q3-2025-close-package.xlsx", "folder": "Quarterly Close/2025-Q3", "privileged": false, "templateKey": "sec-q3-close" },
+      { "fileName": "Q3-2025-revenue-recognition-memo.docx", "folder": "Quarterly Close/2025-Q3", "privileged": false, "templateKey": "sec-q3-rev-memo" },
+      { "fileName": "Q3-2025-channel-partner-deals.xlsx", "folder": "Quarterly Close/2025-Q3", "privileged": false, "templateKey": "sec-q3-channel" },
+      { "fileName": "SEC-inquiry-letter-2026-04-03.docx", "folder": "Regulatory/SEC", "privileged": false, "templateKey": "sec-inquiry-letter" },
+      { "fileName": "SEC-exposure-assessment.docx", "folder": "Regulatory/SEC/Privileged - Counsel Work Product", "privileged": true, "templateKey": "sec-exposure-assessment" },
+      { "fileName": "SEC-response-strategy.docx", "folder": "Regulatory/SEC/Privileged - Counsel Work Product", "privileged": true, "templateKey": "sec-response-strategy" }
+    ]
+  },
+  "onedrive": [
+    { "userKey": "carlos", "fileName": "SEC-response-draft.docx", "templateKey": "sec-response-draft" },
+    { "userKey": "carlos", "fileName": "SEC-internal-investigation-notes.docx", "templateKey": "sec-internal-notes" }
+  ]
+}

@@ -1,0 +1,17 @@
+Samira, Marcus,
+
+Watson exit completed at 4:42 PM today. No incident. She was professional throughout.
+
+Preservation steps already taken:
+  - M365 mailbox: license retained, account disabled (per legal hold to be issued)
+  - OneDrive: locked, no deletions; license retained
+  - GitHub: account suspended, all branches retained
+  - Slack: account deactivated, message history retained
+  - Jira: account deactivated, ticket history retained
+  - Laptop: still scheduled for courier pickup Saturday; will be imaged before re-issue
+
+Marcus — your office mentioned a likely formal hold notice this week given the retaliation allegation in her Jan 29 email. I've kept everything in preservation-ready state. Let me know what you need from HR for the hold.
+
+The separation agreement was not signed — she said she wants 7 days to consult counsel. Standard CA window.
+
+— Daniel
