@@ -10,9 +10,14 @@
     Fail-loud: if any required scope is missing after consent, this
     script tells the operator exactly which scopes to request and
     stops the orchestrator. No silent partial state.
+
+    Dual-auth: directory ops (this file) stay on delegated.
+    Cross-user mailbox / drive ops (helper 05+) use app-only
+    via _app-only-auth.ps1 — see Get-AegisM365AppOnlyToken there.
 #>
 
 . (Join-Path $PSScriptRoot '_lib.ps1')
+. (Join-Path $PSScriptRoot '_app-only-auth.ps1')
 
 $RequiredScopes = @(
     'User.ReadWrite.All',
