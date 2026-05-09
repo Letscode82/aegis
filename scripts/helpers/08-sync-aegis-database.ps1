@@ -26,11 +26,12 @@ function Invoke-SyncAegisDatabase {
     Write-Step "Syncing AEGIS database"
 
     if (-not $env:DATABASE_URL) {
-        Write-Fail `
-            "DATABASE_URL is not set." `
-            ("Set it before running — for example:`n" +
-             "  `$env:DATABASE_URL = (Get-Content apps\web\.env.production | Select-String 'DATABASE_URL=').Line -replace 'DATABASE_URL=`"' -replace '`"`$'`n" +
-             "Or paste it directly. The TypeScript helper needs Postgres reach.")
+        $remediation = @'
+Set it before running — for example:
+  $env:DATABASE_URL = (Get-Content apps\web\.env.production | Select-String 'DATABASE_URL=').Line -replace 'DATABASE_URL="' -replace '"$'
+Or paste it directly. The TypeScript helper needs Postgres reach.
+'@
+        Write-Fail "DATABASE_URL is not set." $remediation
         throw "DATABASE_URL missing."
     }
 
@@ -50,11 +51,12 @@ function Invoke-SyncAegisDatabase {
         Write-Host "  Running: pnpm $($args -join ' ')" -ForegroundColor DarkGray
         & pnpm @args
         if ($LASTEXITCODE -ne 0) {
-            Write-Fail `
-                "AEGIS DB sync failed (exit code $LASTEXITCODE)." `
-                ("Inspect the output above. Common causes:`n" +
-                 "  - Postgres unreachable: verify DATABASE_URL`n" +
-                 "  - @aegis/db not built: run `pnpm --filter @aegis/db build`")
+            $remediation = @'
+Inspect the output above. Common causes:
+  - Postgres unreachable: verify DATABASE_URL
+  - @aegis/db not built: run "pnpm --filter @aegis/db build"
+'@
+            Write-Fail "AEGIS DB sync failed (exit code $LASTEXITCODE)." $remediation
             throw "AEGIS sync failed."
         }
     } finally {

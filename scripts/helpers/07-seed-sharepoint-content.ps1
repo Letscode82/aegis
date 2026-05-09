@@ -42,7 +42,7 @@ function Confirm-SharePointFolderPath {
                 -Uri "/v1.0/drives/$DriveId/root:/$next" | Out-Null
         } catch {
             # Create the folder under its parent
-            $parent = if ($current) { "/v1.0/drives/$DriveId/root:/$current:/children" } else { "/v1.0/drives/$DriveId/root/children" }
+            $parent = if ($current) { "/v1.0/drives/$DriveId/root:/${current}:/children" } else { "/v1.0/drives/$DriveId/root/children" }
             $body = @{
                 name                                = $seg
                 folder                              = @{}
