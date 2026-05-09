@@ -44,7 +44,7 @@ function Invoke-CreateUsers {
             }
             $result[$spec.key] = [pscustomobject]@{
                 upn             = $upn
-                id              = $existing?.Id
+                id              = $(if ($existing) { $existing.Id } else { $null })
                 displayName     = $spec.displayName
                 initialPassword = $null
                 created         = $false

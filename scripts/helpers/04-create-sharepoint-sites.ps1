@@ -46,7 +46,7 @@ function Invoke-CreateSharePointSites {
             $result[$spec.key] = [pscustomobject]@{
                 key          = $spec.key
                 urlSlug      = $spec.urlSlug
-                groupId      = $existing?.Id
+                groupId      = $(if ($existing) { $existing.Id } else { $null })
                 siteId       = $null
                 webUrl       = $null
             }
