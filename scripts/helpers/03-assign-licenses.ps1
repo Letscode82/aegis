@@ -112,8 +112,18 @@ function Invoke-AssignLicenses {
     if ($VerifyOnly) { return }
 
     # Wait for mailbox provisioning. After Set-MgUserLicense, Microsoft
-    # takes 5–15 min to provision Exchange Online. Poll the user's
-    # mailFolders endpoint as a readiness signal.
+    # takes 5–15 min to provision Exchange Online. Poll a readiness
+    # signal that uses scopes the seed already holds: GET /users/{id}
+    # with $select=mail,proxyAddresses returns mail and SMTP proxy
+    # addresses once Exchange Online has finalized the mailbox.
+    #
+    # The earlier implementation used /users/{id}/mailFolders, which
+    # requires shared or application-tier Mail.Read permissions. The
+    # seed connects with delegated Mail.ReadWrite — sufficient for
+    # the seed's own mailbox operations later, but not for cross-user
+    # mailFolders reads, even as Global Admin. The call 403s silently
+    # inside the predicate's catch and the loop times out at 900s on
+    # the first user every run, regardless of actual provisioning.
     Write-Step "Waiting for mailbox provisioning"
 
     foreach ($key in $UserMap.Keys) {
@@ -129,14 +139,33 @@ function Invoke-AssignLicenses {
             continue
         }
 
-        Wait-For -Description "Mailbox ready: $($u.upn)" -TimeoutSeconds 900 -IntervalSeconds 20 -Predicate {
+        # Pin the per-iteration values for the closure — bare $u
+        # capture would resolve to whatever the foreach is currently
+        # pointing at when the predicate runs.
+        $userId = $u.id
+        $upn = $u.upn
+        $predicate = {
             try {
-                $folders = Invoke-MgGraphRequest -Method GET -Uri "/v1.0/users/$($u.id)/mailFolders?`$top=1"
-                return ($null -ne $folders -and $folders.value)
+                $resp = Invoke-MgGraphRequest -Method GET `
+                    -Uri "/v1.0/users/$userId`?`$select=mail,proxyAddresses"
+                if (-not $resp) { return $false }
+                $hasMail = -not [string]::IsNullOrEmpty($resp.mail)
+                $hasSmtp = $false
+                if ($resp.proxyAddresses) {
+                    foreach ($p in $resp.proxyAddresses) {
+                        if ($p -is [string] -and $p -match '^smtp:.+') {
+                            $hasSmtp = $true
+                            break
+                        }
+                    }
+                }
+                return ($hasMail -and $hasSmtp)
             } catch {
                 return $false
             }
-        }
+        }.GetNewClosure()
+
+        Wait-For -Description "Mailbox ready: $upn" -TimeoutSeconds 900 -IntervalSeconds 20 -Predicate $predicate
     }
 
     Write-Ok "License assignment + mailbox provisioning complete."
