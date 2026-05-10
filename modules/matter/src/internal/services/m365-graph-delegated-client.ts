@@ -160,12 +160,24 @@ export class M365GraphDelegatedClient
         metadata: { authMode: "delegated" },
       },
       async () => {
+        // Microsoft Graph eDiscovery requires `email` for the custodian.
+        // The previous branching on @-presence with undefined fallbacks
+        // caused silent JSON serialization failures: undefined gets
+        // dropped during JSON.stringify, the body ships without `email`,
+        // and Graph 400s with "Required property 'email' not found" —
+        // which gets surfaced opaquely to the wizard. Fail loud upstream
+        // instead.
+        if (!userExternalId.includes("@")) {
+          throw new Error(
+            `M365 custodian identifier must be a UPN (email format), got: "${userExternalId}". ` +
+              `Update the call site to resolve the custodian's email before reaching addCustodian.`,
+          );
+        }
         try {
           const created = (await this.getGraph()
             .api(`/security/cases/ediscoveryCases/${caseId}/custodians`)
             .post({
-              email: userExternalId.includes("@") ? userExternalId : undefined,
-              userId: userExternalId.includes("@") ? undefined : userExternalId,
+              email: userExternalId,
               "@odata.type": "#microsoft.graph.security.ediscoveryCustodian",
             })) as { id?: string };
           if (!created?.id) throw new Error("custodian create returned no id");

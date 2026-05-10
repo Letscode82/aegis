@@ -13,6 +13,20 @@ import type {
 import { getM365ClientForOrg } from "../../services/m365-factory";
 import { recordHoldEvent } from "./timeline";
 
+export function resolveCustodianExternalIdentifier(person: {
+  externalRef: string | null;
+  email: string | null;
+  id: string;
+  name: string;
+}): string {
+  if (person.externalRef) return person.externalRef;
+  if (person.email) return person.email;
+  throw new Error(
+    `Cannot resolve M365 custodian identifier for person ${person.id} (${person.name}): both externalRef and email are null. ` +
+      `Sync this person from M365 (helper 08 in seed) or set externalRef explicitly before adding them to a hold.`,
+  );
+}
+
 async function loadHoldOrgFromDataSource(
   dataSourceId: string,
 ): Promise<{ legalHoldId: string; organizationId: string; personId: string }> {
@@ -93,7 +107,9 @@ export async function applyDataSourcePreservationService(
     include: {
       legalHoldCustodian: {
         include: {
-          person: { select: { externalRef: true } },
+          person: {
+            select: { id: true, name: true, externalRef: true, email: true },
+          },
           legalHold: { select: { organizationId: true } },
         },
       },
@@ -109,7 +125,7 @@ export async function applyDataSourcePreservationService(
   // M365GraphClient into the same interface — no caller change.
   const m365 = await getM365ClientForOrg(actor.organizationId);
   const result = await m365.applyPreservation({
-    custodianExternalIdentifier: ds.legalHoldCustodian.person.externalRef ?? "unknown",
+    custodianExternalIdentifier: resolveCustodianExternalIdentifier(ds.legalHoldCustodian.person),
     dataSourceExternalIdentifier: ds.externalIdentifier,
     type: ds.type,
     action: ds.preservationAction,
