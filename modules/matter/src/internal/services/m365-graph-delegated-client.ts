@@ -216,6 +216,24 @@ export class M365GraphDelegatedClient
         metadata: { authMode: "delegated" },
       },
       async () => {
+        // Defense in depth at the AEGIS↔Graph trust boundary. Same
+        // pattern as addCustodian's @-presence guard (PR #42): if a
+        // future caller forgets to resolve from person.email, fail
+        // loud upstream of Graph rather than 404 through it.
+        if (isUserSource) {
+          if (!input.dataSourceExternalIdentifier.includes("@")) {
+            throw new Error(
+              `M365 ${input.type} data source identifier must be a UPN (email format), got: "${input.dataSourceExternalIdentifier}". ` +
+                `Resolve from person.email at the call site before reaching addSource.`,
+            );
+          }
+        } else {
+          if (!input.dataSourceExternalIdentifier.startsWith("http")) {
+            throw new Error(
+              `M365 ${input.type} data source identifier must be an http(s) URL, got: "${input.dataSourceExternalIdentifier}".`,
+            );
+          }
+        }
         try {
           const body = isUserSource
             ? { email: input.dataSourceExternalIdentifier }
