@@ -216,23 +216,24 @@ export class M365GraphDelegatedClient
         metadata: { authMode: "delegated" },
       },
       async () => {
-        // Defense in depth at the AEGIS↔Graph trust boundary. Same
-        // pattern as addCustodian's @-presence guard (PR #42): if a
-        // future caller forgets to resolve from person.email, fail
-        // loud upstream of Graph rather than 404 through it.
-        if (isUserSource) {
-          if (!input.dataSourceExternalIdentifier.includes("@")) {
-            throw new Error(
-              `M365 ${input.type} data source identifier must be a UPN (email format), got: "${input.dataSourceExternalIdentifier}". ` +
-                `Resolve from person.email at the call site before reaching addSource.`,
-            );
-          }
-        } else {
-          if (!input.dataSourceExternalIdentifier.startsWith("http")) {
-            throw new Error(
-              `M365 ${input.type} data source identifier must be an http(s) URL, got: "${input.dataSourceExternalIdentifier}".`,
-            );
-          }
+        // Defense in depth at the AEGIS↔Graph trust boundary. Part 1
+        // of the Bug B fix resolves identifiers at the call site, but
+        // a future caller skipping the resolver would otherwise drop
+        // a stale CUID/GUID into Graph's body. Mirrors the addCustodian
+        // guard from PR #42 — same fail-loud convention, same
+        // upstream-of-Graph timing so withGraphAudit records the
+        // typed error rather than an opaque 4xx.
+        if (isUserSource && !input.dataSourceExternalIdentifier.includes("@")) {
+          throw new Error(
+            `M365 ${input.type} userSource identifier must be a UPN (email format), got: "${input.dataSourceExternalIdentifier}". ` +
+              `Update the call site to resolve the data source's email before reaching addSource.`,
+          );
+        }
+        if (!isUserSource && !input.dataSourceExternalIdentifier.startsWith("http")) {
+          throw new Error(
+            `M365 ${input.type} siteSource identifier must be an http(s) webUrl, got: "${input.dataSourceExternalIdentifier}". ` +
+              `Update the data source row's externalIdentifier to a Graph-resolvable site URL.`,
+          );
         }
         try {
           const body = isUserSource

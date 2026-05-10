@@ -10,6 +10,7 @@ import type {
   ConfirmDataSourcePreservationInput,
   HoldActor,
 } from "../types";
+import type { PreservationResult } from "../../services/m365";
 import { getM365ClientForOrg } from "../../services/m365-factory";
 import { recordHoldEvent } from "./timeline";
 
@@ -28,45 +29,40 @@ export function resolveCustodianExternalIdentifier(person: {
 }
 
 /**
- * Raised when AEGIS could in principle call Graph for the given
- * DataSourceType but the wiring hasn't shipped yet. Distinct from
- * `NonGraphPreservationError` — this is a follow-up issue, not a
- * permanent product limit.
+ * Thrown when a CustodianDataSource row carries a type AEGIS does
+ * not yet know how to push to Microsoft Purview. The hold workflow
+ * surfaces this as a per-row preservation failure (status=ERROR)
+ * with the unsupported type in the reason; the rest of the hold
+ * still issues. Sunset when the corresponding follow-up lands
+ * (B.2 for Teams, B.3 for Slack/Google).
  */
-export class NotImplementedError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "NotImplementedError";
+export class DataSourceNotImplementedError extends Error {
+  constructor(type: DataSourceType, followUp: string) {
+    super(
+      `Preservation for data source type ${type} is not yet supported by AEGIS. ` +
+        `Track follow-up: ${followUp}.`,
+    );
+    this.name = "DataSourceNotImplementedError";
   }
 }
 
 /**
- * Raised when the DataSourceType has no Graph endpoint at all
- * (ephemeral chat, local device, physical files, third-party SaaS,
- * other). These need out-of-band preservation — connector ingestion,
- * customer process — and surface on the defensibility scorecard as a
- * structured component (see follow-up B.6, mirrors the
- * E5-not-licensed graceful path at CLAUDE.md line 234).
- */
-export class NonGraphPreservationError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "NonGraphPreservationError";
-  }
-}
-
-/**
- * Resolve the value to ship as `dataSourceExternalIdentifier` to
- * `M365Client.applyPreservation`. Mirrors `resolveCustodianExternalIdentifier`
- * one layer down: the source row's `externalIdentifier` column is a
- * free-form String with no UPN constraint (schema line 858), so for
- * mailbox-class types we read fresh from `person.email` rather than
- * trust the column. SHAREPOINT_SITE keeps its webUrl. Connector-class
- * types throw NotImplementedError; non-Graph types throw
- * NonGraphPreservationError. Both fail loud BEFORE the Graph call.
+ * Resolve the per-source identifier sent to Microsoft Graph as the
+ * userSource `email` body field (mailbox / OneDrive sources) or
+ * siteSource `webUrl` (SharePoint sites).
+ *
+ * Why this exists: `CustodianDataSource.externalIdentifier` is a
+ * free-form String at the schema level — there is no UPN constraint,
+ * no URL constraint, no per-type discrimination. For mailbox-like
+ * types we want a fresh resolution from `Person.email` (same shape
+ * as PR #42's resolveCustodianExternalIdentifier one layer up) so
+ * stale CUIDs / GUIDs / out-of-date UPNs in `externalIdentifier`
+ * cannot reach Graph and surface as opaque 404 "User mailbox not
+ * found" errors. SharePoint sites still ride their persisted webUrl
+ * after a startsWith("http") sanity check.
  */
 export function resolveDataSourceExternalIdentifier(
-  dataSource: { id: string; type: DataSourceType; externalIdentifier: string },
+  dataSource: { type: DataSourceType; externalIdentifier: string },
   person: { id: string; name: string; email: string | null },
 ): string {
   switch (dataSource.type) {
@@ -76,9 +72,8 @@ export function resolveDataSourceExternalIdentifier(
     case "ONEDRIVE": {
       if (!person.email) {
         throw new Error(
-          `Cannot resolve M365 ${dataSource.type} identifier for person ${person.id} (${person.name}): ` +
-            `person.email is null on data source ${dataSource.id}. ` +
-            `Sync this person from M365 (helper 08 in seed) or set email explicitly before applying preservation.`,
+          `Cannot resolve M365 ${dataSource.type} identifier for person ${person.id} (${person.name}): person.email is null. ` +
+            `Sync this person from M365 (helper 08 in seed) before issuing preservation against a mailbox / OneDrive source.`,
         );
       }
       return person.email;
@@ -87,7 +82,8 @@ export function resolveDataSourceExternalIdentifier(
       const value = dataSource.externalIdentifier;
       if (!value.startsWith("http")) {
         throw new Error(
-          `SHAREPOINT_SITE data source ${dataSource.id} externalIdentifier must be an http(s) URL, got: "${value}".`,
+          `Invalid SHAREPOINT_SITE externalIdentifier ${JSON.stringify(value)}: ` +
+            `expected an http(s) webUrl. Update the data source row's externalIdentifier to a Graph-resolvable site URL.`,
         );
       }
       return value;
@@ -95,32 +91,27 @@ export function resolveDataSourceExternalIdentifier(
     case "TEAMS_CHANNEL":
     case "TEAMS_PRIVATE_CHANNEL":
     case "TEAMS_DM":
-      throw new NotImplementedError(
-        `Preservation for ${dataSource.type} is not yet wired through Graph (follow-up B.2). ` +
-          `Data source ${dataSource.id}.`,
-      );
+      throw new DataSourceNotImplementedError(dataSource.type, "B.2 (Teams Channel preservation)");
     case "SLACK_CHANNEL":
     case "SLACK_DM":
     case "GOOGLE_DRIVE":
     case "GOOGLE_CHAT":
-      throw new NotImplementedError(
-        `Preservation for ${dataSource.type} is not yet wired (follow-up B.3 — non-native source, requires Microsoft Purview Connector or graceful-degradation path). ` +
-          `Data source ${dataSource.id}.`,
+      throw new DataSourceNotImplementedError(
+        dataSource.type,
+        "B.3 (Slack/Google graceful degradation)",
       );
     case "EPHEMERAL_CHAT_AUTO_DELETE":
     case "LOCAL_DEVICE":
     case "PHYSICAL_FILES":
     case "THIRD_PARTY_SAAS":
     case "OTHER":
-      throw new NonGraphPreservationError(
-        `Data source type ${dataSource.type} has no Graph preservation endpoint (follow-up B.6 — non-Graph preservation modes). ` +
-          `Data source ${dataSource.id}.`,
+      throw new DataSourceNotImplementedError(
+        dataSource.type,
+        "B.3 (non-Graph preservation modes)",
       );
     default: {
       const exhaustive: never = dataSource.type;
-      throw new Error(
-        `Unknown DataSourceType: ${String(exhaustive)} on data source ${dataSource.id}.`,
-      );
+      throw new Error(`Unknown DataSourceType: ${String(exhaustive)}`);
     }
   }
 }
@@ -218,48 +209,42 @@ export async function applyDataSourcePreservationService(
     throw new Error("Cross-org access refused");
   }
 
-  // Resolve identifiers BEFORE the Graph call. Mailbox-class types
-  // read from person.email (CustodianDataSource.externalIdentifier
-  // is a free-form String — for M365-seeded rows it can be a CUID,
-  // GUID, stale UPN, or "exchange:<localpart>" tag). Connector-class
-  // types throw NotImplementedError; non-Graph types throw
-  // NonGraphPreservationError. On any pre-Graph throw we still want
-  // the row to land as ERROR with a failureReason so the orchestrator
-  // and workspace surfaces show a typed failure rather than a stuck
-  // PENDING — re-throw afterwards so the per-row error path picks it up.
-  let custodianExternalIdentifier: string;
-  let dataSourceExternalIdentifier: string;
-  try {
-    custodianExternalIdentifier = resolveCustodianExternalIdentifier(
-      ds.legalHoldCustodian.person,
-    );
-    dataSourceExternalIdentifier = resolveDataSourceExternalIdentifier(
-      { id: ds.id, type: ds.type, externalIdentifier: ds.externalIdentifier },
-      ds.legalHoldCustodian.person,
-    );
-  } catch (err) {
-    const reason = err instanceof Error ? err.message : String(err);
-    await prisma.custodianDataSource.update({
-      where: { id: ds.id },
-      data: {
-        preservationFailureReason: reason,
-        preservationStatus: "ERROR",
-      },
-    });
-    throw err;
-  }
-
   // Route through the M365 factory. Real Graph when creds resolve;
   // mock fallback otherwise. 4b shipped with mock-only; 4c wires
   // M365GraphClient into the same interface — no caller change.
-  const m365 = await getM365ClientForOrg(actor.organizationId);
-  const result = await m365.applyPreservation({
-    custodianExternalIdentifier,
-    dataSourceExternalIdentifier,
-    type: ds.type,
-    action: ds.preservationAction,
-    reasonCode: input.reasonCode,
-  });
+  // Resolve the data-source identifier BEFORE calling Graph so a
+  // stale CUID/GUID/UPN can't reach addSource as the body's `email`
+  // field. Mailbox-like sources read from `person.email` (the same
+  // shape as PR #42 one layer up); SharePoint rides the persisted
+  // webUrl. Unsupported types (Teams, Slack, Google, …) throw
+  // DataSourceNotImplementedError, which we translate into a
+  // per-row ERROR result so the hold's other sources still issue.
+  let result: PreservationResult;
+  try {
+    const dataSourceExternalIdentifier = resolveDataSourceExternalIdentifier(
+      { type: ds.type, externalIdentifier: ds.externalIdentifier },
+      ds.legalHoldCustodian.person,
+    );
+    const m365 = await getM365ClientForOrg(actor.organizationId);
+    result = await m365.applyPreservation({
+      custodianExternalIdentifier: resolveCustodianExternalIdentifier(ds.legalHoldCustodian.person),
+      dataSourceExternalIdentifier,
+      type: ds.type,
+      action: ds.preservationAction,
+      reasonCode: input.reasonCode,
+    });
+  } catch (err) {
+    if (err instanceof DataSourceNotImplementedError) {
+      result = {
+        ok: false,
+        appliedAt: new Date().toISOString(),
+        upstreamReferenceId: null,
+        failureReason: err.message,
+      };
+    } else {
+      throw err;
+    }
+  }
 
   const appliedAt = new Date(result.appliedAt);
   const updated = await prisma.custodianDataSource.update({

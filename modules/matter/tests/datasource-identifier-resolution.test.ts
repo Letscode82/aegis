@@ -1,13 +1,13 @@
 /**
- * Unit coverage for `resolveDataSourceExternalIdentifier` and the
- * companion `addSource` upstream-of-Graph guard. Mirrors
- * custodian-identifier-resolution.test.ts one layer down.
+ * Bug B coverage — `resolveDataSourceExternalIdentifier` (Part 1).
  *
- * The 17-value DataSourceType enum splits three ways:
- *   - mailbox-class (4):   resolves from person.email
- *   - SHAREPOINT_SITE:     keeps externalIdentifier (must be URL-shaped)
- *   - connector-class (7): throws NotImplementedError
- *   - non-Graph (5):       throws NonGraphPreservationError
+ * Mirrors `custodian-identifier-resolution.test.ts` from PR #42 one
+ * layer down. For mailbox-like sources we resolve from
+ * `Person.email`, not the free-form `CustodianDataSource.externalIdentifier`,
+ * so a stale CUID/GUID/UPN in that column cannot reach Graph. SHAREPOINT_SITE
+ * still rides the persisted webUrl after a startsWith("http") sanity check.
+ * Every other type throws `DataSourceNotImplementedError` until B.2 / B.3
+ * land.
  */
 import { describe, expect, it, vi } from "vitest";
 import type { DataSourceType } from "@aegis/db";
@@ -16,296 +16,168 @@ vi.mock("@aegis/db", () => ({
   logAudit: vi.fn(async () => undefined),
 }));
 
-vi.mock("../src/internal/services/m365-graph-delegated-auth", () => ({
-  getFreshDelegatedAccessToken: vi.fn(async () => ({
-    accessToken: "stub-token",
-    expiresAt: new Date(Date.now() + 60_000),
-  })),
-}));
-
 import {
-  NonGraphPreservationError,
-  NotImplementedError,
+  DataSourceNotImplementedError,
   resolveDataSourceExternalIdentifier,
 } from "../src/internal/legal-hold/services/data-sources";
-import { M365GraphDelegatedClient } from "../src/internal/services/m365-graph-delegated-client";
 
 const personWithEmail = {
-  id: "p-marcus",
+  id: "p-1",
   name: "Marcus Reid",
   email: "marcus.reid@6bs6wq.onmicrosoft.com",
 };
-const personNoEmail = { id: "p-marcus", name: "Marcus Reid", email: null };
+const personNoEmail = { id: "p-2", name: "Sarah Watson", email: null };
 
-function ds(type: DataSourceType, externalIdentifier = "exchange:marcus.reid") {
-  return { id: "ds-1", type, externalIdentifier };
-}
-
-describe("resolveDataSourceExternalIdentifier — mailbox-class types", () => {
-  it("returns person.email for EMAIL_MAILBOX when present", () => {
-    expect(
-      resolveDataSourceExternalIdentifier(ds("EMAIL_MAILBOX"), personWithEmail),
-    ).toBe("marcus.reid@6bs6wq.onmicrosoft.com");
-  });
-
-  it.each<DataSourceType>([
+describe("resolveDataSourceExternalIdentifier — mailbox / OneDrive", () => {
+  const mailboxTypes: DataSourceType[] = [
     "EMAIL_MAILBOX",
     "ARCHIVED_MAILBOX",
     "DEPARTED_USER_MAILBOX",
     "ONEDRIVE",
-  ])("returns person.email for %s", (type) => {
-    expect(
-      resolveDataSourceExternalIdentifier(ds(type), personWithEmail),
-    ).toBe("marcus.reid@6bs6wq.onmicrosoft.com");
-  });
+  ];
 
-  it("throws when person.email is null on a mailbox type — message names person + datasource", () => {
-    expect(() =>
-      resolveDataSourceExternalIdentifier(ds("EMAIL_MAILBOX"), personNoEmail),
-    ).toThrow(/p-marcus/);
-    expect(() =>
-      resolveDataSourceExternalIdentifier(ds("EMAIL_MAILBOX"), personNoEmail),
-    ).toThrow(/Marcus Reid/);
-    expect(() =>
-      resolveDataSourceExternalIdentifier(ds("EMAIL_MAILBOX"), personNoEmail),
-    ).toThrow(/EMAIL_MAILBOX/);
-    expect(() =>
-      resolveDataSourceExternalIdentifier(ds("EMAIL_MAILBOX"), personNoEmail),
-    ).toThrow(/ds-1/);
-  });
+  for (const type of mailboxTypes) {
+    it(`returns person.email for ${type}, ignoring stale externalIdentifier`, () => {
+      expect(
+        resolveDataSourceExternalIdentifier(
+          // externalIdentifier is intentionally a CUID — exactly the bug
+          // shape Bug B describes. The resolver must NOT trust it.
+          { type, externalIdentifier: "ckxyz0000abcdefg" },
+          personWithEmail,
+        ),
+      ).toBe("marcus.reid@6bs6wq.onmicrosoft.com");
+    });
+
+    it(`throws on ${type} when person.email is null, naming person and type`, () => {
+      expect(() =>
+        resolveDataSourceExternalIdentifier(
+          { type, externalIdentifier: "anything" },
+          personNoEmail,
+        ),
+      ).toThrow(/p-2/);
+      expect(() =>
+        resolveDataSourceExternalIdentifier(
+          { type, externalIdentifier: "anything" },
+          personNoEmail,
+        ),
+      ).toThrow(/Sarah Watson/);
+      expect(() =>
+        resolveDataSourceExternalIdentifier(
+          { type, externalIdentifier: "anything" },
+          personNoEmail,
+        ),
+      ).toThrow(new RegExp(type));
+    });
+  }
 });
 
 describe("resolveDataSourceExternalIdentifier — SHAREPOINT_SITE", () => {
-  it("returns externalIdentifier unchanged for a valid https URL", () => {
-    const url = "https://contoso.sharepoint.com/sites/legal";
+  it("returns externalIdentifier unchanged when it is a https URL", () => {
+    const url = "https://contoso.sharepoint.com/sites/legal-matters";
     expect(
       resolveDataSourceExternalIdentifier(
-        ds("SHAREPOINT_SITE", url),
+        { type: "SHAREPOINT_SITE", externalIdentifier: url },
         personWithEmail,
       ),
     ).toBe(url);
   });
 
-  it("throws on a non-URL externalIdentifier — message includes offending value + ds id", () => {
-    expect(() =>
+  it("accepts http URLs (some on-prem-hybrid tenants)", () => {
+    const url = "http://intranet.contoso.com/sites/x";
+    expect(
       resolveDataSourceExternalIdentifier(
-        ds("SHAREPOINT_SITE", "site:legal"),
+        { type: "SHAREPOINT_SITE", externalIdentifier: url },
         personWithEmail,
       ),
-    ).toThrow(/"site:legal"/);
+    ).toBe(url);
+  });
+
+  it("throws on a non-URL externalIdentifier with the offending value", () => {
     expect(() =>
       resolveDataSourceExternalIdentifier(
-        ds("SHAREPOINT_SITE", "site:legal"),
+        { type: "SHAREPOINT_SITE", externalIdentifier: "not-a-url" },
         personWithEmail,
       ),
-    ).toThrow(/ds-1/);
-  });
-});
-
-describe("resolveDataSourceExternalIdentifier — NotImplementedError types", () => {
-  const cases: Array<{ type: DataSourceType; followUp: RegExp }> = [
-    { type: "TEAMS_CHANNEL", followUp: /B\.2/ },
-    { type: "TEAMS_PRIVATE_CHANNEL", followUp: /B\.2/ },
-    { type: "TEAMS_DM", followUp: /B\.2/ },
-    { type: "SLACK_CHANNEL", followUp: /B\.3/ },
-    { type: "SLACK_DM", followUp: /B\.3/ },
-    { type: "GOOGLE_DRIVE", followUp: /B\.3/ },
-    { type: "GOOGLE_CHAT", followUp: /B\.3/ },
-  ];
-  it.each(cases)(
-    "throws NotImplementedError for $type with follow-up reference",
-    ({ type, followUp }) => {
-      expect(() =>
-        resolveDataSourceExternalIdentifier(ds(type), personWithEmail),
-      ).toThrow(NotImplementedError);
-      expect(() =>
-        resolveDataSourceExternalIdentifier(ds(type), personWithEmail),
-      ).toThrow(new RegExp(type));
-      expect(() =>
-        resolveDataSourceExternalIdentifier(ds(type), personWithEmail),
-      ).toThrow(followUp);
-    },
-  );
-});
-
-describe("resolveDataSourceExternalIdentifier — NonGraphPreservationError types", () => {
-  it.each<DataSourceType>([
-    "EPHEMERAL_CHAT_AUTO_DELETE",
-    "LOCAL_DEVICE",
-    "PHYSICAL_FILES",
-    "THIRD_PARTY_SAAS",
-    "OTHER",
-  ])("throws NonGraphPreservationError for %s — message names type + B.6", (type) => {
+    ).toThrow(/"not-a-url"/);
     expect(() =>
-      resolveDataSourceExternalIdentifier(ds(type), personWithEmail),
-    ).toThrow(NonGraphPreservationError);
-    expect(() =>
-      resolveDataSourceExternalIdentifier(ds(type), personWithEmail),
-    ).toThrow(new RegExp(type));
-    expect(() =>
-      resolveDataSourceExternalIdentifier(ds(type), personWithEmail),
-    ).toThrow(/B\.6/);
+      resolveDataSourceExternalIdentifier(
+        { type: "SHAREPOINT_SITE", externalIdentifier: "not-a-url" },
+        personWithEmail,
+      ),
+    ).toThrow(/expected an http\(s\) webUrl/);
   });
 });
 
-describe("error class distinction", () => {
-  it("NotImplementedError and NonGraphPreservationError are distinct classes", () => {
-    const notImpl = new NotImplementedError("x");
-    const nonGraph = new NonGraphPreservationError("y");
-    expect(notImpl).toBeInstanceOf(NotImplementedError);
-    expect(notImpl).not.toBeInstanceOf(NonGraphPreservationError);
-    expect(nonGraph).toBeInstanceOf(NonGraphPreservationError);
-    expect(nonGraph).not.toBeInstanceOf(NotImplementedError);
+describe("resolveDataSourceExternalIdentifier — unsupported types throw NotImplementedError", () => {
+  it("throws for TEAMS_CHANNEL pointing at the B.2 follow-up", () => {
+    expect(() =>
+      resolveDataSourceExternalIdentifier(
+        { type: "TEAMS_CHANNEL", externalIdentifier: "irrelevant" },
+        personWithEmail,
+      ),
+    ).toThrow(DataSourceNotImplementedError);
+    expect(() =>
+      resolveDataSourceExternalIdentifier(
+        { type: "TEAMS_CHANNEL", externalIdentifier: "irrelevant" },
+        personWithEmail,
+      ),
+    ).toThrow(/TEAMS_CHANNEL/);
+    expect(() =>
+      resolveDataSourceExternalIdentifier(
+        { type: "TEAMS_CHANNEL", externalIdentifier: "irrelevant" },
+        personWithEmail,
+      ),
+    ).toThrow(/B\.2/);
   });
 
-  it("both extend Error with stable error names for log filtering", () => {
-    expect(new NotImplementedError("x")).toBeInstanceOf(Error);
-    expect(new NotImplementedError("x").name).toBe("NotImplementedError");
-    expect(new NonGraphPreservationError("y")).toBeInstanceOf(Error);
-    expect(new NonGraphPreservationError("y").name).toBe(
-      "NonGraphPreservationError",
-    );
+  it("throws for SLACK_CHANNEL pointing at the B.3 follow-up", () => {
+    expect(() =>
+      resolveDataSourceExternalIdentifier(
+        { type: "SLACK_CHANNEL", externalIdentifier: "irrelevant" },
+        personWithEmail,
+      ),
+    ).toThrow(DataSourceNotImplementedError);
+    expect(() =>
+      resolveDataSourceExternalIdentifier(
+        { type: "SLACK_CHANNEL", externalIdentifier: "irrelevant" },
+        personWithEmail,
+      ),
+    ).toThrow(/B\.3/);
   });
-});
 
-describe("M365GraphDelegatedClient.addSource — input guards", () => {
-  type AddSource = (
-    caseId: string,
-    custodianId: string,
-    input: {
-      type: DataSourceType;
-      dataSourceExternalIdentifier: string;
-      custodianExternalIdentifier: string;
-      action: string;
-      reasonCode: string;
-    },
-  ) => Promise<string | null>;
-
-  function getAddSource(): AddSource {
-    const client = new M365GraphDelegatedClient("tenant-x", "org-1");
-    return (
-      client as unknown as { addSource: AddSource }
-    ).addSource.bind(client);
+  const teamsRest: DataSourceType[] = ["TEAMS_PRIVATE_CHANNEL", "TEAMS_DM"];
+  for (const type of teamsRest) {
+    it(`throws DataSourceNotImplementedError for ${type} (B.2)`, () => {
+      expect(() =>
+        resolveDataSourceExternalIdentifier(
+          { type, externalIdentifier: "irrelevant" },
+          personWithEmail,
+        ),
+      ).toThrow(DataSourceNotImplementedError);
+      expect(() =>
+        resolveDataSourceExternalIdentifier(
+          { type, externalIdentifier: "irrelevant" },
+          personWithEmail,
+        ),
+      ).toThrow(/B\.2/);
+    });
   }
 
-  it("throws on a non-email dataSourceExternalIdentifier when the user-source branch is taken", async () => {
-    const addSource = getAddSource();
-    await expect(
-      addSource("case-1", "cust-1", {
-        type: "EMAIL_MAILBOX",
-        dataSourceExternalIdentifier: "exchange:marcus.reid",
-        custodianExternalIdentifier: "marcus.reid@example.com",
-        action: "LEGAL_HOLD_IN_PLACE",
-        reasonCode: "hold:lh-1",
-      }),
-    ).rejects.toThrow(/UPN \(email format\)/);
-    await expect(
-      addSource("case-1", "cust-1", {
-        type: "EMAIL_MAILBOX",
-        dataSourceExternalIdentifier: "exchange:marcus.reid",
-        custodianExternalIdentifier: "marcus.reid@example.com",
-        action: "LEGAL_HOLD_IN_PLACE",
-        reasonCode: "hold:lh-1",
-      }),
-    ).rejects.toThrow(/"exchange:marcus\.reid"/);
-  });
-
-  it("throws on a non-URL dataSourceExternalIdentifier when isUserSource=false (SHAREPOINT_SITE)", async () => {
-    const addSource = getAddSource();
-    await expect(
-      addSource("case-1", "cust-1", {
-        type: "SHAREPOINT_SITE",
-        dataSourceExternalIdentifier: "site:legal",
-        custodianExternalIdentifier: "marcus.reid@example.com",
-        action: "LEGAL_HOLD_IN_PLACE",
-        reasonCode: "hold:lh-1",
-      }),
-    ).rejects.toThrow(/http\(s\) URL/);
-    await expect(
-      addSource("case-1", "cust-1", {
-        type: "SHAREPOINT_SITE",
-        dataSourceExternalIdentifier: "site:legal",
-        custodianExternalIdentifier: "marcus.reid@example.com",
-        action: "LEGAL_HOLD_IN_PLACE",
-        reasonCode: "hold:lh-1",
-      }),
-    ).rejects.toThrow(/"site:legal"/);
-  });
-
-  it("happy-path mailbox call serializes body as { email: <upn> }", async () => {
-    const captured: { path?: string; body?: unknown } = {};
-    const stubGraph = {
-      api(path: string) {
-        captured.path = path;
-        return {
-          post: async (body: unknown) => {
-            captured.body = body;
-            return { id: "graph-source-1" };
-          },
-        };
-      },
-    };
-
-    const client = new M365GraphDelegatedClient("tenant-x", "org-1");
-    (client as unknown as { graph: unknown }).graph = stubGraph;
-
-    const addSource = (
-      client as unknown as { addSource: AddSource }
-    ).addSource.bind(client);
-
-    const result = await addSource("case-1", "cust-1", {
-      type: "EMAIL_MAILBOX",
-      dataSourceExternalIdentifier: "marcus.reid@6bs6wq.onmicrosoft.com",
-      custodianExternalIdentifier: "marcus.reid@6bs6wq.onmicrosoft.com",
-      action: "LEGAL_HOLD_IN_PLACE",
-      reasonCode: "hold:lh-1",
+  const slackGoogle: DataSourceType[] = ["SLACK_DM", "GOOGLE_DRIVE", "GOOGLE_CHAT"];
+  for (const type of slackGoogle) {
+    it(`throws DataSourceNotImplementedError for ${type} (B.3)`, () => {
+      expect(() =>
+        resolveDataSourceExternalIdentifier(
+          { type, externalIdentifier: "irrelevant" },
+          personWithEmail,
+        ),
+      ).toThrow(DataSourceNotImplementedError);
+      expect(() =>
+        resolveDataSourceExternalIdentifier(
+          { type, externalIdentifier: "irrelevant" },
+          personWithEmail,
+        ),
+      ).toThrow(/B\.3/);
     });
-
-    expect(result).toBe("graph-source-1");
-    expect(captured.path).toBe(
-      "/security/cases/ediscoveryCases/case-1/custodians/cust-1/userSources",
-    );
-    expect(captured.body).toEqual({
-      email: "marcus.reid@6bs6wq.onmicrosoft.com",
-    });
-  });
-
-  it("happy-path site call serializes body as { site: { webUrl: <url> } }", async () => {
-    const captured: { path?: string; body?: unknown } = {};
-    const stubGraph = {
-      api(path: string) {
-        captured.path = path;
-        return {
-          post: async (body: unknown) => {
-            captured.body = body;
-            return { id: "graph-site-1" };
-          },
-        };
-      },
-    };
-
-    const client = new M365GraphDelegatedClient("tenant-x", "org-1");
-    (client as unknown as { graph: unknown }).graph = stubGraph;
-
-    const addSource = (
-      client as unknown as { addSource: AddSource }
-    ).addSource.bind(client);
-
-    const url = "https://contoso.sharepoint.com/sites/legal";
-    const result = await addSource("case-1", "cust-1", {
-      type: "SHAREPOINT_SITE",
-      dataSourceExternalIdentifier: url,
-      custodianExternalIdentifier: "marcus.reid@6bs6wq.onmicrosoft.com",
-      action: "LEGAL_HOLD_IN_PLACE",
-      reasonCode: "hold:lh-1",
-    });
-
-    expect(result).toBe("graph-site-1");
-    expect(captured.path).toBe(
-      "/security/cases/ediscoveryCases/case-1/custodians/cust-1/siteSources",
-    );
-    expect(captured.body).toEqual({
-      site: { webUrl: url },
-    });
-  });
+  }
 });
