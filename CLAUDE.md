@@ -196,11 +196,108 @@ PR #4 — Matter Management module — split into four sub-PRs:
        `enumerateDataSourcesForUser` `$top` fix that was blocking
        the smoke test. Replaces nothing — the power-user
        single-page flow stays as-is.
-  4d — AI features: matter creation suggestions, similar matters,
-       custodian discovery, draft generation. Real Claude calls
-       replace the 4a keyword/static fallbacks.
-PR #5 — Refactor Intake into internal/api split. (Step 5)
-PR #6 — Spend & Counsel module + cross-module flow. (Step 6)
+  4d — DEFERRED — Matter / Legal Hold AI features (matter creation
+       suggestions, similar matters, custodian discovery, draft
+       generation, defensibility narrative). Frozen until Intake P4b
+       completes. M365 / Hold / eDiscovery infrastructure stays
+       compiled, tested, and demo-ready; only new feature work is
+       paused. Rationale: a Fortune 100 GC's "hundreds of emails,
+       missing key things" feedback identified Intake as the
+       platform's missing wedge — see the Intake-first pivot below.
+
+### Intake-first pivot (May 2026)
+
+The sequencing below replaces the original PR #5 / PR #6 order.
+Full gap analysis, end-to-end demo spine ("the NDA request
+journey"), and rationale live in
+[`docs/intake-roadmap.md`](./docs/intake-roadmap.md). Each phase
+ships as one or more PRs, with the demo still working end-to-end at
+every checkpoint.
+
+P1 — Intake foundation. Productionize the existing UI surfaces
+     (Inbox, New Request, Triage Cockpit, Kanban, SLA Dashboard,
+     Smart Routing, Self-Service) on real persisted state, real
+     users, chain-sealed audit. Four sub-PRs:
+  P1a — Real session attribution: every intake mutation attributes
+       to the Auth0-resolved User instead of the hardcoded
+       `"You (Alex Nguyen)"` string at
+       `modules/intake/src/hooks/use-ticket-store.js:66`.
+  P1b — Typed assignment: `IntakeTicket.assignedToUserId` (User FK)
+       alongside the existing free-text `assignedTo`. "My Queue"
+       filter on the Inbox; Kanban swimlanes by assignee;
+       drag-to-reassign is a real mutation with
+       `intake.ticket.assigned` audit. Free-text `assignedTo`
+       sunsets when callers migrated (target: end of P3).
+  P1c — Server-side SLA breach detection: `evaluateSlaBreaches`
+       service + admin HTTP trigger (pg-boss-ready, same pattern
+       as the 4c.5 defensibility-snapshot jobs). Writes
+       `intake.ticket.sla_breached` and `intake.ticket.auto_escalated`
+       audit events; flips status to `IntakeStatus.ESCALATED`
+       (currently a dead enum value — no path writes it today).
+  P1d — Unify the intake audit surface: kill the parallel
+       `aegis:intake:agent-log:v1` localStorage mirror. Cockpit
+       Agent Activity tab becomes a thin read over `AuditLog`,
+       reusing the 4c.3 actor-resolver.
+
+P2 — Smart routing + workflow primitives. Two sub-PRs:
+  P2a — `IntakeRoutingRule` schema + admin UI at
+       `/admin/intake/routing-rules`. Composable conditions
+       (matchType, matchPriority, matchDepartment, matchKeyword,
+       matchAgentSuggestedAction) + actions (setAssignee,
+       setPriority, setSlaHours, escalateTo, requireApprovalFrom).
+       `applyRoutingRules(ticket)` runs after creation and after
+       classification; each fired rule writes an audit row.
+       Cockpit surfaces which rule fired on each ticket.
+  P2b — `IntakeRequestType` workflow definitions (mirrors
+       `MatterTypeConfig`). Stage advancement enforced server-side
+       (`intake.ticket.stage_advanced` audit). **`AgentDecision`
+       lifecycle goes live for intake-side recommendations**: every
+       Claude rec writes a PENDING row; the Cockpit's approve
+       keystroke is the only path to APPROVED; downstream
+       mutations gate on APPROVED — the 4b-locked contract starts
+       checking. Approving a workflow that ends in
+       `matter-creation` calls `@aegis/matter.createMatter` and
+       populates the currently-unused `IntakeTicket.matterId` FK
+       (`intake.ticket.matter_spawned` audit).
+
+P3 — SLA Operations dashboard. One PR. Promotes the AI Operations
+     scorecard (PR #46) into the GC's executive view: queue health,
+     breach forecast, attorney workload, routing-rule
+     effectiveness. Pure read aggregation over existing tables;
+     gated identically to the existing `/api/ai-ops/summary` route.
+
+P4 — Email channel. **Stub-first** so Graph debugging stays off the
+     critical path. Two sub-PRs:
+  P4a — Inbound webhook adapter at `POST /api/intake/email-webhook`
+       accepting `{from, subject, body, threadId, attachments?}`.
+       Creates `IntakeTicket` with `source: EMAIL`; classifier +
+       routing fire automatically (same pipeline as FORM/COPILOT).
+       No M365 dependency — demoable via curl.
+  P4b — Real M365 Graph polling. New `IntakeEmailMailbox` schema;
+       `pollMailboxForIntake(orgId, mailboxId)` calls
+       `/users/{mailbox}/messages` using `M365GraphDelegatedClient`
+       (reuses sub-PR 4c.1 delegated auth + the
+       `admin:m365:manage` permission). Each message → P4a adapter
+       — same code path. Outbound via `/sendMail` with In-Reply-To
+       threading.
+
+PR #5 (was Step 5) — Refactor Intake into `internal/api` split.
+       Original Foundation plan checkpoint, **deferred until after
+       Intake P1–P4 ship** so there's a real surface to split
+       rather than a demo prototype. The first
+       [Documented exception row](#documented-exceptions-to-the-module-isolation-rule)
+       (seed cross-package import) sunsets here as originally
+       planned.
+
+PR #6 (was Step 6) — Spend & Counsel module + cross-module flow.
+       Deferred until after PR #5. The `getMatterCostBasisService`
+       exception row sunsets here as originally planned.
+
+Post-Intake — 4d (Matter / Legal Hold AI features) unfreezes.
+       `MockHoldAIClient`, `findSimilarMattersService` keyword
+       fallback, and the `narrativeMarkdown` omission on
+       `HoldDefensibilityScore` all sunset here as their exception
+       rows already document.
 
 Each step lands as **one PR**, with the demo still working end-to-end at
 every checkpoint.
@@ -226,7 +323,7 @@ the shared bit into a package or add it to the module's `api.ts`.
 | `packages/db/prisma/seed.ts` | imports `modules/intake/src/seed/{v72-seed,v8-cockpit-seed,v8-bulk-nda-seed}.js` | Dev-only seed script reading its own input. Runs at `pnpm db:seed` time only — never bundled, never imported by app code. The v8 demo fixtures are the canonical demo dataset; duplicating them inside `packages/db` would create two sources of truth. | **Sunset at Step 5.** The Intake `internal/api` split absorbs the v8 fixtures into the module's public surface; the seed will then read from `@aegis/intake/api` instead, ending the cross-package import. |
 | `packages/db/prisma/seed.ts` | imports `packages/auth/src/roles` via the relative path `../../auth/src/roles` | Same dev-only seed reads the canonical `ROLE_PERMISSIONS` bundles from `@aegis/auth`. A package-name import would create a turbo-detected cycle (`@aegis/auth` depends on `@aegis/db` at runtime). The relative path skips the `package.json` edge while still pointing at the single source of truth — duplicating the role bundles inside the seed would drift the moment a permission is added. | **Permanent.** Role definitions live in `@aegis/auth` by design; build-time tooling reaching them via relative path is the cleanest way to keep one source of truth without introducing a circular package dep. Revisit if the cycle goes away (e.g., if `@aegis/auth` ever stops depending on `@aegis/db`). |
 | `modules/matter/src/internal/services/m365.ts` (`MockM365Client`) | retains the mock implementation as a fallback when M365 credentials are absent (CI; local dev without creds) | The mock is no longer the default in production — `m365-factory.getM365ClientForOrg(orgId)` selects `M365GraphClient` when env vars or per-org credentials are present (sub-PR 4c). The mock survives as a CI-friendly fallback so module-isolation tests don't require a tenant. | **Permanent** in current shape. Sunset only if Graph integration becomes mandatory and CI is restructured to provision a tenant. |
-| `modules/matter/src/internal/services/cross-module.ts:findSimilarMattersService` | keyword-overlap fallback | Keyword overlap is a placeholder so the matter create form's "similar matters" affordance has real-shaped data today. | **Sunset at 4d.** The 4d sub-PR replaces the keyword fallback with a Claude embedding lookup; same return shape (`MatterMatch[]`). |
+| `modules/matter/src/internal/services/cross-module.ts:findSimilarMattersService` | keyword-overlap fallback | Keyword overlap is a placeholder so the matter create form's "similar matters" affordance has real-shaped data today. | **Sunset when 4d unfreezes** (post-Intake-first; see Foundation plan). The 4d sub-PR replaces the keyword fallback with a Claude embedding lookup; same return shape (`MatterMatch[]`). |
 | `modules/matter/src/internal/services/cross-module.ts:getMatterCostBasisService` | reads `Budget` + sums approved/paid `Invoice` rows directly | Spend module is not yet shipped (Step 6). The matter dashboard / detail view need real-shaped cost-basis data today. | **Sunset at Step 6.** The Spend module's `api.ts` will expose `getMatterSpendSummary(matterId)`; this stub is replaced by a single call into `@aegis/spend`, returning the same `MatterCostBasis` shape with `source: "spend-api"`. |
 | `modules/matter/src/internal/services/m365.ts:MockM365Client` Legal Hold methods | retains mock implementations for the four 4b-extended methods (`discoverCustodians`, `applyPreservation`, `releasePreservation`, `preserveDepartedMailbox`, `enumerateDataSourcesForUser`) | Same rationale as above — fallback path for credential-free environments. The 4c factory selects `M365GraphClient` when creds resolve. | **Permanent** as long as the parent mock survives. |
 | `packages/db/src/crypto.ts` (`encryptSecret` / `decryptSecret`) | implements **plaintext** "encryption" of `OrganizationM365Credential.encryptedClientSecret` AND `OrganizationM365Credential.delegatedRefreshToken` (sub-PR 4c.1) — the bytes stored are the v1-prefixed UTF-8 of the secret | KMS-backed envelope encryption requires customer-tenant onboarding flow that doesn't exist yet. Plaintext is sufficient for the dev tenant, fail-fast wrong for production customers. The interface (`encryptSecret` / `decryptSecret`) stays the same; the implementation swap is non-breaking thanks to the v1 / v2 version prefix discriminator. Both stored secrets ride the same migration. | **Sunset before first paying customer.** A follow-up PR replaces the implementation with envelope encryption. The interface stays unchanged; no caller moves. |
@@ -234,8 +331,8 @@ the shared bit into a package or add it to the module's `api.ts`.
 | `modules/matter/src/internal/services/m365-graph-client.ts:applyPreservation` (graceful degradation on missing E5) | returns `M365EDiscoveryNotLicensedError` instead of throwing 403; legal-hold workflow falls back to non-Graph preservation modes | Graph eDiscovery API requires E5 + eDiscovery Premium. Customers without that tier should still get partial AEGIS functionality (preservation via copy-to-vault, manual collection). The defensibility scorecard records the gap as a structured component. | **Permanent.** The graceful path is a product requirement, not a temporary workaround. |
 | eDiscovery Graph methods route through `M365GraphDelegatedClient` (delegated user token via Device Code OAuth) instead of the app-only `M365GraphClient` | Microsoft's `/security/cases/...` endpoints do not honor application-permissions tokens (confirmed via Microsoft Q&A late 2025). Every legal-tech incumbent (Mitratech, Relativity, Exterro) handles this with a dedicated M365 service account. Sub-PR 4c.1 adds `M365GraphDelegatedClient` + `RoutedM365Client` so the three eDiscovery methods (`applyPreservation`, `releasePreservation`, `preserveDepartedMailbox`) route through delegated auth while the other five Graph methods stay app-only. | **Sunset if Microsoft ships an app-only fix for `/security/cases/...`** — otherwise permanent. The dual-factory shape stays sustainable either way: the routing table is one source of truth and the migration is "delete one row, add one row" if Microsoft closes the gap. |
 | `@azure/msal-node` is exact-pinned in `modules/matter/package.json` (no caret) | `m365-graph-delegated-auth.ts:defaultExchanger` calls `acquireTokenByRefreshToken` — a public-but-undocumented MSAL API. MSAL has reorganised internal APIs across minor versions in the past, so a caret-range bump could break the refresh path silently | **Sunset** — the 4c.1-cleanup-round-1 follow-up replaces `acquireTokenByRefreshToken` with a direct HTTP POST to `/oauth2/v2.0/token` (`grant_type=refresh_token`), the same pattern `m365-graph-device-code.ts` already uses. Once the rewrite lands, the pin can be relaxed back to a caret range. |
-| `modules/matter/src/internal/legal-hold/services/ai-mock.ts` | declares `HoldAIClient` interface + `MockHoldAIClient` implementation with deterministic stubs for `recommendCustodians`, `recommendCadence`, `draftNotice`, `explainScorecard`. `confidence` is `null` (signals "no model behind this") | Hold UI surfaces (custodian recommendations, cadence picker, notice drafting, scorecard narrative) need real-shaped data today. Real Claude calls land in 4d together with the `AgentDecision` lifecycle (every recommendation writes a row that must reach `APPROVED` before the corresponding mutation runs). | **Sunset at 4d.** The 4d sub-PR replaces the mock with `@aegis/ai`-routed Claude calls and writes `AgentDecision` rows; same return shape, no caller moves. |
-| `modules/matter/src/internal/legal-hold/services/defensibility.ts:getHoldDefensibilityScoreService` (narrative-explanation field) | omits `narrativeMarkdown` in 4b output; structured `components` + `gaps` ship deterministic | The deterministic six-component scorecard is fully implemented in 4b (custodian acknowledgment + re-attestation + data-source coverage + IT confirmation + notice-template integrity + audit-chain integrity). The AI-generated narrative explanation (D6) requires real Claude calls and ships in 4d. | **Sunset at 4d.** The 4d sub-PR adds the `narrativeMarkdown` field on `HoldDefensibilityScore`; deterministic structure stays unchanged. |
+| `modules/matter/src/internal/legal-hold/services/ai-mock.ts` | declares `HoldAIClient` interface + `MockHoldAIClient` implementation with deterministic stubs for `recommendCustodians`, `recommendCadence`, `draftNotice`, `explainScorecard`. `confidence` is `null` (signals "no model behind this") | Hold UI surfaces (custodian recommendations, cadence picker, notice drafting, scorecard narrative) need real-shaped data today. Real Claude calls land in 4d together with the Hold-side `AgentDecision` lifecycle. Note that the intake-side `AgentDecision` lifecycle activates earlier — in Intake P2b — so the schema contract is exercised before 4d ships. | **Sunset when 4d unfreezes** (post-Intake-first; see Foundation plan). The 4d sub-PR replaces the mock with `@aegis/ai`-routed Claude calls and writes `AgentDecision` rows; same return shape, no caller moves. |
+| `modules/matter/src/internal/legal-hold/services/defensibility.ts:getHoldDefensibilityScoreService` (narrative-explanation field) | omits `narrativeMarkdown` in 4b output; structured `components` + `gaps` ship deterministic | The deterministic six-component scorecard is fully implemented in 4b (custodian acknowledgment + re-attestation + data-source coverage + IT confirmation + notice-template integrity + audit-chain integrity). The AI-generated narrative explanation (D6) requires real Claude calls and ships in 4d. | **Sunset when 4d unfreezes** (post-Intake-first; see Foundation plan). The 4d sub-PR adds the `narrativeMarkdown` field on `HoldDefensibilityScore`; deterministic structure stays unchanged. |
 | `modules/matter/src/internal/legal-hold/services/notice-composer.ts:composeAndSendNoticeService` | writes `HoldNoticeIssuance` + per-recipient `LegalHoldEvent` rows + chain-sealed AuditLog rows but does NOT send email. The notice-viewer drill-in shows "Recorded" for every recipient as the delivery status. | Real email delivery requires SMTP/SES/Outlook integration that is a separate product surface. The issuance + chain rows are sufficient defensibility evidence — the recipient roster, body hash, and template-version snapshot are court-ready today; only the per-recipient send-mechanism telemetry is missing. | **Sunset when first customer demands real delivery.** Replace the stub at the service level (the `deliveryStubbed` flag and the "Recorded" status string are the seams); the issuance, audit chain, and per-recipient REMINDER_SENT events all stay unchanged. |
 | `modules/matter/src/internal/legal-hold/services/snapshot-jobs.ts` (`runDailySnapshotPass`, `runWeeklyCleanupPass`) | exposed as admin HTTP triggers (`POST /api/admin/jobs/defensibility-{snapshot,cleanup}`) rather than registered with a pg-boss runtime | The repo doesn't yet have a long-running worker process to host pg-boss `schedule()` registrations. The service shape is pg-boss-ready (idempotent within UTC day, returns a structured result) and the trigger surface accepts external schedulers (Vercel Cron, GitHub Actions, etc.) so daily/weekly cadence is achievable today without a worker. | **Sunset when the worker runtime ships.** The schedule registration replaces the cron trigger; the service signatures stay unchanged. Both jobs become `pg-boss.schedule()` calls pointing at `runDailySnapshotPass(orgId)` / `runWeeklyCleanupPass(orgId)`; no caller change. |
 | `scripts/helpers/05-seed-mailbox-content.ps1` (and helpers 06/07 in follow-up PRs) authenticates app-only via client-credentials against the AEGIS app registration, parallel to the delegated `Connect-MgGraph` context that `01-connect.ps1` owns. New helper `_app-only-auth.ps1` holds the token cache + bearer-token Graph caller. | Delegated Global Admin tokens cannot perform cross-user mailbox / drive operations: `Send-MgUserMail -UserId <other>` returns 403 in delegated and succeeds in app-only; same for `POST /users/{id}/mailFolders/inbox/messages` and OneDrive uploads against another user. This is the Graph permission model, not a missing scope. Application permissions (`Mail.Send`, `Mail.ReadWrite`, `Files.ReadWrite.All`, `Sites.ReadWrite.All`, `User.Read.All`) are the only path. Directory ops (user create, license assignment, group / SharePoint provisioning) stay delegated so admin attribution shows up on the tenant audit log and interactive consent works cleanly. | **Permanent.** Same shape as the eDiscovery delegated-routing entry above — Microsoft's permission model decides which calls live on which auth flow. Sunset only if Microsoft makes delegated admin able to act as another user, which is architecturally unlikely. The dual-auth seam stays sustainable: `_app-only-auth.ps1` is a single chokepoint, and per-helper auth selection is one decision per file. |
