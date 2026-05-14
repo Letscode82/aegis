@@ -7,13 +7,14 @@
   "exports": {
     ".": "./src/index.js",
     "./polyfill": "./src/storage/polyfill.js",
-    "./server": "./src/storage/server.ts"
+    "./server": "./src/storage/server.ts",
+    "./ai-ops": "./src/ai-ops/summary.ts"
   },
   "files": ["src"],
   "scripts": {
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "test": "echo 'no tests yet' && exit 0",
+    "test": "vitest run",
     "dev": "echo 'use apps/web dev'"
   },
   "dependencies": {
@@ -27,6 +28,7 @@
     "@types/node": "^20.17.9",
     "@types/react": "^18.3.12",
     "eslint": "^8.57.1",
-    "typescript": "5.6.3"
+    "typescript": "5.6.3",
+    "vitest": "1.6.1"
   }
 }

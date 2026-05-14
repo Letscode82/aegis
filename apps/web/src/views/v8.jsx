@@ -10,6 +10,7 @@ import { OCM_FIRMS } from "../data/ocm";
 import { CYBER_INCIDENTS } from "../data/cyber";
 import { WORKFLOWS_BUILT } from "../data/workflows";
 import { TICKERS } from "../data/tickers";
+import { AIOperationsSection } from "./ai-ops/ai-operations-section.jsx";
 
 export function BoardReportView(){
   const[activeSec,setActiveSec]=useState(1);
@@ -686,6 +687,9 @@ export function MissionControlView(){
 
     {/* AI DAILY BRIEFING — auto-loads on first visit per session */}
     <MissionControlBriefing context={buildBriefingContext({domains,posture:postureScore,alerts:ALL_ALERTS,approvals:ALL_APPROVALS,cases:CASES})}/>
+
+    {/* AI OPERATIONS — agent activity, scorecard, pending review */}
+    <AIOperationsSection/>
 
     {/* LIVE TICKER */}
     <div style={{background:C.s1,border:`1px solid ${C.br}`,padding:"8px 14px",marginBottom:16,display:"flex",alignItems:"center",gap:12}}>
