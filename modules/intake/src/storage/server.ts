@@ -215,6 +215,23 @@ async function saveTicketsV8(
       },
     });
 
+    // Authoritative triage attribution (Phase 1a).
+    //
+    // `triagedBy` used to be whatever string the client sent — the demo
+    // hardcoded "You (Alex Nguyen)". Now, whenever a triage action is
+    // newly transitioning (before.triagedAction !== incoming action,
+    // and the new action is non-null), we overwrite `triagedBy` with
+    // the Auth0-resolved User.name. This makes the persisted display
+    // name match the audit row's actorId — no client-side spoofing
+    // path. When no transition is happening, the prior value is
+    // preserved verbatim.
+    const incomingAction = t.triagedAction ?? null;
+    const isNewTriageTransition =
+      !!incomingAction && before?.triagedAction !== incomingAction;
+    const authoritativeTriagedBy = isNewTriageTransition
+      ? demoUser.name
+      : (before?.triagedBy ?? t.triagedBy ?? null);
+
     // Common fields written on both create and update. Plain object so
     // it composes into both Prisma input shapes (update / unchecked create).
     const common = {
@@ -229,23 +246,44 @@ async function saveTicketsV8(
       department: t.dept ?? null,
       aiTriageJson: (t.aiTriage ?? null) as never,
       workflowJson: (t.workflow ?? []) as never,
-      triagedBy: t.triagedBy ?? null,
+      triagedBy: authoritativeTriagedBy,
       triagedAt: t.triagedAt ? new Date(t.triagedAt) : null,
-      triagedAction: t.triagedAction ?? null,
+      triagedAction: incomingAction,
       agentProcessedAt: t.agentProcessedAt ? new Date(t.agentProcessedAt) : null,
     };
 
-    // Resolve requester. If the ticket is brand-new (came from Copilot),
-    // we may not have a Person row — fall back to a deterministic auto
-    // person matching the seed's "p-auto-…" pattern.
+    // Resolve requester (Phase 1a — session-authoritative).
+    //
+    // Resolution order, most specific first:
+    //   1. The session user's Person row (`Person.userId === demoUser.id`).
+    //      Canonical — the User row is the source of truth and `Person.userId`
+    //      is the FK linking the two. A logged-in user filing a ticket should
+    //      always attribute to their own Person.
+    //   2. Name match within the org (legacy demo path — fixtures and
+    //      back-compat with the v8 hardcoded "Alex Nguyen" data).
+    //   3. Auto-create a `p-auto-...` Person (last-resort fallback so a
+    //      brand-new requester from Copilot doesn't fail the upsert).
+    //
+    // Note: this only runs for brand-new tickets (the v8 polyfill never
+    // changes the requester on an existing one — see storage/keys.js).
     const fromName = t.from ?? "Unknown";
     const dept = t.dept ?? "";
-    let requesterId = (
-      await prisma.person.findFirst({
-        where: { organizationId: orgId, name: fromName },
+    let requesterId: string | undefined;
+    if (demoUser.id) {
+      const ownPerson = await prisma.person.findFirst({
+        where: { organizationId: orgId, userId: demoUser.id },
         select: { id: true },
-      })
-    )?.id;
+      });
+      requesterId = ownPerson?.id;
+    }
+    if (!requesterId) {
+      requesterId = (
+        await prisma.person.findFirst({
+          where: { organizationId: orgId, name: fromName },
+          select: { id: true },
+        })
+      )?.id;
+    }
     if (!requesterId) {
       const autoId = "p-auto-" + fromName.toLowerCase().replace(/[^a-z0-9]+/g, "-");
       const created = await prisma.person.upsert({
@@ -449,13 +487,46 @@ async function loadAgentLogV8(orgId: string): Promise<unknown[]> {
     orderBy: { timestamp: "desc" },
     take: 200,
   });
-  return rows.map((r) => ({
-    type: r.action.replace(/^intake\./, ""),
-    ticketId: r.resourceType === "IntakeTicket" ? r.resourceId : undefined,
-    attorney: r.actorType === "USER" ? "You (Alex Nguyen)" : null,
-    timestamp: r.timestamp.getTime(),
-    ...((r.metadata as Record<string, unknown>) ?? {}),
-  }));
+  if (rows.length === 0) return [];
+
+  // Phase 1a: batch-resolve real actor display names from User.name.
+  // Replaces the demo-era hardcoded "You (Alex Nguyen)" string. The
+  // actorId is also exposed on each row so the UI can format "You"
+  // vs other users client-side via the session.
+  const userIds = Array.from(
+    new Set(
+      rows
+        .filter((r) => r.actorType === "USER" && r.actorId)
+        .map((r) => r.actorId as string),
+    ),
+  );
+  const users = userIds.length
+    ? await prisma.user.findMany({
+        where: { id: { in: userIds }, organizationId: orgId },
+        select: { id: true, name: true },
+      })
+    : [];
+  const userById = new Map(users.map((u) => [u.id, u.name]));
+
+  return rows.map((r) => {
+    let attorney: string | null = null;
+    if (r.actorType === "USER" && r.actorId) {
+      attorney = userById.get(r.actorId) ?? "Unknown user";
+    } else if (r.actorType === "AGENT") {
+      attorney = "AEGIS Agent";
+    } else if (r.actorType === "SYSTEM") {
+      attorney = "System";
+    }
+    return {
+      type: r.action.replace(/^intake\./, ""),
+      ticketId: r.resourceType === "IntakeTicket" ? r.resourceId : undefined,
+      attorney,
+      actorId: r.actorId,
+      actorType: r.actorType,
+      timestamp: r.timestamp.getTime(),
+      ...((r.metadata as Record<string, unknown>) ?? {}),
+    };
+  });
 }
 
 // ── Public surface ───────────────────────────────────────────────────

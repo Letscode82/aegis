@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
+import { useCurrentUser } from "@aegis/auth/react";
 import { ensureSeeded, migrateTicketV72, saveTickets } from "../storage/tickets";
 import { storeDel } from "../storage/store";
 import { appendAgentLog } from "../storage/agent-log";
@@ -6,6 +7,13 @@ import { K } from "../storage/keys";
 import { processTicketWithAgent } from "../agents";
 
 export function useTicketStore(agentSettings){
+  // Session-resolved attribution. Replaces the demo-era hardcoded
+  // "You (Alex Nguyen)" fallback. The server-side path is the
+  // authoritative source of truth (saveTicketsV8 overwrites
+  // triagedBy from the Auth0 session on every triage transition);
+  // this client-side value is for optimistic display only.
+  const{user:currentUser}=useCurrentUser();
+  const currentUserName=currentUser?.name||null;
   const[tickets,setTickets]=useState([]);
   const[loading,setLoading]=useState(true);
   const[tick,setTick]=useState(0); // drives SLA recompute
@@ -61,9 +69,13 @@ export function useTicketStore(agentSettings){
     return {ticket:{...created,...patch},agent,recommendation};
   },[tickets,agentSettings,addTicket]);
 
-  // Attorney triage action — always attorney-initiated
+  // Attorney triage action — always attorney-initiated. The
+  // server-side saveTicketsV8 overwrites `triagedBy` with the
+  // Auth0-resolved User.name on every newly-firing triage
+  // transition, so the value passed here is purely for optimistic
+  // UI; never trusted as identity.
   const recordTriageAction=useCallback(async(id,action,extra={})=>{
-    const attorney=extra.attorney||"You (Alex Nguyen)";
+    const attorney=extra.attorney||currentUserName||"Unknown user";
     const patch={
       triagedBy:attorney,
       triagedAt:Date.now(),
@@ -86,7 +98,7 @@ export function useTicketStore(agentSettings){
       confidence:extra.confidence,
       ...(extra.reason?{reason:extra.reason}:{}),
     });
-  },[tickets,updateTicket]);
+  },[tickets,updateTicket,currentUserName]);
 
   const bulkApprove=useCallback(async(ids,attorney)=>{
     const next=tickets.map(t=>{

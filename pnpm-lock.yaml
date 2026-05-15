@@ -112,6 +112,9 @@ importers:
       '@aegis/ai':
         specifier: workspace:*
         version: link:../../packages/ai
+      '@aegis/auth':
+        specifier: workspace:*
+        version: link:../../packages/auth
       '@aegis/db':
         specifier: workspace:*
         version: link:../../packages/db
