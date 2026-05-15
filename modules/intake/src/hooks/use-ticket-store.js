@@ -52,18 +52,39 @@ export function useTicketStore(agentSettings){
     await saveTickets(next);
   },[tickets]);
 
-  // Add ticket + run agent + save recommendation (the copilot/form submit end-to-end path)
+  // Add ticket + run agent + save recommendation (the copilot/form
+  // submit end-to-end path).
+  //
+  // Phase 1b — visible stage progression on the Kanban:
+  //   1. `addTicket` lands the row at stage="new" (NEW column).
+  //   2. Optimistic local flip to stage="triage" → ticket animates
+  //      to the AI TRIAGE column while the agent call is in flight.
+  //      Not persisted yet — purely a visual frame.
+  //   3. After the agent returns, patch stage="assigned" together
+  //      with the recommendation, persist once. Server emits an
+  //      `intake.ticket.stage_advanced` audit row on the new→assigned
+  //      transition.
+  // Net effect: the user files a ticket and watches it walk across
+  // the board within a few seconds, ending in ASSIGNED for attorney
+  // review.
   const addTicketAndRunAgent=useCallback(async(ticket)=>{
     const created=await addTicket(ticket);
+    // Step 2 — optimistic "triage" flash. Functional setState avoids
+    // a stale-closure miss on the just-added ticket.
+    setTickets(prev=>prev.map(t=>t.id===created.id?{...t,stage:"triage"}:t));
+    // Step 3 — real agent call (1–3s for Claude; instant for the
+    // fallback templates).
     const {agent,recommendation}=await processTicketWithAgent(created,agentSettings);
     const patch={
+      stage:"assigned",
       agentRecommendation:recommendation,
       agentProcessedAt:Date.now(),
       assigned:agent?`${agent.shortName} Agent · Cockpit Queue`:"Cockpit Queue · Manual",
     };
-    const next=tickets.map(t=>t.id===created.id?{...t,...patch}:t);
-    // also patch the just-added version (it's at index 0 of freshly updated array)
-    const finalArr=[{...created,...patch},...next.filter(t=>t.id!==created.id)];
+    // Persist once with the final state. Same closure-stale workaround
+    // as the v8 demo's original path: build the canonical array from
+    // (a) the patched created ticket, plus (b) all OTHER tickets.
+    const finalArr=[{...created,...patch},...tickets.filter(t=>t.id!==created.id)];
     setTickets(finalArr);
     await saveTickets(finalArr);
     return {ticket:{...created,...patch},agent,recommendation};
