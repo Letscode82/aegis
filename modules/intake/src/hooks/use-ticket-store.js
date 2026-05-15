@@ -64,9 +64,14 @@ export function useTicketStore(agentSettings){
   //      with the recommendation, persist once. Server emits an
   //      `intake.ticket.stage_advanced` audit row on the new→assigned
   //      transition.
-  // Net effect: the user files a ticket and watches it walk across
-  // the board within a few seconds, ending in ASSIGNED for attorney
-  // review.
+  //
+  // The patch in step 3 also syncs `status` and `workflow` so the
+  // ticket detail page agrees with the Kanban — without this, the
+  // detail-view workflow strip stays "Agent Analysis active" forever
+  // because nothing else updates that array post-creation. The same
+  // mapping the Kanban's drag-drop handler uses for stage→status
+  // (`statusMap` in `KanbanTab`) is mirrored here so both code paths
+  // produce identical state.
   const addTicketAndRunAgent=useCallback(async(ticket)=>{
     const created=await addTicket(ticket);
     // Step 2 — optimistic "triage" flash. Functional setState avoids
@@ -75,8 +80,23 @@ export function useTicketStore(agentSettings){
     // Step 3 — real agent call (1–3s for Claude; instant for the
     // fallback templates).
     const {agent,recommendation}=await processTicketWithAgent(created,agentSettings);
+    // Workflow strip: Submitted ✓ → Agent Analysis ✓ → Attorney Review
+    // (active) → Close. Index 2 is "Attorney Review" in the canonical
+    // 4-step shape produced by NewRequestV8.submit + the copilot path.
+    // We rebuild defensively in case the source ticket carried a
+    // shorter/customised workflow.
+    const sourceWorkflow=Array.isArray(created.workflow)&&created.workflow.length>=4
+      ?created.workflow
+      :[{label:"Submitted"},{label:"Agent Analysis"},{label:"Attorney Review"},{label:"Close"}];
+    const nextWorkflow=sourceWorkflow.map((s,i)=>({
+      ...s,
+      done:i<2,
+      active:i===2,
+    }));
     const patch={
       stage:"assigned",
+      status:"Assigned",
+      workflow:nextWorkflow,
       agentRecommendation:recommendation,
       agentProcessedAt:Date.now(),
       assigned:agent?`${agent.shortName} Agent · Cockpit Queue`:"Cockpit Queue · Manual",
