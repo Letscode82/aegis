@@ -55,7 +55,27 @@ const prisma = new PrismaClient();
 // ───────────────────────────────────────────────────────────────────
 
 const DEMO_ORG_NAME = "AEGIS Demo Corp";
-const DEMO_USER_NAME = "Alex Nguyen";
+
+/**
+ * Admin display name — env-driven so production deploys carry the
+ * real admin's name rather than the "Alex Nguyen" demo persona.
+ * Mirrors the SEED_ADMIN_EMAIL parametrization below. Without this,
+ * audit-log displays, the Cockpit attorney header, and every
+ * `actorId → User.name` join show "Alex Nguyen" even when the admin
+ * is logged in via Auth0 as someone else.
+ *
+ * The default ("Alex Nguyen") preserves back-compat for local dev /
+ * CI and for existing deployments that haven't set the env var.
+ *
+ * Idempotency: the seed below tolerates the **legacy** "Alex Nguyen"
+ * name on existing rows — if SEED_ADMIN_NAME is set to e.g. "Rachel
+ * Adams", the next seed run finds the pre-existing row by either the
+ * legacy name OR the configured email and rewrites both `name` and
+ * `email` to converge on the new values.
+ */
+const LEGACY_DEMO_USER_NAME = "Alex Nguyen";
+const DEMO_USER_NAME =
+  (process.env.SEED_ADMIN_NAME ?? "").trim() || LEGACY_DEMO_USER_NAME;
 
 /**
  * Admin email — env-driven so production deploys use a real, verifiable
@@ -68,10 +88,8 @@ const DEMO_USER_NAME = "Alex Nguyen";
  * in @aegis/auth/server won't find a User row matching the session
  * email and the dashboard will appear empty.
  *
- * Idempotency: this seed identifies the admin by `name === "Alex Nguyen"`
- * within the demo org rather than by email, so changing
- * `SEED_ADMIN_EMAIL` between runs updates the existing row's email
- * instead of creating a duplicate User.
+ * Idempotency: see DEMO_USER_NAME above — the admin lookup is
+ * resilient to both legacy-name rows and post-rename rows.
  */
 const DEMO_USER_EMAIL =
   (process.env.SEED_ADMIN_EMAIL ?? "").trim() ||
@@ -111,13 +129,25 @@ async function seedOrgAndAdmin() {
     },
   });
 
-  // Identify the admin User by name within the demo org, NOT by email.
-  // SEED_ADMIN_EMAIL can change between runs (production rotates it from
-  // the dev fallback to the real Auth0 sign-in address); upserting by
-  // email would create a duplicate User on every change. Looking up by
-  // name keeps us on the same row and just rewrites its email.
+  // Identify the admin User within the demo org, tolerant of three
+  // states the row could be in:
+  //   1. Already renamed (name === DEMO_USER_NAME for current run).
+  //   2. Pre-rename — the legacy "Alex Nguyen" name from a prior run
+  //      before SEED_ADMIN_NAME was set / changed.
+  //   3. Created via Auth0 first-login path with the right email but
+  //      no admin name yet (defensive — unusual in practice).
+  // Each match converges on the same row by `id`; the update then
+  // rewrites name + email to the current env values, so re-running
+  // with new env vars is fully idempotent and migrates in place.
   const existingAdmin = await prisma.user.findFirst({
-    where: { organizationId: org.id, name: DEMO_USER_NAME },
+    where: {
+      organizationId: org.id,
+      OR: [
+        { name: DEMO_USER_NAME },
+        { name: LEGACY_DEMO_USER_NAME },
+        { email: DEMO_USER_EMAIL },
+      ],
+    },
   });
   const user = existingAdmin
     ? await prisma.user.update({

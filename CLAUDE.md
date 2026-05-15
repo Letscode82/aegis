@@ -414,13 +414,14 @@ certainly need an explicit upstream reference instead — a registration
 flow, a validation step, or a dedicated provisioning endpoint with its
 own audit trail.
 
-### Production seed must use a real, verifiable admin email
+### Production seed must use a real, verifiable admin email AND name
 
 The fallback admin email in `packages/db/prisma/seed.ts`
 (`alex.nguyen@aegis-demo.example`) is a non-routable demo domain and
 exists for local dev / CI only. **Production deployments must set
 `SEED_ADMIN_EMAIL`** to the real address the admin will sign in with
-through Auth0.
+through Auth0, AND **`SEED_ADMIN_NAME`** to the admin's real display
+name.
 
 Reasoning:
 - `@aegis/auth/server.getResolvedUser()` resolves the User row by the
@@ -430,11 +431,20 @@ Reasoning:
 - The fallback email is a non-routable domain by design — letting it
   reach a production User row would silently advertise a fake account
   in audit-log surfaces and notification fan-outs.
+- The fallback name (`"Alex Nguyen"`) is a demo persona. Without
+  `SEED_ADMIN_NAME` set, every audit-log row attributed to the admin
+  (Cockpit header, Activity feed, recipient rosters, attorney
+  displays, etc.) renders as `"Alex Nguyen"` regardless of who is
+  actually signed in via Auth0. The dashboard "looks right" because
+  the email/role on the badge use the live session, but every
+  `actorId → User.name` join still shows the demo name.
 
-The seed is idempotent across `SEED_ADMIN_EMAIL` changes: it
-identifies the admin User by `name === "Alex Nguyen"` within the demo
-org, so changing the env between runs rewrites the existing row's
-email instead of creating a duplicate.
+The seed is idempotent across both env vars: the admin User is
+looked up via `OR [name === SEED_ADMIN_NAME, name === "Alex Nguyen"
+(legacy), email === SEED_ADMIN_EMAIL]` within the demo org, so
+changing either env between runs rewrites the existing row's
+`name`/`email` instead of creating a duplicate. The `Person` row
+linked via `userId` is updated in lock-step.
 
 ---
 
