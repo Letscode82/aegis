@@ -973,16 +973,31 @@ function CockpitTab({store,cockpit}){
 function AgentSettingsPanel({onClose,settings,toggle,log}){
   const[tab,setTab]=useState("agents"); // "agents" | "log"
 
-  // Derive today's stats
+  // Derive today's stats from the agent log.
+  //
+  // Phase 1a unified the log surface: `loadAgentLogV8` now reads from
+  // the canonical `AuditLog` table and emits entries shaped as
+  // `{ type, ticketId, attorney, actorType, timestamp, ... }` where
+  // `type` is the AuditLog action with the `intake.` prefix stripped
+  // (e.g. `recommendation.approved`, `ticket.created`).
+  //
+  // Each AuditLog row carries `timestamp` (ms after Phase 1a). The
+  // legacy client-side log used `ts`; we accept either for back-compat
+  // with any pre-cutover data still in localStorage.
   const stats=useMemo(()=>{
     const todayStart=new Date();todayStart.setHours(0,0,0,0);
-    const todayLog=log.filter(e=>e.ts>=todayStart.getTime());
+    const cutoff=todayStart.getTime();
+    const ts=(e)=>e.timestamp ?? e.ts ?? 0;
+    const todayLog=log.filter(e=>ts(e)>=cutoff);
     return {
-      recs:todayLog.filter(e=>e.type==="recommendation-generated").length,
-      approved:todayLog.filter(e=>e.type==="attorney-approved"||e.type==="attorney-edited-approved").length,
-      rejected:todayLog.filter(e=>e.type==="attorney-rejected").length,
-      bulk:todayLog.filter(e=>e.type==="attorney-bulk-approve").reduce((n,e)=>n+(e.count||0),0),
-      errors:todayLog.filter(e=>e.type==="agent-error").length,
+      // A "recommendation" in the new world = a ticket creation event
+      // (the agent runs as part of every classification path).
+      recs:todayLog.filter(e=>e.type==="ticket.created").length,
+      approved:todayLog.filter(e=>e.type==="recommendation.approved"||e.type==="recommendation.edited_approved").length,
+      rejected:todayLog.filter(e=>e.type==="recommendation.rejected").length,
+      // Bulk-approve audit rows have a `count` field in metadata.
+      bulk:todayLog.filter(e=>e.type==="recommendation.bulk_approved").reduce((n,e)=>n+(e.count||0),0),
+      errors:0, // agent errors aren't audit events; tracked via Sentry/logs
       autoClosed:0, // v8 rule: agents never auto-close
     };
   },[log]);

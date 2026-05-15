@@ -119,6 +119,7 @@ model User {
   persons      Person[]
   preferences  UserPreference[]
 
+  intakeTicketsAssigned         IntakeTicket[]        @relation("IntakeTicketAssignee")
   legalHoldsCreated             LegalHold[]           @relation("LegalHoldCreatedBy")
   legalHoldsReleased            LegalHold[]           @relation("LegalHoldReleasedBy")
   legalHoldEvents               LegalHoldEvent[]      @relation("LegalHoldEventActor")
@@ -1214,6 +1215,14 @@ model IntakeTicket {
   triagedAction    String? // "approved" | "rejected" | "reassigned" | …
   agentProcessedAt DateTime?
 
+  /// Phase 1b — typed assignee. Lives alongside the legacy free-text
+  /// `assignedTo` during migration; new code paths set this FK and
+  /// `assignedTo` mirrors `User.name` for display back-compat.
+  /// "My Queue" filter, Kanban swimlanes, and routing-rule audit
+  /// rows all key off this column. Sunset of `assignedTo` is
+  /// scheduled for end of P3 (per docs/intake-roadmap.md §5.1).
+  assignedToUserId String?
+
   submittedAt DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -1221,6 +1230,7 @@ model IntakeTicket {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   requester    Person       @relation("IntakeRequester", fields: [requesterId], references: [id], onDelete: Cascade)
   matter       Matter?      @relation(fields: [matterId], references: [id], onDelete: SetNull)
+  assignedToUser User?      @relation("IntakeTicketAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
 
   recommendations AgentRecommendation[]
   conversation    IntakeConversation[]
@@ -1230,6 +1240,7 @@ model IntakeTicket {
   @@index([organizationId, submittedAt(sort: Desc)])
   @@index([requesterId])
   @@index([matterId])
+  @@index([organizationId, assignedToUserId])
 }
 
 enum AgentRecommendationStatus {

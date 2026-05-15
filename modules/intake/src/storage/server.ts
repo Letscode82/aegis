@@ -94,6 +94,8 @@ type V8Ticket = {
   stage?: string;
   desc?: string;
   assigned?: string;
+  /** Phase 1b — typed assignee FK. Coexists with `assigned` free-text. */
+  assignedToUserId?: string | null;
   sla?: string;
   slaHours?: number;
   slaStatus?: string;
@@ -150,6 +152,7 @@ async function loadTicketsV8(orgId: string): Promise<V8Ticket[]> {
       stage: t.stage,
       desc: t.description,
       assigned: t.assignedTo ?? "Cockpit Queue",
+      assignedToUserId: t.assignedToUserId,
       sla: `${t.slaHours} hrs`,
       slaHours: t.slaHours,
       slaStatus: t.slaStatus,
@@ -210,8 +213,10 @@ async function saveTicketsV8(
       where: { id: t.id },
       select: {
         status: true,
+        stage: true,
         triagedAction: true,
         triagedBy: true,
+        assignedToUserId: true,
       },
     });
 
@@ -234,6 +239,13 @@ async function saveTicketsV8(
 
     // Common fields written on both create and update. Plain object so
     // it composes into both Prisma input shapes (update / unchecked create).
+    // Phase 1b — `assignedToUserId` is the typed FK; `assignedTo` (free
+    // text) coexists during migration. Both update from the same client
+    // payload; audit rows fire on FK transitions, not free-text edits.
+    const incomingAssignedToUserId =
+      t.assignedToUserId !== undefined
+        ? t.assignedToUserId
+        : (before?.assignedToUserId ?? null);
     const common = {
       type: t.type ?? "",
       priority: t.priority ?? "Medium",
@@ -243,6 +255,7 @@ async function saveTicketsV8(
       slaHours: t.slaHours ?? 24,
       slaStatus: t.slaStatus ?? "On Track",
       assignedTo: t.assigned ?? null,
+      assignedToUserId: incomingAssignedToUserId,
       department: t.dept ?? null,
       aiTriageJson: (t.aiTriage ?? null) as never,
       workflowJson: (t.workflow ?? []) as never,
@@ -321,6 +334,8 @@ async function saveTicketsV8(
     // canonical action names:
     //
     //   intake.ticket.created                 — first time we see this id
+    //   intake.ticket.assigned                 — assignedToUserId changed (P1b)
+    //   intake.ticket.stage_advanced           — stage changed (P1b)
     //   intake.recommendation.approved        — triagedAction → approved
     //   intake.recommendation.edited_approved — triagedAction → edited-approved
     //   intake.recommendation.rejected        — triagedAction → rejected
@@ -347,6 +362,39 @@ async function saveTicketsV8(
         afterJson: { status: newStatus, source: t._source ?? "form" },
       });
     } else {
+      // Phase 1b — assignment transitions (typed FK only; free-text
+      // edits don't fire the audit because they aren't a structural
+      // ownership change).
+      if (
+        (before.assignedToUserId ?? null) !==
+        (incomingAssignedToUserId ?? null)
+      ) {
+        await logAudit({
+          organizationId: orgId,
+          actorId: actor,
+          actorType: "USER",
+          action: "intake.ticket.assigned",
+          resourceType: "IntakeTicket",
+          resourceId: t.id,
+          beforeJson: { assignedToUserId: before.assignedToUserId ?? null },
+          afterJson: { assignedToUserId: incomingAssignedToUserId ?? null },
+        });
+      }
+      // Phase 1b — stage transitions. Stage is the Kanban-column
+      // dimension; promoting from "new" → "triage" → "assigned" →
+      // "review" → "complete" is a first-class lifecycle event.
+      if ((before.stage ?? null) !== (common.stage ?? null)) {
+        await logAudit({
+          organizationId: orgId,
+          actorId: actor,
+          actorType: "USER",
+          action: "intake.ticket.stage_advanced",
+          resourceType: "IntakeTicket",
+          resourceId: t.id,
+          beforeJson: { stage: before.stage ?? null },
+          afterJson: { stage: common.stage ?? null },
+        });
+      }
       // Status transitions that cross a meaningful boundary.
       if (before.status !== newStatus && newStatus === IntakeStatus.ESCALATED) {
         await logAudit({
