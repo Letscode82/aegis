@@ -200,10 +200,43 @@ function assembleAuthUser(
     id: dbUser.id,
     organizationId: dbUser.organizationId,
     email: dbUser.email,
-    name: nameHint ?? dbUser.name,
+    name: resolveDisplayName({
+      dbName: dbUser.name,
+      nameHint,
+      email: dbUser.email,
+    }),
     roleName,
     permissions,
   };
+}
+
+/**
+ * Display-name resolution — exported so tests can pin the priority
+ * order without standing up the full Prisma + Auth0 chain.
+ *
+ * Order:
+ *   1. `dbName` — the canonical `User.name` written by the seed
+ *      (via `SEED_ADMIN_NAME`) or — eventually — by a profile UI.
+ *      This is the source of truth; the DB is what every audit
+ *      `actorId → User.name` join reads.
+ *   2. `nameHint` — `session.user.name` from the Auth0 session.
+ *      Several Auth0 connection types (basic email/password, some
+ *      social IdPs) default this to the **email address** when no
+ *      separate name claim is set, so it can't be primary — that
+ *      would make the Cockpit attorney label, AI-Ops activity
+ *      feed, and audit displays show the email instead of the
+ *      real admin name.
+ *   3. `email` — last-resort fallback (always present on the row).
+ *
+ * Empty strings short-circuit through `||` so a `dbName === ""`
+ * row falls through to `nameHint`, then `email`.
+ */
+export function resolveDisplayName(args: {
+  dbName: string | null | undefined;
+  nameHint: string | null | undefined;
+  email: string;
+}): string {
+  return args.dbName || args.nameHint || args.email;
 }
 
 /** Convenience for non-API contexts (server components, scripts). */
