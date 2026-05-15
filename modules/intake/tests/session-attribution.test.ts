@@ -364,3 +364,52 @@ describe("loadAgentLogV8 — actor name resolution", () => {
     expect(userFindManyMock).not.toHaveBeenCalled();
   });
 });
+
+// ── Cockpit state — legacy "Alex Nguyen" migration ───────────────────
+
+// `loadCockpitState` reads from the `./store` module's KV wrapper. We
+// mock the wrapper here so the test drives it deterministically
+// without standing up window.storage.
+
+describe("loadCockpitState — legacy attorney string sunset", () => {
+  const storeGetMock = vi.fn();
+  const storeSetMock = vi.fn();
+
+  beforeEach(() => {
+    storeGetMock.mockReset();
+    storeSetMock.mockReset();
+    vi.resetModules();
+    vi.doMock("../src/storage/store", () => ({
+      storeGet: storeGetMock,
+      storeSet: storeSetMock,
+      storeDel: vi.fn(),
+    }));
+  });
+
+  it("rewrites a persisted 'You (Alex Nguyen)' value to null on read", async () => {
+    storeGetMock.mockResolvedValueOnce({
+      lastPos: 0,
+      attorney: "You (Alex Nguyen)",
+      triagedToday: 3,
+      triagedDate: new Date().toISOString().slice(0, 10),
+    });
+    const { loadCockpitState } = await import("../src/storage/cockpit-state");
+    const s = await loadCockpitState();
+    expect(s.attorney).toBeNull();
+    // Non-attorney fields are preserved so the user doesn't lose their
+    // daily triage counter on migration.
+    expect(s.triagedToday).toBe(3);
+  });
+
+  it("preserves a custom persisted attorney string verbatim", async () => {
+    storeGetMock.mockResolvedValueOnce({
+      lastPos: 0,
+      attorney: "Marcus Reid", // custom override the user explicitly set
+      triagedToday: 0,
+      triagedDate: new Date().toISOString().slice(0, 10),
+    });
+    const { loadCockpitState } = await import("../src/storage/cockpit-state");
+    const s = await loadCockpitState();
+    expect(s.attorney).toBe("Marcus Reid");
+  });
+});
