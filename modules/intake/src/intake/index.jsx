@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { C, F, M, SR, Pill, Dot, Bar, Card, SH, WorkflowSteps, pc, inputStyle, FormField } from "@aegis/ui";
 import { classifyIntakeRegex } from "@aegis/ai";
+import { useCurrentUser } from "@aegis/auth/react";
 import { Kbd, ConfidenceBadge, AgentBadge, TypingDots, ChatBubble, CapacityMeter, SimilarMatterCard } from "../intake-ui";
 import { KB_TOPICS, ROUTING_RULES } from "../intake-kb";
 import { AGENTS_BY_ID, ALL_AGENTS } from "../agents";
@@ -81,6 +82,10 @@ function TypePickerGate({onPickSimple,onPickComplex}){
 // CopilotChat — the conversational intake UI
 // ══════════════════════════════════════════════════
 function CopilotChat({initialType,onFiled,onSwitchToForm,store,settings}){
+  // Session-resolved defaults (Phase 1a). The requester name pre-fills
+  // from the Auth0-resolved user; the field stays editable so a user
+  // filing on behalf of someone else can override.
+  const{user:sessionUser}=useCurrentUser();
   const[state,setState]=useState(()=>({...COPILOT_INITIAL_STATE(),requestType:initialType}));
   const[history,setHistory]=useState(()=>[{role:"assistant",content:initialAssistantMessage(initialType),ts:Date.now()}]);
   const[input,setInput]=useState("");
@@ -93,6 +98,11 @@ function CopilotChat({initialType,onFiled,onSwitchToForm,store,settings}){
   const[filedTicket,setFiledTicket]=useState(null);
   const[requesterName,setRequesterName]=useState("");
   const[requesterDept,setRequesterDept]=useState("Product");
+  // Backfill requesterName once the session user resolves. Only sets
+  // when the field is still empty — user edits stay intact.
+  useEffect(()=>{
+    if(sessionUser?.name&&!requesterName) setRequesterName(sessionUser.name);
+  },[sessionUser,requesterName]);
   const scrollRef=useRef(null);
   const inputRef=useRef(null);
 
@@ -334,7 +344,13 @@ function NewRequestV8({store,goToInbox,goToCockpit,settings,prefillDesc}){
 //    On integration with aegis-v7-aurora.jsx, this is replaced by the real v7.2 NewRequestTab
 //    (lines 1512–1712 in v7), just re-routed through the v8 addTicketAndRunAgent path.
 function LegacyFormInner({store,initialType,initialDesc,goToInbox,settings}){
+  // Session-resolved default for the requester `from` field. Same
+  // pattern as CopilotChat: pre-fill, leave editable. Phase 1a.
+  const{user:sessionUser}=useCurrentUser();
   const[form,setForm]=useState({from:"",dept:"Product",type:initialType||"Contract Review",desc:initialDesc||"",attach:0,urgency:"Standard"});
+  useEffect(()=>{
+    if(sessionUser?.name&&!form.from) setForm(f=>f.from?f:{...f,from:sessionUser.name});
+  },[sessionUser,form.from]);
   const[submitted,setSubmitted]=useState(false);
   const[createdTicket,setCreatedTicket]=useState(null);
   const[busy,setBusy]=useState(false);
@@ -690,7 +706,13 @@ function BulkConfirmCard({selected,tickets,onConfirm,onCancel}){
 // CockpitTab — the main component
 // ══════════════════════════════════════════════════
 function CockpitTab({store,cockpit}){
-  const attorney=cockpit.state.attorney;
+  // Session-resolved attribution (Phase 1a). cockpit.state.attorney
+  // is null on a fresh load; we fall back to the Auth0-resolved
+  // user. The server is still authoritative on persisted audit rows
+  // (saveTicketsV8 overwrites triagedBy from the session) — this
+  // value is for the Cockpit's header + optimistic display.
+  const{user:sessionUser}=useCurrentUser();
+  const attorney=cockpit.state.attorney||sessionUser?.name||"—";
   const allTickets=store.tickets;
 
   // Queue: awaiting-triage tickets first (newest first), then already-triaged below
