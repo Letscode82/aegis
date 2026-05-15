@@ -61,6 +61,11 @@ export function AIOperationsSection(){
         Loading agent activity…
       </div>
     )}
+    {data && Array.isArray(data.panelErrors) && data.panelErrors.length > 0 && (
+      <div style={{background:C.cd,border:`1px solid ${C.am}55`,padding:"8px 12px",fontSize:10,color:C.am,fontFamily:M,letterSpacing:.3,marginBottom:10}}>
+        Some panels couldn’t load: {data.panelErrors.join(", ")}. The remaining panels are live.
+      </div>
+    )}
     {data && (
       <>
         <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:12,marginBottom:12}}>

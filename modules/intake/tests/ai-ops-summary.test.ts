@@ -338,6 +338,7 @@ describe("getAIOperationsSummary()", () => {
       agentEvents: 0,
     });
     expect(typeof out.asOf).toBe("string");
+    expect(out.panelErrors).toEqual([]);
   });
 
   it("exposes the curated action set used by both server and UI", () => {
@@ -345,5 +346,107 @@ describe("getAIOperationsSummary()", () => {
     expect(ACTIVITY_ACTIONS).toContain("intake.recommendation.approved");
     expect(ACTIVITY_ACTIONS).toContain("intake.ticket.escalated");
     expect(ACTIVITY_ACTIONS).toContain("intake.ticket.closed");
+  });
+
+  // ── Resilience: per-panel try/catch ───────────────────────────────
+  //
+  // Each sub-query has its own failure mode (auditLog.findMany,
+  // auditLog.groupBy, intakeTicket.findMany). A single failure no
+  // longer 500s the whole endpoint — the surviving panels return
+  // normally and the failed panel is sentinel'd. The dashboard
+  // surfaces panelErrors so the operator sees which section died.
+
+  it("returns partial data + panelErrors=['activity'] when activity query throws", async () => {
+    // First auditLog.findMany call backs the activity panel.
+    auditLogFindMany.mockReset();
+    auditLogFindMany.mockRejectedValueOnce(new Error("connection terminated"));
+    // Subsequent calls (scorecard, pendingReview) succeed empty.
+    auditLogFindMany.mockResolvedValue([]);
+    auditLogGroupBy.mockResolvedValueOnce([]);
+    intakeTicketFindMany.mockResolvedValue([]);
+    userFindMany.mockResolvedValue([]);
+    agentRecommendationFindMany.mockResolvedValue([]);
+
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const out = await getAIOperationsSummary("org1");
+    errSpy.mockRestore();
+
+    expect(out.activity).toEqual([]);
+    expect(out.scorecard.agentEvents).toBe(0);
+    expect(out.pendingReview).toEqual([]);
+    expect(out.panelErrors).toEqual(["activity"]);
+  });
+
+  it("returns partial data + panelErrors=['scorecard'] when scorecard query throws", async () => {
+    auditLogFindMany.mockResolvedValue([]);
+    // First groupBy call powers the scorecard. Force it to throw.
+    auditLogGroupBy.mockReset();
+    auditLogGroupBy.mockRejectedValueOnce(new Error("scorecard down"));
+    intakeTicketFindMany.mockResolvedValue([]);
+    userFindMany.mockResolvedValue([]);
+    agentRecommendationFindMany.mockResolvedValue([]);
+
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const out = await getAIOperationsSummary("org1");
+    errSpy.mockRestore();
+
+    expect(out.activity).toEqual([]);
+    expect(out.scorecard).toMatchObject({
+      accuracy: null,
+      coverage: null,
+      avgReviewTimeMs: null,
+      escalationRate: null,
+      agentEvents: 0,
+    });
+    expect(out.pendingReview).toEqual([]);
+    expect(out.panelErrors).toEqual(["scorecard"]);
+  });
+
+  it("emits a structured JSON log line on panel failure, naming the panel + error", async () => {
+    auditLogFindMany.mockReset();
+    const boom = new Error("ECONNRESET");
+    auditLogFindMany.mockRejectedValueOnce(boom);
+    auditLogFindMany.mockResolvedValue([]);
+    auditLogGroupBy.mockResolvedValueOnce([]);
+    intakeTicketFindMany.mockResolvedValue([]);
+    userFindMany.mockResolvedValue([]);
+    agentRecommendationFindMany.mockResolvedValue([]);
+
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    await getAIOperationsSummary("org-xyz");
+    expect(errSpy).toHaveBeenCalledTimes(1);
+    const logged = errSpy.mock.calls[0]?.[0];
+    expect(typeof logged).toBe("string");
+    const parsed = JSON.parse(logged as string);
+    expect(parsed).toMatchObject({
+      source: "@aegis/intake/ai-ops",
+      panel: "activity",
+      organizationId: "org-xyz",
+      errorName: "Error",
+      errorMessage: "ECONNRESET",
+    });
+    expect(typeof parsed.stack).toBe("string");
+    errSpy.mockRestore();
+  });
+
+  it("lists every failed panel in panelErrors when multiple sub-queries throw", async () => {
+    auditLogFindMany.mockReset();
+    auditLogFindMany.mockRejectedValueOnce(new Error("activity boom"));
+    auditLogFindMany.mockRejectedValue(new Error("pendingReview boom"));
+    auditLogGroupBy.mockReset();
+    auditLogGroupBy.mockRejectedValueOnce(new Error("scorecard boom"));
+
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const out = await getAIOperationsSummary("org1");
+    errSpy.mockRestore();
+
+    expect(out.panelErrors.sort()).toEqual(
+      ["activity", "pendingReview", "scorecard"].sort(),
+    );
+    // Even with all three down, the response is well-formed and the
+    // dashboard renders an empty state per panel.
+    expect(out.activity).toEqual([]);
+    expect(out.pendingReview).toEqual([]);
+    expect(out.scorecard.agentEvents).toBe(0);
   });
 });

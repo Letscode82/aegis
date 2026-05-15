@@ -105,13 +105,39 @@ export interface PendingReviewItem {
   confidence: number | null;
 }
 
+/**
+ * Per-panel sentinel for when an upstream Prisma query fails. The
+ * endpoint never throws out of the top-level composer — instead it
+ * fills the affected panel(s) with the sentinel below and lists the
+ * names in `panelErrors`. The dashboard renders the surviving panels
+ * normally and shows a small "couldn't load" affordance for the
+ * failed ones. Without this, one transient DB hiccup tanks the whole
+ * AI Operations section of Mission Control.
+ */
+export type AIOperationsPanel = "activity" | "scorecard" | "pendingReview";
+
 export interface AIOperationsSummary {
   activity: ActivityEvent[];
   scorecard: Scorecard;
   pendingReview: PendingReviewItem[];
   /** ISO timestamp the summary was computed at. */
   asOf: string;
+  /** Names of panels whose upstream query failed. Empty in the happy
+   *  path. Reads should fall back to a per-panel "couldn't load" UI
+   *  rather than blanking the whole section. */
+  panelErrors: AIOperationsPanel[];
 }
+
+/** Empty scorecard sentinel used when getAgentScorecard throws. All
+ *  ratio fields are null (denominator-zero semantics match how the
+ *  dashboard already renders no-data state). */
+const EMPTY_SCORECARD: Scorecard = {
+  accuracy: null,
+  coverage: null,
+  avgReviewTimeMs: null,
+  escalationRate: null,
+  agentEvents: 0,
+};
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -391,19 +417,60 @@ export async function getPendingReviewQueue(
 
 // ── Composer ─────────────────────────────────────────────────────────
 
+/**
+ * Run a per-panel query and fall through to a sentinel on error.
+ * Logs a structured line on failure so Vercel logs reveal which
+ * panel died and why (the top-level handler only sees the composed
+ * result and can't tell which sub-query was the culprit).
+ *
+ * NB: AbortError / connection-pool errors are still swallowed by
+ * design — the user sees a degraded dashboard, not a 500. The error
+ * goes to the log for the operator to investigate.
+ */
+async function runPanel<T>(
+  panel: AIOperationsPanel,
+  organizationId: string,
+  load: () => Promise<T>,
+  fallback: T,
+): Promise<{ value: T; ok: boolean }> {
+  try {
+    return { value: await load(), ok: true };
+  } catch (err) {
+    const e = err as { name?: string; message?: string; stack?: string };
+    console.error(
+      JSON.stringify({
+        source: "@aegis/intake/ai-ops",
+        panel,
+        organizationId,
+        errorName: e?.name ?? "Error",
+        errorMessage: e?.message ?? String(err),
+        // Stack is intentionally included — Vercel truncates after a
+        // few KB, which is enough to localise the failure point.
+        stack: e?.stack ?? null,
+      }),
+    );
+    return { value: fallback, ok: false };
+  }
+}
+
 export async function getAIOperationsSummary(
   organizationId: string,
   now: Date = new Date(),
 ): Promise<AIOperationsSummary> {
   const [activity, scorecard, pendingReview] = await Promise.all([
-    getRecentAgentActivity(organizationId, 20),
-    getAgentScorecard(organizationId, now),
-    getPendingReviewQueue(organizationId, 5),
+    runPanel("activity", organizationId, () => getRecentAgentActivity(organizationId, 20), [] as ActivityEvent[]),
+    runPanel("scorecard", organizationId, () => getAgentScorecard(organizationId, now), EMPTY_SCORECARD),
+    runPanel("pendingReview", organizationId, () => getPendingReviewQueue(organizationId, 5), [] as PendingReviewItem[]),
   ]);
+  const panelErrors: AIOperationsPanel[] = [];
+  if (!activity.ok) panelErrors.push("activity");
+  if (!scorecard.ok) panelErrors.push("scorecard");
+  if (!pendingReview.ok) panelErrors.push("pendingReview");
   return {
-    activity,
-    scorecard,
-    pendingReview,
+    activity: activity.value,
+    scorecard: scorecard.value,
+    pendingReview: pendingReview.value,
     asOf: now.toISOString(),
+    panelErrors,
   };
 }
