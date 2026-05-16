@@ -3,252 +3,144 @@
 > **This document is derived from
 > [`agent-redline-architecture.md`](./agent-redline-architecture.md).**
 > The architecture doc is the durable source of truth for the
-> non-negotiable commitments (reliability, failover, multi-tenancy,
-> security, compliance, etc.). This roadmap sequences PRs against
-> those commitments.
+> non-negotiable commitments. This roadmap sequences PRs against
+> those commitments using the **demo-grade-first, harden-
+> incrementally** philosophy that the operator locked on
+> 2026-05-16.
 >
-> If the roadmap and the architecture disagree, **the architecture
-> wins** and the roadmap is wrong. Read the architecture first.
+> If the roadmap and the architecture disagree, **the
+> architecture wins** and the roadmap is wrong.
 >
-> **Status:** DRAFT pending operator sign-off on architecture
-> Assumptions A1–A8 and the 12 open questions at the end of the
-> architecture doc. No code lands until sign-off.
+> **Status:** DRAFT pending operator merge of the architecture PR.
 
-## Why this exists
+## Locked context
 
-Per the Dani McGarry framing surfaced in the May 2026 product
-review: *"AI & data is not all you need."* AEGIS's GC value comes
-from the union of process re-engineering, workflow digitization,
-and AI — not AI alone. A chatbot that answers NDA questions in
-isolation is a toy; a system that **takes the inbound NDA, checks
-it against your playbook, surfaces the deviations to the attorney
-in their queue, captures their accept/reject decisions, and
-generates the redlined response document** is a transformation
-tool.
+From `agent-redline-architecture.md` Decisions-locked log:
 
-This is the hero feature. Document-aware intake is the wedge that
-moves AEGIS from "intelligent inbox" to "operating system for the
-GC's office." Every Fortune 50 GC interview to date has identified
-the same loop as the highest-value automation candidate.
+- **Target ICP:** Mid-market GC (Series B-D, 100-1000 employees,
+  SOC2 + GDPR-if-EU)
+- **Volume:** 100 reviews/day year-1, 1,000/day year-3
+- **Build philosophy:** Demo-grade first, harden incrementally
+- **First demo target:** ~3 weeks from operator green-light
+- **First-paying-customer-ready target:** ~14 weeks
 
-The build sequences across **9 intake agents** over an estimated
-**6 weeks**, infrastructure-first so the first agent costs the most
-and each subsequent agent costs ~2 days.
+This means the roadmap is **two interleaved tracks**:
 
-## Vision — the loop, end to end
+- **Feature track** — adds an agent or capability (12 PRs total)
+- **Hardening track** — moves the system toward production
+  SLOs along one of the 10 dimensions (6 PRs total)
+
+Both tracks ship to the same `main` branch. Hardening PRs are
+**not** held until features are complete — they're inserted
+into the sequence at the point where their risk becomes the
+binding constraint.
+
+## Visual sequence
 
 ```
-┌──────────────────┐    ┌────────────────┐    ┌───────────────────┐
-│  Intake form     │ →  │  Storage +     │ →  │  Agent reviews    │
-│  uploads NDA     │    │  text extract  │    │  vs playbook      │
-└──────────────────┘    └────────────────┘    └───────────────────┘
-                                                       │
-                                                       ▼
-┌──────────────────┐    ┌────────────────┐    ┌───────────────────┐
-│  Revised .docx   │ ←  │  Attorney      │ ←  │  Cockpit shows    │
-│  with track      │    │  accept/reject │    │  N deviations as  │
-│  changes sent    │    │  per redline   │    │  inline redlines  │
-└──────────────────┘    └────────────────┘    └───────────────────┘
+Week  PR      Track    Title                                       Demo win
+────────────────────────────────────────────────────────────────────────────
+  1   PR-A    F        Documents foundation skeleton +              Cockpit
+                       Cockpit filter fix                            picks up
+                                                                    new tickets
+  2   PR-B    F        Playbook schema + admin editor + NDA seed   Admin UI
+  3   PR-C    F        NDA agent v1 — paste-text → redlines       FIRST
+                                                                    HERO DEMO
+  4   PR-D    F        NDA agent v2 — file upload + .docx output  Real NDA
+                                                                    workflow
+  5   PR-Hard1 H       Multi-tenancy hardening (RLS + CI test)    (silent —
+                                                                    security)
+  6   PR-E    F        Contract Review agent (MSA / SOW)          Highest-ROI
+                                                                    demo
+  7   PR-Hard2 H       PII redaction layer + content                (silent —
+                       classification                                privilege
+                                                                    protection)
+  8   PR-F    F        Privacy / DSAR agent                       Regulatory
+                                                                    value demo
+  9   PR-G    F        Vendor Due Diligence agent                 Procurement
+                                                                    use case
+ 10   PR-Hard3 H       Reliability (circuit breakers + Claude       (silent —
+                       fallback chain)                              uptime)
+ 11   PR-H    F        Trademark Check agent                       Brand-team
+                                                                    use case
+ 12   PR-I    F        IP + Contract Q + Legal General             Q&A agents
+                       (Q&A agents, shared base)
+ 13   PR-Hard4 H       Observability (Sentry + structured logs +    (silent —
+                       basic metrics)                               on-call
+                                                                    readiness)
+ 14   PR-J    F        Other (routing-only, no agent)              Last 1 of
+                                                                    9 agents
+ 15   PR-Hard5 H       Rate limiting + cost control (per-org        (silent —
+                       budgets + pre-flight estimation)             billing
+                                                                    safety)
+ 16   PR-Hard6 H       Failover (S3 secondary + dual-write +        (silent —
+                       hash verification)                           DR)
+ 17   PR-K    F        GDPR right-to-erasure + retention policy   First paying
+                       + eDiscovery export                          customer-
+                                                                    ready
+────────────────────────────────────────────────────────────────────────────
+                                                              Total: ~14-17 weeks
 ```
 
-Two modes per agent:
+## Feature track (12 PRs)
 
-- **REVIEW** — file attached → agent finds deviations from playbook
-  → attorney redlines → revised document
-- **DRAFT** — no file → agent generates from template + requirements
-  → attorney edits → final document
+### PR-A — Documents foundation skeleton + Cockpit filter fix
 
-Both modes write `AgentDecision` rows (4b contract) and chain-sealed
-`AuditLog` rows. Conservative AI governance applies: every redline
-the agent suggests requires explicit attorney accept/reject — no
-"approve all" without a paranoia confirmation. Drift is caught by
-the audit chain.
+**Demo win:** Cockpit picks up newly-filed tickets (closes the
+post-P1b gap where stage="assigned" tickets fell between the
+"new" and "triaged" buckets).
 
-## The 9 intake agents
-
-Mirrors the 9 request types on the New Request form. Each gets the
-same architectural treatment, ordered by demo / sales value:
-
-| Order | Agent | Playbook complexity | Modes | Why this order |
-|---|---|---|---|---|
-| 1 | **NDA** | Low (8-12 positions) | REVIEW + DRAFT | Iconic use case. Smallest playbook so the redline UI lands first against the simplest semantics. |
-| 2 | **Contract Review** (MSA / SOW) | High (40-60 positions) | REVIEW only | Highest-volume use case for in-house. Best ROI demo for "this saves real attorney hours." |
-| 3 | **Privacy / DSAR** | Medium (rule-driven cadence) | REVIEW + DRAFT | Regulatory pressure (GDPR/CCPA). Demos compliance value, not just efficiency. |
-| 4 | **Vendor Due Diligence** | Medium (vendor T&Cs vs ours) | REVIEW only | Procurement-adjacent. Adoption easier — procurement teams already do this manually. |
-| 5 | **Trademark Check** | Low (clearance search rules) | DRAFT primarily | Brand-team adjacent. Simple playbook (jurisdiction, classes, similarity rules). |
-| 6 | **IP Question** | Low (advisory) | DRAFT | Q&A style; less redline value, more recommendation value. |
-| 7 | **Contract Question** | Low (advisory) | DRAFT | Q&A style; same shape as IP. |
-| 8 | **Legal Question — General** | Low (catch-all) | DRAFT | Routes to GC if confidence is low. |
-| 9 | **Other** | None | Manual triage | Routing only — no agent automation. |
-
-**The first agent (NDA) carries 100% of the new infrastructure
-cost.** Agents 2-8 each cost roughly 2 days because they add a
-new playbook + a new prompt + a per-agent output specialisation —
-nothing else. Agent 9 is routing-only.
-
-## Architecture
-
-### New / re-loaded packages
-
-| Package | Status before | Status after |
-|---|---|---|
-| `@aegis/documents` | **stub** | **load-bearing.** Real `StorageBackend` interface with Vercel Blob (default) + local-filesystem (dev) + S3 (plug-in). Document upload, retrieve, version chain, audit. |
-| `@aegis/db` | adds | `Playbook`, `PlaybookEntry`, `PlaybookEntrySeverity` enum. Extensions to `Document` (storage key, content hash, MIME type, size, parent for versions, extracted text). New `AgentReview` model (links to `AgentRecommendation`, carries `Redline[]` JSON). |
-| `@aegis/ai` | adds | New module-level prompts: `composeDocumentReview(playbook, doc, agentType)` returns `Promise<AgentReview>`. Same `callClaudeJSON` chokepoint, same audit. |
-| `modules/intake` | adds | Per-agent specialisation (one TS file per agent in `src/agents/redline/`). Cockpit redline viewer. New form attachment widget. |
-
-### New schema (cumulative across PRs in this roadmap)
-
-```prisma
-// PR1 — Documents foundation
-model Document {
-  // ... existing polymorphic fields ...
-  storageBackend  String   // "vercel-blob" | "local-fs" | "s3"
-  storageKey      String   // backend-specific opaque blob id
-  contentHash     String   // SHA-256 of bytes — dedup + tamper detection
-  mimeType        String
-  sizeBytes       Int
-  extractedText   String?  // text extracted from .docx/.pdf for agent input
-  parentDocumentId String? // version chain — NULL on root, set on revisions
-  parent          Document? @relation("DocumentVersions", fields: [parentDocumentId], references: [id])
-  versions        Document[] @relation("DocumentVersions")
-  // ... indexes on (org, ownerType, ownerId), (org, contentHash) ...
-}
-
-// PR2 — Playbook schema
-model Playbook {
-  id              String   @id @default(cuid())
-  organizationId  String
-  agentType       String   // "NDA" | "ContractReview" | "Privacy" | ...
-  name            String   // "Standard NDA Playbook (US)"
-  description     String?
-  isDefault       Boolean  @default(false)  // one default per (org, agentType)
-  // ...
-  entries         PlaybookEntry[]
-}
-
-model PlaybookEntry {
-  id              String   @id @default(cuid())
-  playbookId      String
-  position        String   // "Term length", "Governing law", "Mutual confidentiality", ...
-  severity        PlaybookEntrySeverity  // BLOCKER | HIGH | MEDIUM | LOW
-  acceptableLanguagePatterns Json  // array of regex / phrase patterns
-  redlineLanguage String   // suggested replacement text
-  rationale       String   // shown to attorney explaining the deviation
-  orderInPlaybook Int      // display order
-}
-
-enum PlaybookEntrySeverity { BLOCKER HIGH MEDIUM LOW }
-
-// PR3 — AgentReview output
-model AgentReview {
-  id                      String   @id @default(cuid())
-  agentRecommendationId   String   @unique
-  agentRecommendation     AgentRecommendation @relation(...)
-  documentId              String?  // source document being reviewed (null for DRAFT mode)
-  playbookId              String   // playbook used at review time
-  playbookVersionSnapshot Json     // immutable snapshot of the playbook entries
-  redlinesJson            Json     // Redline[] — see TS type below
-  modeAtReview            String   // "REVIEW" | "DRAFT"
-  // ...
-}
-
-// Redline TypeScript shape (stored in redlinesJson)
-type Redline = {
-  id: string;
-  playbookEntryId: string | null;  // null for ad-hoc redlines
-  position: string;
-  severity: "BLOCKER" | "HIGH" | "MEDIUM" | "LOW";
-  textSpanStart: number;     // char offset into document text
-  textSpanEnd: number;
-  originalText: string;
-  suggestedText: string;
-  rationale: string;
-  status: "PENDING" | "ACCEPTED" | "REJECTED" | "EDITED";
-  editedText?: string;       // attorney's override of suggestedText
-  decidedBy?: string;        // User.id when status leaves PENDING
-  decidedAt?: number;
-};
-```
-
-### New permissions (`@aegis/auth`)
-
-- `documents:upload` — file upload via the intake form
-- `documents:read` — retrieve documents (resource-scoped — caller must
-  have read access to the parent ticket / matter)
-- `documents:delete` — remove a document version (admin / owner)
-- `playbook:read` — view playbook entries
-- `playbook:write` — admin CRUD for playbooks
-- `agent:redline:override` — attorney-side accept/reject/edit per
-  redline (granted to `attorney`, `gc`, `paralegal`, `legal_ops`)
-
-Admin role auto-includes via the existing `ROLE_PERMISSIONS.admin =
-[...all]` superset bundle (the module-load assertion catches drift
-automatically — no separate maintenance burden).
-
-### Audit actions (new)
-
-- `document.uploaded` — file lands in storage
-- `document.retrieved` — content fetched (rate-limited; one row per
-  request, not per byte)
-- `document.deleted` — version pruned
-- `document.text_extracted` — async OCR / parse completes
-- `playbook.created`, `playbook.updated`, `playbook.entry_added`,
-  `playbook.entry_removed`, `playbook.deactivated`
-- `agent.review.produced` — agent emits AgentReview
-- `agent.review.redline.accepted` — attorney accepts a redline
-- `agent.review.redline.rejected` — attorney rejects a redline
-- `agent.review.redline.edited` — attorney accepts with text edit
-- `agent.review.completed` — all redlines decided + final document
-  generated
-
-All written via the existing `logAudit()` chokepoint. Chain trigger
-+ hash-link invariants are unchanged. Adding new action names
-doesn't break older readers (they're filtered, not enumerated).
-
-## PR sequence
-
-Each PR ships independently and the demo works at every checkpoint.
-
-### PR-A — Roadmap doc + Cockpit filter fix (this PR)
-
-- This document.
-- Cockpit `awaiting` filter expanded from `stage === "new"` to
-  `stage === "new" || (stage === "assigned" && !triagedBy)`.
-- Header "AWAITING TRIAGE" pill counter mirrors the same filter.
-- No schema change, no migration.
-- **Unblocks the demo** — without this, every ticket filed via the
-  P1b path lands in the gap between "new" and "triaged."
-
-### PR-B — `@aegis/documents` foundation
-
-- `StorageBackend` interface (`upload`, `retrieve`, `delete`).
-- `VercelBlobStorageBackend` (default in production).
-- `LocalFilesystemStorageBackend` (default in dev — `.aegis-blob/`
-  under `.gitignore`'d). 
+**Ships:**
+- `@aegis/documents` package becomes real:
+  - `StorageBackend` interface (`upload`, `retrieve`, `delete`)
+  - `VercelBlobStorageBackend` (default, production-ready) —
+    written so dual-write (PR-Hard6) is a one-file additive
+    change later
+  - `LocalFilesystemStorageBackend` (dev fallback, .gitignored)
+  - **No S3 secondary in this PR.** Documents foundation is
+    single-storage at demo stage.
 - Schema migration: extend `Document` with `storageBackend`,
   `storageKey`, `contentHash`, `mimeType`, `sizeBytes`,
-  `extractedText`, `parentDocumentId`.
+  `extractedText`, `parentDocumentId`. **Without** `degraded`,
+  `secondaryBackend`, `secondaryKey` fields (those land in
+  PR-Hard6).
 - New audit actions: `document.uploaded`, `document.retrieved`,
   `document.deleted`.
 - New permissions: `documents:upload`, `documents:read`,
   `documents:delete`.
 - Endpoints: `POST /api/documents/upload` (multipart),
-  `GET /api/documents/[id]/content` (signed URL or stream).
-- Module-isolation: `@aegis/documents` is the only place that
-  imports the storage backend; modules call its public API.
+  `GET /api/documents/[id]/content`.
+- **Cockpit filter fix** bundled per operator instruction:
+  filter for "awaiting triage" expanded from `stage === "new"`
+  to `(stage === "new" || stage === "assigned") && !triagedBy`.
+  Same fix to the header pill counter.
 - Tests: storage backend interface contract (both
-  implementations), audit emission, permission gating.
-- **No UI yet** — pure infrastructure.
+  implementations), audit emission, permission gating, Cockpit
+  filter regression.
 
-### PR-C — Playbook schema + admin editor + NDA seed
+**Does NOT ship (deferred to PR-Hard rounds):**
+- RLS policies (PR-Hard1)
+- Virus scanning (PR-Hard2)
+- PII redaction (PR-Hard2)
+- Dual-write S3 (PR-Hard6)
+- Structured-log sink integration (PR-Hard4)
 
+**Estimated effort:** 3-4 days.
+
+---
+
+### PR-B — Playbook schema + admin editor + NDA seed
+
+**Demo win:** Admin can configure NDA playbook positions from
+`/admin/playbooks`. The agent doesn't use the playbook yet, but
+the data is in place.
+
+**Ships:**
 - Schema migration: `Playbook` + `PlaybookEntry` +
   `PlaybookEntrySeverity` enum.
 - Admin pages at `/admin/playbooks` (list) and
   `/admin/playbooks/[id]` (edit).
-- Seed: one default NDA Playbook with 8 positions covering the
-  most common deviations:
+- Seed: one default NDA Playbook with 8 positions:
   1. Mutual vs unilateral confidentiality (BLOCKER)
   2. Term length ≤ 3 years (HIGH)
   3. Governing law in {DE, NY, CA} (HIGH)
@@ -259,201 +151,428 @@ Each PR ships independently and the demo works at every checkpoint.
   8. No assignment without consent (LOW)
 - New permissions: `playbook:read`, `playbook:write`.
 - New audit actions: `playbook.*`.
-- Tests: playbook CRUD, default-uniqueness, audit emission.
+- Tests: CRUD, default-uniqueness, audit emission.
 
-### PR-D — NDA Agent v1 (paste-text mode, redline output)
+**Estimated effort:** 2-3 days.
 
-- New `modules/intake/src/agents/redline/nda.ts` — implements
+---
+
+### PR-C — NDA agent v1 (paste-text mode → redlines)
+
+**🎯 Demo win — FIRST HERO DEMO.** GC requester pastes an NDA
+into the form → agent finds N deviations from the playbook →
+Cockpit shows them with severity pills → attorney clicks Accept
+on some, Reject on others, Edit-and-Accept on a few → revised
+document appears.
+
+**Ships:**
+- `modules/intake/src/agents/redline/nda.ts` — implements
   `compose(documentText, playbook): Promise<AgentReview>` via
-  `@aegis/ai.callClaudeJSON`.
+  `@aegis/ai.callClaudeJSON`. **Claude-only at demo stage** (no
+  fallback chain yet — that's PR-Hard3).
 - Schema migration: `AgentReview` model.
 - New permission: `agent:redline:override`.
-- New audit actions: `agent.review.*`.
+- New audit actions: `agent.review.produced`,
+  `agent.review.redline.accepted`,
+  `agent.review.redline.rejected`,
+  `agent.review.redline.edited`,
+  `agent.review.completed`.
 - Form change: NDA-type tickets get a textarea ("Paste the NDA
   text here") in addition to the standard description field.
 - Cockpit: when a ticket has an `AgentReview` row, render the
-  `RedlineViewer` component:
-  - Document text on the left with inline highlighting per redline
+  new `RedlineViewer` component:
+  - Document text on the left with inline highlighting per
+    redline
   - Right rail: list of redlines with severity pill, position,
-    rationale, suggested text, and three buttons (Accept, Reject,
-    Edit & Accept)
-  - Footer: "Decide all" affordance with paranoia type-to-confirm
-    when ≥3 BLOCKERS are still PENDING
+    rationale, suggested text, and three buttons (Accept,
+    Reject, Edit-and-Accept)
+  - Footer: "Decide all" affordance with paranoia type-to-
+    confirm when ≥3 BLOCKERS are still PENDING (per A8)
 - Generated revised document is stored as a child Document
   (`parentDocumentId` set).
-- Tests: agent prompt composition, redline shape, accept/reject
-  audit emission, RedlineViewer behavior under each state.
-- **First demoable end-to-end loop.**
+- Optimistic locking on Redline state changes (per ADR-003) —
+  ships from day 1, not as a hardening step.
+- Tests: prompt composition, redline shape, accept/reject audit
+  emission, RedlineViewer behavior per state.
 
-### PR-E — NDA Agent v2 (real file upload)
+**Does NOT ship:**
+- File upload (PR-D)
+- LLM fallback chain (PR-Hard3)
+- PII redaction (PR-Hard2)
+- Async streaming pipeline (PR-Hard4 — initial implementation
+  is synchronous; UI shows "Reviewing…" spinner)
 
+**Estimated effort:** 3-4 days. **This is the most important
+demoable PR in the sequence.**
+
+---
+
+### PR-D — NDA agent v2 (real file upload + redlined .docx)
+
+**Demo win:** Complete the loop. Counterparty sends a real .docx
+NDA → uploaded via the form → agent extracts text + reviews →
+attorney redlines → revised .docx with marked-up paragraphs
+downloads back. End-to-end paper-in, paper-out.
+
+**Ships:**
 - Form change: file input for NDA tickets (.docx / .pdf only,
   ≤25 MB).
-- Server-side text extraction:
-  - `.docx` → `mammoth` (npm) — extracts plain text + preserves
-    paragraph structure
-  - `.pdf` → `pdf-parse` (npm) — text-only PDFs work; OCR for
-    scanned PDFs is deferred to PR-J
-- Async extraction job: upload returns immediately with the
-  Document row at `extractedText: null`; a worker (admin HTTP
-  trigger; pg-boss-ready, same pattern as the 4c.5 defensibility
-  snapshot) extracts text and updates the row + emits
-  `document.text_extracted` audit. Cockpit shows "Extracting…"
-  state until extraction completes.
-- Generated revised document = `.docx` with track-changes,
-  produced by `docx` (npm) library.
-- Tests: extraction backends, async job idempotency, generated
-  .docx structure.
+- Server-side text extraction (synchronous at demo stage; async
+  worker comes in PR-Hard4):
+  - `.docx` → `mammoth` npm — extracts plain text + paragraph
+    structure
+  - `.pdf` → `pdf-parse` npm — text-only PDFs (OCR for scanned
+    PDFs deferred to post-MVP)
+- Basic MIME validation via extension check + `Content-Type`
+  header. **Magic-bytes sniff + virus scan land in PR-Hard2.**
+- Generated revised document = `.docx` via `docx` npm with
+  before/after paragraphs (full Word track-changes XML markup is
+  a post-MVP polish item).
+- Tests: extraction backends (both formats), generated .docx
+  structure.
 
-### PR-F — Contract Review Agent (full)
+**Estimated effort:** 3-4 days.
 
-- Same shape as PR-D + PR-E combined, specialised for MSA / SOW.
-- Seed: Default Contract Playbook with ~50 positions — limitation
-  of liability, indemnity, IP assignment, termination convenience,
-  payment terms, audit rights, etc.
-- New per-agent prompt that emphasises liability allocation +
-  indemnity asymmetry — the highest-value redlines for in-house.
+---
+
+### PR-E — Contract Review agent (full)
+
+**Demo win:** Same shape as NDA but on a real MSA. ~40-60
+playbook positions covering limitation of liability, indemnity,
+IP assignment, termination convenience, payment terms, audit
+rights. **The biggest-ROI demo** — "this saves a partner 4 hours
+on every MSA review."
+
+**Ships:**
+- Same architecture as NDA (paste-text + file upload modes).
+- Seed: Default Contract Playbook with ~50 positions.
+- Per-agent prompt emphasising liability allocation + indemnity
+  asymmetry (the high-value redlines for in-house).
+- New entries in the request-type → agent map.
 - Tests: playbook coverage, prompt regression on three sample
-  MSAs (Snowflake, Stripe, AWS-style — anonymised).
+  anonymised MSAs (Snowflake-style, Stripe-style, AWS-style).
 
-### PR-G — Privacy / DSAR Agent
+**Estimated effort:** 2-3 days (reuses infrastructure).
 
-- Same shape; specialised playbook for response cadence + required
-  disclosures + applicability assessment.
-- DRAFT mode: generates DSAR response template with deadline +
-  required fields populated from the request type.
-- REVIEW mode: incoming privacy request → checks against company
-  policy + applicable regs (GDPR / CCPA / state-level).
+---
 
-### PR-H — Vendor Due Diligence Agent
+### PR-F — Privacy / DSAR agent
 
-- Vendor's standard T&Cs vs our requirements. Common deviations:
-  unlimited liability, automatic renewal, data residency,
-  subcontractor control, termination notice, audit rights.
-- DRAFT mode N/A (always REVIEW — incoming vendor paper).
+**Demo win:** Regulatory-pressure use case. Incoming DSAR →
+agent assesses applicability (GDPR / CCPA / state-level) →
+produces response template with deadline + required disclosures
+populated.
 
-### PR-I — Trademark Check Agent
+**Ships:**
+- Same architecture; specialised playbook for response cadence +
+  required disclosures.
+- **DRAFT mode**: generates DSAR response template.
+- **REVIEW mode**: incoming request → checks against company
+  policy + applicable regs.
+- Tests: per-regulation behaviour.
 
-- Mostly DRAFT mode: clearance search request → generates summary
-  + recommended next steps based on jurisdiction + classes.
-- REVIEW mode: incoming trademark application → checks against
-  our portfolio for conflicts.
+**Estimated effort:** 2-3 days.
 
-### PR-J — IP Question + Contract Question + Legal General Agents
+---
 
-- Q&A-style agents. Lighter playbook (FAQ-style positions).
-- DRAFT mode primary: produces an answer + confidence + escalation
-  recommendation.
-- These three share a common "Q&A agent base class" since their
-  shape is identical — only the prompt + playbook differ.
+### PR-G — Vendor Due Diligence agent
 
-### PR-K — Other (routing-only, no agent)
+**Demo win:** Procurement-adjacent. Vendor sends T&Cs → agent
+flags deviations from our requirements (unlimited liability,
+auto-renewal, data residency, subcontractor control, termination
+notice, audit rights).
 
-- Form change: "Other" requests skip the agent layer entirely and
-  go straight to a routing decision (sets `assignedToUserId`).
-- This is the catch-all; the 8 specialised agents handle 95% of
-  expected volume.
+**Ships:**
+- Same architecture; vendor-T&C playbook.
+- REVIEW mode only (always incoming paper).
+- Tests.
 
-### Out-of-scope (deferred — separate roadmap line)
+**Estimated effort:** 2 days.
 
-- OCR for scanned PDFs (Tesseract or AWS Textract).
-- Real `.docx` track-changes → Word XML mark-up (PR-E ships a
-  simpler "before / after paragraph" diff display).
-- Multi-document review (e.g., NDA + side letter together).
-- Counterparty negotiation chain (multi-round redline tracking).
-- E-signature integration (DocuSign / Adobe Sign).
-- Playbook learning (auto-suggest new positions from
-  attorney-edited redlines over time).
+---
 
-These all become future PRs after the 9 base agents ship.
+### PR-H — Trademark Check agent
+
+**Demo win:** Brand-team adjacent. Clearance search request →
+agent generates summary + recommended next steps based on
+jurisdiction + classes.
+
+**Ships:**
+- DRAFT mode primarily.
+- Per-jurisdiction playbook (clearance rules vary by USPTO /
+  EUIPO / WIPO).
+- Tests.
+
+**Estimated effort:** 2 days.
+
+---
+
+### PR-I — IP Question + Contract Question + Legal General
+
+**Demo win:** Q&A agents covering the catch-all advisory cases.
+Three agents share a common "Q&A base class" since their shape
+is identical — only the prompt + playbook differ.
+
+**Ships:**
+- New `QAAgent` base class in `modules/intake/src/agents/qa/`.
+- Three agent specialisations with their own prompts.
+- DRAFT mode only.
+- Routes to GC if confidence is low.
+- Tests.
+
+**Estimated effort:** 3 days (three agents, shared base).
+
+---
+
+### PR-J — Other (routing-only)
+
+**Demo win:** Last of the 9. Catch-all type — no agent
+automation; pure routing decision.
+
+**Ships:**
+- Form change: "Other" requests skip the agent layer entirely.
+- Routing rule sets `assignedToUserId` based on department +
+  urgency.
+- Tests.
+
+**Estimated effort:** 1 day.
+
+---
+
+### PR-K — First-paying-customer-ready (GDPR + retention + eDiscovery)
+
+**Demo win:** Closes the compliance loop. After this PR, the
+system is ready for the first external contract.
+
+**Ships:**
+- GDPR right-to-erasure workflow (request → conflict-with-
+  legal-hold detection → cryptographic PII erasure +
+  audit-row).
+- `RetentionPolicy` schema + admin editor.
+- Defensible deletion job (scheduled, captures certificate).
+- Signed eDiscovery export (PDF + JSON, anchored in audit
+  chain).
+- Tests: GDPR erasure roundtrip, retention expiry, eDiscovery
+  export verifiability.
+
+**Estimated effort:** 4-5 days.
+
+---
+
+## Hardening track (6 PRs)
+
+Each hardening PR addresses one production dimension from the
+architecture doc. They're inserted into the sequence at the
+point where their risk becomes binding.
+
+### PR-Hard1 — Multi-tenancy hardening (RLS + CI test)
+
+**When:** After PR-D (first hero demo working end-to-end on
+single-tenant assumptions). **Before** PR-E ships a second
+agent that broadens the attack surface.
+
+**Why now:** Multi-tenant isolation is a **zero-tolerance**
+SLO. Before any code that's hard to retrofit lands, RLS becomes
+the substrate.
+
+**Ships:**
+- Postgres RLS policies on every org-scoped table
+- Connection-level `SET app.org_id` middleware
+- Cross-tenant isolation test as **pre-merge CI required check**
+- Audit row on RLS-blocked attempts (`security.cross_tenant.blocked`)
+
+**Estimated effort:** 2-3 days.
+
+---
+
+### PR-Hard2 — PII redaction layer + content classification
+
+**When:** After PR-E (Contract Review). MSAs and contracts
+carry the highest concentration of regulated PII.
+
+**Why now:** Before more agents (Privacy, Vendor DD,
+Trademark, IP) compound the PII exposure.
+
+**Ships:**
+- `@aegis/log-redaction` package with US PII patterns
+- Redaction-before-vendor pipeline integrated into every agent
+  Claude call
+- `Document.classification` enum + per-doc classification at
+  upload
+- Vendor-opt-out for PRIVILEGED classification
+- Magic-bytes MIME sniffing (real, not header trust)
+- Virus scanning (Cloudflare Scanner or AWS Lambda + ClamAV)
+- Decompression-bomb detection on Office files
+- `@aegis/log` package with no-document-content guard
+  (build-time + runtime + ESLint rule)
+
+**Estimated effort:** 3-4 days.
+
+---
+
+### PR-Hard3 — Reliability (LLM fallback chain + circuit breakers)
+
+**When:** After PR-G (Vendor DD). At this point we have 4
+agents reliably calling Claude — Anthropic outage risk becomes
+binding.
+
+**Why now:** The first multi-agent Anthropic outage will be a
+visible quality incident across all 4 agents simultaneously.
+
+**Ships:**
+- 4-tier degradation chain (Claude 4.6 → Claude 4.5 → GPT-4 →
+  deterministic regex)
+- Circuit breaker per tier
+- Status-page integration with vendor health pull
+- Audit row on every tier-fallback engagement
+- Async streaming pipeline (SSE redline-by-redline) — needed
+  here because the GPT-4 fallback has different latency
+  characteristics
+- Tests: tier cascade behaviour, breaker state machine,
+  stream-correctness under tier switch
+
+**Estimated effort:** 4 days.
+
+---
+
+### PR-Hard4 — Observability (Sentry + structured logs + metrics)
+
+**When:** After PR-I (Q&A agents). Going from 7 to 8 agents
+moves us into "operations matter" territory.
+
+**Why now:** Before the first paying customer, we need real
+on-call readiness. Console logs aren't enough.
+
+**Ships:**
+- Sentry wired (errors + warnings)
+- Vercel Log Drains → Logtail (structured logs)
+- `@aegis/metrics` package (Prometheus-format export)
+- OpenTelemetry tracing (Claude calls as spans)
+- SLO burn-rate alerts (latency, error rate, tier engagement,
+  cross-tenant)
+- Runbooks under `docs/runbooks/` for each alert
+- On-call rotation tooling integration
+
+**Estimated effort:** 3-4 days.
+
+---
+
+### PR-Hard5 — Rate limiting + cost control
+
+**When:** After PR-J (Other agent — all 9 shipping). Volume
+risk peaks here.
+
+**Why now:** With all agents live, a runaway loop or bad actor
+could 10x Claude spend overnight. Hard budgets become
+load-bearing.
+
+**Ships:**
+- `OrganizationAgentBudget` model
+- Per-org daily token budget with hard cutoff at 100%
+- Alerts at 50% / 80% (email admin)
+- Per-user hourly request cap
+- Pre-flight token estimate in form UI
+- Audit row per Claude call with token count + cost estimate
+- Admin dashboard for spend monitoring
+
+**Estimated effort:** 2-3 days.
+
+---
+
+### PR-Hard6 — Failover (S3 secondary + dual-write + hash verification)
+
+**When:** Just before PR-K (first-customer-ready). Last
+hardening before external contract.
+
+**Why now:** Document loss is **zero-tolerance**. Before any
+external party's NDAs are stored, dual-write is non-
+negotiable.
+
+**Ships:**
+- `S3StorageBackend` implementation of `StorageBackend`
+- Schema migration: add `degraded`, `secondaryBackend`,
+  `secondaryKey`, `lastIntegrityCheckAt`,
+  `lastIntegrityCheckPassed` to `Document`
+- Dual-write on upload; hash verification on retrieve
+- Reconciliation cron (nightly)
+- Sampled integrity check (weekly, 1% of docs)
+- Cross-region S3 replication for production
+- Quarterly DR drill runbook in `docs/runbooks/`
+
+**Estimated effort:** 3-4 days.
+
+---
 
 ## Documented exceptions table (additions when PRs land)
 
-| Site | Sunset / permanent? |
+Each row added to the master table in `CLAUDE.md` when its PR
+lands. Sunset conditions explicit.
+
+| Site | Sunset / permanent? | Lands in |
+|---|---|---|
+| `@aegis/documents.LocalFilesystemStorageBackend` | **Permanent fallback** for dev. Production fail-loud guard mirrors `AUTH0_SECRET`. | PR-A |
+| `MockNDAAgent` (deterministic stub for CI / no-API-key) | **Permanent fallback** when `ANTHROPIC_API_KEY` unset. Real Claude in prod. | PR-C |
+| Synchronous text extraction (no async worker) | **Sunset at PR-Hard3** (async streaming pipeline). | PR-D |
+| Single-storage Vercel Blob (no S3 secondary) | **Sunset at PR-Hard6.** | PR-A |
+| Console-log observability (no Sentry / metrics / tracing) | **Sunset at PR-Hard4.** | PR-A through PR-Hard3 |
+| App-layer-only org isolation (no RLS) | **Sunset at PR-Hard1.** | PR-A through PR-D |
+| No PII redaction before Claude | **Sunset at PR-Hard2.** | PR-A through PR-E |
+| No LLM fallback chain (Claude-only) | **Sunset at PR-Hard3.** | PR-A through PR-G |
+| No per-org budget enforcement | **Sunset at PR-Hard5.** | PR-A through PR-J |
+| No GDPR right-to-erasure | **Sunset at PR-K.** | PR-A through PR-Hard6 |
+
+## Demo arc — what the operator sees as PRs land
+
+| After PR | Visible demo win |
 |---|---|
-| `@aegis/documents.LocalFilesystemStorageBackend` (PR-B) | **Permanent fallback** for dev environments without a Vercel Blob token. Production fail-loud guard mirrors the `AUTH0_SECRET` pattern. |
-| `extractedText` async job HTTP trigger (PR-E) | **Sunset when worker runtime ships** — same pattern as 4c.5 snapshot jobs. The service is pg-boss-ready; only the schedule wiring changes. |
-| `MockNDAAgent` (PR-D) | **Sunset when ANTHROPIC_API_KEY is set** — fallback to deterministic stub for dev / CI; real Claude in prod. |
+| PR-A | Cockpit shows new tickets correctly; admin can see Documents API; foundation in place |
+| PR-B | Admin can configure NDA playbook from `/admin/playbooks`; 8 default positions seeded |
+| **PR-C** | **🎯 FIRST HERO DEMO.** Paste-text NDA → agent finds 5 deviations → Cockpit shows them → attorney approves with one keystroke per redline → revised document appears |
+| PR-D | Real .docx upload + redlined .docx download. Counterparty paper-in, paper-out |
+| PR-Hard1 | (Silent) Cross-tenant isolation now enforced by Postgres, not just code review |
+| PR-E | Real MSA review demo — 40-60 deviations on a sample contract. The highest-ROI demo |
+| PR-Hard2 | (Silent) PII no longer goes to Claude in plaintext; privileged docs respect classification |
+| PR-F | DSAR response generation demo |
+| PR-G | Vendor T&C review demo |
+| PR-Hard3 | (Silent) Anthropic outage no longer takes down the workflow — tier cascade engages |
+| PR-H | Trademark clearance demo |
+| PR-I | Q&A agents demo (IP, Contract, Legal General) |
+| PR-Hard4 | (Silent) Sentry catches errors; on-call has runbooks; SLOs monitored |
+| PR-J | "Other" routing — all 9 agents shipping |
+| PR-Hard5 | (Silent) Per-org budgets enforced; admin spend dashboard |
+| PR-Hard6 | (Silent) Documents now dual-written to S3 secondary; hash-verified on every read |
+| **PR-K** | **🎯 FIRST-PAYING-CUSTOMER-READY.** GDPR erasure works; retention policies configurable; eDiscovery export signed and verifiable |
 
-## Module-load assertions (additions when PRs land)
+## Risk register
 
-| Guard | Triggers |
-|---|---|
-| Storage backend selection (PR-B) | If `NODE_ENV=production` and no `BLOB_READ_WRITE_TOKEN` (Vercel Blob) AND no `AWS_S3_BUCKET` (S3 plug-in) → throw at module load. |
-| Playbook severity catalog (PR-C) | `Object.values(PlaybookEntrySeverity).length === 4` — guards against silent enum drift. |
+Risks I'm tracking that aren't captured in dimensions:
 
-## Demo arc — what the user sees as PRs land
+| Risk | Likelihood | Severity | Mitigation |
+|---|---|---|---|
+| Playbook quality is the bottleneck, not infrastructure | High | High | Defer to operator: seeded NDA playbook gets tuned weekly during PR-C-PR-D iteration; Contract playbook gets a domain expert review before PR-E |
+| Claude prompt regressions break working demos | Medium | Medium | PR-Hard4 includes prompt-regression test suite using anonymised real documents as fixtures |
+| OCR demand from scanned PDFs surfaces early | Medium | Low | Honest "scanned PDFs not yet supported" UX in PR-D; OCR becomes a post-MVP PR |
+| First customer demands BYOK Claude key | Medium | Medium | Architecture supports it (per-org-keyed Anthropic client); we ship if a customer signs contingent on it |
+| `.docx` track-changes output isn't true Word XML | High | Low | Honest before/after-paragraph display in PR-D; full track-changes XML becomes a post-MVP polish PR |
+| Mid-market price expectations don't cover Claude cost | Medium | High | PR-Hard5 budget controls let us tier customers; can fall to cheaper Claude variant for budget tiers |
 
-| After PR | Demo win |
-|---|---|
-| **PR-A** (this PR) | Cockpit picks up new tickets correctly. Demo of P1b stage progression actually works end-to-end. |
-| **PR-B** | No user-visible change. Pure infra. |
-| **PR-C** | Admin can configure NDA playbook positions from `/admin/playbooks`. Still no agent change. |
-| **PR-D** | **First hero demo.** GC requester pastes an NDA → agent finds 5 deviations → Cockpit shows them with severity pills → attorney clicks Accept on 3, Reject on 2 with rationale → revised document appears. |
-| **PR-E** | Real .docx upload + redlined .docx download. The full "client sends NDA, AEGIS returns redlined NDA" loop. |
-| **PR-F** | Same demo, much higher value (40-60 deviations on a real MSA). |
-| **PR-G - PR-J** | Per-agent demos: privacy DSAR response, vendor T&C review, trademark clearance, etc. |
-| **After all 9** | Every intake type has agent automation. Volume goes from "human triages everything" to "human reviews redlines on a fraction." |
+## Timeline summary
 
-## Permission model evolution
+| Phase | PRs | Effort | Cumulative |
+|---|---|---|---|
+| Foundation | PR-A | 4 days | week 1 |
+| First hero demo | PR-B + PR-C | 6 days | week 3 |
+| End-to-end NDA | PR-D | 4 days | week 4 |
+| Multi-tenancy hard | PR-Hard1 | 3 days | week 4 |
+| Contract Review | PR-E | 3 days | week 5 |
+| PII / classification | PR-Hard2 | 4 days | week 6 |
+| Privacy + Vendor | PR-F + PR-G | 5 days | week 7 |
+| Reliability hard | PR-Hard3 | 4 days | week 8 |
+| Trademark + Q&A + Other | PR-H + PR-I + PR-J | 6 days | week 10 |
+| Observability hard | PR-Hard4 | 4 days | week 11 |
+| Rate limit hard | PR-Hard5 | 3 days | week 12 |
+| Failover hard | PR-Hard6 | 4 days | week 13 |
+| First-customer-ready | PR-K | 5 days | **week 14** |
 
-The 38 existing permissions grow by 6 to 44. The 8 canonical roles
-get the new permissions per the table below:
-
-| Permission | admin | gc | attorney | paralegal | legal_ops | requester | external | viewer |
-|---|---|---|---|---|---|---|---|---|
-| `documents:upload` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | — | — |
-| `documents:read` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ (own) | ✓ (assigned) | ✓ |
-| `documents:delete` | ✓ | ✓ | — | — | — | — | — | — |
-| `playbook:read` | ✓ | ✓ | ✓ | ✓ | ✓ | — | — | ✓ |
-| `playbook:write` | ✓ | ✓ | — | — | ✓ | — | — | — |
-| `agent:redline:override` | ✓ | ✓ | ✓ | ✓ | ✓ | — | — | — |
-
-`requester` gets `documents:read (own)` because the GC's customer
-(another department's filer) needs to see their own attached doc
-and the redlined version when it comes back.
-
-## Conservative AI governance — what's load-bearing here
-
-Per CLAUDE.md non-negotiable #7: every AI action that mutates state
-requires human approval AND writes an `AuditLog` row. In this
-workflow:
-
-- The agent **proposes** redlines; the attorney **accepts or
-  rejects** each one. Status flips from `PENDING → ACCEPTED |
-  REJECTED | EDITED`.
-- The revised document is generated only from accepted/edited
-  redlines.
-- "Accept all" is gated by paranoia type-to-confirm when ≥3
-  BLOCKERS remain PENDING (matches the 4c.4 hold-issuance pattern).
-- Every accept / reject / edit emits a chain-sealed audit row
-  with the redline's id, before/after status, and the actor.
-- The `AgentDecision` table contract from 4b applies: each
-  AgentReview produces one `AgentDecision` row at status
-  `PENDING`; the row reaches `APPROVED` only when the attorney
-  finalises the review.
-
-No path lets the agent generate a final document without attorney
-sign-off on every redline. This is the difference between AEGIS
-and a chatbot.
-
-## Estimated timeline
-
-| PR | Effort |
-|---|---|
-| PR-A (this PR) | ~1 hour |
-| PR-B (Documents foundation) | ~3-4 days |
-| PR-C (Playbook + admin) | ~2-3 days |
-| PR-D (NDA v1 paste-text) | ~3-4 days |
-| PR-E (NDA v2 real upload) | ~3-4 days |
-| PR-F (Contract Review) | ~2-3 days |
-| PR-G (Privacy / DSAR) | ~2-3 days |
-| PR-H (Vendor DD) | ~2 days |
-| PR-I (Trademark) | ~2 days |
-| PR-J (IP + Contract Q + Legal General) | ~3 days (three agents, shared base) |
-| PR-K (Other routing-only) | ~1 day |
-| **Total** | **~5-6 weeks** of focused work |
-
-The first agent (NDA, PR-D + PR-E) takes ~7-8 days because it
-carries 100% of the new infra cost. Each subsequent agent is
-~2-3 days.
+**Total: ~14 weeks** from operator green-light to first paying
+customer. ~4 weeks to the first hero demo (PR-C).

@@ -33,6 +33,31 @@ digitization, data setup, intelligent automation, and the AI
 itself all have to work together for the autonomous-enterprise
 endpoint to mean anything. This document plans all six.
 
+## Decisions locked (operator sign-off log)
+
+Recorded as the operator signs off on assumptions / open
+questions. Subsequent revisions append below — earlier rows are
+historical, never edited in place.
+
+| Date | Locked by | Answer | Affects |
+|---|---|---|---|
+| 2026-05-16 | Operator (Letscode82) | **Target ICP: Mid-market GC, Series B-D** (100-1000 employees, $5-50M legal spend, SOC2 expected, ISO/HIPAA/FINRA not required) | A3 (Regulatory scope) — drops HIPAA, FINRA, FedRAMP from MVP. Compliance MVP is SOC2 + GDPR-if-EU-customers. |
+| 2026-05-16 | Operator (Letscode82) | **Mid-market volume targets** (~100 reviews/day year-1, ~1,000/day year-3) | A2 (Volume) — relaxes queue sizing, surge capacity, and Claude budget defaults. |
+| 2026-05-16 | Operator (Letscode82) | **Build philosophy: demo-grade first, harden incrementally per PR.** First demo ~week 3 (NDA paste-text). First paying customer ~week 14. Hardening PRs interleaved with feature PRs. | PR sequence in `agent-redline-roadmap.md` — PR-A ships single-storage Vercel Blob, console logs, no RLS, no virus scan. Hardening dimensions added in dedicated PR-Hard-N rounds. |
+
+**Still open** (defaults apply unless overridden):
+
+- A1 (Tenancy): default **multi-tenant** — consistent with mid-market SaaS
+- A4 (AI vendor): default **Claude primary, GPT-4 fallback** (revisit after the first hardening sprint — for mid-market, Claude-only may be acceptable to start)
+- A5 (Hosting): default **Vercel + Neon + Vercel Blob + S3**
+- A6 (Privileged content): default **vendor-under-DPA with PII redaction**
+- A7 (Retention): default **infinite, per-matter override**
+- A8 (Bulk-accept): default **paranoia confirm at ≥3 BLOCKERS**
+- Q9 (Anthropic tier): default **Tier 2** — adequate for year-1 mid-market
+- Q10 (BYOK): default **post-MVP** — shared AEGIS key for v1
+- Q11 (PII patterns): default **US baseline (SSN, CC, email, phone, DOB)** — extend per-org later
+- Q12 (Pen-test cadence): default **annual** — adequate for SOC2
+
 ## Assumptions — flag for sign-off before any code lands
 
 These are the operating-environment assumptions baked into every
@@ -43,8 +68,8 @@ implementation begins.
 | # | Assumption | If overridden, what changes |
 |---|---|---|
 | **A1** | **Multi-tenant deploy.** One AEGIS deployment serves multiple law firms / GC offices. Strict per-org isolation is enforced at every layer. | Single-tenant (one firm per deploy): RLS becomes belt-and-suspenders rather than load-bearing; cross-tenant tests downgrade to advisory. Per-org rate limits relax. |
-| **A2** | **Volume target: 1,000 reviews/day across all tenants at year-1, 10,000/day at year-3.** Largest single document ≤25 MB / ≤200K extracted-text tokens. | Higher: queue depth, autoscale, and Claude budget all increase. Lower: simpler architecture, single-process queue possible. |
-| **A3** | **Regulatory regime: US + EU GDPR.** No HIPAA, no FINRA, no FedRAMP at MVP. State-bar professional-responsibility rules apply (privileged communications, work-product doctrine). | Adding HIPAA: requires BAA with cloud vendors, more encryption strictness. Adding FedRAMP: limits cloud choices, requires audit log immutability proof beyond chain. |
+| **A2** | **🔒 LOCKED: Mid-market volume target — 100 reviews/day across all tenants at year-1, 1,000/day at year-3.** Largest single document ≤25 MB / ≤200K extracted-text tokens. Per-tenant: 10-20 reviews/day typical. | (No longer subject to override without operator review.) |
+| **A3** | **🔒 LOCKED: SOC2 + GDPR-if-EU-customers. No HIPAA, no FINRA, no FedRAMP for MVP.** State-bar professional-responsibility rules apply (privileged communications, work-product doctrine). | (No longer subject to override without operator review. Re-opens if the first 10 customers include life-sciences or government clients.) |
 | **A4** | **AI vendor strategy: Claude is primary, GPT-4 is fallback for business continuity (not response diversity).** Both vendors see the same redacted content. | Multi-LLM-by-design (ensemble): different prompts per vendor, output reconciliation logic, different cost model. Vendor-independence-first: more abstraction, higher complexity. |
 | **A5** | **Hosting: Vercel (Edge + Serverless) + Neon Postgres + Vercel Blob primary + AWS S3 secondary.** | On-prem / customer-cloud: storage/queue abstractions stay the same, deployment topology changes substantially. |
 | **A6** | **Privileged-communication handling: documents may contain attorney-client privileged content. Vendor (Anthropic / OpenAI) is treated as an authorised contractor under appropriate DPAs — but PII is redacted before vendors see content.** | Stricter: privileged docs never leave AEGIS-controlled infra (would require self-hosted LLM, e.g. Llama). Looser: simpler architecture, more vendor exposure. |
@@ -112,30 +137,68 @@ matter how feature-complete it is.**
    export, and chain-verification commitments are machine-checked
    in CI — not aspirational.
 
+## Build philosophy (locked 2026-05-16)
+
+**Demo-grade first, harden incrementally per PR.** This is the
+operator-locked sequencing strategy. Implications:
+
+- **PR-A (first foundation PR)** ships minimum viable
+  infrastructure: single-storage Vercel Blob, console-log
+  observability, basic AuditLog integration, no RLS, no virus
+  scan, no dual-write. **Demoable but not customer-ready.**
+- **Each subsequent agent PR (PR-C, PR-D, PR-E, …)** ships
+  agent-grade demo functionality.
+- **Dedicated "PR-Hard-N" rounds** interleaved between agent
+  rounds — each addresses one production dimension (multi-
+  tenancy hardening, reliability hardening, observability,
+  failover, etc.).
+- **Production-grade gates before first paying customer** — the
+  full 10-dimension compliance is required before any external
+  contract closes, not before the first demo.
+
+This means the architecture below describes the **target state**
+(what we promise the first paying customer). Each PR-Hard-N
+moves the system closer. Demo-stage releases explicitly carry
+banners ("Demo build — production-grade hardening in progress")
+in any non-internal-deployment surface.
+
+The PR sequence in `agent-redline-roadmap.md` is the operational
+implementation of this philosophy.
+
 ## SLOs and error budgets
 
-These are the production commitments. Breaching one triggers an
-incident; sustained breach triggers a postmortem + roadmap
-adjustment.
+These are the **production-target** commitments — what we promise
+to mid-market customers in the SLA. Demo-stage builds run on
+best-effort, not these SLOs. Each PR-Hard-N moves measurement
++ enforcement closer to the production targets.
 
-| Metric | Target | Error budget |
-|---|---|---|
-| Availability (any agent reachable, even degraded) | 99.9% | 43 min/month |
-| Availability (full-quality reviews — primary LLM tier) | 99.5% | 3.6 hr/month |
-| NDA review p50 latency | 10 s | — |
-| NDA review p95 latency | 30 s | — |
-| MSA review p95 latency | 90 s | — |
-| DSAR review p95 latency | 20 s | — |
-| Document upload p95 latency | 3 s | — |
-| Attorney accept/reject UI response p95 | 200 ms | — |
-| Attorney accuracy (top-3-severity accept rate) | ≥ 85% monthly | < 85% = playbook + prompt tuning sprint |
-| Cost per NDA review | ≤ $1.50 | — |
-| Cost per MSA review | ≤ $5.00 | — |
-| RTO (recovery time objective, full-region failover) | 4 hours | — |
-| RPO (recovery point objective, max data loss in DR) | 15 minutes | — |
-| Cross-tenant access incidents | **0** | **Zero tolerance** |
-| Document loss incidents | **0** | **Zero tolerance** |
-| Audit chain break incidents | **0** | **Zero tolerance** |
+| Metric | Target (production) | Demo-stage target | Error budget |
+|---|---|---|---|
+| Availability (any agent reachable, even degraded) | 99.5% | best-effort | 3.6 hr/month |
+| Availability (full-quality reviews — primary LLM tier) | 99.0% | best-effort | 7.2 hr/month |
+| NDA review p95 latency | 30 s | < 60 s | — |
+| MSA review p95 latency | 90 s | < 180 s | — |
+| DSAR review p95 latency | 20 s | < 45 s | — |
+| Document upload p95 latency | 3 s | < 10 s | — |
+| Attorney accept/reject UI response p95 | 300 ms | < 1 s | — |
+| Attorney accuracy (top-3-severity accept rate) | ≥ 80% monthly | tracked, not enforced | < 80% = playbook + prompt tuning sprint |
+| Cost per NDA review | ≤ $2.00 | — | — |
+| Cost per MSA review | ≤ $6.00 | — | — |
+| RTO (recovery time objective, full-region failover) | 6 hours | best-effort | — |
+| RPO (recovery point objective, max data loss in DR) | 30 minutes | 1 hour | — |
+| Cross-tenant access incidents | **0** | **0** | **Zero tolerance — even at demo stage** |
+| Document loss incidents | **0** | **0** | **Zero tolerance — even at demo stage** |
+| Audit chain break incidents | **0** | **0** | **Zero tolerance — even at demo stage** |
+
+**Note on relaxed mid-market targets.** Mid-market customers
+have softer SLA expectations than enterprise — 99.5% is industry
+standard for the segment, the latency targets allow some
+headroom for cheaper-tier infrastructure choices, and the cost
+caps reflect realistic Claude usage rather than a Fortune-50 cost
+floor. **Zero-tolerance metrics remain absolute even at demo
+stage** — even an internal-demo cross-tenant leak is a fire-
+drill incident, because that's the kind of architectural
+violation that becomes load-bearing if shipped.
 
 ## The 10 dimensions
 
