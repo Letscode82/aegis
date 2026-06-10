@@ -1393,6 +1393,9 @@ async function main() {
   const rr = await seedRoutingRules(org.id);
   console.log(`[seed] routing_rules=${rr}`);
 
+  const sla = await seedSlaDemoState(org.id);
+  console.log(`[seed] sla_demo_breach_candidates=${sla}`);
+
   console.log("[seed] done.");
 }
 
@@ -1764,6 +1767,30 @@ async function seedRoutingRules(orgId: string): Promise<number> {
     written += 1;
   }
   return written;
+}
+
+// ───────────────────────────────────────────────────────────────────
+// Section 4d — SLA breach-scan demo state (P1c demo-lite)
+// ───────────────────────────────────────────────────────────────────
+//
+// Pushes REQ-3409 (Critical contract review, 8h SLA, fixture age
+// 5.22h) back to 9 hours old so it is past-SLA but NOT yet escalated.
+// The "Run breach scan" button on the SLA Dashboard then has a live
+// target: the scan flips it to ESCALATED and writes the
+// sla_breached / auto_escalated audit pair in front of the audience.
+// REQ-3403 stays the "already escalated" fixture; this one is the
+// "escalates live" fixture.
+
+async function seedSlaDemoState(orgId: string): Promise<number> {
+  const res = await prisma.intakeTicket.updateMany({
+    where: {
+      id: "REQ-3409",
+      organizationId: orgId,
+      status: { notIn: [IntakeStatus.ESCALATED] },
+    },
+    data: { submittedAt: new Date(Date.now() - 9 * 3600 * 1000) },
+  });
+  return res.count;
 }
 
 // ───────────────────────────────────────────────────────────────────

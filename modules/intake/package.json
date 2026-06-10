@@ -10,7 +10,8 @@
     "./server": "./src/storage/server.ts",
     "./ai-ops": "./src/ai-ops/summary.ts",
     "./assignees": "./src/assignees/server.ts",
-    "./routing": "./src/routing/server.ts"
+    "./routing": "./src/routing/server.ts",
+    "./sla": "./src/sla/server.ts"
   },
   "files": ["src"],
   "scripts": {

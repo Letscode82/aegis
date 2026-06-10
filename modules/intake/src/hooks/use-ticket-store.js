@@ -171,5 +171,13 @@ export function useTicketStore(agentSettings){
     setTickets(fresh);
   },[]);
 
-  return{tickets:live,loading,addTicket,updateTicket,addTicketAndRunAgent,recordTriageAction,bulkApprove,resetToSeed};
+  // Re-pull the server-canonical array. Server-side mutations that
+  // bypass the client (routing rules, SLA breach scans) become
+  // visible without a full page reload.
+  const refresh=useCallback(async()=>{
+    const fresh=await loadTickets();
+    if(fresh&&fresh.length>0) setTickets(fresh);
+  },[]);
+
+  return{tickets:live,loading,addTicket,updateTicket,addTicketAndRunAgent,recordTriageAction,bulkApprove,resetToSeed,refresh};
 }

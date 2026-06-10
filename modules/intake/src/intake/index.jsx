@@ -1430,6 +1430,94 @@ function KanbanTab({store}){
   </div>;
 }
 
+// ── SLA Operations panel (P3-lite — server-aggregated) ──────────────
+// Executive read over /api/intake/sla-ops: queue health computed
+// server-side from submittedAt + slaHours (not the lagging client
+// slaStatus), attorney workload by typed assignee, routing-rule
+// effectiveness. Plus the admin breach-scan trigger (P1c-lite).
+function SlaOpsPanel({store}){
+  const[summary,setSummary]=useState(null);
+  const[error,setError]=useState(null);
+  const[scanState,setScanState]=useState(null); // null | "running" | {breached, scanned} | {error}
+
+  const load=useCallback(async()=>{
+    try{
+      const r=await fetch("/api/intake/sla-ops");
+      if(!r.ok) throw new Error(`HTTP ${r.status}`);
+      setSummary(await r.json());
+      setError(null);
+    }catch(e){ setError(String(e.message||e)); }
+  },[]);
+  useEffect(()=>{ load(); },[load]);
+
+  const runScan=useCallback(async()=>{
+    setScanState("running");
+    try{
+      const r=await fetch("/api/admin/jobs/intake-sla-scan",{method:"POST"});
+      if(r.status===403){ setScanState({error:"Admin permission required to run the scan."}); return; }
+      if(!r.ok) throw new Error(`HTTP ${r.status}`);
+      const result=await r.json();
+      setScanState({breached:result.breached,scanned:result.scanned});
+      await load();           // refresh the ops numbers
+      await store.refresh();  // pull escalated statuses into the live store
+    }catch(e){ setScanState({error:String(e.message||e)}); }
+  },[load,store]);
+
+  if(error) return <Card style={{marginBottom:14,borderLeft:`3px solid ${C.rd}`}}><div style={{fontSize:11,color:C.t2,fontFamily:F}}>SLA Operations unavailable: {error}</div></Card>;
+  if(!summary) return <Card style={{marginBottom:14}}><div style={{padding:10,textAlign:"center",color:C.t3,fontFamily:M,fontSize:11,letterSpacing:1}}>◎ Loading operations summary…</div></Card>;
+
+  const q=summary.queue;
+  return <Card d={0} style={{marginBottom:14,borderLeft:`3px solid ${C.cy}`}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12,flexWrap:"wrap",gap:8}}>
+      <div style={{fontSize:11,fontWeight:600,color:C.cy,letterSpacing:1.2,fontFamily:M,textTransform:"uppercase"}}>◎ Operations · Server-side</div>
+      <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+        {scanState&&scanState!=="running"&&!scanState.error&&<span style={{fontSize:10,fontFamily:M,color:scanState.breached>0?C.rd:C.gn}}>Scan: {scanState.breached} breach{scanState.breached===1?"":"es"} found · {scanState.scanned} open scanned</span>}
+        {scanState?.error&&<span style={{fontSize:10,fontFamily:M,color:C.rd}}>{scanState.error}</span>}
+        <div onClick={scanState==="running"?undefined:runScan} style={{padding:"5px 11px",border:`1px solid ${C.am}`,color:C.am,fontSize:9.5,fontFamily:M,letterSpacing:1,cursor:scanState==="running"?"default":"pointer",textTransform:"uppercase",borderRadius:3,opacity:scanState==="running"?.5:1}}>
+          {scanState==="running"?"⟳ Scanning…":"⟳ Run breach scan"}
+        </div>
+      </div>
+    </div>
+
+    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>
+      {[
+        {l:"Open Tickets",v:q.open,c:C.bl},
+        {l:"Awaiting Triage",v:q.awaitingTriage,c:C.cy},
+        {l:"Escalated",v:q.escalated,c:q.escalated>0?C.rd:C.t4},
+        {l:"Past SLA",v:q.overdue,c:q.overdue>0?C.rd:C.gn},
+        {l:"At Risk",v:q.atRisk,c:q.atRisk>0?C.am:C.gn},
+      ].map((s,i)=><div key={i} style={{padding:"10px 12px",background:C.s1,borderRadius:4,textAlign:"center"}}>
+        <div style={{fontSize:9,fontFamily:M,color:C.t3,letterSpacing:1.2,textTransform:"uppercase",marginBottom:3}}>{s.l}</div>
+        <div style={{fontSize:24,fontFamily:SR,color:s.c,lineHeight:1}}>{s.v}</div>
+      </div>)}
+    </div>
+
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+      <div>
+        <div style={{fontSize:9.5,fontFamily:M,color:C.t3,letterSpacing:1.5,textTransform:"uppercase",fontWeight:600,marginBottom:6}}>Attorney Workload · typed assignments</div>
+        {summary.attorneyWorkload.length===0?<div style={{fontSize:10.5,color:C.t4,fontFamily:M,padding:"8px 0"}}>No tickets carry a typed assignee yet — use Reassign in the Cockpit.</div>:
+          summary.attorneyWorkload.map(w=><div key={w.userId} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 8px",background:C.s1,borderRadius:3,marginBottom:4}}>
+            <span style={{fontSize:11,color:C.t1,fontWeight:500}}>{w.name}</span>
+            <span style={{fontSize:10,fontFamily:M}}>
+              <span style={{color:C.bl,fontWeight:600}}>{w.open} open</span>
+              {w.atRisk>0&&<span style={{color:C.am}}> · {w.atRisk} at risk</span>}
+              {w.overdue>0&&<span style={{color:C.rd,fontWeight:700}}> · {w.overdue} past SLA</span>}
+            </span>
+          </div>)}
+        {summary.unassignedOpen>0&&<div style={{fontSize:10,color:C.t4,fontFamily:M,marginTop:4}}>+ {summary.unassignedOpen} open without a typed assignee</div>}
+      </div>
+      <div>
+        <div style={{fontSize:9.5,fontFamily:M,color:C.t3,letterSpacing:1.5,textTransform:"uppercase",fontWeight:600,marginBottom:6}}>Routing Rule Effectiveness</div>
+        {summary.ruleEffectiveness.length===0?<div style={{fontSize:10.5,color:C.t4,fontFamily:M,padding:"8px 0"}}>No routing rules configured.</div>:
+          summary.ruleEffectiveness.map(r=><div key={r.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 8px",background:C.s1,borderRadius:3,marginBottom:4,opacity:r.enabled?1:.55}}>
+            <span style={{fontSize:11,color:C.t1}}>{r.name}{!r.enabled&&<span style={{color:C.t4,fontFamily:M,fontSize:9}}> · PAUSED</span>}</span>
+            <span style={{fontSize:10,fontFamily:M,color:C.cy,fontWeight:600}}>{r.timesFired} fired</span>
+          </div>)}
+      </div>
+    </div>
+  </Card>;
+}
+
 // ── SLA Dashboard (computed live from store) ─────────
 function SLATab({store}){
   const tickets=store.tickets;
@@ -1460,6 +1548,7 @@ function SLATab({store}){
   const burndown=[95,94,92,88,85,89,93,96,94,91,88,85,89,92,94,93,91,89,87,88,90,92,94,overallSla];
 
   return <div>
+    <SlaOpsPanel store={store}/>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
       {[
         {l:"Overall SLA Met",v:overallSla+"%",c:overallSla>=95?C.gn:overallSla>=90?C.am:C.rd,sub:"Target: 95%"},
