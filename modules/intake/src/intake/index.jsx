@@ -14,6 +14,7 @@ import { useCockpitState } from "../hooks/use-cockpit-state";
 import { useAgentLog } from "../hooks/use-agent-log";
 import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
 import { TicketSummaryButton, AskAuroraChat } from "../ai-features";
+import { isAwaitingTriage } from "./triage-filter";
 
 // Type picker gate — shown at top of New Request tab
 // Splits simple vs complex request types into Form path vs Copilot path.
@@ -717,7 +718,7 @@ function CockpitTab({store,cockpit}){
 
   // Queue: awaiting-triage tickets first (newest first), then already-triaged below
   const queue=useMemo(()=>{
-    const awaiting=allTickets.filter(t=>t.stage==="new"&&t.status!=="Snoozed"&&!t.triagedBy).sort((a,b)=>b.submittedTs-a.submittedTs);
+    const awaiting=allTickets.filter(isAwaitingTriage).sort((a,b)=>b.submittedTs-a.submittedTs);
     const already=allTickets.filter(t=>t.triagedBy&&t.stage!=="complete").sort((a,b)=>(b.triagedAt||0)-(a.triagedAt||0));
     return [...awaiting,...already];
   },[allTickets]);
@@ -1616,7 +1617,7 @@ export function IntakeView(){
     {id:"selfserve",label:"Self-Service",icon:"◈",count:KB_TOPICS.length},
   ];
 
-  const awaiting=store.tickets.filter(t=>t.stage==="new"&&!t.triagedBy&&t.status!=="Snoozed").length;
+  const awaiting=store.tickets.filter(isAwaitingTriage).length;
 
   if(store.loading) return <div style={{padding:40,textAlign:"center",color:C.t3,fontFamily:M,fontSize:12,letterSpacing:1}}>
     ◎ LOADING AEGIS LEGAL INTAKE v8 …
