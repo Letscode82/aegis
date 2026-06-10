@@ -760,11 +760,17 @@ function CockpitTab({store,cockpit}){
   const allTickets=store.tickets;
 
   // Queue: awaiting-triage tickets first (newest first), then already-triaged below
+  // Snoozed tickets are hidden by default (that's what snooze means)
+  // but never invisible — the header chip shows the count and toggles
+  // them back into the queue so a snoozed ticket is always reachable.
+  const[showSnoozed,setShowSnoozed]=useState(false);
+  const snoozedCount=useMemo(()=>allTickets.filter(t=>t.status==="Snoozed"&&t.stage!=="complete").length,[allTickets]);
+
   const queue=useMemo(()=>{
-    const awaiting=allTickets.filter(isAwaitingTriage).sort((a,b)=>b.submittedTs-a.submittedTs);
-    const already=allTickets.filter(t=>t.triagedBy&&t.stage!=="complete").sort((a,b)=>(b.triagedAt||0)-(a.triagedAt||0));
+    const awaiting=allTickets.filter(t=>isAwaitingTriage(t)||(showSnoozed&&t.status==="Snoozed"&&t.stage!=="complete")).sort((a,b)=>b.submittedTs-a.submittedTs);
+    const already=allTickets.filter(t=>t.triagedBy&&t.stage!=="complete"&&t.status!=="Snoozed").sort((a,b)=>(b.triagedAt||0)-(a.triagedAt||0));
     return [...awaiting,...already];
-  },[allTickets]);
+  },[allTickets,showSnoozed]);
 
   const[pos,setPos]=useState(0);
   const[editing,setEditing]=useState(false);
@@ -943,6 +949,12 @@ function CockpitTab({store,cockpit}){
           <div style={{fontSize:9,fontFamily:M,color:C.t3,letterSpacing:1.5,textTransform:"uppercase",fontWeight:600}}>Attorney</div>
           <div style={{fontSize:12,color:C.t1,fontFamily:M}}>{attorney}</div>
         </div>
+        {snoozedCount>0&&<>
+          <div style={{width:1,height:28,background:C.br}}/>
+          <div onClick={()=>setShowSnoozed(s=>!s)} title={showSnoozed?"Hide snoozed tickets":"Show snoozed tickets in the queue"} style={{padding:"4px 9px",border:`1px solid ${showSnoozed?C.am:C.br}`,background:showSnoozed?C.am+"18":"transparent",borderRadius:3,cursor:"pointer",fontSize:10,fontFamily:M,color:showSnoozed?C.am:C.t3,letterSpacing:.8,display:"flex",alignItems:"center",gap:5,transition:"all .12s"}}>
+            ⏲ {snoozedCount} snoozed {showSnoozed?"· shown":""}
+          </div>
+        </>}
       </div>
       <div style={{display:"flex",gap:7,alignItems:"center",flexWrap:"wrap"}}>
         {bulkMode&&<div style={{display:"flex",gap:7,alignItems:"center"}}>
