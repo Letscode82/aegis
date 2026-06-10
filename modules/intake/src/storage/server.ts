@@ -34,6 +34,8 @@ import {
   AgentRecommendationStatus,
   ConversationRole,
 } from "@aegis/db";
+import { evaluateRoutingRules } from "../routing/rules";
+import { loadEnabledRoutingRules, recordRuleFirings } from "../routing/server";
 
 // ── Storage keys (mirror modules/intake/src/storage/keys.js) ─────────
 const K_TICKETS = "aegis:tickets:v1";
@@ -123,6 +125,12 @@ type V8Ticket = {
   triagedAt?: number | null;
   triagedAction?: string | null;
   agentProcessedAt?: number | null;
+  /**
+   * P2a — which routing rules fired (server-computed; read-only for
+   * the client). Shape: { ruleIds, firedAt, summaries }. Anything the
+   * client sends back here is ignored on write.
+   */
+  firedRules?: unknown;
 };
 
 // ── Read path: assemble v8 ticket array from DB rows ─────────────────
@@ -184,6 +192,7 @@ async function loadTicketsV8(orgId: string): Promise<V8Ticket[]> {
       triagedAt: t.triagedAt?.getTime() ?? null,
       triagedAction: t.triagedAction,
       agentProcessedAt: t.agentProcessedAt?.getTime() ?? null,
+      firedRules: (t.firedRulesJson as unknown) ?? null,
     };
   });
 }
@@ -201,6 +210,13 @@ async function saveTicketsV8(
   // falls through to the seeded demo user.
   const demoUser = await getCurrentUser(ctx?.req, ctx?.res);
 
+  // P2a — enabled routing rules, loaded once per save. Rules evaluate
+  // for every untriaged ticket on every save (idempotent: deterministic
+  // conditions reconverge the rule-set fields even if a stale client
+  // payload overwrote them), but audit + counters fire only on the
+  // first firing of each rule per ticket.
+  const routingRules = await loadEnabledRoutingRules(orgId);
+
   for (const t of tickets) {
     if (!t.id) continue;
     const submittedAt = t.submittedTs
@@ -217,6 +233,7 @@ async function saveTicketsV8(
         triagedAction: true,
         triagedBy: true,
         assignedToUserId: true,
+        firedRulesJson: true,
       },
     });
 
@@ -263,7 +280,44 @@ async function saveTicketsV8(
       triagedAt: t.triagedAt ? new Date(t.triagedAt) : null,
       triagedAction: incomingAction,
       agentProcessedAt: t.agentProcessedAt ? new Date(t.agentProcessedAt) : null,
+      // Server-computed below; the client's copy is never trusted.
+      firedRulesJson: (before?.firedRulesJson ?? null) as never,
     };
+
+    // ── P2a — routing rules (untriaged tickets only) ─────────────────
+    // An attorney's triage action always wins: once any triage action
+    // exists, rules stop touching the ticket. Evaluation runs over the
+    // post-client values so a stale optimistic write reconverges to
+    // the rule outcome instead of clobbering it.
+    const priorFired = (before?.firedRulesJson ?? null) as {
+      ruleIds?: string[];
+      summaries?: Array<{ id: string; name: string; actions: string[] }>;
+    } | null;
+    let newlyFired: Array<{ id: string; name: string; actions: string[] }> = [];
+    if (!incomingAction && !authoritativeTriagedBy && routingRules.length > 0) {
+      const { patch, fired } = evaluateRoutingRules(routingRules, {
+        type: common.type,
+        priority: common.priority,
+        department: common.department,
+        description: common.description,
+        slaHours: common.slaHours,
+        assignedToUserId: common.assignedToUserId,
+      });
+      if (fired.length > 0) {
+        if (patch.priority !== undefined) common.priority = patch.priority;
+        if (patch.slaHours !== undefined) common.slaHours = patch.slaHours;
+        if (patch.assignedToUserId !== undefined)
+          common.assignedToUserId = patch.assignedToUserId;
+        if (patch.assignedTo !== undefined) common.assignedTo = patch.assignedTo;
+        const priorIds = new Set(priorFired?.ruleIds ?? []);
+        newlyFired = fired.filter((f) => !priorIds.has(f.id));
+        common.firedRulesJson = {
+          ruleIds: fired.map((f) => f.id),
+          firedAt: new Date().toISOString(),
+          summaries: fired,
+        } as never;
+      }
+    }
 
     // Resolve requester (Phase 1a — session-authoritative).
     //
@@ -364,10 +418,12 @@ async function saveTicketsV8(
     } else {
       // Phase 1b — assignment transitions (typed FK only; free-text
       // edits don't fire the audit because they aren't a structural
-      // ownership change).
+      // ownership change). Compares the FINAL assignee (post-routing-
+      // rules) so rule-driven reassignment is captured too; the
+      // routing-rule audit row below carries the SYSTEM attribution.
       if (
         (before.assignedToUserId ?? null) !==
-        (incomingAssignedToUserId ?? null)
+        (common.assignedToUserId ?? null)
       ) {
         await logAudit({
           organizationId: orgId,
@@ -377,7 +433,7 @@ async function saveTicketsV8(
           resourceType: "IntakeTicket",
           resourceId: t.id,
           beforeJson: { assignedToUserId: before.assignedToUserId ?? null },
-          afterJson: { assignedToUserId: incomingAssignedToUserId ?? null },
+          afterJson: { assignedToUserId: common.assignedToUserId ?? null },
         });
       }
       // Phase 1b — stage transitions. Stage is the Kanban-column
@@ -450,6 +506,22 @@ async function saveTicketsV8(
         }
       }
     }
+
+    // P2a — one chain-sealed audit row per newly-fired routing rule.
+    // SYSTEM actor: the rule, not the session user, made the change.
+    // Counters feed the SLA Operations effectiveness panel.
+    for (const f of newlyFired) {
+      await logAudit({
+        organizationId: orgId,
+        actorId: null,
+        actorType: "SYSTEM",
+        action: "intake.routing_rule.fired",
+        resourceType: "IntakeTicket",
+        resourceId: t.id,
+        afterJson: { ruleId: f.id, ruleName: f.name, actions: f.actions },
+      });
+    }
+    await recordRuleFirings(newlyFired.map((f) => f.id));
 
     // Replace recommendation if present.
     if (t.agentRecommendation && t.agentRecommendation.agentId) {

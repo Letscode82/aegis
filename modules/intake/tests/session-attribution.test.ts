@@ -62,6 +62,12 @@ vi.mock("@aegis/db", () => ({
       upsert: vi.fn(),
       deleteMany: vi.fn(),
     },
+    // P2a — routing rules load inside the save chokepoint; default to
+    // none so legacy behavior assertions hold.
+    intakeRoutingRule: {
+      findMany: vi.fn().mockResolvedValue([]),
+      updateMany: vi.fn(),
+    },
   },
   logAudit: logAuditMock,
   getCurrentOrganization: getCurrentOrganizationMock,

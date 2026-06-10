@@ -40,6 +40,12 @@ vi.mock("@aegis/db", () => ({
     agentRecommendation: { deleteMany: vi.fn(), create: vi.fn() },
     intakeConversation: { deleteMany: vi.fn(), create: vi.fn(), findMany: vi.fn() },
     userPreference: { findUnique: vi.fn(), upsert: vi.fn(), deleteMany: vi.fn() },
+    // P2a — routing rules load inside the save chokepoint; default to
+    // none so legacy behavior assertions hold.
+    intakeRoutingRule: {
+      findMany: vi.fn().mockResolvedValue([]),
+      updateMany: vi.fn(),
+    },
   },
   logAudit: logAuditMock,
   getCurrentOrganization: getCurrentOrganizationMock,

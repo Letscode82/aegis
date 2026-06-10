@@ -116,6 +116,7 @@ export type {
   AgentDecision,
   OrganizationM365Credential,
   IntakeTicket,
+  IntakeRoutingRule,
   AgentRecommendation,
   IntakeConversation,
   Vendor,

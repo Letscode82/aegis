@@ -66,6 +66,7 @@ model Organization {
   matters        Matter[]
   legalHolds     LegalHold[]
   intakeTickets  IntakeTicket[]
+  intakeRoutingRules IntakeRoutingRule[]
   vendors        Vendor[]
   budgets        Budget[]
   dsars          DataSubjectRequest[]
@@ -120,6 +121,7 @@ model User {
   preferences  UserPreference[]
 
   intakeTicketsAssigned         IntakeTicket[]        @relation("IntakeTicketAssignee")
+  intakeRoutingRulesAssigned    IntakeRoutingRule[]   @relation("IntakeRoutingRuleAssignee")
   legalHoldsCreated             LegalHold[]           @relation("LegalHoldCreatedBy")
   legalHoldsReleased            LegalHold[]           @relation("LegalHoldReleasedBy")
   legalHoldEvents               LegalHoldEvent[]      @relation("LegalHoldEventActor")
@@ -1223,6 +1225,13 @@ model IntakeTicket {
   /// scheduled for end of P3 (per docs/intake-roadmap.md §5.1).
   assignedToUserId String?
 
+  /// P2a — which routing rules fired on this ticket. Shape:
+  /// { ruleIds: string[], firedAt: ISO,
+  ///   summaries: [{ id, name, actions: string[] }] }.
+  /// Written only by applyRoutingRules in the saveTicketsV8
+  /// chokepoint; the Cockpit renders the "routed by" chip from it.
+  firedRulesJson Json?
+
   submittedAt DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -1241,6 +1250,49 @@ model IntakeTicket {
   @@index([requesterId])
   @@index([matterId])
   @@index([organizationId, assignedToUserId])
+}
+
+/// P2a (demo-lite) — server-side routing rules. Conditions AND
+/// together (every non-null match* must hold); actions apply in
+/// rule `evalOrder` (ascending), later rules seeing earlier rules'
+/// effects. Evaluated only inside the saveTicketsV8 chokepoint for
+/// untriaged tickets — an attorney's triage action always wins over
+/// a rule. The full composable editor at /admin/intake/routing-rules
+/// (with escalateTo / requireApprovalFrom actions) lands in P2a
+/// proper; this model is forward-compatible with it.
+model IntakeRoutingRule {
+  id             String  @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  enabled        Boolean @default(true)
+  /// Evaluation order, ascending. Not called "priority" to avoid
+  /// confusion with the ticket-priority dimension it can match/set.
+  evalOrder      Int     @default(100)
+
+  // ── Conditions (null = no constraint; non-null AND together) ──
+  matchType       String?
+  matchPriority   String?
+  matchDepartment String?
+  /// Case-insensitive substring on the ticket description.
+  matchKeyword    String?
+
+  // ── Actions (null = no-op) ──
+  setAssigneeUserId String?
+  setPriority       String?
+  setSlaHours       Int?
+
+  /// Effectiveness counters for the SLA Operations view.
+  timesFired  Int       @default(0)
+  lastFiredAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignee     User?        @relation("IntakeRoutingRuleAssignee", fields: [setAssigneeUserId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, enabled, evalOrder])
 }
 
 enum AgentRecommendationStatus {

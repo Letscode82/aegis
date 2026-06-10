@@ -3,7 +3,7 @@ import { C, F, M, SR, Pill, Dot, Bar, Card, SH, WorkflowSteps, pc, inputStyle, F
 import { classifyIntakeRegex } from "@aegis/ai";
 import { useCurrentUser } from "@aegis/auth/react";
 import { Kbd, ConfidenceBadge, AgentBadge, TypingDots, ChatBubble, CapacityMeter, SimilarMatterCard } from "../intake-ui";
-import { KB_TOPICS, ROUTING_RULES } from "../intake-kb";
+import { KB_TOPICS } from "../intake-kb";
 import { AGENTS_BY_ID, ALL_AGENTS } from "../agents";
 import { COPILOT_INITIAL_STATE, initialAssistantMessage, copilotTurn, mergeState, createCopilotTicket } from "../copilot/engine";
 import { findSimilarMatters } from "../copilot/similar-matters";
@@ -562,6 +562,16 @@ function TicketDetailPanel({ticket}){
         <div style={{fontSize:11,color:C.t1,lineHeight:1.5}}><span style={{color:C.t3}}>Risk:</span> {ticket.aiTriage.riskFlag}</div>
         <div style={{fontSize:11,color:C.t1,lineHeight:1.5}}><span style={{color:C.t3}}>Suggested:</span> {ticket.aiTriage.suggestedAssignee}</div>
         <div style={{fontSize:10,color:C.t3,fontFamily:M,marginTop:3}}>Confidence {ticket.aiTriage.confidence}% · {ticket.aiTriage.similarMatters} similar matters · {ticket.aiTriage.routingRule}</div>
+      </div>}
+
+      {/* P2a — which routing rules fired on this ticket (server-computed) */}
+      {ticket.firedRules?.summaries?.length>0&&<div style={{padding:10,background:C.s1,borderRadius:4,borderLeft:`2px solid ${C.am}`,marginBottom:10}}>
+        <div style={{fontSize:9,fontFamily:M,color:C.am,letterSpacing:1.5,textTransform:"uppercase",fontWeight:600,marginBottom:4}}>⚡ ROUTED BY {ticket.firedRules.summaries.length} RULE{ticket.firedRules.summaries.length===1?"":"S"}</div>
+        {ticket.firedRules.summaries.map(s=><div key={s.id} style={{fontSize:11,color:C.t1,lineHeight:1.6}}>
+          <span style={{fontWeight:600}}>{s.name}</span>
+          <span style={{color:C.t3,fontFamily:M,fontSize:10}}> — {(s.actions||[]).join(" · ")}</span>
+        </div>)}
+        <div style={{fontSize:9.5,color:C.t4,fontFamily:M,marginTop:3}}>Server-side · each firing is a chain-sealed audit row</div>
       </div>}
 
       {ticket.workflow&&<WorkflowSteps steps={ticket.workflow}/>}
@@ -1519,19 +1529,61 @@ function SLATab({store}){
   </div>;
 }
 
-// ── Smart Routing (static rules — could also live in storage later) ──
-function RoutingTab(){
+// ── Smart Routing (DB-backed — P2a demo-lite) ─────────────────────
+// Humanize a rule's conditions / actions for display.
+function ruleConditionText(r){
+  const conds=[];
+  if(r.matchType) conds.push(`type = ${r.matchType}`);
+  if(r.matchPriority) conds.push(`priority = ${r.matchPriority}`);
+  if(r.matchDepartment) conds.push(`department = ${r.matchDepartment}`);
+  if(r.matchKeyword) conds.push(`description contains "${r.matchKeyword}"`);
+  return conds.length?conds.join(" AND "):"(matches everything)";
+}
+function ruleActionText(r){
+  const acts=[];
+  if(r.setPriority) acts.push(`priority → ${r.setPriority}`);
+  if(r.setSlaHours!=null) acts.push(`SLA → ${r.setSlaHours}h`);
+  if(r.setAssigneeUserId) acts.push(`assign → ${r.assigneeName||"(user)"}`);
+  return acts.join(" · ")||"(no actions)";
+}
+
+function RoutingTab({rules,loading,error,onRuleUpdated}){
   const[selRule,setSelRule]=useState(null);
-  const totalAuto=ROUTING_RULES.reduce((a,r)=>a+r.matches*r.autoPct/100,0);
-  const totalMatches=ROUTING_RULES.reduce((a,r)=>a+r.matches,0);
+  const[toggleError,setToggleError]=useState(null);
+  const list=rules||[];
+  const totalFired=list.reduce((a,r)=>a+(r.timesFired||0),0);
+  const lastFired=list.reduce((a,r)=>r.lastFiredAt&&(!a||r.lastFiredAt>a)?r.lastFiredAt:a,null);
+
+  const toggleRule=async(r,e)=>{
+    e.stopPropagation();
+    setToggleError(null);
+    try{
+      const resp=await fetch(`/api/intake/routing-rules/${r.id}`,{
+        method:"PUT",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({enabled:!r.enabled}),
+      });
+      if(!resp.ok){
+        setToggleError(resp.status===403?"You need platform-admin rights to toggle rules.":"Toggle failed — try again.");
+        return;
+      }
+      const{rule}=await resp.json();
+      onRuleUpdated(rule);
+      if(selRule?.id===rule.id) setSelRule(rule);
+    }catch{
+      setToggleError("Toggle failed — check your connection.");
+    }
+  };
+
+  if(loading) return <div style={{padding:40,textAlign:"center",color:C.t3,fontFamily:M,fontSize:12,letterSpacing:1}}>◎ Loading routing rules…</div>;
+  if(error) return <Card style={{borderLeft:`3px solid ${C.rd}`}}><div style={{fontSize:12,color:C.t2,fontFamily:F}}>Couldn't load routing rules: {error}</div></Card>;
 
   return <div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
       {[
-        {l:"Active Rules",v:ROUTING_RULES.filter(r=>r.enabled).length,c:C.cy,sub:`of ${ROUTING_RULES.length} total`},
-        {l:"Matches (30d)",v:totalMatches,c:C.bl,sub:"Auto-routed"},
-        {l:"Auto-Resolved",v:Math.round(totalAuto),c:C.gn,sub:`${Math.round(totalAuto/totalMatches*100)}% of matches`},
-        {l:"Routing Accuracy",v:"96.8%",c:C.tl,sub:"Validated by attorneys"},
+        {l:"Active Rules",v:list.filter(r=>r.enabled).length,c:C.cy,sub:`of ${list.length} total`},
+        {l:"Total Firings",v:totalFired,c:C.bl,sub:"Audit-backed count"},
+        {l:"Last Fired",v:lastFired?new Date(lastFired).toLocaleDateString():"—",c:C.gn,sub:lastFired?new Date(lastFired).toLocaleTimeString():"No firings yet"},
+        {l:"Engine",v:"LIVE",c:C.tl,sub:"Server-side · every fire audited"},
       ].map((s,i)=><div key={i} style={{padding:14,background:C.cd,border:`1px solid ${C.br}`,animation:`fu .25s ease ${i*40}ms both`}}>
         <div style={{fontSize:10,fontFamily:M,color:C.t3,letterSpacing:1.5,textTransform:"uppercase",marginBottom:4}}>{s.l}</div>
         <div style={{fontSize:32,fontFamily:SR,fontWeight:400,color:s.c,lineHeight:1}}>{s.v}</div>
@@ -1539,39 +1591,46 @@ function RoutingTab(){
       </div>)}
     </div>
 
+    {toggleError&&<div style={{padding:"8px 12px",marginBottom:10,background:C.rdG,borderLeft:`3px solid ${C.rd}`,borderRadius:4,fontSize:11,color:C.t1,fontFamily:M}}>{toggleError}</div>}
+
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
       <Card>
         <div style={{fontSize:11,fontWeight:600,color:C.cy,marginBottom:12,letterSpacing:1.2,fontFamily:M,textTransform:"uppercase"}}>◈ Routing Rules</div>
-        {ROUTING_RULES.map((r,i)=><div key={r.id} onClick={()=>setSelRule(r)} style={{padding:"10px 12px",background:selRule?.id===r.id?C.cdH:C.s1,border:`1px solid ${selRule?.id===r.id?C.cy:C.br}`,borderLeft:`3px solid ${r.enabled?C.gn:C.t4}`,borderRadius:4,marginBottom:6,cursor:"pointer",animation:`fu .2s ease ${i*25}ms both`,transition:"all .15s"}}>
+        {list.length===0&&<div style={{padding:"24px 0",textAlign:"center",color:C.t4,fontSize:11,fontFamily:M}}>No routing rules configured yet.</div>}
+        {list.map((r,i)=><div key={r.id} onClick={()=>setSelRule(r)} style={{padding:"10px 12px",background:selRule?.id===r.id?C.cdH:C.s1,border:`1px solid ${selRule?.id===r.id?C.cy:C.br}`,borderLeft:`3px solid ${r.enabled?C.gn:C.t4}`,borderRadius:4,marginBottom:6,cursor:"pointer",animation:`fu .2s ease ${i*25}ms both`,transition:"all .15s",opacity:r.enabled?1:.65}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
-              <span style={{fontFamily:M,fontSize:10,color:C.cy,fontWeight:700,letterSpacing:.5}}>{r.id}</span>
-              {r.autoPct===100&&<Pill t="AUTO" c={C.gn}/>}
-              {r.autoPct>0&&r.autoPct<100&&<Pill t={`${r.autoPct}% AUTO`} c={C.am}/>}
-              {r.autoPct===0&&<Pill t="HUMAN" c={C.bl}/>}
+              <span style={{fontFamily:M,fontSize:10,color:C.cy,fontWeight:700,letterSpacing:.5}}>#{r.evalOrder}</span>
+              <span style={{fontSize:11,color:C.t1,fontWeight:600}}>{r.name}</span>
             </div>
-            <span style={{fontSize:9.5,color:C.t4,fontFamily:M}}>{r.matches} matches</span>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <span style={{fontSize:9.5,color:C.t4,fontFamily:M}}>{r.timesFired} fired</span>
+              <div onClick={(e)=>toggleRule(r,e)} title={r.enabled?"Disable rule":"Enable rule"} style={{width:30,height:16,borderRadius:9,background:r.enabled?C.gn:C.br,position:"relative",cursor:"pointer",transition:"background .15s",flexShrink:0}}>
+                <div style={{position:"absolute",top:2,left:r.enabled?16:2,width:12,height:12,borderRadius:"50%",background:C.bg,transition:"left .15s"}}/>
+              </div>
+            </div>
           </div>
-          <div style={{fontSize:11,color:C.t1,fontWeight:500,lineHeight:1.4,marginBottom:3}}>{r.cond}</div>
-          <div style={{fontSize:10,color:C.t3,fontFamily:M}}>→ {r.action}</div>
+          <div style={{fontSize:11,color:C.t1,fontWeight:500,lineHeight:1.4,marginBottom:3}}>WHEN {ruleConditionText(r)}</div>
+          <div style={{fontSize:10,color:C.t3,fontFamily:M}}>→ {ruleActionText(r)}</div>
         </div>)}
       </Card>
 
       <div>
         {selRule?<Card d={0} style={{borderLeft:`3px solid ${C.cy}`}}>
-          <div style={{fontSize:11,fontWeight:600,color:C.cy,marginBottom:10,letterSpacing:1.2,fontFamily:M,textTransform:"uppercase"}}>Rule Detail · {selRule.id}</div>
+          <div style={{fontSize:11,fontWeight:600,color:C.cy,marginBottom:10,letterSpacing:1.2,fontFamily:M,textTransform:"uppercase"}}>Rule Detail · #{selRule.evalOrder}</div>
+          <div style={{fontSize:14,color:C.t1,fontFamily:SR,marginBottom:8}}>{selRule.name}</div>
+          {selRule.description&&<div style={{fontSize:11,color:C.t2,lineHeight:1.5,marginBottom:10,fontFamily:F}}>{selRule.description}</div>}
           <div style={{padding:12,background:C.s1,borderRadius:4,marginBottom:10}}>
             <div style={{fontSize:9,color:C.t3,textTransform:"uppercase",letterSpacing:1,fontFamily:M,marginBottom:4}}>When</div>
-            <div style={{fontSize:12,color:C.t1,fontFamily:M,lineHeight:1.5}}>{selRule.cond}</div>
+            <div style={{fontSize:12,color:C.t1,fontFamily:M,lineHeight:1.5}}>{ruleConditionText(selRule)}</div>
           </div>
           <div style={{padding:12,background:C.tlG,borderRadius:4,marginBottom:10,borderLeft:`2px solid ${C.tl}`}}>
             <div style={{fontSize:9,color:C.t3,textTransform:"uppercase",letterSpacing:1,fontFamily:M,marginBottom:4}}>Then</div>
-            <div style={{fontSize:12,color:C.t1,fontWeight:600,marginBottom:3}}>{selRule.action}</div>
-            <div style={{fontSize:11,color:C.tl,fontFamily:M}}>Assigned to: {selRule.assignee}</div>
+            <div style={{fontSize:12,color:C.t1,fontWeight:600}}>{ruleActionText(selRule)}</div>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-            <div style={{padding:10,background:C.s1,borderRadius:4,textAlign:"center"}}><div style={{fontSize:9,color:C.t3,textTransform:"uppercase",letterSpacing:1,fontFamily:M,marginBottom:3}}>Matches</div><div style={{fontSize:20,color:C.bl,fontFamily:SR,fontWeight:400}}>{selRule.matches}</div></div>
-            <div style={{padding:10,background:C.s1,borderRadius:4,textAlign:"center"}}><div style={{fontSize:9,color:C.t3,textTransform:"uppercase",letterSpacing:1,fontFamily:M,marginBottom:3}}>Automated</div><div style={{fontSize:20,color:C.gn,fontFamily:SR,fontWeight:400}}>{selRule.autoPct}%</div></div>
+            <div style={{padding:10,background:C.s1,borderRadius:4,textAlign:"center"}}><div style={{fontSize:9,color:C.t3,textTransform:"uppercase",letterSpacing:1,fontFamily:M,marginBottom:3}}>Fired</div><div style={{fontSize:20,color:C.bl,fontFamily:SR,fontWeight:400}}>{selRule.timesFired}</div></div>
+            <div style={{padding:10,background:C.s1,borderRadius:4,textAlign:"center"}}><div style={{fontSize:9,color:C.t3,textTransform:"uppercase",letterSpacing:1,fontFamily:M,marginBottom:3}}>Last Fired</div><div style={{fontSize:11,color:C.gn,fontFamily:M,paddingTop:5}}>{selRule.lastFiredAt?new Date(selRule.lastFiredAt).toLocaleDateString():"—"}</div></div>
             <div style={{padding:10,background:C.s1,borderRadius:4,textAlign:"center"}}><div style={{fontSize:9,color:C.t3,textTransform:"uppercase",letterSpacing:1,fontFamily:M,marginBottom:3}}>Status</div><div style={{fontSize:14,color:selRule.enabled?C.gn:C.t4,fontFamily:M,fontWeight:700,paddingTop:3}}>{selRule.enabled?"ACTIVE":"PAUSED"}</div></div>
           </div>
         </Card>:<Card>
@@ -1689,13 +1748,29 @@ export function IntakeView(){
   const cockpit=useCockpitState();
   const log=useAgentLog();
 
+  // P2a — DB-backed routing rules, fetched once here so the tab
+  // count badge and the RoutingTab share one request.
+  const[routingRules,setRoutingRules]=useState(null);
+  const[routingError,setRoutingError]=useState(null);
+  useEffect(()=>{
+    let mounted=true;
+    fetch("/api/intake/routing-rules")
+      .then(r=>{ if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(d=>{ if(mounted) setRoutingRules(d.rules||[]); })
+      .catch(e=>{ if(mounted) setRoutingError(String(e.message||e)); });
+    return()=>{ mounted=false; };
+  },[]);
+  const onRuleUpdated=useCallback((rule)=>{
+    setRoutingRules(prev=>prev?prev.map(r=>r.id===rule.id?rule:r):prev);
+  },[]);
+
   const tabs=[
     {id:"inbox",label:"Inbox",icon:"◉"},
     {id:"new",label:"New Request",icon:"＋",v8:true},
     {id:"cockpit",label:"Triage Cockpit",icon:"⌘",v8:true},
     {id:"kanban",label:"Kanban",icon:"◱"},
     {id:"sla",label:"SLA Dashboard",icon:"◔"},
-    {id:"routing",label:"Smart Routing",icon:"⚯",count:ROUTING_RULES.length},
+    {id:"routing",label:"Smart Routing",icon:"⚯",count:routingRules?routingRules.length:undefined},
     {id:"selfserve",label:"Self-Service",icon:"◈",count:KB_TOPICS.length},
   ];
 
@@ -1744,7 +1819,7 @@ export function IntakeView(){
     {tab==="inbox"&&<InboxTab store={store} sel={sel} setSel={setSel}/>}
     {tab==="kanban"&&<KanbanTab store={store}/>}
     {tab==="sla"&&<SLATab store={store}/>}
-    {tab==="routing"&&<RoutingTab/>}
+    {tab==="routing"&&<RoutingTab rules={routingRules} loading={routingRules===null&&!routingError} error={routingError} onRuleUpdated={onRuleUpdated}/>}
     {tab==="selfserve"&&<SelfServeTab onFileTicket={(draft)=>{setPrefillDesc(draft||"");setTab("new");}}/>}
   </div>;
 }

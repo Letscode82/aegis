@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useCurrentUser } from "@aegis/auth/react";
-import { ensureSeeded, migrateTicketV72, saveTickets } from "../storage/tickets";
+import { ensureSeeded, loadTickets, migrateTicketV72, saveTickets } from "../storage/tickets";
 import { storeDel } from "../storage/store";
 import { appendAgentLog } from "../storage/agent-log";
 import { K } from "../storage/keys";
@@ -107,7 +107,14 @@ export function useTicketStore(agentSettings){
     const finalArr=[{...created,...patch},...tickets.filter(t=>t.id!==created.id)];
     setTickets(finalArr);
     await saveTickets(finalArr);
-    return {ticket:{...created,...patch},agent,recommendation};
+    // P2a — re-fetch the server-canonical array. Routing rules run
+    // inside the save chokepoint and may have changed priority / SLA /
+    // assignee and stamped firedRules; without this round-trip the UI
+    // keeps showing the pre-routing optimistic values until reload.
+    const canonical=await loadTickets();
+    if(canonical&&canonical.length>0) setTickets(canonical);
+    const finalTicket=(canonical||finalArr).find(t=>t.id===created.id)||{...created,...patch};
+    return {ticket:finalTicket,agent,recommendation};
   },[tickets,agentSettings,addTicket]);
 
   // Attorney triage action — always attorney-initiated. The
