@@ -8,7 +8,8 @@
     ".": "./src/index.js",
     "./polyfill": "./src/storage/polyfill.js",
     "./server": "./src/storage/server.ts",
-    "./ai-ops": "./src/ai-ops/summary.ts"
+    "./ai-ops": "./src/ai-ops/summary.ts",
+    "./assignees": "./src/assignees/server.ts"
   },
   "files": ["src"],
   "scripts": {

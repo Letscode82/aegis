@@ -621,7 +621,7 @@ function ShortcutCheatsheet({onClose}){
     {label:"Triage Actions",items:[
       {k:"a",desc:"Approve recommendation · send"},
       {k:"e",desc:"Edit drafted response inline"},
-      {k:"r",desc:"Reassign to different team"},
+      {k:"r",desc:"Reassign to a teammate"},
       {k:"x",desc:"Reject recommendation"},
       {k:"c",desc:"Manual close (no send)"},
       {k:"s",desc:"Snooze (re-surface later)"},
@@ -703,6 +703,49 @@ function BulkConfirmCard({selected,tickets,onConfirm,onCancel}){
   </div>;
 }
 
+// Reassign picker — typed assignment (P1b). Lists the org's
+// assignable legal-team users from /api/intake/assignees; picking one
+// sets the `assignedToUserId` FK (the server fires the
+// `intake.ticket.assigned` audit row on the transition). Replaces the
+// demo-era window.prompt free-text team name.
+function ReassignPicker({ticket,onPick,onCancel}){
+  const[assignees,setAssignees]=useState(null);
+  const[error,setError]=useState(null);
+  useEffect(()=>{
+    let mounted=true;
+    fetch("/api/intake/assignees")
+      .then(r=>{ if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then(d=>{ if(mounted) setAssignees(d.assignees||[]); })
+      .catch(()=>{ if(mounted) setError("Couldn't load the team list. Check your connection and try again."); });
+    return()=>{ mounted=false; };
+  },[]);
+  return <div onClick={onCancel} style={{position:"fixed",inset:0,background:"rgba(11,16,32,.9)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center",animation:"fu .2s ease",padding:20}}>
+    <div onClick={e=>e.stopPropagation()} style={{background:C.cd,border:`1px solid ${C.br}`,borderLeft:`3px solid ${C.bl}`,borderRadius:8,padding:24,maxWidth:440,width:"100%",maxHeight:"78vh",overflowY:"auto"}}>
+      <div style={{fontSize:10,fontFamily:M,color:C.bl,letterSpacing:2,textTransform:"uppercase",fontWeight:600,marginBottom:6}}>→ REASSIGN {ticket.id}</div>
+      <div style={{fontSize:17,fontFamily:SR,color:C.t1,marginBottom:4}}>Hand this ticket to a teammate</div>
+      <div style={{fontSize:10.5,color:C.t3,fontFamily:M,marginBottom:14}}>Currently: {ticket.assigned||"Unassigned"}</div>
+      {error&&<div style={{padding:10,background:C.rdG,borderLeft:`2px solid ${C.rd}`,borderRadius:3,fontSize:11,color:C.t2,fontFamily:F,marginBottom:10}}>{error}</div>}
+      {!error&&assignees===null&&<div style={{padding:"22px 0",textAlign:"center",color:C.t3,fontSize:11,fontFamily:M,letterSpacing:1}}>◎ Loading team…</div>}
+      {assignees&&assignees.length===0&&<div style={{padding:"22px 0",textAlign:"center",color:C.t3,fontSize:11,fontFamily:M}}>No assignable users in this organization.</div>}
+      {assignees&&assignees.map(u=>{
+        const isCurrent=ticket.assignedToUserId===u.id;
+        return <div key={u.id} onClick={()=>!isCurrent&&onPick(u)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 10px",border:`1px solid ${isCurrent?C.bl:C.br}`,background:isCurrent?C.bl+"14":"transparent",borderRadius:4,marginBottom:6,cursor:isCurrent?"default":"pointer",transition:"all .12s",opacity:isCurrent?.6:1}}
+          onMouseEnter={e=>{if(!isCurrent)e.currentTarget.style.borderColor=C.bl}} onMouseLeave={e=>{if(!isCurrent)e.currentTarget.style.borderColor=C.br}}>
+          <div>
+            <div style={{fontSize:12,color:C.t1,fontWeight:500}}>{u.name}</div>
+            <div style={{fontSize:9.5,color:C.t4,fontFamily:M}}>{u.email}</div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            {isCurrent&&<span style={{fontSize:9,color:C.bl,fontFamily:M,letterSpacing:1,fontWeight:600}}>CURRENT</span>}
+            {u.roleName&&<Pill t={u.roleName.replace("_"," ")} c={C.pp}/>}
+          </div>
+        </div>;
+      })}
+      <div onClick={onCancel} style={{marginTop:10,padding:"9px 14px",border:`1px solid ${C.br}`,color:C.t2,fontSize:10,fontFamily:M,letterSpacing:1.5,cursor:"pointer",textTransform:"uppercase",textAlign:"center",borderRadius:3}}>Cancel · Esc</div>
+    </div>
+  </div>;
+}
+
 // ══════════════════════════════════════════════════
 // CockpitTab — the main component
 // ══════════════════════════════════════════════════
@@ -730,6 +773,7 @@ function CockpitTab({store,cockpit}){
   const[bulkMode,setBulkMode]=useState(false);
   const[selected,setSelected]=useState([]);
   const[showBulkConfirm,setShowBulkConfirm]=useState(false);
+  const[showReassign,setShowReassign]=useState(false);
   const[search,setSearch]=useState("");
   const[showSearch,setShowSearch]=useState(false);
   const[toast,setToast]=useState(null);
@@ -763,51 +807,58 @@ function CockpitTab({store,cockpit}){
   const prev=useCallback(()=>setPos(p=>Math.max(p-1,0)),[]);
 
   const approve=useCallback(async()=>{
-    if(editing||!current||!current.agentRecommendation) return;
+    if(editing||showReassign||!current||!current.agentRecommendation) return;
     await store.recordTriageAction(current.id,"approved",{attorney,confidence:current.agentRecommendation.confidence});
     await cockpit.incrementTriaged();
     showToast(`✓ ${current.id} approved + sent`,"gn");
     setTimeout(next,200);
-  },[current,editing,attorney,store,cockpit,next,showToast]);
+  },[current,editing,showReassign,attorney,store,cockpit,next,showToast]);
 
   const reject=useCallback(async()=>{
-    if(editing||!current) return;
+    if(editing||showReassign||!current) return;
     await store.recordTriageAction(current.id,"rejected",{attorney,confidence:current.agentRecommendation?.confidence,reason:"Attorney rejected recommendation"});
     await cockpit.incrementTriaged();
     showToast(`✕ ${current.id} rejected — queued for manual`,"rd");
     setTimeout(next,200);
-  },[current,editing,attorney,store,cockpit,next,showToast]);
+  },[current,editing,showReassign,attorney,store,cockpit,next,showToast]);
 
   const manualClose=useCallback(async()=>{
-    if(editing||!current) return;
+    if(editing||showReassign||!current) return;
     await store.recordTriageAction(current.id,"manual-close",{attorney,reason:"Manual close — no agent draft sent"});
     await cockpit.incrementTriaged();
     showToast(`✓ ${current.id} manually closed`,"gn");
     setTimeout(next,200);
-  },[current,editing,attorney,store,cockpit,next,showToast]);
+  },[current,editing,showReassign,attorney,store,cockpit,next,showToast]);
 
   const snooze=useCallback(async()=>{
-    if(editing||!current) return;
+    if(editing||showReassign||!current) return;
     await store.recordTriageAction(current.id,"snoozed",{attorney});
     showToast(`⏲ ${current.id} snoozed`,"am");
     setTimeout(next,200);
-  },[current,editing,attorney,store,next,showToast]);
+  },[current,editing,showReassign,attorney,store,next,showToast]);
 
-  const reassign=useCallback(async()=>{
-    if(editing||!current) return;
-    const team=window.prompt?window.prompt("Reassign to (team name):","Commercial Contracts"):"Commercial Contracts";
-    if(!team) return;
-    await store.recordTriageAction(current.id,"reassigned",{attorney,patch:{assigned:team,status:"Reassigned"}});
+  // Typed reassignment (P1b) — opens the assignee picker; the pick
+  // writes the `assignedToUserId` FK and mirrors `assigned` to the
+  // user's display name. Server-side, the FK transition fires the
+  // `intake.ticket.assigned` audit row.
+  const reassign=useCallback(()=>{
+    if(editing||showReassign||!current) return;
+    setShowReassign(true);
+  },[current,editing,showReassign]);
+  const pickAssignee=useCallback(async(user)=>{
+    if(!current) return;
+    await store.recordTriageAction(current.id,"reassigned",{attorney,patch:{assigned:user.name,assignedToUserId:user.id,status:"Reassigned"}});
     await cockpit.incrementTriaged();
-    showToast(`→ ${current.id} reassigned to ${team}`,"bl");
+    setShowReassign(false);
+    showToast(`→ ${current.id} reassigned to ${user.name}`,"bl");
     setTimeout(next,200);
-  },[current,editing,attorney,store,cockpit,next,showToast]);
+  },[current,attorney,store,cockpit,next,showToast]);
 
   const startEdit=useCallback(()=>{
-    if(!current?.agentRecommendation?.draftedResponse) return;
+    if(showReassign||!current?.agentRecommendation?.draftedResponse) return;
     setDraftEdit(current.agentRecommendation.draftedResponse);
     setEditing(true);
-  },[current]);
+  },[current,showReassign]);
   const cancelEdit=useCallback(()=>{ setEditing(false); setDraftEdit(""); },[]);
   const saveEdit=useCallback(async()=>{
     if(!current) return;
@@ -859,6 +910,7 @@ function CockpitTab({store,cockpit}){
     "/":focusSearch,
     Escape:()=>{
       if(showCheatsheet) setShowCheatsheet(false);
+      else if(showReassign) setShowReassign(false);
       else if(showBulkConfirm) setShowBulkConfirm(false);
       else if(editing) cancelEdit();
       else if(bulkMode){ setBulkMode(false); setSelected([]); }
@@ -871,6 +923,7 @@ function CockpitTab({store,cockpit}){
 
   return <div style={{position:"relative"}}>
     {showCheatsheet&&<ShortcutCheatsheet onClose={()=>setShowCheatsheet(false)}/>}
+    {showReassign&&current&&<ReassignPicker ticket={current} onPick={pickAssignee} onCancel={()=>setShowReassign(false)}/>}
     {showBulkConfirm&&<BulkConfirmCard selected={selected} tickets={visibleQueue} onConfirm={confirmBulkApprove} onCancel={()=>setShowBulkConfirm(false)}/>}
 
     {/* Cockpit header — status bar */}
@@ -1115,19 +1168,36 @@ function LogRow({e}){
 // ══════════════════════════════════════════════════
 function InboxTab({store,sel,setSel}){
   const[flt,setFlt]=useState("all");
+  // "My Queue" (P1b) — tickets whose typed assignee FK is the
+  // session user. The FK is set by the Cockpit's reassign picker and
+  // the seed; free-text `assigned` doesn't count (it's display-only
+  // during the migration).
+  const{user:sessionUser}=useCurrentUser();
+  const myUserId=sessionUser?.id||null;
   const tickets=store.tickets;
   const req=sel!==null?tickets.find(t=>t.id===sel):null;
-  if(req) return <IntakeDetail req={req} store={store} onBack={()=>setSel(null)}/>;
 
+  const FILTER_PREDICATES={
+    all:()=>true,
+    mine:r=>!!myUserId&&r.assignedToUserId===myUserId,
+    overdue:r=>r.slaStatus==="Overdue",
+    risk:r=>r.slaStatus==="At Risk",
+    review:r=>r.stage==="review",
+    auto:r=>r.status==="Auto-Completed",
+    new:r=>!r.seeded,
+  };
   const filters=[
     {id:"all",l:"All",n:tickets.length,c:C.bl},
-    {id:"overdue",l:"SLA Breached",n:tickets.filter(r=>r.slaStatus==="Overdue").length,c:C.rd},
-    {id:"risk",l:"At Risk",n:tickets.filter(r=>r.slaStatus==="At Risk").length,c:C.am},
-    {id:"review",l:"In Review",n:tickets.filter(r=>r.stage==="review").length,c:C.tl},
-    {id:"auto",l:"Auto-Completed",n:tickets.filter(r=>r.status==="Auto-Completed").length,c:C.gn},
-    {id:"new",l:"New (You)",n:tickets.filter(r=>!r.seeded).length,c:C.pp},
+    {id:"mine",l:"My Queue",n:tickets.filter(FILTER_PREDICATES.mine).length,c:C.cy},
+    {id:"overdue",l:"SLA Breached",n:tickets.filter(FILTER_PREDICATES.overdue).length,c:C.rd},
+    {id:"risk",l:"At Risk",n:tickets.filter(FILTER_PREDICATES.risk).length,c:C.am},
+    {id:"review",l:"In Review",n:tickets.filter(FILTER_PREDICATES.review).length,c:C.tl},
+    {id:"auto",l:"Auto-Completed",n:tickets.filter(FILTER_PREDICATES.auto).length,c:C.gn},
+    {id:"new",l:"New (You)",n:tickets.filter(FILTER_PREDICATES.new).length,c:C.pp},
   ];
-  const filtered=flt==="all"?tickets:flt==="overdue"?tickets.filter(r=>r.slaStatus==="Overdue"):flt==="risk"?tickets.filter(r=>r.slaStatus==="At Risk"):flt==="review"?tickets.filter(r=>r.stage==="review"):flt==="auto"?tickets.filter(r=>r.status==="Auto-Completed"):tickets.filter(r=>!r.seeded);
+  const filtered=tickets.filter(FILTER_PREDICATES[flt]||FILTER_PREDICATES.all);
+
+  if(req) return <IntakeDetail req={req} store={store} onBack={()=>setSel(null)}/>;
 
   return <div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>

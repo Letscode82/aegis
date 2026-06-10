@@ -1387,6 +1387,9 @@ async function main() {
     `[seed] roles=${ru.rolesWritten} test_users=${ru.usersWritten}`,
   );
 
+  const ta = await seedTicketAssignments(org.id);
+  console.log(`[seed] ticket_assignments=${ta}`);
+
   console.log("[seed] done.");
 }
 
@@ -1623,6 +1626,55 @@ async function seedTickets(orgId: string) {
   }
 
   return { ticketCount: tickets.length, recCount, convCount, autoPersonCount };
+}
+
+// ───────────────────────────────────────────────────────────────────
+// Section 4b — Typed ticket assignments (P1b)
+// ───────────────────────────────────────────────────────────────────
+//
+// Gives the "My Queue" Inbox filter real data on a fresh demo. Runs
+// after §7 because it references the seeded test users. Two in-flight
+// tickets go to the admin (the demo presenter's session in dev mode)
+// and two to the attorney test user. Both the `assignedToUserId` FK
+// and the display-mirror `assignedTo` free text are written, matching
+// what the Cockpit's reassign picker produces at runtime.
+//
+// Idempotent: plain updates keyed on fixed ticket ids; re-runs
+// rewrite the same values. Skips silently if a ticket id is absent
+// (e.g. fixtures changed) — seed assignment is demo sugar, not a
+// schema invariant.
+
+async function seedTicketAssignments(orgId: string): Promise<number> {
+  const admin = await prisma.user.findFirst({
+    where: { organizationId: orgId, role: { name: "admin" } },
+  });
+  const attorney = await prisma.user.findFirst({
+    where: {
+      organizationId: orgId,
+      email: "lena.attorney@aegis-demo.example",
+    },
+  });
+
+  const assignments: Array<{ ticketId: string; user: typeof admin }> = [
+    // Admin: one in-review contract + the at-risk critical review,
+    // so "My Queue" shows live SLA urgency for the presenter.
+    { ticketId: "REQ-3401", user: admin },
+    { ticketId: "REQ-3409", user: admin },
+    // Attorney: the IP question + the escalated employment issue.
+    { ticketId: "REQ-3402", user: attorney },
+    { ticketId: "REQ-3403", user: attorney },
+  ];
+
+  let written = 0;
+  for (const a of assignments) {
+    if (!a.user) continue;
+    const res = await prisma.intakeTicket.updateMany({
+      where: { id: a.ticketId, organizationId: orgId },
+      data: { assignedToUserId: a.user.id, assignedTo: a.user.name },
+    });
+    written += res.count;
+  }
+  return written;
 }
 
 // ───────────────────────────────────────────────────────────────────
