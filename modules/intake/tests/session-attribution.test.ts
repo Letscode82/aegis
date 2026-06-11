@@ -42,6 +42,7 @@ vi.mock("@aegis/db", () => ({
       upsert: personUpsertMock,
     },
     intakeTicket: {
+      update: vi.fn().mockResolvedValue({}),
       findUnique: intakeTicketFindUniqueMock,
       upsert: intakeTicketUpsertMock,
       findMany: intakeTicketFindManyMock,
@@ -97,6 +98,20 @@ vi.mock("@aegis/db", () => ({
     ASSISTANT: "ASSISTANT",
     SYSTEM: "SYSTEM",
   },
+  MatterType: {
+    LITIGATION: "LITIGATION",
+    TRANSACTIONAL: "TRANSACTIONAL",
+    MA: "MA",
+    IP: "IP",
+    EMPLOYMENT: "EMPLOYMENT",
+    REGULATORY: "REGULATORY",
+    INVESTIGATION: "INVESTIGATION",
+    ADVISORY: "ADVISORY",
+    OTHER: "OTHER",
+  },
+}));
+vi.mock("@aegis/matter", () => ({
+  createMatter: vi.fn().mockResolvedValue({ id: "m-test", matterNumber: "M-2026-TEST" }),
 }));
 
 const { intakeStorageSet, intakeStorageGet } = await import(

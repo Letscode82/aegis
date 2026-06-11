@@ -545,6 +545,7 @@ function TicketDetailPanel({ticket}){
             <Pill t={ticket.priority?.toUpperCase()} c={pc(ticket.priority)}/>
             <Pill t={ticket._source==="copilot"?"VIA COPILOT":"VIA FORM"} c={ticket._source==="copilot"?C.em:C.tl}/>
             {ticket.triagedBy&&<Pill t={`TRIAGED → ${ticket.triagedAction?.toUpperCase()}`} c={C.gn}/>}
+            {ticket.matterId&&<a href={`/matter/${ticket.matterId}`} style={{textDecoration:"none"}}><Pill t="↗ MATTER LINKED" c={C.cy}/></a>}
           </div>
           <div style={{fontSize:16,fontFamily:SR,color:C.t1,lineHeight:1.35,marginBottom:8}}>{ticket.desc}</div>
         </div>
@@ -814,9 +815,9 @@ function CockpitTab({store,cockpit}){
 
   const current=visibleQueue[pos];
 
-  const showToast=useCallback((msg,tone="gn")=>{
+  const showToast=useCallback((msg,tone="gn",durationMs=2400)=>{
     setToast({msg,tone});
-    setTimeout(()=>setToast(null),2400);
+    setTimeout(()=>setToast(null),durationMs);
   },[]);
 
   const next=useCallback(()=>setPos(p=>Math.min(p+1,visibleQueue.length-1)),[visibleQueue.length]);
@@ -824,9 +825,20 @@ function CockpitTab({store,cockpit}){
 
   const approve=useCallback(async()=>{
     if(editing||showReassign||!current||!current.agentRecommendation) return;
-    await store.recordTriageAction(current.id,"approved",{attorney,confidence:current.agentRecommendation.confidence});
+    const result=await store.recordTriageAction(current.id,"approved",{attorney,confidence:current.agentRecommendation.confidence});
     await cockpit.incrementTriaged();
-    showToast(`✓ ${current.id} approved + sent`,"gn");
+    // P2b — if the approval spawned a Matter, the toast becomes the
+    // "one brain" moment of the demo: a clickable link to the new
+    // matter, not just "approved + sent". Falls back to the legacy
+    // text when nothing spawned (Q&A-shaped intake types).
+    const spawn=result?.spawnedMatters?.find(s=>s.ticketId===current.id);
+    if(spawn){
+      const num=spawn.matterNumber||"DRAFT";
+      // Linger 6s so the user has time to click into the new matter.
+      showToast(<>✓ {current.id} approved · <a href={`/matter/${spawn.matterId}`} style={{color:C.cy,textDecoration:"underline"}} onClick={e=>e.stopPropagation()}>Matter {num} created</a></>,"gn",6000);
+    } else {
+      showToast(`✓ ${current.id} approved + sent`,"gn");
+    }
     setTimeout(next,200);
   },[current,editing,showReassign,attorney,store,cockpit,next,showToast]);
 
@@ -881,10 +893,16 @@ function CockpitTab({store,cockpit}){
     await store.updateTicket(current.id,{
       agentRecommendation:{...current.agentRecommendation,draftedResponse:draftEdit,edited:true,editedAt:Date.now(),editedBy:attorney},
     });
-    await store.recordTriageAction(current.id,"edited-approved",{attorney,confidence:current.agentRecommendation?.confidence});
+    const result=await store.recordTriageAction(current.id,"edited-approved",{attorney,confidence:current.agentRecommendation?.confidence});
     await cockpit.incrementTriaged();
     setEditing(false);setDraftEdit("");
-    showToast(`✓ ${current.id} edited + sent`,"gn");
+    const spawn=result?.spawnedMatters?.find(s=>s.ticketId===current.id);
+    if(spawn){
+      const num=spawn.matterNumber||"DRAFT";
+      showToast(<>✓ {current.id} edited · <a href={`/matter/${spawn.matterId}`} style={{color:C.cy,textDecoration:"underline"}} onClick={e=>e.stopPropagation()}>Matter {num} created</a></>,"gn",6000);
+    } else {
+      showToast(`✓ ${current.id} edited + sent`,"gn");
+    }
     setTimeout(next,200);
   },[current,draftEdit,attorney,store,cockpit,next,showToast]);
 

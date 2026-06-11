@@ -19,8 +19,14 @@ export async function storeGet(key,def=null){
 export async function storeSet(key,value){
   try{
     const payload=JSON.stringify(value);
-    if(hasWinStorage()) await window.storage.set(key,payload);
-    else __memStore[key]=payload;
+    if(hasWinStorage()){
+      // P2b — propagate the server's side-effect payload (e.g.
+      // spawnedMatters) so the Cockpit can show the right toast.
+      // Falls back to `true` for browsers / paths that return null.
+      const result=await window.storage.set(key,payload);
+      return result??true;
+    }
+    __memStore[key]=payload;
     return true;
   }catch(e){ console.error("store write failed",key,e); return false; }
 }

@@ -56,8 +56,12 @@ export default async function handler(
           .status(400)
           .json({ error: "value must be a JSON-stringified string" });
       }
-      await intakeStorageSet(body.key, body.value, ctx);
-      return res.status(204).end();
+      // P2b — saveTicketsV8 returns side-effects (matter spawns)
+      // we want to surface to the UI. Switch from 204 (no body) to
+      // 200 with a JSON payload when there's anything to report.
+      // Empty payload still 200 + {} for consistency.
+      const result = await intakeStorageSet(body.key, body.value, ctx);
+      return res.status(200).json(result ?? {});
     }
 
     if (req.method === "DELETE") {
