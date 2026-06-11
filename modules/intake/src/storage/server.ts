@@ -36,10 +36,7 @@ import {
 } from "@aegis/db";
 import { evaluateRoutingRules } from "../routing/rules";
 import { loadEnabledRoutingRules, recordRuleFirings } from "../routing/server";
-import {
-  maybeSpawnMatterForApprovedTicket,
-  type MatterSpawnResult,
-} from "../matter-spawn/server";
+import { maybeSpawnMatterForApprovedTicket } from "../matter-spawn/server";
 
 // ── Storage keys (mirror modules/intake/src/storage/keys.js) ─────────
 const K_TICKETS = "aegis:tickets:v1";
