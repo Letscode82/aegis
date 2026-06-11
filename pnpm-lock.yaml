@@ -118,6 +118,9 @@ importers:
       '@aegis/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@aegis/matter':
+        specifier: workspace:*
+        version: link:../matter
       '@aegis/ui':
         specifier: workspace:*
         version: link:../../packages/ui

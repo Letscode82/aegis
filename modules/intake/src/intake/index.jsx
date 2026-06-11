@@ -545,6 +545,7 @@ function TicketDetailPanel({ticket}){
             <Pill t={ticket.priority?.toUpperCase()} c={pc(ticket.priority)}/>
             <Pill t={ticket._source==="copilot"?"VIA COPILOT":"VIA FORM"} c={ticket._source==="copilot"?C.em:C.tl}/>
             {ticket.triagedBy&&<Pill t={`TRIAGED → ${ticket.triagedAction?.toUpperCase()}`} c={C.gn}/>}
+            {ticket.matterId&&<a href={`/matter/${ticket.matterId}`} style={{textDecoration:"none"}}><Pill t="↗ MATTER LINKED" c={C.cy}/></a>}
           </div>
           <div style={{fontSize:16,fontFamily:SR,color:C.t1,lineHeight:1.35,marginBottom:8}}>{ticket.desc}</div>
         </div>
@@ -814,9 +815,9 @@ function CockpitTab({store,cockpit}){
 
   const current=visibleQueue[pos];
 
-  const showToast=useCallback((msg,tone="gn")=>{
+  const showToast=useCallback((msg,tone="gn",durationMs=2400)=>{
     setToast({msg,tone});
-    setTimeout(()=>setToast(null),2400);
+    setTimeout(()=>setToast(null),durationMs);
   },[]);
 
   const next=useCallback(()=>setPos(p=>Math.min(p+1,visibleQueue.length-1)),[visibleQueue.length]);
@@ -824,9 +825,20 @@ function CockpitTab({store,cockpit}){
 
   const approve=useCallback(async()=>{
     if(editing||showReassign||!current||!current.agentRecommendation) return;
-    await store.recordTriageAction(current.id,"approved",{attorney,confidence:current.agentRecommendation.confidence});
+    const result=await store.recordTriageAction(current.id,"approved",{attorney,confidence:current.agentRecommendation.confidence});
     await cockpit.incrementTriaged();
-    showToast(`✓ ${current.id} approved + sent`,"gn");
+    // P2b — if the approval spawned a Matter, the toast becomes the
+    // "one brain" moment of the demo: a clickable link to the new
+    // matter, not just "approved + sent". Falls back to the legacy
+    // text when nothing spawned (Q&A-shaped intake types).
+    const spawn=result?.spawnedMatters?.find(s=>s.ticketId===current.id);
+    if(spawn){
+      const num=spawn.matterNumber||"DRAFT";
+      // Linger 6s so the user has time to click into the new matter.
+      showToast(<>✓ {current.id} approved · <a href={`/matter/${spawn.matterId}`} style={{color:C.cy,textDecoration:"underline"}} onClick={e=>e.stopPropagation()}>Matter {num} created</a></>,"gn",6000);
+    } else {
+      showToast(`✓ ${current.id} approved + sent`,"gn");
+    }
     setTimeout(next,200);
   },[current,editing,showReassign,attorney,store,cockpit,next,showToast]);
 
@@ -881,10 +893,16 @@ function CockpitTab({store,cockpit}){
     await store.updateTicket(current.id,{
       agentRecommendation:{...current.agentRecommendation,draftedResponse:draftEdit,edited:true,editedAt:Date.now(),editedBy:attorney},
     });
-    await store.recordTriageAction(current.id,"edited-approved",{attorney,confidence:current.agentRecommendation?.confidence});
+    const result=await store.recordTriageAction(current.id,"edited-approved",{attorney,confidence:current.agentRecommendation?.confidence});
     await cockpit.incrementTriaged();
     setEditing(false);setDraftEdit("");
-    showToast(`✓ ${current.id} edited + sent`,"gn");
+    const spawn=result?.spawnedMatters?.find(s=>s.ticketId===current.id);
+    if(spawn){
+      const num=spawn.matterNumber||"DRAFT";
+      showToast(<>✓ {current.id} edited · <a href={`/matter/${spawn.matterId}`} style={{color:C.cy,textDecoration:"underline"}} onClick={e=>e.stopPropagation()}>Matter {num} created</a></>,"gn",6000);
+    } else {
+      showToast(`✓ ${current.id} edited + sent`,"gn");
+    }
     setTimeout(next,200);
   },[current,draftEdit,attorney,store,cockpit,next,showToast]);
 
@@ -1619,6 +1637,186 @@ function SLATab({store}){
 }
 
 // ── Smart Routing (DB-backed — P2a demo-lite) ─────────────────────
+
+// Intake types available as match-conditions and as setPriority option
+// in the editor. Source of truth: the form's TYPE_PICKER_GATE list +
+// the bare "Other" type. Keep this aligned with NewRequestV8.
+const ROUTING_EDITOR_INTAKE_TYPES=[
+  "NDA Request","Contract Question","Vendor Due Diligence","IP Question",
+  "Privacy Question","Contract Review","Employment Issue","Regulatory",
+  "Litigation / Dispute","Trademark Check","Legal Question — General","Other",
+];
+const ROUTING_EDITOR_PRIORITIES=["Critical","High","Medium","Low"];
+
+function RoutingRuleEditor({initial,assignees,onCancel,onSaved}){
+  // initial=null → create mode; otherwise edit mode for that rule.
+  const isCreate=!initial;
+  const[name,setName]=useState(initial?.name||"");
+  const[description,setDescription]=useState(initial?.description||"");
+  const[evalOrder,setEvalOrder]=useState(initial?.evalOrder??100);
+  const[matchType,setMatchType]=useState(initial?.matchType||"");
+  const[matchPriority,setMatchPriority]=useState(initial?.matchPriority||"");
+  const[matchDepartment,setMatchDepartment]=useState(initial?.matchDepartment||"");
+  const[matchKeyword,setMatchKeyword]=useState(initial?.matchKeyword||"");
+  const[setAssigneeUserId,setSetAssigneeUserId]=useState(initial?.setAssigneeUserId||"");
+  const[setPriority,setSetPriority]=useState(initial?.setPriority||"");
+  const[setSlaHours,setSetSlaHours]=useState(initial?.setSlaHours??"");
+  const[saving,setSaving]=useState(false);
+  const[error,setError]=useState(null);
+
+  const hasCondition=matchType||matchPriority||matchDepartment||matchKeyword;
+  const hasAction=setAssigneeUserId||setPriority||setSlaHours!=="";
+  const canSave=name.trim().length>0&&hasCondition&&hasAction&&!saving;
+
+  const submit=async()=>{
+    if(!canSave) return;
+    setSaving(true); setError(null);
+    const body={
+      name:name.trim(),
+      description:description.trim()||null,
+      evalOrder:Number(evalOrder)||100,
+      matchType:matchType||null,
+      matchPriority:matchPriority||null,
+      matchDepartment:matchDepartment.trim()||null,
+      matchKeyword:matchKeyword.trim()||null,
+      setAssigneeUserId:setAssigneeUserId||null,
+      setPriority:setPriority||null,
+      setSlaHours:setSlaHours===""?null:Number(setSlaHours),
+    };
+    try{
+      const resp=await fetch(isCreate?"/api/intake/routing-rules":`/api/intake/routing-rules/${initial.id}`,{
+        method:isCreate?"POST":"PUT",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify(body),
+      });
+      if(!resp.ok){
+        const data=await resp.json().catch(()=>({}));
+        if(resp.status===403) setError("You need platform-admin rights to manage rules.");
+        else setError(data.error||`Save failed (HTTP ${resp.status})`);
+        setSaving(false);
+        return;
+      }
+      const{rule}=await resp.json();
+      onSaved(rule,isCreate);
+    }catch{
+      setError("Save failed — check your connection.");
+      setSaving(false);
+    }
+  };
+
+  const sectionLabel=(t)=><div style={{fontSize:9,fontFamily:M,color:C.t3,letterSpacing:1.5,textTransform:"uppercase",fontWeight:600,marginBottom:6,marginTop:8}}>{t}</div>;
+  const fieldLabel=(t)=><div style={{fontSize:9.5,fontFamily:M,color:C.t4,letterSpacing:.8,marginBottom:3}}>{t}</div>;
+  const select=(value,onChange,options,placeholder="(any)")=><select value={value} onChange={e=>onChange(e.target.value)} style={{...inputStyle,width:"100%",fontSize:11}}>
+    <option value="">{placeholder}</option>
+    {options.map(o=>typeof o==="string"?<option key={o} value={o}>{o}</option>:<option key={o.value} value={o.value}>{o.label}</option>)}
+  </select>;
+
+  return <div onClick={onCancel} style={{position:"fixed",inset:0,background:"rgba(11,16,32,.9)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center",animation:"fu .2s ease",padding:20,overflowY:"auto"}}>
+    <div onClick={e=>e.stopPropagation()} style={{background:C.cd,border:`1px solid ${C.br}`,borderLeft:`3px solid ${C.cy}`,borderRadius:8,padding:24,maxWidth:580,width:"100%",maxHeight:"90vh",overflowY:"auto"}}>
+      <div style={{fontSize:10,fontFamily:M,color:C.cy,letterSpacing:2,textTransform:"uppercase",fontWeight:600,marginBottom:6}}>⚯ {isCreate?"NEW ROUTING RULE":"EDIT ROUTING RULE"}</div>
+      <div style={{fontSize:17,fontFamily:SR,color:C.t1,marginBottom:4}}>{isCreate?"Tell the engine when and what":"Refine an existing rule"}</div>
+      <div style={{fontSize:10.5,color:C.t3,fontFamily:M,marginBottom:12}}>Every save is chain-sealed in the audit log.</div>
+
+      {error&&<div style={{padding:"8px 12px",marginBottom:10,background:C.rdG,borderLeft:`3px solid ${C.rd}`,borderRadius:4,fontSize:11,color:C.t1,fontFamily:M}}>{error}</div>}
+
+      {sectionLabel("Rule")}
+      {fieldLabel("Name")}
+      <input value={name} onChange={e=>setName(e.target.value)} placeholder="e.g. EU privacy questions → privacy team" style={{...inputStyle,width:"100%",marginBottom:8,fontSize:11}}/>
+      {fieldLabel("Description (optional)")}
+      <input value={description} onChange={e=>setDescription(e.target.value)} placeholder="Why this rule exists, for the audit reviewer" style={{...inputStyle,width:"100%",marginBottom:8,fontSize:11}}/>
+      {fieldLabel("Eval order (lower runs first)")}
+      <input type="number" value={evalOrder} onChange={e=>setEvalOrder(e.target.value)} style={{...inputStyle,width:120,marginBottom:8,fontSize:11}}/>
+
+      {sectionLabel("When ALL of these match")}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:8}}>
+        <div>
+          {fieldLabel("Ticket type")}
+          {select(matchType,setMatchType,ROUTING_EDITOR_INTAKE_TYPES)}
+        </div>
+        <div>
+          {fieldLabel("Priority")}
+          {select(matchPriority,setMatchPriority,ROUTING_EDITOR_PRIORITIES)}
+        </div>
+        <div>
+          {fieldLabel("Department contains")}
+          <input value={matchDepartment} onChange={e=>setMatchDepartment(e.target.value)} placeholder="(any)" style={{...inputStyle,width:"100%",fontSize:11}}/>
+        </div>
+        <div>
+          {fieldLabel("Keyword in description")}
+          <input value={matchKeyword} onChange={e=>setMatchKeyword(e.target.value)} placeholder="(any)" style={{...inputStyle,width:"100%",fontSize:11}}/>
+        </div>
+      </div>
+      {!hasCondition&&<div style={{fontSize:10,color:C.am,fontFamily:M,marginBottom:8}}>⚠ Set at least one condition or the rule would match everything.</div>}
+
+      {sectionLabel("Then do ANY of these")}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:8}}>
+        <div style={{gridColumn:"1 / span 2"}}>
+          {fieldLabel("Reassign to")}
+          {select(setAssigneeUserId,setSetAssigneeUserId,(assignees||[]).map(a=>({value:a.id,label:`${a.name} · ${a.roleName||"user"}`})),"(don't reassign)")}
+        </div>
+        <div>
+          {fieldLabel("Set priority to")}
+          {select(setPriority,setSetPriority,ROUTING_EDITOR_PRIORITIES,"(don't change)")}
+        </div>
+        <div>
+          {fieldLabel("Set SLA (hours)")}
+          <input type="number" min="1" value={setSlaHours} onChange={e=>setSetSlaHours(e.target.value)} placeholder="(don't change)" style={{...inputStyle,width:"100%",fontSize:11}}/>
+        </div>
+      </div>
+      {!hasAction&&<div style={{fontSize:10,color:C.am,fontFamily:M,marginBottom:8}}>⚠ Set at least one action or the rule will be a no-op.</div>}
+
+      <div style={{display:"flex",gap:8,marginTop:14}}>
+        <div onClick={canSave?submit:undefined} style={{flex:1,padding:"10px 14px",background:canSave?C.cy:C.s2,color:canSave?C.bg:C.t4,fontSize:10.5,fontFamily:M,letterSpacing:1.2,cursor:canSave?"pointer":"not-allowed",textTransform:"uppercase",fontWeight:700,textAlign:"center",borderRadius:3}}>
+          {saving?"Saving…":isCreate?"✓ Create rule":"✓ Save changes"}
+        </div>
+        <div onClick={onCancel} style={{padding:"10px 14px",border:`1px solid ${C.br}`,color:C.t2,fontSize:10,fontFamily:M,letterSpacing:1.2,cursor:"pointer",textTransform:"uppercase",borderRadius:3}}>Cancel · Esc</div>
+      </div>
+    </div>
+  </div>;
+}
+
+function RoutingRuleDeleteConfirm({rule,onCancel,onConfirmed}){
+  const[confirmText,setConfirmText]=useState("");
+  const[deleting,setDeleting]=useState(false);
+  const[error,setError]=useState(null);
+  const ready=confirmText===rule.name;
+  const run=async()=>{
+    if(!ready) return;
+    setDeleting(true); setError(null);
+    try{
+      const resp=await fetch(`/api/intake/routing-rules/${rule.id}`,{method:"DELETE"});
+      if(!resp.ok&&resp.status!==204){
+        if(resp.status===403) setError("You need platform-admin rights to delete rules.");
+        else setError(`Delete failed (HTTP ${resp.status})`);
+        setDeleting(false);
+        return;
+      }
+      onConfirmed(rule.id);
+    }catch{
+      setError("Delete failed — check your connection.");
+      setDeleting(false);
+    }
+  };
+  return <div onClick={onCancel} style={{position:"fixed",inset:0,background:"rgba(11,16,32,.9)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center",animation:"fu .2s ease",padding:20}}>
+    <div onClick={e=>e.stopPropagation()} style={{background:C.cd,border:`1px solid ${C.br}`,borderLeft:`3px solid ${C.rd}`,borderRadius:8,padding:24,maxWidth:440,width:"100%"}}>
+      <div style={{fontSize:10,fontFamily:M,color:C.rd,letterSpacing:2,textTransform:"uppercase",fontWeight:600,marginBottom:6}}>⚠ DELETE ROUTING RULE</div>
+      <div style={{fontSize:16,fontFamily:SR,color:C.t1,marginBottom:10}}>Permanently delete <span style={{color:C.rd,fontWeight:600}}>{rule.name}</span>?</div>
+      <div style={{fontSize:11.5,color:C.t2,lineHeight:1.55,marginBottom:14,fontFamily:F}}>
+        Future incoming tickets won't be routed by this rule. Audit history (which tickets it fired on, when) is preserved — this only removes the rule itself, attributed in the chain as a SYSTEM-recorded delete event.
+      </div>
+      <div style={{fontSize:10,color:C.t3,fontFamily:M,marginBottom:5,letterSpacing:.5}}>Type <span style={{color:C.rd,fontFamily:M}}>{rule.name}</span> to confirm:</div>
+      <input value={confirmText} onChange={e=>setConfirmText(e.target.value)} autoFocus style={{...inputStyle,width:"100%",marginBottom:10,fontSize:11}}/>
+      {error&&<div style={{padding:"6px 10px",marginBottom:10,background:C.rdG,borderRadius:3,fontSize:10.5,color:C.t1,fontFamily:M}}>{error}</div>}
+      <div style={{display:"flex",gap:8}}>
+        <div onClick={ready?run:undefined} style={{flex:1,padding:"9px 14px",background:ready?C.rd:C.s2,color:ready?"white":C.t4,fontSize:10.5,fontFamily:M,letterSpacing:1.2,cursor:ready?"pointer":"not-allowed",textTransform:"uppercase",fontWeight:700,textAlign:"center"}}>
+          {deleting?"Deleting…":"⚠ Delete permanently"}
+        </div>
+        <div onClick={onCancel} style={{padding:"9px 14px",border:`1px solid ${C.br}`,color:C.t2,fontSize:10,fontFamily:M,letterSpacing:1.2,cursor:"pointer",textTransform:"uppercase"}}>Cancel</div>
+      </div>
+    </div>
+  </div>;
+}
+
 // Humanize a rule's conditions / actions for display.
 function ruleConditionText(r){
   const conds=[];
@@ -1636,9 +1834,12 @@ function ruleActionText(r){
   return acts.join(" · ")||"(no actions)";
 }
 
-function RoutingTab({rules,loading,error,onRuleUpdated}){
+function RoutingTab({rules,loading,error,onRuleUpdated,onRuleCreated,onRuleDeleted,assignees,canManage}){
   const[selRule,setSelRule]=useState(null);
   const[toggleError,setToggleError]=useState(null);
+  const[editorOpen,setEditorOpen]=useState(false);
+  const[editorInitial,setEditorInitial]=useState(null);
+  const[deleteTarget,setDeleteTarget]=useState(null);
   const list=rules||[];
   const totalFired=list.reduce((a,r)=>a+(r.timesFired||0),0);
   const lastFired=list.reduce((a,r)=>r.lastFiredAt&&(!a||r.lastFiredAt>a)?r.lastFiredAt:a,null);
@@ -1663,6 +1864,20 @@ function RoutingTab({rules,loading,error,onRuleUpdated}){
     }
   };
 
+  const openCreate=()=>{ setEditorInitial(null); setEditorOpen(true); };
+  const openEdit=(r,e)=>{ e?.stopPropagation(); setEditorInitial(r); setEditorOpen(true); };
+  const openDelete=(r,e)=>{ e?.stopPropagation(); setDeleteTarget(r); };
+  const onEditorSaved=(rule,wasCreate)=>{
+    setEditorOpen(false); setEditorInitial(null);
+    if(wasCreate) onRuleCreated(rule); else onRuleUpdated(rule);
+    setSelRule(rule);
+  };
+  const onDeleteConfirmed=(id)=>{
+    setDeleteTarget(null);
+    onRuleDeleted(id);
+    if(selRule?.id===id) setSelRule(null);
+  };
+
   if(loading) return <div style={{padding:40,textAlign:"center",color:C.t3,fontFamily:M,fontSize:12,letterSpacing:1}}>◎ Loading routing rules…</div>;
   if(error) return <Card style={{borderLeft:`3px solid ${C.rd}`}}><div style={{fontSize:12,color:C.t2,fontFamily:F}}>Couldn't load routing rules: {error}</div></Card>;
 
@@ -1682,10 +1897,16 @@ function RoutingTab({rules,loading,error,onRuleUpdated}){
 
     {toggleError&&<div style={{padding:"8px 12px",marginBottom:10,background:C.rdG,borderLeft:`3px solid ${C.rd}`,borderRadius:4,fontSize:11,color:C.t1,fontFamily:M}}>{toggleError}</div>}
 
+    {editorOpen&&<RoutingRuleEditor initial={editorInitial} assignees={assignees} onCancel={()=>setEditorOpen(false)} onSaved={onEditorSaved}/>}
+    {deleteTarget&&<RoutingRuleDeleteConfirm rule={deleteTarget} onCancel={()=>setDeleteTarget(null)} onConfirmed={onDeleteConfirmed}/>}
+
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
       <Card>
-        <div style={{fontSize:11,fontWeight:600,color:C.cy,marginBottom:12,letterSpacing:1.2,fontFamily:M,textTransform:"uppercase"}}>◈ Routing Rules</div>
-        {list.length===0&&<div style={{padding:"24px 0",textAlign:"center",color:C.t4,fontSize:11,fontFamily:M}}>No routing rules configured yet.</div>}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <div style={{fontSize:11,fontWeight:600,color:C.cy,letterSpacing:1.2,fontFamily:M,textTransform:"uppercase"}}>◈ Routing Rules</div>
+          {canManage&&<div onClick={openCreate} title="Create a new routing rule" style={{padding:"5px 11px",background:C.cy,color:C.bg,fontSize:9.5,fontFamily:M,letterSpacing:1.2,cursor:"pointer",textTransform:"uppercase",fontWeight:700,borderRadius:3}}>+ New rule</div>}
+        </div>
+        {list.length===0&&<div style={{padding:"24px 0",textAlign:"center",color:C.t4,fontSize:11,fontFamily:M}}>No routing rules configured yet.{canManage&&<> Click <span style={{color:C.cy,fontWeight:600}}>+ NEW RULE</span> to add the first.</>}</div>}
         {list.map((r,i)=><div key={r.id} onClick={()=>setSelRule(r)} style={{padding:"10px 12px",background:selRule?.id===r.id?C.cdH:C.s1,border:`1px solid ${selRule?.id===r.id?C.cy:C.br}`,borderLeft:`3px solid ${r.enabled?C.gn:C.t4}`,borderRadius:4,marginBottom:6,cursor:"pointer",animation:`fu .2s ease ${i*25}ms both`,transition:"all .15s",opacity:r.enabled?1:.65}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
@@ -1694,6 +1915,10 @@ function RoutingTab({rules,loading,error,onRuleUpdated}){
             </div>
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
               <span style={{fontSize:9.5,color:C.t4,fontFamily:M}}>{r.timesFired} fired</span>
+              {canManage&&<>
+                <span onClick={(e)=>openEdit(r,e)} title="Edit rule" style={{fontSize:11,color:C.t3,cursor:"pointer",padding:"0 3px"}}>✎</span>
+                <span onClick={(e)=>openDelete(r,e)} title="Delete rule" style={{fontSize:12,color:C.t3,cursor:"pointer",padding:"0 3px"}}>✕</span>
+              </>}
               <div onClick={(e)=>toggleRule(r,e)} title={r.enabled?"Disable rule":"Enable rule"} style={{width:30,height:16,borderRadius:9,background:r.enabled?C.gn:C.br,position:"relative",cursor:"pointer",transition:"background .15s",flexShrink:0}}>
                 <div style={{position:"absolute",top:2,left:r.enabled?16:2,width:12,height:12,borderRadius:"50%",background:C.bg,transition:"left .15s"}}/>
               </div>
@@ -1706,7 +1931,13 @@ function RoutingTab({rules,loading,error,onRuleUpdated}){
 
       <div>
         {selRule?<Card d={0} style={{borderLeft:`3px solid ${C.cy}`}}>
-          <div style={{fontSize:11,fontWeight:600,color:C.cy,marginBottom:10,letterSpacing:1.2,fontFamily:M,textTransform:"uppercase"}}>Rule Detail · #{selRule.evalOrder}</div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10}}>
+            <div style={{fontSize:11,fontWeight:600,color:C.cy,letterSpacing:1.2,fontFamily:M,textTransform:"uppercase"}}>Rule Detail · #{selRule.evalOrder}</div>
+            {canManage&&<div style={{display:"flex",gap:6}}>
+              <div onClick={(e)=>openEdit(selRule,e)} style={{padding:"3px 9px",border:`1px solid ${C.br}`,color:C.t2,fontSize:9.5,fontFamily:M,letterSpacing:1,cursor:"pointer",textTransform:"uppercase",borderRadius:3}}>✎ Edit</div>
+              <div onClick={(e)=>openDelete(selRule,e)} style={{padding:"3px 9px",border:`1px solid ${C.br}`,color:C.t3,fontSize:9.5,fontFamily:M,letterSpacing:1,cursor:"pointer",textTransform:"uppercase",borderRadius:3}}>✕ Delete</div>
+            </div>}
+          </div>
           <div style={{fontSize:14,color:C.t1,fontFamily:SR,marginBottom:8}}>{selRule.name}</div>
           {selRule.description&&<div style={{fontSize:11,color:C.t2,lineHeight:1.5,marginBottom:10,fontFamily:F}}>{selRule.description}</div>}
           <div style={{padding:12,background:C.s1,borderRadius:4,marginBottom:10}}>
@@ -1841,16 +2072,32 @@ export function IntakeView(){
   // count badge and the RoutingTab share one request.
   const[routingRules,setRoutingRules]=useState(null);
   const[routingError,setRoutingError]=useState(null);
+  // Editor-mode dependencies: the assignee directory (shared with the
+  // Cockpit's reassign picker) and the session permission gate so the
+  // editor + delete affordances only render for admins.
+  const[routingAssignees,setRoutingAssignees]=useState([]);
+  const routingSession=useCurrentUser();
+  const canManageRouting=routingSession?.has?.("admin:manage_users")||false;
   useEffect(()=>{
     let mounted=true;
     fetch("/api/intake/routing-rules")
       .then(r=>{ if(!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then(d=>{ if(mounted) setRoutingRules(d.rules||[]); })
       .catch(e=>{ if(mounted) setRoutingError(String(e.message||e)); });
+    fetch("/api/intake/assignees")
+      .then(r=>r.ok?r.json():{assignees:[]})
+      .then(d=>{ if(mounted) setRoutingAssignees(d.assignees||[]); })
+      .catch(()=>{ /* editor still usable without an assignee list */ });
     return()=>{ mounted=false; };
   },[]);
   const onRuleUpdated=useCallback((rule)=>{
     setRoutingRules(prev=>prev?prev.map(r=>r.id===rule.id?rule:r):prev);
+  },[]);
+  const onRuleCreated=useCallback((rule)=>{
+    setRoutingRules(prev=>prev?[...prev,rule].sort((a,b)=>(a.evalOrder??100)-(b.evalOrder??100)):[rule]);
+  },[]);
+  const onRuleDeleted=useCallback((id)=>{
+    setRoutingRules(prev=>prev?prev.filter(r=>r.id!==id):prev);
   },[]);
 
   const tabs=[
@@ -1908,7 +2155,7 @@ export function IntakeView(){
     {tab==="inbox"&&<InboxTab store={store} sel={sel} setSel={setSel}/>}
     {tab==="kanban"&&<KanbanTab store={store}/>}
     {tab==="sla"&&<SLATab store={store}/>}
-    {tab==="routing"&&<RoutingTab rules={routingRules} loading={routingRules===null&&!routingError} error={routingError} onRuleUpdated={onRuleUpdated}/>}
+    {tab==="routing"&&<RoutingTab rules={routingRules} loading={routingRules===null&&!routingError} error={routingError} onRuleUpdated={onRuleUpdated} onRuleCreated={onRuleCreated} onRuleDeleted={onRuleDeleted} assignees={routingAssignees} canManage={canManageRouting}/>}
     {tab==="selfserve"&&<SelfServeTab onFileTicket={(draft)=>{setPrefillDesc(draft||"");setTab("new");}}/>}
   </div>;
 }

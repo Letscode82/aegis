@@ -49,7 +49,10 @@ export function useTicketStore(agentSettings){
   const updateTicket=useCallback(async(id,patch)=>{
     const next=tickets.map(t=>t.id===id?{...t,...patch}:t);
     setTickets(next);
-    await saveTickets(next);
+    // P2b — saveTickets may return { spawnedMatters } from the server.
+    // Return it so callers (recordTriageAction) can surface a toast.
+    const result=await saveTickets(next);
+    return (result&&typeof result==="object")?result:null;
   },[tickets]);
 
   // Add ticket + run agent + save recommendation (the copilot/form
@@ -140,12 +143,22 @@ export function useTicketStore(agentSettings){
         patch.workflow=t.workflow.map(s=>({...s,done:true,active:false}));
       }
     }
-    await updateTicket(id,patch);
+    const saveResult=await updateTicket(id,patch);
     await appendAgentLog({
       type:`attorney-${action}`,ticketId:id,attorney,
       confidence:extra.confidence,
       ...(extra.reason?{reason:extra.reason}:{}),
     });
+    // P2b — refresh from server-canonical state so the matterId FK
+    // set by the spawn helper appears on the ticket. Without this the
+    // client list still shows matterId:null until the next reload.
+    if(saveResult&&saveResult.spawnedMatters?.length){
+      try{
+        const fresh=await loadTickets();
+        if(fresh&&fresh.length>0) setTickets(fresh);
+      }catch{/* swallow — toast still fires */}
+    }
+    return saveResult;
   },[tickets,updateTicket,currentUserName]);
 
   const bulkApprove=useCallback(async(ids,attorney)=>{

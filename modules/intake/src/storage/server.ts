@@ -36,6 +36,7 @@ import {
 } from "@aegis/db";
 import { evaluateRoutingRules } from "../routing/rules";
 import { loadEnabledRoutingRules, recordRuleFirings } from "../routing/server";
+import { maybeSpawnMatterForApprovedTicket } from "../matter-spawn/server";
 
 // ── Storage keys (mirror modules/intake/src/storage/keys.js) ─────────
 const K_TICKETS = "aegis:tickets:v1";
@@ -131,6 +132,12 @@ type V8Ticket = {
    * client sends back here is ignored on write.
    */
   firedRules?: unknown;
+  /**
+   * P2b — when set, this ticket has already spawned a Matter and is
+   * linked to it. Read-only from the client's perspective; written
+   * server-side by the matter-spawn helper on first approval.
+   */
+  matterId?: string | null;
 };
 
 // ── Read path: assemble v8 ticket array from DB rows ─────────────────
@@ -193,17 +200,32 @@ async function loadTicketsV8(orgId: string): Promise<V8Ticket[]> {
       triagedAction: t.triagedAction,
       agentProcessedAt: t.agentProcessedAt?.getTime() ?? null,
       firedRules: (t.firedRulesJson as unknown) ?? null,
+      matterId: t.matterId ?? null,
     };
   });
 }
 
 // ── Write path: upsert tickets from a v8 array ───────────────────────
 
+/**
+ * Side effects that happened inside the save, returned so the HTTP
+ * caller can surface them to the UI (toast, matter link, etc.).
+ */
+export interface SaveTicketsV8Result {
+  spawnedMatters: Array<{
+    ticketId: string;
+    matterId: string;
+    matterNumber: string | null;
+    matterTitle: string;
+  }>;
+}
+
 async function saveTicketsV8(
   orgId: string,
   tickets: V8Ticket[],
   ctx?: { req?: { headers: Record<string, string | string[] | undefined> }; res?: unknown },
-): Promise<void> {
+): Promise<SaveTicketsV8Result> {
+  const spawnedMatters: SaveTicketsV8Result["spawnedMatters"] = [];
   // Resolve the actor once — every audit row carries this user's id.
   // Goes through @aegis/auth/server when a request is present, so a
   // real Auth0 session correctly attributes the audit; otherwise
@@ -234,6 +256,7 @@ async function saveTicketsV8(
         triagedBy: true,
         assignedToUserId: true,
         firedRulesJson: true,
+        matterId: true,
       },
     });
 
@@ -504,6 +527,48 @@ async function saveTicketsV8(
             metadata: { source: "intake-storage-api" },
           });
         }
+
+        // P2b — auto-spawn a Matter when an attorney approves a
+        // matter-eligible intake type. Closes the "one brain" loop:
+        // intake, matter, documents, and audit all attach to the same
+        // shared entities. Idempotent — spawn is skipped if the
+        // ticket is already linked. Spawn failures don't roll back
+        // the approval (the audit row above is already on the chain);
+        // they're logged and surfaced as a separate audit event so
+        // the attorney isn't blocked.
+        const isApprovalAction =
+          newAction === "approved" || newAction === "edited-approved";
+        if (isApprovalAction) {
+          try {
+            const spawn = await maybeSpawnMatterForApprovedTicket(
+              {
+                id: t.id,
+                type: common.type,
+                description: common.description,
+                matterId: before?.matterId ?? null,
+                organizationId: orgId,
+                requesterName: t.from ?? null,
+              },
+              demoUser,
+            );
+            if (spawn) {
+              spawnedMatters.push({ ticketId: t.id, ...spawn });
+            }
+          } catch (err) {
+            await logAudit({
+              organizationId: orgId,
+              actorId: actor,
+              actorType: "USER",
+              action: "intake.ticket.matter_spawn_failed",
+              resourceType: "IntakeTicket",
+              resourceId: t.id,
+              afterJson: {
+                error: err instanceof Error ? err.message : String(err),
+                intakeType: common.type,
+              },
+            });
+          }
+        }
       }
     }
 
@@ -569,6 +634,7 @@ async function saveTicketsV8(
       }
     }
   }
+  return { spawnedMatters };
 }
 
 // ── User-preference KV (cockpit state, agent settings, agent log) ────
@@ -713,6 +779,16 @@ export async function intakeStorageGet(
 }
 
 /**
+ * Side-effect payload returned to the HTTP caller for the tickets
+ * key. Lets the UI surface things that happened server-side (matter
+ * spawns, eventually rule firings) without the client polling for
+ * them. Other keys return null (no side effects to report).
+ */
+export interface IntakeStorageSetResult {
+  spawnedMatters?: SaveTicketsV8Result["spawnedMatters"];
+}
+
+/**
  * Persist a JSON-stringified value. Mirrors `window.storage.set(key, value)`.
  * `value` arrives as a string (the v8 store calls JSON.stringify before the
  * polyfill ever sees it).
@@ -721,7 +797,7 @@ export async function intakeStorageSet(
   key: string,
   value: string,
   ctx: RequestContext = {},
-): Promise<void> {
+): Promise<IntakeStorageSetResult> {
   const org = await getCurrentOrganization(ctx.req, ctx.res);
   const user = await getCurrentUser(ctx.req, ctx.res);
 
@@ -735,19 +811,21 @@ export async function intakeStorageSet(
     if (!Array.isArray(parsed)) {
       throw new Error("[intake/storage] tickets payload must be an array");
     }
-    await saveTicketsV8(org.id, parsed, ctx);
-    return;
+    const result = await saveTicketsV8(org.id, parsed, ctx);
+    return {
+      spawnedMatters: result.spawnedMatters.length > 0 ? result.spawnedMatters : undefined,
+    };
   }
   if (key === K_TICKETS_SEEDED) {
     // No-op — DB is always seeded server-side.
-    return;
+    return {};
   }
   if (key === K_AGENT_LOG) {
     // No-op on direct writes — the canonical audit trail is AuditLog,
     // populated by logAudit() calls inside the mutation paths. Direct
     // writes from the client used to append to the localStorage array;
     // we ignore them silently to avoid double-logging.
-    return;
+    return {};
   }
   if (
     key === K_CONVERSATIONS ||
@@ -761,7 +839,7 @@ export async function intakeStorageSet(
       throw new Error(`[intake/storage] ${key} payload is not valid JSON`);
     }
     await userPrefSet(user.id, key, parsed);
-    return;
+    return {};
   }
   // Unknown key — KV fallback.
   let parsed: unknown;
@@ -771,6 +849,7 @@ export async function intakeStorageSet(
     parsed = value;
   }
   await userPrefSet(user.id, key, parsed);
+  return {};
 }
 
 /**

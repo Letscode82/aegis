@@ -44,9 +44,15 @@ export function installStoragePolyfill() {
         });
         if (!resp.ok) {
           console.error(`[storage.set] ${resp.status} for key=${key}`);
+          return null;
         }
+        // P2b — server may include side-effects (e.g. spawnedMatters)
+        // the UI wants to surface as a toast. Empty body / non-JSON
+        // responses fall through to null so callers can safely ignore.
+        try { return await resp.json(); } catch { return null; }
       } catch (err) {
         console.error(`[storage.set] network error for key=${key}:`, err);
+        return null;
       }
     },
 

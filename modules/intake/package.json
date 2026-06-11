@@ -11,7 +11,8 @@
     "./ai-ops": "./src/ai-ops/summary.ts",
     "./assignees": "./src/assignees/server.ts",
     "./routing": "./src/routing/server.ts",
-    "./sla": "./src/sla/server.ts"
+    "./sla": "./src/sla/server.ts",
+    "./matter-spawn": "./src/matter-spawn/server.ts"
   },
   "files": ["src"],
   "scripts": {
@@ -24,6 +25,7 @@
     "@aegis/ai": "workspace:*",
     "@aegis/auth": "workspace:*",
     "@aegis/db": "workspace:*",
+    "@aegis/matter": "workspace:*",
     "@aegis/ui": "workspace:*",
     "react": "^18.3.1"
   },
