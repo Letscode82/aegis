@@ -16,7 +16,7 @@ import { handleClaudeRequest } from "@aegis/ai/proxy"; // server-only
 | `callClaudeJSON(prompt, opts)` | client | POST + tolerant JSON parse |
 | `parseJSONLoose(text)` | client | strip code fences, salvage JSON |
 | `friendlyAIError(err)` | client | user-facing error message |
-| `CLAUDE_MODEL` | const | model id (currently `claude-sonnet-4-20250514`) |
+| `CLAUDE_MODEL` | const | model id (currently `claude-sonnet-4-6`) |
 | `CLAUDE_ENDPOINT` | const | `/api/claude` |
 | `classifyIntakeRegex(text)` | client | offline regex fallback for intake triage |
 | `handleClaudeRequest(req, res)` | **server** | mounted at `apps/web/pages/api/claude.ts` |

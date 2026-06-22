@@ -1,4 +1,4 @@
-export const CLAUDE_MODEL="claude-sonnet-4-20250514";
+export const CLAUDE_MODEL="claude-sonnet-4-6";
 // Client-side calls go through our serverless proxy (api/claude.js) so the
 // Anthropic API key stays on the server and CORS is avoided.
 export const CLAUDE_ENDPOINT="/api/claude";
