@@ -102,6 +102,10 @@ export function useTicketStore(agentSettings){
       workflow:nextWorkflow,
       agentRecommendation:recommendation,
       agentProcessedAt:Date.now(),
+      // P2b — explicit outcome so the server can record an
+      // `intake.ticket.agent_no_match` audit row when no agent claimed
+      // the ticket (ops can see which intake patterns are uncovered).
+      agentOutcome:agent?"matched":"no-match",
       assigned:agent?`${agent.shortName} Agent · Cockpit Queue`:"Cockpit Queue · Manual",
     };
     // Persist once with the final state. Same closure-stale workaround

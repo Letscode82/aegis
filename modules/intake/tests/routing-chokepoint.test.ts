@@ -206,3 +206,87 @@ describe("saveTicketsV8 — routing rules", () => {
     expect(firedAudits()).toHaveLength(0);
   });
 });
+
+describe("saveTicketsV8 — agent no-match audit (P2b)", () => {
+  function noMatchAudits() {
+    return logAuditMock.mock.calls.filter(
+      (c) => c[0]?.action === "intake.ticket.agent_no_match",
+    );
+  }
+
+  it("writes a SYSTEM no-match audit on first agent processing with no match", async () => {
+    // Ticket already exists (created on a prior save), agent hasn't run yet.
+    intakeTicketFindUniqueMock.mockResolvedValue({
+      status: "AWAITING_TRIAGE",
+      stage: "triage",
+      triagedAction: null,
+      triagedBy: null,
+      assignedToUserId: null,
+      firedRulesJson: null,
+      agentProcessedAt: null,
+    });
+    await intakeStorageSet(
+      "aegis:tickets:v1",
+      ticketsPayload({
+        type: "Other",
+        desc: "A novel situation no agent covers",
+        stage: "assigned",
+        agentProcessedAt: Date.now(),
+        agentOutcome: "no-match",
+      }),
+    );
+    const rows = noMatchAudits();
+    expect(rows).toHaveLength(1);
+    expect(rows[0][0]).toMatchObject({
+      actorType: "SYSTEM",
+      actorId: null,
+      action: "intake.ticket.agent_no_match",
+      resourceId: "REQ-9001",
+    });
+  });
+
+  it("does NOT audit when an agent matched", async () => {
+    intakeTicketFindUniqueMock.mockResolvedValue({
+      status: "AWAITING_TRIAGE",
+      stage: "triage",
+      triagedAction: null,
+      triagedBy: null,
+      assignedToUserId: null,
+      firedRulesJson: null,
+      agentProcessedAt: null,
+    });
+    await intakeStorageSet(
+      "aegis:tickets:v1",
+      ticketsPayload({
+        stage: "assigned",
+        agentProcessedAt: Date.now(),
+        agentOutcome: "matched",
+      }),
+    );
+    expect(noMatchAudits()).toHaveLength(0);
+  });
+
+  it("does NOT re-audit on a later save (deduped by first-processing transition)", async () => {
+    // Agent already processed this ticket previously.
+    intakeTicketFindUniqueMock.mockResolvedValue({
+      status: "AWAITING_TRIAGE",
+      stage: "assigned",
+      triagedAction: null,
+      triagedBy: null,
+      assignedToUserId: null,
+      firedRulesJson: null,
+      agentProcessedAt: new Date(Date.now() - 60000),
+    });
+    await intakeStorageSet(
+      "aegis:tickets:v1",
+      ticketsPayload({
+        type: "Other",
+        desc: "A novel situation no agent covers",
+        stage: "assigned",
+        agentProcessedAt: Date.now(),
+        agentOutcome: "no-match",
+      }),
+    );
+    expect(noMatchAudits()).toHaveLength(0);
+  });
+});
