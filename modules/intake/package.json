@@ -15,7 +15,8 @@
     "./matter-spawn": "./src/matter-spawn/server.ts",
     "./counterparty": "./src/counterparty/server.ts",
     "./sanctions": "./src/sanctions/server.ts",
-    "./sanctions-bootstrap": "./src/sanctions/bootstrap.ts"
+    "./sanctions-bootstrap": "./src/sanctions/bootstrap.ts",
+    "./agent-metrics": "./src/agent-metrics/server.ts"
   },
   "files": ["src"],
   "scripts": {
