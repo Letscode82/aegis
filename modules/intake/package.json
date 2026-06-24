@@ -13,7 +13,9 @@
     "./routing": "./src/routing/server.ts",
     "./sla": "./src/sla/server.ts",
     "./matter-spawn": "./src/matter-spawn/server.ts",
-    "./counterparty": "./src/counterparty/server.ts"
+    "./counterparty": "./src/counterparty/server.ts",
+    "./sanctions": "./src/sanctions/server.ts",
+    "./sanctions-bootstrap": "./src/sanctions/bootstrap.ts"
   },
   "files": ["src"],
   "scripts": {

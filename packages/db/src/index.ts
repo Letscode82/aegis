@@ -114,6 +114,7 @@ export type {
   OrganizationHoldPolicy,
   DepartedCustodianRetention,
   AgentDecision,
+  SanctionsListEntry,
   OrganizationM365Credential,
   IntakeTicket,
   IntakeRoutingRule,

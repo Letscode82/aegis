@@ -1166,6 +1166,39 @@ model AgentDecision {
   @@index([organizationId, resourceType, resourceId])
 }
 
+/// Sanctions-screening reference data (Intake P2b — replaces the
+/// hardcoded mockSanctionsCheck). GLOBAL, not org-scoped: OFAC SDN /
+/// EU / UK consolidated lists are public reference data shared across
+/// all tenants. Refreshed by refreshSanctionsList() (admin trigger,
+/// pg-boss-ready) from the live Treasury feed in production; seeded with
+/// a bootstrap set for demo/CI. `normalizedName` is the lowercased,
+/// punctuation-stripped match key. Empty / stale table → screening
+/// returns "unavailable" (→ flag for review), never a false all-clear.
+model SanctionsListEntry {
+  id             String    @id @default(cuid())
+  /// "OFAC-SDN" | "OFAC-CONS" | "EU" | "UK-OFSI" | "UN" | "BOOTSTRAP"
+  source         String
+  /// Stable id within the source feed (uid / ent_num), for upsert.
+  sourceRef      String
+  entityName     String
+  /// Lowercased, punctuation-stripped — the match key.
+  normalizedName String
+  /// "individual" | "entity" | "vessel" | "aircraft"
+  entityType     String?
+  /// Sanctions programs, e.g. ["SDGT","IRAN"].
+  programs       String[]
+  /// Known aliases (AKAs), normalized.
+  aliasesJson    Json      @default("[]")
+  country        String?
+  listedAt       DateTime?
+  /// When this row was last written by a refresh pass — drives staleness.
+  refreshedAt    DateTime  @default(now())
+
+  @@unique([source, sourceRef])
+  @@index([normalizedName])
+  @@index([source, refreshedAt])
+}
+
 // ════════════════════════════════════════════════════════════════════
 // 5. Legal Intake
 // ════════════════════════════════════════════════════════════════════
