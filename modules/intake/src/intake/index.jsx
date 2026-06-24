@@ -1067,6 +1067,20 @@ function CockpitTab({store,cockpit}){
 function AgentSettingsPanel({onClose,settings,toggle,log}){
   const[tab,setTab]=useState("agents"); // "agents" | "log"
 
+  // P2b — per-agent health metrics (produced / accept-rate / avg-conf /
+  // degraded-rate, 7-day window) from /api/intake/agent-metrics. Keyed
+  // by agentId for the per-card render. Best-effort: a fetch failure
+  // just hides the metrics row, never breaks the panel.
+  const[metricsById,setMetricsById]=useState(null);
+  useEffect(()=>{
+    let mounted=true;
+    fetch("/api/intake/agent-metrics?days=7")
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{ if(mounted&&d?.agents) setMetricsById(Object.fromEntries(d.agents.map(a=>[a.agentId,a]))); })
+      .catch(()=>{});
+    return()=>{ mounted=false; };
+  },[]);
+
   // Derive today's stats from the agent log.
   //
   // Phase 1a unified the log surface: `loadAgentLogV8` now reads from
@@ -1157,6 +1171,17 @@ function AgentSettingsPanel({onClose,settings,toggle,log}){
                   </div>
                 </div>
                 <div style={{fontSize:9,fontFamily:M,color:enabled?C.gn:C.t4,letterSpacing:1,textTransform:"uppercase",fontWeight:600,marginTop:6}}>{enabled?"● ENABLED":"○ DISABLED"}</div>
+                {/* P2b — per-agent health (7-day window) */}
+                {(()=>{ const m=metricsById?.[agent.id]; if(!m) return null;
+                  const pct=v=>v==null?"—":`${Math.round(v*100)}%`;
+                  const degradedBad=m.degradedRate!=null&&m.degradedRate>=0.2;
+                  return <div style={{marginTop:8,paddingTop:8,borderTop:`1px solid ${C.br}`,display:"flex",flexWrap:"wrap",gap:"4px 12px"}}>
+                    <span style={{fontSize:9.5,fontFamily:M,color:C.t2}} title="Recommendations produced (7d)"><span style={{color:C.t4}}>made</span> {m.produced}</span>
+                    <span style={{fontSize:9.5,fontFamily:M,color:C.t2}} title="Attorney accept rate"><span style={{color:C.t4}}>accept</span> <span style={{color:m.acceptRate!=null&&m.acceptRate<0.5?C.am:C.gn}}>{pct(m.acceptRate)}</span></span>
+                    <span style={{fontSize:9.5,fontFamily:M,color:C.t2}} title="Average confidence"><span style={{color:C.t4}}>conf</span> {pct(m.avgConfidence)}</span>
+                    <span style={{fontSize:9.5,fontFamily:M,color:C.t2}} title="Degraded (Claude-unavailable) rate"><span style={{color:C.t4}}>degraded</span> <span style={{color:degradedBad?C.rd:C.t2}}>{pct(m.degradedRate)}</span></span>
+                  </div>;
+                })()}
               </div>;
             })}
           </div>
