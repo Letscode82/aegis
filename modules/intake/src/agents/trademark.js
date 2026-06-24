@@ -6,6 +6,11 @@ export const TrademarkAgent={
   shortName:"Trademark",
   icon:"◇",
   description:"Runs USPTO / EUIPO / WIPO / JPO trademark searches. Produces clearance memo with conflict ranking.",
+  // Deterministic mock pending real USPTO/EUIPO/WIPO API integration.
+  // Hidden from production deployments; surfaced only when
+  // NEXT_PUBLIC_AEGIS_DEMO_AGENTS=true (sales demos). See agents/index.js.
+  productionReady:false,
+  requiresBackend:"USPTO / EUIPO / WIPO trademark search APIs",
 
   canHandle(ticket){
     const cat=(ticket.aiTriage?.category||"").toLowerCase();

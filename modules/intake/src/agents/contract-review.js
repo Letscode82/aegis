@@ -6,6 +6,11 @@ export const ContractReviewAgent={
   shortName:"Contract",
   icon:"◐",
   description:"First-pass clause analysis on incoming contract redlines. Full deep analysis handoff to Contract Intelligence module (v8.1).",
+  // Routing stub pending the Contract Intelligence module (clause diff
+  // vs playbook). Hidden from production deployments; surfaced only when
+  // NEXT_PUBLIC_AEGIS_DEMO_AGENTS=true (sales demos). See agents/index.js.
+  productionReady:false,
+  requiresBackend:"Contract Intelligence module (clause-level diff)",
 
   canHandle(ticket){
     const cat=(ticket.aiTriage?.category||"").toLowerCase();

@@ -8,6 +8,7 @@ export const FAQAgent={
   shortName:"FAQ",
   icon:"◈",
   description:"Answers common legal questions directly from the knowledge base. High-deflection, high-confidence lookups.",
+  productionReady:true,
 
   canHandle(ticket){
     if(!matchAgentKB(ticket.desc)) return false;

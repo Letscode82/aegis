@@ -8,6 +8,7 @@ export const NDAAgent={
   shortName:"NDA",
   icon:"◉",
   description:"Drafts standard mutual & one-way NDAs from playbook templates. Checks for prior NDAs with counterparty. Recommends template reuse when possible.",
+  productionReady:true,
 
   canHandle(ticket){
     const cat=(ticket.aiTriage?.category||"").toLowerCase();

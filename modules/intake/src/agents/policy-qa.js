@@ -8,6 +8,7 @@ export const PolicyQAAgent={
   shortName:"Policy",
   icon:"◎",
   description:"Answers internal policy questions from the policy library. Defers sensitive matters (employment, harassment) to specialist teams.",
+  productionReady:true,
 
   canHandle(ticket){
     // Hand off sensitive employment to the Employment team explicitly (no agent auto-drafts)

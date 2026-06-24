@@ -8,6 +8,7 @@ export const VendorIntakeAgent={
   shortName:"Vendor",
   icon:"⬡",
   description:"Runs sanctions screen, DPA review, anti-bribery check on new vendors. Produces an onboarding recommendation with full check trail.",
+  productionReady:true,
 
   canHandle(ticket){
     const cat=(ticket.aiTriage?.category||"").toLowerCase();

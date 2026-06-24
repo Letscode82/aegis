@@ -1144,11 +1144,13 @@ function AgentSettingsPanel({onClose,settings,toggle,log}){
               return <div key={agent.id} style={{padding:12,background:C.s1,border:`1px solid ${C.br}`,borderLeft:`2px solid ${enabled?C.gn:C.t4}`,borderRadius:4}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8,marginBottom:6}}>
                   <div style={{flex:1,minWidth:0}}>
-                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3}}>
+                    <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:3,flexWrap:"wrap"}}>
                       <span style={{fontSize:14,color:C.pp}}>{agent.icon}</span>
                       <div style={{fontSize:12,color:C.t1,fontWeight:600,fontFamily:F}}>{agent.name}</div>
+                      {agent.productionReady===false&&<span title={`Preview — pending ${agent.requiresBackend||"real backend"}. Visible because demo mode is on.`} style={{fontSize:8,fontFamily:M,letterSpacing:1,textTransform:"uppercase",fontWeight:700,color:C.am,background:C.amG,border:`1px solid ${C.am}`,borderRadius:2,padding:"1px 5px"}}>Preview</span>}
                     </div>
                     <div style={{fontSize:10,color:C.t3,lineHeight:1.4,fontFamily:F}}>{agent.description}</div>
+                    {agent.productionReady===false&&<div style={{fontSize:9,color:C.am,fontFamily:M,marginTop:3,lineHeight:1.4}}>⚠ Demo-only — produces placeholder output until {agent.requiresBackend||"backend"} ships.</div>}
                   </div>
                   <div onClick={()=>toggle(agent.id)} style={{width:36,height:20,background:enabled?C.gn:C.br,borderRadius:10,position:"relative",cursor:"pointer",transition:"background .15s",flexShrink:0}}>
                     <div style={{width:16,height:16,background:enabled?C.bg:C.t3,borderRadius:"50%",position:"absolute",top:2,left:enabled?18:2,transition:"left .15s"}}/>
