@@ -128,6 +128,14 @@ type V8Ticket = {
   triagedAction?: string | null;
   agentProcessedAt?: number | null;
   /**
+   * P2b — agent routing outcome the client stamps after running the
+   * router: "matched" | "no-match". Drives the
+   * `intake.ticket.agent_no_match` audit row. Not persisted as a
+   * column; used only to emit the audit on the first-processing
+   * transition.
+   */
+  agentOutcome?: string | null;
+  /**
    * P2a — which routing rules fired (server-computed; read-only for
    * the client). Shape: { ruleIds, firedAt, summaries }. Anything the
    * client sends back here is ignored on write.
@@ -258,6 +266,7 @@ async function saveTicketsV8(
         assignedToUserId: true,
         firedRulesJson: true,
         matterId: true,
+        agentProcessedAt: true,
       },
     });
 
@@ -611,6 +620,29 @@ async function saveTicketsV8(
       });
     }
     await recordRuleFirings(newlyFired.map((f) => f.id));
+
+    // P2b — agent no-match audit. Fires once, on the transition where
+    // the client-side router first processes the ticket
+    // (agentProcessedAt goes null → set) and reports that NO agent
+    // claimed it. A chain-sealed SYSTEM row so ops can query which
+    // intake patterns fall through to manual triage and need a new
+    // agent or KB entry. Deduped by the first-processing transition —
+    // re-saves don't re-audit.
+    const becameProcessed = !before?.agentProcessedAt && !!common.agentProcessedAt;
+    if (becameProcessed && t.agentOutcome === "no-match") {
+      await logAudit({
+        organizationId: orgId,
+        actorId: null,
+        actorType: "SYSTEM",
+        action: "intake.ticket.agent_no_match",
+        resourceType: "IntakeTicket",
+        resourceId: t.id,
+        afterJson: {
+          type: common.type,
+          descSnippet: (common.description || "").slice(0, 80),
+        },
+      });
+    }
 
     // Replace recommendation if present.
     if (t.agentRecommendation && t.agentRecommendation.agentId) {
