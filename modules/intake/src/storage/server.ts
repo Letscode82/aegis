@@ -37,6 +37,7 @@ import {
 import { evaluateRoutingRules } from "../routing/rules";
 import { loadEnabledRoutingRules, recordRuleFirings } from "../routing/server";
 import { maybeSpawnMatterForApprovedTicket } from "../matter-spawn/server";
+import { syncAgentDecisionForTicket } from "../agent-decision/server";
 
 // ── Storage keys (mirror modules/intake/src/storage/keys.js) ─────────
 const K_TICKETS = "aegis:tickets:v1";
@@ -511,8 +512,9 @@ async function saveTicketsV8(
           snoozed: "intake.recommendation.snoozed",
         };
         const auditAction = actionMap[newAction];
+        let approvalAuditId: string | null = null;
         if (auditAction) {
-          await logAudit({
+          approvalAuditId = await logAudit({
             organizationId: orgId,
             actorId: actor,
             actorType: "USER",
@@ -528,6 +530,27 @@ async function saveTicketsV8(
           });
         }
 
+        // P2b — AgentDecision lifecycle (conservative-AI gate). When a
+        // recommendation exists, the attorney's approve/reject keystroke
+        // resolves its AgentDecision row — the ONLY path from PENDING to
+        // APPROVED. resultingAuditLogId links the verdict to the audit
+        // row above. agentActionApproved gates the matter spawn below:
+        // a recommendation that isn't APPROVED can't spawn a matter,
+        // even if the ticket's flags say otherwise. Tickets with no
+        // recommendation (manual / no-agent) are ungated → approved.
+        let agentActionApproved = true;
+        if (t.agentRecommendation?.agentId) {
+          const gate = await syncAgentDecisionForTicket({
+            organizationId: orgId,
+            ticketId: t.id,
+            rec: t.agentRecommendation,
+            action: newAction,
+            actorId: actor,
+            auditLogId: approvalAuditId,
+          });
+          agentActionApproved = gate.approved;
+        }
+
         // P2b — auto-spawn a Matter when an attorney approves a
         // matter-eligible intake type. Closes the "one brain" loop:
         // intake, matter, documents, and audit all attach to the same
@@ -535,10 +558,11 @@ async function saveTicketsV8(
         // ticket is already linked. Spawn failures don't roll back
         // the approval (the audit row above is already on the chain);
         // they're logged and surfaced as a separate audit event so
-        // the attorney isn't blocked.
+        // the attorney isn't blocked. Gated on the AgentDecision being
+        // APPROVED — schema-enforced conservative AI.
         const isApprovalAction =
           newAction === "approved" || newAction === "edited-approved";
-        if (isApprovalAction) {
+        if (isApprovalAction && agentActionApproved) {
           try {
             const spawn = await maybeSpawnMatterForApprovedTicket(
               {
@@ -616,6 +640,20 @@ async function saveTicketsV8(
           reviewedAt: recStatus === AgentRecommendationStatus.PENDING ? null : new Date(),
         },
       });
+
+      // P2b — every fresh recommendation gets a PENDING AgentDecision
+      // row (the evidence record). On a review save the approval block
+      // above already resolved it, so this only fires on the agent-runs
+      // save (no triage action yet). Idempotent: syncAgentDecision
+      // no-ops if a decision already exists.
+      if (recStatus === AgentRecommendationStatus.PENDING) {
+        await syncAgentDecisionForTicket({
+          organizationId: orgId,
+          ticketId: t.id,
+          rec: r,
+          action: null,
+        });
+      }
     }
 
     // Replace conversation if present.

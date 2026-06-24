@@ -65,6 +65,7 @@ vi.mock("@aegis/db", () => ({
     },
     // P2a — routing rules load inside the save chokepoint; default to
     // none so legacy behavior assertions hold.
+    agentDecision: { findFirst: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({ id: "ad-1", approvalStatus: "PENDING" }), update: vi.fn().mockResolvedValue({ id: "ad-1", approvalStatus: "APPROVED" }) },
     intakeRoutingRule: {
       findMany: vi.fn().mockResolvedValue([]),
       updateMany: vi.fn(),

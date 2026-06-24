@@ -40,9 +40,15 @@ export interface LogAuditInput {
   metadata?: Prisma.InputJsonValue | null;
 }
 
-export async function logAudit(input: LogAuditInput): Promise<void> {
+/**
+ * Returns the created row's id (so callers can link it — e.g.
+ * AgentDecision.resultingAuditLogId), or null if the append-only write
+ * failed. Existing callers that `await logAudit(...)` and ignore the
+ * return are unaffected — the change is purely additive.
+ */
+export async function logAudit(input: LogAuditInput): Promise<string | null> {
   try {
-    await prisma.auditLog.create({
+    const row = await prisma.auditLog.create({
       data: {
         organizationId: input.organizationId,
         actorId: input.actorId ?? null,
@@ -54,11 +60,14 @@ export async function logAudit(input: LogAuditInput): Promise<void> {
         afterJson: (input.afterJson ?? Prisma.DbNull) as Prisma.InputJsonValue,
         metadata: (input.metadata ?? Prisma.DbNull) as Prisma.InputJsonValue,
       },
+      select: { id: true },
     });
+    return row.id;
   } catch (err) {
     // The audit write must never roll back the caller's mutation. A
     // surfaced log line is the right level of noise here — alerting is
     // a job for the deployed log pipeline, not this helper.
     console.error("[@aegis/db] logAudit failed:", err);
+    return null;
   }
 }

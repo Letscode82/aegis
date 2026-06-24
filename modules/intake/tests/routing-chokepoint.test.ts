@@ -36,6 +36,7 @@ vi.mock("@aegis/db", () => ({
     agentRecommendation: { deleteMany: vi.fn(), create: vi.fn() },
     intakeConversation: { deleteMany: vi.fn(), create: vi.fn(), findMany: vi.fn() },
     userPreference: { findUnique: vi.fn(), upsert: vi.fn(), deleteMany: vi.fn() },
+    agentDecision: { findFirst: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({ id: "ad-1", approvalStatus: "PENDING" }), update: vi.fn().mockResolvedValue({ id: "ad-1", approvalStatus: "APPROVED" }) },
     intakeRoutingRule: {
       findMany: routingRuleFindManyMock,
       updateMany: routingRuleUpdateManyMock,

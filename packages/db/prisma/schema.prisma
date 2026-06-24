@@ -1148,6 +1148,13 @@ model AgentDecision {
   overrideReason       String?
   /// The AuditLog row that records the executed action when approved.
   resultingAuditLogId  String?
+  /// Polymorphic owner — the resource this decision governs.
+  /// "IntakeTicket" | "LegalHold" | … Mirrors the polymorphic pattern
+  /// used by Document (ownerType/ownerId). Lets a module find "the open
+  /// decision for resource X" without a per-module FK column. Nullable +
+  /// additive: the 4b-locked contract shipped empty, so no rows migrate.
+  resourceType         String?
+  resourceId           String?
   createdAt            DateTime            @default(now())
 
   organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -1156,6 +1163,7 @@ model AgentDecision {
 
   @@index([organizationId, agentName, createdAt])
   @@index([approvalStatus])
+  @@index([organizationId, resourceType, resourceId])
 }
 
 // ════════════════════════════════════════════════════════════════════
