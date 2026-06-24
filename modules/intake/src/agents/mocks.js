@@ -1,9 +1,8 @@
-// Mock registry lookups — in prod, these would call the real ContractAI / Sanctions / Policy APIs
-export function mockPriorNDACheck(counterparty){
-  const has=(counterparty||"").toLowerCase();
-  if(has.includes("acme")) return {found:true,ndaId:"NDA-2026-02-14-ACME",expires:"2028-02-14",note:"Active mutual NDA on file — consider reusing."};
-  return {found:false,note:"No prior NDA on file with this counterparty."};
-}
+// Mock registry lookups.
+//
+// mockPriorNDACheck was removed in Intake P2b — the NDA agent now does a
+// real Counterparty lookup via /api/intake/counterparty-check. The
+// sanctions mock below is the next to go (real OFAC screening).
 export function mockSanctionsCheck(counterparty,jurisdiction){
   const name=(counterparty||"").toLowerCase();
   if(/iran|north korea|crimea/.test((jurisdiction||"").toLowerCase())) return {clear:false,flags:["Jurisdiction on restricted list"]};

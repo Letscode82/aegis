@@ -12,7 +12,8 @@
     "./assignees": "./src/assignees/server.ts",
     "./routing": "./src/routing/server.ts",
     "./sla": "./src/sla/server.ts",
-    "./matter-spawn": "./src/matter-spawn/server.ts"
+    "./matter-spawn": "./src/matter-spawn/server.ts",
+    "./counterparty": "./src/counterparty/server.ts"
   },
   "files": ["src"],
   "scripts": {

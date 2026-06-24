@@ -1,5 +1,5 @@
 import { buildRec, buildDegradedRec } from "./build-rec";
-import { mockPriorNDACheck } from "./mocks";
+import { checkCounterpartyRelationship } from "./counterparty-lookup";
 import { callClaudeJSON, friendlyAIError } from "@aegis/ai";
 
 export const NDAAgent={
@@ -21,7 +21,9 @@ export const NDAAgent={
     // Extract counterparty heuristically
     const descMatch=(ticket.desc||"").match(/(?:with|for)\s+([A-Z][A-Za-z0-9& ]{2,40}?)(?:\s+(?:re\.|regarding|for|by|$|,|\.|\n))/);
     const counterparty=descMatch?descMatch[1].trim():null;
-    const priorNDA=mockPriorNDACheck(counterparty||"");
+    // Real relationship lookup against the shared Counterparty entity
+    // (degrades to "not found" on any failure — never blocks the agent).
+    const priorNDA=await checkCounterpartyRelationship(counterparty||"");
     const name=(ticket.from||"").split(" ")[0]||"there";
 
     // Use Claude for the drafted response if API available, else fall back to template
@@ -34,8 +36,8 @@ TICKET:
 - Description: "${ticket.desc}"
 - Extracted counterparty: ${counterparty||"NOT FOUND — ask requester"}
 
-PRIOR NDA CHECK:
-${priorNDA.found?`FOUND — ${priorNDA.note}`:`NOT FOUND — draft new from template MNDA-v4.2`}
+COUNTERPARTY CHECK (live, from our system of record):
+${priorNDA.note}
 
 PLAYBOOK TEMPLATE: MNDA-v4.2 (2-year term, standard carve-outs, mutual no-solicit 12 months, Delaware law).
 
@@ -52,15 +54,15 @@ Respond with ONLY this JSON:
       reasoning=result.reasoning;
       return buildRec(this.id,{
         confidence,suggestedAction:"approve-and-send",
-        draftedResponse,reasoning:reasoning||`Template-fit match (MNDA-v4.2). Prior NDA check: ${priorNDA.found?"reuse existing":"new draft"}.`,
+        draftedResponse,reasoning:reasoning||`Template-fit match (MNDA-v4.2). Counterparty check: ${priorNDA.found?"existing relationship — verify NDA reuse":"new counterparty"}.`,
         concerns:result.concerns||[],
-        precedentLinks:[{id:"NDA-TEMPLATE-v4.2",title:"Standard Mutual NDA Template"},...(priorNDA.found?[{id:priorNDA.ndaId,title:`Prior NDA with ${counterparty||"counterparty"} (active)`}]:[])],
+        precedentLinks:[{id:"NDA-TEMPLATE-v4.2",title:"Standard Mutual NDA Template"},...(priorNDA.found&&priorNDA.counterpartyId?[{id:priorNDA.counterpartyId,title:`Existing relationship: ${priorNDA.counterpartyName||counterparty} (${priorNDA.priorMatterCount} matter${priorNDA.priorMatterCount===1?"":"s"})`}]:[])],
         alternativeTone:result.alternativeTone||null,
       });
     }catch(e){
       console.error("[agent:nda] callClaudeJSON failed:",e);
       // Fallback: template response
-      const fallback=`Hi ${name},\n\nI've drafted a Standard Mutual NDA${counterparty?` with ${counterparty}`:""} using our approved template (MNDA-v4.2):\n\n• 2-year confidentiality, standard carve-outs\n• Mutual no-solicit (12 months)\n• Delaware law, standard venue\n\n${priorNDA.found?`Note: ${priorNDA.note}`:"No prior NDA on file — this is a fresh draft."}\n\nReady for DocuSign. Reply if you need edits.\n\n— AEGIS Legal (auto-drafted)`;
+      const fallback=`Hi ${name},\n\nI've drafted a Standard Mutual NDA${counterparty?` with ${counterparty}`:""} using our approved template (MNDA-v4.2):\n\n• 2-year confidentiality, standard carve-outs\n• Mutual no-solicit (12 months)\n• Delaware law, standard venue\n\n${priorNDA.note}\n\nReady for DocuSign. Reply if you need edits.\n\n— AEGIS Legal (auto-drafted)`;
       return buildDegradedRec(this.id,{
         draftedResponse:fallback,
         reasoning:`Template-fit match. Claude API unavailable — surfaced playbook template for attorney review (not auto-send).`,
