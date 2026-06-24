@@ -1,4 +1,4 @@
-import { buildRec } from "./build-rec";
+import { buildRec, buildDegradedRec } from "./build-rec";
 import { mockSanctionsCheck } from "./mocks";
 import { callClaudeJSON, friendlyAIError } from "@aegis/ai";
 
@@ -77,13 +77,11 @@ Respond with ONLY this JSON:
     }catch(e){
       console.error("[agent:vendor-intake] callClaudeJSON failed:",e);
       const name=(ticket.from||"").split(" ")[0]||"there";
-      return buildRec(this.id,{
-        confidence:0.78,suggestedAction:"approve-and-send",
+      return buildDegradedRec(this.id,{
         draftedResponse:`Hi ${name},\n\nVendor screens complete${counterparty?` for ${counterparty}`:""}:\n\n✓ OFAC / EU / UN sanctions — CLEAR\n✓ Refinitiv World-Check — CLEAR\n✓ Anti-bribery (FCPA / UK Bribery Act) — CLEAR\n✓ DPA v3.1 applies\n\nApproved for onboarding.\n\n— AEGIS Vendor Intake`,
-        reasoning:`All automated screens clear. Claude unavailable — used template response.`,
-        concerns:[friendlyAIError(e),"Attorney may want to personalize for specific data-scope questions."],
+        reasoning:`All automated screens clear. Claude unavailable — surfaced template for attorney review (not auto-send).`,
+        concerns:[friendlyAIError(e),"Attorney must review before approving onboarding."],
         precedentLinks:[{id:"DPA-v3.1",title:"Standard DPA Template v3.1"}],
-        mock:true,
       });
     }
   },

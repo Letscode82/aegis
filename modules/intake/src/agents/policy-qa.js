@@ -1,4 +1,4 @@
-import { buildRec } from "./build-rec";
+import { buildRec, buildDegradedRec } from "./build-rec";
 import { matchPolicy } from "./policy-library";
 import { callClaudeJSON, friendlyAIError } from "@aegis/ai";
 
@@ -73,13 +73,11 @@ Respond with ONLY this JSON:
       });
     }catch(e){
       console.error("[agent:policy-qa] callClaudeJSON failed:",e);
-      return buildRec(this.id,{
-        confidence:0.78,suggestedAction:"approve-and-send",
+      return buildDegradedRec(this.id,{
         draftedResponse:`Hi ${name},\n\nPer ${policy.policy}: ${policy.answer}\n\nIf your specific situation doesn't fit the standard answer, reply and I'll loop in the right specialist.\n\n— AEGIS Policy Desk`,
-        reasoning:`Policy match: ${policy.policy}. Claude unavailable — used policy text directly.`,
-        concerns:[friendlyAIError(e),"Used raw policy text — attorney may want to personalize."],
+        reasoning:`Policy match: ${policy.policy}. Claude unavailable — surfaced policy text for attorney review (not auto-send).`,
+        concerns:[friendlyAIError(e),"Raw policy text — attorney must review before sending."],
         precedentLinks:[{id:`POLICY-${policy.policy.replace(/\W+/g,"-")}`,title:policy.policy}],
-        mock:true,
       });
     }
   },

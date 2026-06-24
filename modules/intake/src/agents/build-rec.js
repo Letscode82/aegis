@@ -6,3 +6,27 @@ export function buildRec(agentId,{confidence,suggestedAction,draftedResponse,rea
     generatedAt:Date.now(),mock,
   };
 }
+
+// ── Conservative-AI safety invariant ──────────────────────────────────
+// When an agent's Claude call fails, it may still surface a template /
+// playbook draft so the attorney has a starting point — but it must NEVER
+// recommend auto-send. A degraded (non-AI-reviewed) recommendation is
+// ALWAYS flagged for human review at low confidence, regardless of what
+// the agent's happy-path confidence would have been. This is the single
+// chokepoint every agent's catch-block routes through, so the invariant
+// can't drift per-agent.
+export const DEGRADED_CONFIDENCE=0.4;
+export const DEGRADED_ACTION="flag-for-review";
+const DEGRADED_LEAD_CONCERN=
+  "⚠ AI review unavailable — this is a template draft, not an AI-generated recommendation. Attorney review required before sending.";
+
+export function buildDegradedRec(agentId,fields){
+  const concerns=[DEGRADED_LEAD_CONCERN,...(fields.concerns||[])];
+  return buildRec(agentId,{
+    ...fields,
+    concerns,
+    confidence:DEGRADED_CONFIDENCE,
+    suggestedAction:DEGRADED_ACTION,
+    mock:true,
+  });
+}

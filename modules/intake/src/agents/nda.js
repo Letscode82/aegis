@@ -1,4 +1,4 @@
-import { buildRec } from "./build-rec";
+import { buildRec, buildDegradedRec } from "./build-rec";
 import { mockPriorNDACheck } from "./mocks";
 import { callClaudeJSON, friendlyAIError } from "@aegis/ai";
 
@@ -60,13 +60,12 @@ Respond with ONLY this JSON:
       console.error("[agent:nda] callClaudeJSON failed:",e);
       // Fallback: template response
       const fallback=`Hi ${name},\n\nI've drafted a Standard Mutual NDA${counterparty?` with ${counterparty}`:""} using our approved template (MNDA-v4.2):\n\n• 2-year confidentiality, standard carve-outs\n• Mutual no-solicit (12 months)\n• Delaware law, standard venue\n\n${priorNDA.found?`Note: ${priorNDA.note}`:"No prior NDA on file — this is a fresh draft."}\n\nReady for DocuSign. Reply if you need edits.\n\n— AEGIS Legal (auto-drafted)`;
-      return buildRec(this.id,{
-        confidence:0.88,suggestedAction:"approve-and-send",draftedResponse:fallback,
-        reasoning:`Template-fit match. Claude API unavailable — used playbook template directly.`,
-        concerns:[friendlyAIError(e),"Using template text — attorney may want to personalize."],
+      return buildDegradedRec(this.id,{
+        draftedResponse:fallback,
+        reasoning:`Template-fit match. Claude API unavailable — surfaced playbook template for attorney review (not auto-send).`,
+        concerns:[friendlyAIError(e),"Using template text — attorney must review and personalize before sending."],
         precedentLinks:[{id:"NDA-TEMPLATE-v4.2",title:"Standard Mutual NDA Template"}],
         alternativeTone:counterparty?`Hi ${name} — NDA ready, ${counterparty}, 2-yr mutual. DocuSign attached.`:null,
-        mock:true,
       });
     }
   },
