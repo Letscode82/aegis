@@ -1,5 +1,5 @@
 import { buildRec, buildDegradedRec } from "./build-rec";
-import { mockSanctionsCheck } from "./mocks";
+import { screenSanctions } from "./sanctions-lookup";
 import { callClaudeJSON, friendlyAIError } from "@aegis/ai";
 
 export const VendorIntakeAgent={
@@ -24,20 +24,37 @@ export const VendorIntakeAgent={
     const jurMatch=(ticket.desc||"").match(/\b(Brazil|China|Vietnam|India|Russia|Iran|Mexico|Indonesia|Germany|France|UK|US|Singapore|Japan)\b/i);
     const jurisdiction=jurMatch?jurMatch[1]:null;
 
-    const sanctions=mockSanctionsCheck(counterparty||"",jurisdiction||"");
+    // Real sanctions screening (OFAC SDN / EU / UK consolidated +
+    // comprehensive-jurisdiction programs). Three outcomes:
+    //   hit         → escalate (sanctions exposure)
+    //   unavailable → flag-for-review (list empty/stale — NEVER auto-clear)
+    //   clear       → proceed to the Claude-drafted success response
+    const sanctions=await screenSanctions(counterparty||"",jurisdiction||"");
 
-    // If sanctions fail, escalate
-    if(!sanctions.clear){
+    if(sanctions.status==="hit"){
       return buildRec(this.id,{
         confidence:0.92,suggestedAction:"escalate",
         draftedResponse:`⚠ VENDOR ONBOARDING HOLD — SANCTIONS EXPOSURE\n\nThe vendor ${counterparty||"(unnamed)"} has failed automated screening:\n\n${sanctions.flags.map(f=>"• "+f).join("\n")}\n\nOnboarding is paused pending Compliance + GC review. Do NOT proceed.\n\n— AEGIS Vendor Intake`,
-        reasoning:`Sanctions screen failed: ${sanctions.flags.join("; ")}. Mandatory escalation per RULE-8.`,
+        reasoning:`Sanctions screen HIT: ${sanctions.flags.join("; ")}. Mandatory escalation per RULE-8.`,
         concerns:["Sanctions exposure — do not auto-approve under any circumstances","Escalate to Compliance + GC"],
         precedentLinks:[{id:"RULE-8",title:"Sanctions Escalation Policy"}],
       });
     }
 
-    // Clean path — Claude drafts the success response
+    if(sanctions.status==="unavailable"){
+      // Safe default: screening couldn't run (no list / stale list /
+      // service error). Surface for manual review — never claim cleared.
+      return buildRec(this.id,{
+        confidence:0.4,suggestedAction:"flag-for-review",
+        draftedResponse:`Vendor onboarding for ${counterparty||"(unnamed)"} needs manual sanctions screening.\n\n${sanctions.note}\n\nA paralegal must complete OFAC / EU / UK screening before this vendor is approved.\n\n— AEGIS Vendor Intake`,
+        reasoning:`Automated sanctions screening unavailable: ${sanctions.flags.join("; ")}. Cannot certify clear — routing to manual review.`,
+        concerns:["⚠ Sanctions screening did NOT run — do not treat as cleared.","Manual OFAC / EU / UK screening required before onboarding."],
+        precedentLinks:[{id:"RULE-8",title:"Sanctions Escalation Policy"}],
+        mock:true,
+      });
+    }
+
+    // status === "clear" — Claude drafts the success response
     try{
       const prompt=`You are the Vendor Intake Agent for AEGIS. A vendor onboarding request needs a response.
 
@@ -47,20 +64,18 @@ TICKET:
 - Extracted vendor: ${counterparty||"[not clearly stated]"}
 - Jurisdiction: ${jurisdiction||"[not stated]"}
 
-AUTOMATED CHECKS (ALL CLEAR):
-✓ OFAC / EU / UN sanctions screen
-✓ Refinitiv World-Check
-✓ Anti-bribery (FCPA / UK Bribery Act)
-✓ DPA required (our standard DPA v3.1 covers this scope)
+AUTOMATED CHECKS:
+✓ Sanctions screen — no match against OFAC SDN / EU / UK consolidated lists${sanctions.listAsOf?` (list as of ${String(sanctions.listAsOf).slice(0,10)})`:""}
+• DPA: our standard DPA v3.1 covers this scope
+NOT yet run (flag for the attorney): anti-bribery (FCPA / UK Bribery Act) diligence, adverse-media review
 
 Draft a professional onboarding confirmation to the requester:
 1. First-name greeting
-2. List the checks that passed (use ✓)
-3. Note that DPA v3.1 is attached
-4. State it's approved for onboarding
-5. 120-180 words
+2. Note the sanctions screen passed and DPA v3.1 will apply
+3. State it's cleared for onboarding subject to the standard checks still pending
+4. 120-180 words
 
-Also identify 1-2 concerns the attorney should review before approving.
+Also identify 1-2 concerns the attorney should review before approving — include that anti-bribery / adverse-media diligence is still outstanding.
 
 Respond with ONLY this JSON:
 {"draftedResponse":"...","alternativeTone":"TL;DR","confidence":0.85,"reasoning":"...","concerns":["..."]}`;

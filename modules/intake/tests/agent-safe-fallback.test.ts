@@ -10,7 +10,7 @@
  * (NDA, FAQ, Vendor Intake, Policy Q&A) now route their catch-block
  * through buildDegradedRec().
  */
-import { describe, expect, it, vi, beforeEach } from "vitest";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 
 // Force every Claude call to fail so we exercise the fallback path.
 const callClaudeJSONMock = vi.fn();
@@ -78,18 +78,31 @@ describe("NDA agent — degraded fallback on Claude failure", () => {
   });
 });
 
-describe("Vendor Intake agent — degraded fallback on Claude failure", () => {
-  it("never auto-approves onboarding when Claude is down (clean sanctions path)", async () => {
-    // "Germany" is a clean jurisdiction; mockSanctionsCheck returns clear,
-    // so we reach the Claude call — which we've forced to fail.
-    const ticket = {
-      id: "REQ-T2",
-      from: "Dmitri Volkov",
-      dept: "Procurement",
-      type: "Vendor Due Diligence",
-      aiTriage: { category: "vendor due diligence" },
-      desc: "Vendor: DataFlux Analytics in Germany — standard onboarding",
-    };
+describe("Vendor Intake agent — sanctions screening + Claude failure", () => {
+  // Screening now runs server-side via fetch(/api/intake/sanctions-check);
+  // stub global.fetch per-test to control the screening verdict.
+  const realFetch = globalThis.fetch;
+  function stubFetch(json: unknown) {
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => json,
+    }) as never;
+  }
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  const ticket = {
+    id: "REQ-T2",
+    from: "Dmitri Volkov",
+    dept: "Procurement",
+    type: "Vendor Due Diligence",
+    aiTriage: { category: "vendor due diligence" },
+    desc: "Vendor: DataFlux Analytics in Germany — standard onboarding",
+  };
+
+  it("clean screening + Claude down → degraded fallback, never auto-send", async () => {
+    stubFetch({ status: "clear", flags: [], matches: [], listAsOf: "2026-06-23" });
     const rec = await VendorIntakeAgent.process(ticket);
     expect(rec.suggestedAction).toBe("flag-for-review");
     expect(rec.suggestedAction).not.toBe("approve-and-send");
@@ -97,19 +110,29 @@ describe("Vendor Intake agent — degraded fallback on Claude failure", () => {
     expect(rec.mock).toBe(true);
   });
 
-  it("still hard-escalates a sanctions hit regardless of Claude (no degrade)", async () => {
-    // Iran is a hardcoded sanctions block — this path never calls Claude,
-    // so it must keep its high-confidence escalate, NOT degrade.
-    const ticket = {
-      id: "REQ-T3",
-      from: "Dmitri Volkov",
-      dept: "Procurement",
-      type: "Vendor Due Diligence",
-      aiTriage: { category: "vendor due diligence" },
-      desc: "Vendor: Persia Trading in Iran — onboarding request",
-    };
+  it("sanctions HIT → hard escalate at high confidence (never calls Claude)", async () => {
+    stubFetch({
+      status: "hit",
+      flags: ["Name match on OFAC-SDN: \"Sberbank\""],
+      matches: [{ entityName: "Sberbank", source: "OFAC-SDN", programs: [] }],
+      listAsOf: "2026-06-23",
+    });
     const rec = await VendorIntakeAgent.process(ticket);
     expect(rec.suggestedAction).toBe("escalate");
     expect(rec.confidence).toBeGreaterThan(0.7);
+  });
+
+  it("screening UNAVAILABLE → flag-for-review, never a false all-clear", async () => {
+    stubFetch({
+      status: "unavailable",
+      flags: ["No sanctions list loaded."],
+      matches: [],
+      listAsOf: null,
+      note: "Manual screening required.",
+    });
+    const rec = await VendorIntakeAgent.process(ticket);
+    expect(rec.suggestedAction).toBe("flag-for-review");
+    expect(rec.suggestedAction).not.toBe("approve-and-send");
+    expect(rec.concerns.join(" ")).toMatch(/screening did NOT run|manual/i);
   });
 });

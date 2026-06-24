@@ -1396,6 +1396,9 @@ async function main() {
   const sla = await seedSlaDemoState(org.id);
   console.log(`[seed] sla_demo_breach_candidates=${sla}`);
 
+  const sx = await seedSanctionsList();
+  console.log(`[seed] sanctions_list_entries=${sx}`);
+
   console.log("[seed] done.");
 }
 
@@ -1791,6 +1794,77 @@ async function seedSlaDemoState(orgId: string): Promise<number> {
     data: { submittedAt: new Date(Date.now() - 9 * 3600 * 1000) },
   });
   return res.count;
+}
+
+// ───────────────────────────────────────────────────────────────────
+// Section 4e — Sanctions screening bootstrap (Intake P2b)
+// ───────────────────────────────────────────────────────────────────
+//
+// Real OFAC-listed names so the Vendor agent's screening returns genuine
+// "hit" / "clear" verdicts in the demo, and the staleness guard reads
+// the list as fresh. GLOBAL reference data (no org scope). Production
+// replaces this with the live Treasury SDN feed via the admin refresh
+// trigger; the screening logic is identical either way. Mirrors
+// modules/intake/src/sanctions/bootstrap.ts (kept inline to avoid a
+// cross-package runtime import in the seed).
+
+function normalizeSanctionsName(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\b(inc|llc|ltd|corp|co|plc|gmbh|sa|ag|company|limited|holdings?|group)\b/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+const SANCTIONS_BOOTSTRAP: ReadonlyArray<{
+  sourceRef: string;
+  entityName: string;
+  programs: string[];
+  aliases: string[];
+  country: string | null;
+}> = [
+  { sourceRef: "sb-sberbank", entityName: "Sberbank of Russia", programs: ["RUSSIA-EO14024"], aliases: ["Sberbank", "PJSC Sberbank"], country: "Russia" },
+  { sourceRef: "sb-vtb", entityName: "VTB Bank", programs: ["RUSSIA-EO14024"], aliases: ["VTB", "Bank VTB"], country: "Russia" },
+  { sourceRef: "sb-rostec", entityName: "Rostec", programs: ["RUSSIA-EO14024"], aliases: ["Rostec State Corporation"], country: "Russia" },
+  { sourceRef: "sb-huawei-tech", entityName: "Huawei Technologies", programs: ["NS-CMIC"], aliases: ["Huawei"], country: "China" },
+  { sourceRef: "sb-zte", entityName: "ZTE Corporation", programs: ["NS-CMIC"], aliases: ["ZTE"], country: "China" },
+  { sourceRef: "sb-smic", entityName: "Semiconductor Manufacturing International Corporation", programs: ["NS-CMIC"], aliases: ["SMIC"], country: "China" },
+  { sourceRef: "sb-irgc", entityName: "Islamic Revolutionary Guard Corps", programs: ["SDGT", "IRAN"], aliases: ["IRGC"], country: "Iran" },
+  { sourceRef: "sb-wagner", entityName: "Wagner Group", programs: ["RUSSIA-EO14024", "TCO"], aliases: ["PMC Wagner", "Wagner"], country: "Russia" },
+  { sourceRef: "sb-lazarus", entityName: "Lazarus Group", programs: ["DPRK", "CYBER"], aliases: ["Lazarus", "Hidden Cobra"], country: "North Korea" },
+  { sourceRef: "sb-garantex", entityName: "Garantex", programs: ["CYBER"], aliases: ["Garantex Europe OU"], country: "Russia" },
+];
+
+async function seedSanctionsList(): Promise<number> {
+  const refreshedAt = new Date();
+  let written = 0;
+  for (const e of SANCTIONS_BOOTSTRAP) {
+    await prisma.sanctionsListEntry.upsert({
+      where: { source_sourceRef: { source: "BOOTSTRAP", sourceRef: e.sourceRef } },
+      update: {
+        entityName: e.entityName,
+        normalizedName: normalizeSanctionsName(e.entityName),
+        programs: e.programs,
+        aliasesJson: e.aliases.map(normalizeSanctionsName),
+        country: e.country,
+        refreshedAt,
+      },
+      create: {
+        source: "BOOTSTRAP",
+        sourceRef: e.sourceRef,
+        entityName: e.entityName,
+        normalizedName: normalizeSanctionsName(e.entityName),
+        entityType: "entity",
+        programs: e.programs,
+        aliasesJson: e.aliases.map(normalizeSanctionsName),
+        country: e.country,
+        refreshedAt,
+      },
+    });
+    written += 1;
+  }
+  return written;
 }
 
 // ───────────────────────────────────────────────────────────────────
