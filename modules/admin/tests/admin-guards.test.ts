@@ -53,13 +53,18 @@ async function makeOrg(prefix: string) {
 
 async function cleanupOrg(orgId: string) {
   // The cascade delete crosses AuditLog whose immutability triggers
-  // would otherwise refuse it — tests bypass via session_replication_role.
-  await prisma.$executeRawUnsafe(`SET session_replication_role = replica`);
-  try {
-    await prisma.organization.delete({ where: { id: orgId } });
-  } finally {
-    await prisma.$executeRawUnsafe(`SET session_replication_role = origin`);
-  }
+  // would otherwise refuse it — we bypass via session_replication_role.
+  //
+  // Prisma pools connections, so a session-level SET on one connection
+  // does NOT apply to a delete that the pool routes to a different
+  // connection — the audit trigger then fires and blocks the cascade
+  // (intermittent CI failures). Pin both statements to a single
+  // connection with an interactive transaction; SET LOCAL scopes the
+  // bypass to that transaction and auto-resets on commit.
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SET LOCAL session_replication_role = replica`);
+    await tx.organization.delete({ where: { id: orgId } });
+  });
 }
 
 describe("LastAdminProtectedError — suspend", () => {
