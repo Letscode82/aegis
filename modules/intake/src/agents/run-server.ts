@@ -32,6 +32,19 @@ import { lookupCounterpartyRelationship } from "../counterparty/server";
 import { screenAgainstSanctions } from "../sanctions/server";
 import { syncAgentDecisionForTicket } from "../agent-decision/server";
 
+/** The recommendation fields this runner reads off the JS agent result. */
+interface AgentRecShape {
+  agentId?: string;
+  confidence?: number;
+  suggestedAction?: string;
+  draftedResponse?: string;
+  reasoning?: string;
+  concerns?: unknown;
+  precedentLinks?: unknown;
+  alternativeTone?: string | null;
+  mock?: boolean;
+}
+
 interface RunContext {
   organizationId: string;
 }
@@ -96,7 +109,14 @@ export async function runAgentForTicketServer(
       desc: ticket.desc ?? "",
     };
 
-    const { agent, recommendation } = await processTicketWithAgent(t, undefined);
+    // processTicketWithAgent comes from the JS agent registry; the
+    // recommendation shape is JS-defined, so assert it to a typed view.
+    const outcome = (await processTicketWithAgent(t, undefined)) as unknown as {
+      agent: { id: string } | null;
+      recommendation: AgentRecShape | null;
+    };
+    const agent = outcome.agent;
+    const recommendation = outcome.recommendation;
     const now = new Date();
 
     if (!agent || !recommendation) {
