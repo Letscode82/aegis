@@ -25,6 +25,8 @@ const { buildDegradedRec, DEGRADED_CONFIDENCE, DEGRADED_ACTION } = await import(
 );
 const { NDAAgent } = await import("../src/agents/nda.js" as never);
 const { VendorIntakeAgent } = await import("../src/agents/vendor-intake.js" as never);
+const { TrademarkAgent } = await import("../src/agents/trademark.js" as never);
+const { ContractReviewAgent } = await import("../src/agents/contract-review.js" as never);
 
 beforeEach(() => {
   callClaudeJSONMock.mockReset();
@@ -134,5 +136,37 @@ describe("Vendor Intake agent — sanctions screening + Claude failure", () => {
     expect(rec.suggestedAction).toBe("flag-for-review");
     expect(rec.suggestedAction).not.toBe("approve-and-send");
     expect(rec.concerns.join(" ")).toMatch(/screening did NOT run|manual/i);
+  });
+});
+
+describe("Trademark agent — real agent degraded fallback", () => {
+  it("Claude down → flag-for-review, never auto-send", async () => {
+    const rec = await TrademarkAgent.process({
+      id: "REQ-T4",
+      from: "Aisha Patel",
+      dept: "Marketing",
+      type: "Trademark Check",
+      desc: "Clearance for 'AurorAI' across US and EU",
+    });
+    expect(rec.suggestedAction).toBe("flag-for-review");
+    expect(rec.confidence).toBeLessThanOrEqual(0.4);
+    expect(rec.mock).toBe(true);
+    expect(rec.concerns[0]).toMatch(/AI review unavailable/i);
+  });
+});
+
+describe("Contract Review agent — real agent degraded fallback", () => {
+  it("Claude down → flag-for-review, never auto-send", async () => {
+    const rec = await ContractReviewAgent.process({
+      id: "REQ-T5",
+      from: "Sarah Johnson",
+      dept: "Product",
+      type: "Contract Review",
+      desc: "Review the MSA renewal redlines, liability cap looks off",
+    });
+    expect(rec.suggestedAction).toBe("flag-for-review");
+    expect(rec.confidence).toBeLessThanOrEqual(0.4);
+    expect(rec.mock).toBe(true);
+    expect(rec.concerns[0]).toMatch(/AI review unavailable/i);
   });
 });
