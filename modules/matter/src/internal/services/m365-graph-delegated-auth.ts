@@ -49,6 +49,11 @@ import {
 export const DELEGATED_SCOPES: readonly string[] = Object.freeze([
   "https://graph.microsoft.com/eDiscovery.ReadWrite.All",
   "https://graph.microsoft.com/User.Read",
+  // P4b — the same delegated service account also polls + replies to the
+  // intake mailbox. A tenant connected before these scopes were added
+  // must re-authorize (Device Code) to pick them up.
+  "https://graph.microsoft.com/Mail.Read",
+  "https://graph.microsoft.com/Mail.Send",
   "offline_access",
 ]);
 

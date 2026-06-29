@@ -67,6 +67,7 @@ model Organization {
   legalHolds     LegalHold[]
   intakeTickets  IntakeTicket[]
   intakeRoutingRules IntakeRoutingRule[]
+  intakeEmailMailboxes IntakeEmailMailbox[]
   vendors        Vendor[]
   budgets        Budget[]
   dsars          DataSubjectRequest[]
@@ -1339,6 +1340,34 @@ model IntakeRoutingRule {
   assignee     User?        @relation("IntakeRoutingRuleAssignee", fields: [setAssigneeUserId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, enabled, evalOrder])
+}
+
+/// P4b — a Microsoft 365 mailbox AEGIS polls for inbound intake email.
+/// `pollMailboxForIntake` reads new messages via the delegated Graph
+/// service account and runs each through the same ingest path as the
+/// P4a webhook. `lastReceivedAt` is the delta watermark (Graph
+/// `receivedDateTime gt`), so re-polling is idempotent.
+model IntakeEmailMailbox {
+  id             String  @id @default(cuid())
+  organizationId String
+  /// Mailbox UPN / address to poll, e.g. "legal-intake@contoso.com".
+  address        String
+  displayName    String?
+  enabled        Boolean @default(true)
+
+  /// Delta watermark — receivedDateTime of the newest ingested message.
+  lastReceivedAt DateTime?
+  lastPolledAt   DateTime?
+  lastError      String?
+
+  createdBy String // User id
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, address])
+  @@index([organizationId, enabled])
 }
 
 enum AgentRecommendationStatus {

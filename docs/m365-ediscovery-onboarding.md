@@ -164,3 +164,30 @@ immediately.
   cleanup trigger (`POST /api/admin/jobs/m365-device-code-cleanup`)
   that prunes anything older than 24 hours. Each row is < 1 KB so
   this is opportunistic — skipping the cleanup doesn't hurt.
+
+## Intake email channel (P4b) — extra scopes + polling
+
+The same delegated service account also powers the **intake email
+channel** (P4b): AEGIS polls a shared mailbox and turns each message into
+an `IntakeTicket` on the same pipeline as the form / webhook.
+
+- **Extra delegated scopes.** `DELEGATED_SCOPES` now also requests
+  `Mail.Read` and `Mail.Send`. A tenant that connected the service
+  account *before* this change must **re-authorize** (Device Code) at
+  `/admin/m365` so the refreshed token carries the mail scopes —
+  otherwise the poll returns HTTP 403.
+- **Configure a mailbox.** `POST /api/admin/intake/mailboxes`
+  `{ "address": "legal-intake@contoso.com" }` (gated on
+  `admin:m365:manage`). List with `GET`, enable/disable with
+  `PUT /api/admin/intake/mailboxes/{id}`, remove with `DELETE`.
+- **Poll.** `POST /api/admin/intake/mailboxes/poll` (`{}` = all enabled,
+  or `{ "mailboxId": "…" }` for one). pg-boss-ready — point a scheduler
+  (Vercel Cron / GitHub Actions) at it on a cadence until a worker
+  runtime hosts the schedule directly. `lastReceivedAt` is the delta
+  watermark, so re-polling never double-creates tickets.
+- Every Graph mail read/send is audited (`m365.graph.call`,
+  `authMode: "delegated"`), and each created ticket writes the usual
+  `intake.ticket.created` chain row.
+- **Outbound replies** are available via `sendDelegatedMail` (threaded
+  with In-Reply-To); wiring an auto-acknowledgement reply is a small
+  follow-up on top of this.

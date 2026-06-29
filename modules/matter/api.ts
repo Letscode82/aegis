@@ -761,6 +761,17 @@ export type {
 
 export { getM365ClientForOrg } from "./src/internal/services/m365-factory";
 
+// ── M365 mailbox access (Intake P4b) ──────────────────────────────
+// Intake reaches Graph mail through these (never its own client).
+export {
+  pollDelegatedMailbox,
+  sendDelegatedMail,
+  type InboundGraphMessage,
+  type SendMailInput,
+  type PollMailboxOptions,
+  type GraphHttp,
+} from "./src/internal/services/m365-graph-mail";
+
 export type {
   EnumeratedDataSource,
   EnumerateSharePointSitesInput,
