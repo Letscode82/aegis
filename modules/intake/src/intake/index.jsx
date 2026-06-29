@@ -344,6 +344,16 @@ function NewRequestV8({store,goToInbox,goToCockpit,settings,prefillDesc}){
 // ── Compact v7-compatible form for the standalone demo.
 //    On integration with aegis-v7-aurora.jsx, this is replaced by the real v7.2 NewRequestTab
 //    (lines 1512–1712 in v7), just re-routed through the v8 addTicketAndRunAgent path.
+// Read a File as bare base64 (strips the data: URL prefix).
+function fileToBase64(file){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onload=()=>{ const s=String(r.result); const i=s.indexOf(","); resolve(i>=0?s.slice(i+1):s); };
+    r.onerror=()=>reject(new Error("Could not read file"));
+    r.readAsDataURL(file);
+  });
+}
+
 function LegacyFormInner({store,initialType,initialDesc,goToInbox,settings}){
   // Session-resolved default for the requester `from` field. Same
   // pattern as CopilotChat: pre-fill, leave editable. Phase 1a.
@@ -356,21 +366,53 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,settings}){
   const[createdTicket,setCreatedTicket]=useState(null);
   const[busy,setBusy]=useState(false);
 
-  const regexTriage=useMemo(()=>classifyIntakeRegex(form.desc,form.dept),[form.desc,form.dept]);
+  // Stable ticket id for this form session so uploaded documents attach
+  // to the ticket that submit() will create with the same id.
+  const[ticketId]=useState(()=>"REQ-"+(3700+Math.floor(Math.random()*300)));
+  // Uploaded documents (.docx / .txt). Each carries the server-extracted
+  // text, which is folded into the description so the agent reads it.
+  const[docs,setDocs]=useState([]);
+  const[docBusy,setDocBusy]=useState(false);
+  const[docErr,setDocErr]=useState(null);
+
+  const onPickFile=async(e)=>{
+    const file=e.target.files&&e.target.files[0];
+    e.target.value=""; // allow re-picking the same filename
+    if(!file) return;
+    setDocErr(null); setDocBusy(true);
+    try{
+      const contentBase64=await fileToBase64(file);
+      const resp=await fetch("/api/intake/documents/upload",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({filename:file.name,mimeType:file.type,contentBase64,ticketId})});
+      const data=await resp.json().catch(()=>({}));
+      if(!resp.ok||!data.ok) throw new Error(data.error||`Upload failed (HTTP ${resp.status})`);
+      setDocs(d=>[...d,{documentId:data.documentId,name:data.name,charCount:data.charCount,text:data.text||"",format:data.format}]);
+    }catch(err){ setDocErr(String(err.message||err)); }
+    finally{ setDocBusy(false); }
+  };
+  const removeDoc=(id)=>setDocs(d=>d.filter(x=>x.documentId!==id));
+
+  // The text the classifier + agent see: typed description plus the
+  // extracted text of every attached document.
+  const effectiveDesc=docs.length
+    ? [form.desc.trim(),...docs.map(d=>`--- Attached document: ${d.name} ---\n${d.text}`)].filter(Boolean).join("\n\n")
+    : form.desc;
+  const canSubmit=!!form.from&&(form.desc.length>=10||docs.length>0)&&!busy&&!docBusy;
+
+  const regexTriage=useMemo(()=>classifyIntakeRegex(effectiveDesc,form.dept),[effectiveDesc,form.dept]);
 
   const submit=async()=>{
-    if(!form.from||form.desc.length<10) return;
+    if(!canSubmit) return;
     setBusy(true);
     const triage=regexTriage||{cat:"General Inquiry",priority:"Medium",team:"Routing Triage",sla:"24 hrs",slaHours:24,rule:"default",conf:55,risk:"Low",note:"Manual triage",hrs:2,source:"fallback"};
     const now=new Date();
-    const id="REQ-"+(3700+Math.floor(Math.random()*300));
+    const id=ticketId;
     const priority=form.urgency==="Emergency — deal blocker"?"Critical":form.urgency==="Urgent — deadline this week"?"High":triage.priority;
     const ticket={
       id,_source:"form",from:form.from,dept:form.dept,type:form.type,priority,
       submitted:now.toISOString().slice(0,16).replace("T"," "),submittedTs:now.getTime(),
-      sla:triage.sla,slaHours:triage.slaHours,slaStatus:"On Track",desc:form.desc,
+      sla:triage.sla,slaHours:triage.slaHours,slaStatus:"On Track",desc:effectiveDesc,
       assigned:"Cockpit Queue",status:"Awaiting Triage",stage:"new",
-      seeded:false,attach:form.attach,
+      seeded:false,attach:docs.length,
       workflow:[{label:"Submitted",done:true},{label:"Agent Analysis",active:true},{label:"Attorney Review"},{label:"Close"}],
       aiTriage:{category:triage.cat,riskFlag:`${triage.risk} — ${triage.note}`,suggestedAssignee:triage.team,estimatedHours:triage.hrs,similarMatters:Math.floor(Math.random()*40)+5,confidence:triage.conf,routingRule:`${triage.rule}: ${triage.cat}`,source:triage.source||"regex"},
       conversation:null,agentRecommendation:null,triagedBy:null,triagedAt:null,triagedAction:null,
@@ -424,8 +466,28 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,settings}){
       <FormField label="Describe your request" required sub="Be specific — regex + Claude triage and agent routing use this">
         <textarea value={form.desc} onChange={e=>setForm({...form,desc:e.target.value})} placeholder="E.g. Mutual NDA for discussions with Acme Corp — 2-year term, Delaware law." rows={5} style={{...inputStyle,resize:"vertical",fontFamily:F,minHeight:100}}/>
       </FormField>
+
+      {/* Document attach — .docx / .txt. Text is extracted server-side and
+          folded into the description so the agent reads it. */}
+      <FormField label="Attach a document" sub="Word (.docx) or text (.txt) — e.g. an NDA / MSA to review. The agent reads the extracted text. (PDF not supported yet.)">
+        <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+          <label style={{padding:"8px 14px",border:`1px dashed ${C.br}`,borderRadius:5,cursor:docBusy?"wait":"pointer",fontSize:10.5,fontFamily:M,letterSpacing:1,color:C.cy,textTransform:"uppercase",background:C.s1}}>
+            {docBusy?"◎ Extracting…":"📎 Choose file"}
+            <input type="file" accept=".docx,.txt,.text,.md,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={onPickFile} disabled={docBusy} style={{display:"none"}}/>
+          </label>
+          <span style={{fontSize:10,color:C.t4,fontFamily:M}}>Max 5 MB</span>
+        </div>
+        {docErr&&<div style={{marginTop:8,padding:8,background:C.rdG||C.s1,borderLeft:`2px solid ${C.rd}`,borderRadius:3,fontSize:10.5,color:C.rd,fontFamily:M}}>⚠ {docErr}</div>}
+        {docs.length>0&&<div style={{display:"flex",flexDirection:"column",gap:5,marginTop:10}}>
+          {docs.map(d=><div key={d.documentId} style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,padding:"7px 10px",background:C.gnG,borderLeft:`2px solid ${C.gn}`,borderRadius:3}}>
+            <span style={{fontSize:11,color:C.t1,fontFamily:M}}>📄 {d.name} <span style={{color:C.t4}}>· {d.charCount.toLocaleString()} chars extracted</span></span>
+            <span onClick={()=>removeDoc(d.documentId)} style={{fontSize:12,color:C.t4,cursor:"pointer",padding:"0 4px"}}>✕</span>
+          </div>)}
+        </div>}
+      </FormField>
+
       <div style={{display:"flex",gap:10,marginTop:16,flexWrap:"wrap"}}>
-        <div onClick={submit} style={{padding:"11px 22px",background:form.from&&form.desc.length>10&&!busy?C.cy:C.br,color:form.from&&form.desc.length>10&&!busy?C.bg:C.t4,fontSize:11,fontFamily:M,letterSpacing:1.8,cursor:form.from&&form.desc.length>10&&!busy?"pointer":"not-allowed",textTransform:"uppercase",fontWeight:600}}>{busy?"◎ Triaging + Routing to Agent…":"→ Submit · Route to Agent"}</div>
+        <div onClick={submit} style={{padding:"11px 22px",background:canSubmit?C.cy:C.br,color:canSubmit?C.bg:C.t4,fontSize:11,fontFamily:M,letterSpacing:1.8,cursor:canSubmit?"pointer":"not-allowed",textTransform:"uppercase",fontWeight:600}}>{busy?"◎ Triaging + Routing to Agent…":"→ Submit · Route to Agent"}</div>
       </div>
       <div style={{marginTop:14,padding:11,background:C.s1,borderRadius:5,borderLeft:`2px solid ${C.em}`,fontSize:10.5,color:C.t2,fontFamily:M,lineHeight:1.55}}>
         <div style={{color:C.em,fontWeight:600,marginBottom:3,letterSpacing:.5}}>v8 FLOW</div>

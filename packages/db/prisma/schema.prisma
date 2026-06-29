@@ -317,6 +317,11 @@ model Document {
   uploadedBy       String // User id
   uploadedAt       DateTime          @default(now())
   encryptedAt      DateTime?
+  /// Plain-text extraction of the uploaded file (.txt verbatim, .docx
+  /// body text). Demo-grade inline storage: no blob store is wired yet,
+  /// so the agent-readable text lives here. Null until a parser runs.
+  /// Sunset when @aegis/documents adds real blob storage + extraction.
+  extractedText    String?
 
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   parentDocument Document?    @relation("DocumentVersions", fields: [parentDocumentId], references: [id], onDelete: SetNull)
