@@ -38,9 +38,9 @@ describe("production routing (mock agents hidden)", () => {
     ["Contract FAQ → FAQ agent", t({ type: "Contract Question", desc: "What is our standard limitation of liability cap?" }), "faq-agent"],
     ["Policy question → Policy Q&A agent", t({ type: "Legal Question — General", desc: "What is our FCPA policy on gifts to a foreign official?" }), "policy-qa-agent"],
     ["sensitive employment → Policy Q&A (escalation)", t({ type: "Employment Issue", aiTriage: { category: "harassment" }, desc: "ongoing issue with my manager" }), "policy-qa-agent"],
-    // Hidden in production → manual triage:
-    ["Trademark → null (hidden in prod)", t({ type: "Trademark Check", desc: "Clearance for 'AurorAI' across US/EU" }), null],
-    ["Contract Review → null (hidden in prod)", t({ type: "Contract Review", desc: "Review the MSA redlines from DataStream" }), null],
+    // Now real + visible by default:
+    ["Trademark → Trademark agent", t({ type: "Trademark Check", desc: "Clearance for 'AurorAI' across US/EU" }), "trademark-agent"],
+    ["Contract Review → Contract Review agent", t({ type: "Contract Review", desc: "Review the MSA redlines from DataStream" }), "contract-review-agent"],
     // Genuinely uncovered → manual triage:
     ["Unknown ask → null", t({ type: "Other", desc: "Can someone help me think through a novel situation?" }), null],
     ["Empty → null", t({ type: "Other", desc: "" }), null],
@@ -67,7 +67,10 @@ describe("production routing (mock agents hidden)", () => {
   });
 });
 
-describe("demo routing (mock agents surfaced)", () => {
+// All six agents are productionReady now, so the demo flag changes
+// nothing for routing — but the gate must still behave correctly when
+// it IS set (no regressions, no double-listing).
+describe("demo flag on — routing unchanged (all agents already visible)", () => {
   beforeEach(() => {
     vi.stubEnv("NEXT_PUBLIC_AEGIS_DEMO_AGENTS", "true");
     vi.resetModules();
@@ -77,7 +80,7 @@ describe("demo routing (mock agents surfaced)", () => {
     vi.resetModules();
   });
 
-  it("Trademark + Contract Review route when demo mode is on", async () => {
+  it("Trademark + Contract Review still route with the flag on", async () => {
     vi.doMock("@aegis/ai", () => ({
       callClaude: vi.fn(),
       callClaudeJSON: vi.fn(),
