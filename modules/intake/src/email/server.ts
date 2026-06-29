@@ -39,6 +39,8 @@ import { classifyIntakeRegex } from "@aegis/ai";
 import { evaluateRoutingRules } from "../routing/rules";
 import { loadEnabledRoutingRules, recordRuleFirings } from "../routing/server";
 
+export { checkWebhookAuth, type WebhookAuthResult } from "./webhook-auth";
+
 /** Inbound email payload — the shape the webhook accepts and the shape
  * the future Graph poller will map each message into. */
 export interface InboundEmail {
@@ -52,6 +54,10 @@ export interface InboundEmail {
   /** Mail thread id — recorded on the audit row so a reply can later be
    * threaded (P4b /sendMail In-Reply-To). */
   threadId?: string;
+  /** Stable source-message id (email internetMessageId / webhook-supplied).
+   * When present, ingest is idempotent: a redelivery resolves to the
+   * existing ticket instead of creating a duplicate. */
+  messageId?: string;
   /** Department hint, if the integration can infer one (distribution
    * list, mailbox tag). Feeds the classifier + routing. */
   department?: string;
@@ -73,6 +79,9 @@ export interface IngestEmailResult {
   assignedTo: string | null;
   /** Routing-rule ids that fired on creation. */
   firedRuleIds: string[];
+  /** True when this message was already ingested (idempotent redelivery)
+   * — no new ticket was created and no triage ran. */
+  deduped?: boolean;
 }
 
 export class EmailIngestValidationError extends Error {
@@ -190,6 +199,37 @@ export async function ingestInboundEmail(
   const orgId =
     opts.organizationId ?? (await getCurrentOrganization()).id;
 
+  // Idempotency — if this message was already ingested, return the
+  // existing ticket instead of creating a duplicate (webhook retry /
+  // Graph notification replay).
+  const messageId = (email.messageId ?? "").trim() || null;
+  if (messageId) {
+    const existing = await prisma.intakeTicket.findFirst({
+      where: { organizationId: orgId, externalMessageId: messageId },
+      select: {
+        id: true,
+        requesterId: true,
+        type: true,
+        priority: true,
+        slaHours: true,
+        assignedTo: true,
+      },
+    });
+    if (existing) {
+      return {
+        ticketId: existing.id,
+        requesterId: existing.requesterId,
+        classified: false,
+        type: existing.type,
+        priority: existing.priority,
+        slaHours: existing.slaHours,
+        assignedTo: existing.assignedTo ?? null,
+        firedRuleIds: [],
+        deduped: true,
+      };
+    }
+  }
+
   const fromEmail = (email.fromEmail ?? "").trim() || null;
   const fromName =
     (email.from ?? "").trim() ||
@@ -252,8 +292,11 @@ export async function ingestInboundEmail(
 
   const ticketId = (opts.makeTicketId ?? (() => defaultTicketId(now)))();
 
-  // 4. Persist.
-  await prisma.intakeTicket.create({
+  // 4. Persist. A concurrent ingest of the same message loses the unique
+  // race on (organizationId, externalMessageId) — catch it and return the
+  // winner as a dedupe hit rather than erroring.
+  try {
+    await prisma.intakeTicket.create({
     data: {
       id: ticketId,
       organizationId: orgId,
@@ -267,6 +310,7 @@ export async function ingestInboundEmail(
       department: department || null,
       assignedTo,
       assignedToUserId,
+      externalMessageId: messageId,
       slaHours,
       slaStatus: "On Track",
       submittedAt: new Date(now),
@@ -289,7 +333,41 @@ export async function ingestInboundEmail(
             } as never)
           : (null as never),
     },
-  });
+    });
+  } catch (err) {
+    if (
+      messageId &&
+      typeof err === "object" &&
+      err &&
+      (err as { code?: string }).code === "P2002"
+    ) {
+      const winner = await prisma.intakeTicket.findFirst({
+        where: { organizationId: orgId, externalMessageId: messageId },
+        select: {
+          id: true,
+          requesterId: true,
+          type: true,
+          priority: true,
+          slaHours: true,
+          assignedTo: true,
+        },
+      });
+      if (winner) {
+        return {
+          ticketId: winner.id,
+          requesterId: winner.requesterId,
+          classified: false,
+          type: winner.type,
+          priority: winner.priority,
+          slaHours: winner.slaHours,
+          assignedTo: winner.assignedTo ?? null,
+          firedRuleIds: [],
+          deduped: true,
+        };
+      }
+    }
+    throw err;
+  }
 
   // 5. Audit — chain-sealed. SYSTEM actor: the email channel, not a
   // logged-in user, created this ticket.

@@ -1279,6 +1279,14 @@ model IntakeTicket {
   /// chokepoint; the Cockpit renders the "routed by" chip from it.
   firedRulesJson Json?
 
+  /// P4b hardening — the source message's stable id (email
+  /// internetMessageId, webhook-supplied messageId). Used to dedupe
+  /// inbound delivery: a webhook retry or a Graph notification replay of
+  /// the same message resolves to the existing ticket instead of creating
+  /// a duplicate. Null for FORM / COPILOT tickets. Unique per org (NULLs
+  /// are distinct in Postgres, so unscoped channels are unaffected).
+  externalMessageId String?
+
   submittedAt DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -1297,6 +1305,7 @@ model IntakeTicket {
   @@index([requesterId])
   @@index([matterId])
   @@index([organizationId, assignedToUserId])
+  @@unique([organizationId, externalMessageId])
 }
 
 /// P2a (demo-lite) — server-side routing rules. Conditions AND
@@ -1354,6 +1363,9 @@ model IntakeEmailMailbox {
   address        String
   displayName    String?
   enabled        Boolean @default(true)
+  /// When true, the poller sends a threaded auto-acknowledgement reply to
+  /// the sender as soon as a message becomes a ticket. Off by default.
+  autoAckEnabled Boolean @default(false)
 
   /// Delta watermark — receivedDateTime of the newest ingested message.
   lastReceivedAt DateTime?

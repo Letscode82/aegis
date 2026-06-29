@@ -191,3 +191,20 @@ an `IntakeTicket` on the same pipeline as the form / webhook.
 - **Outbound replies** are available via `sendDelegatedMail` (threaded
   with In-Reply-To); wiring an auto-acknowledgement reply is a small
   follow-up on top of this.
+
+### Email hardening (idempotency, auth, auto-ack)
+
+- **Webhook auth is fail-closed in production.** `POST /api/intake/email-webhook`
+  requires `AEGIS_EMAIL_WEBHOOK_SECRET` (constant-time compare). With
+  `NODE_ENV=production` and no secret set, it returns 503 rather than
+  running open. Dev (unset) stays open for curl.
+- **Idempotent ingest.** Both the webhook (`messageId`) and the poller
+  (`internetMessageId`) dedupe on `IntakeTicket.externalMessageId`, so a
+  webhook retry or Graph replay resolves to the existing ticket — no
+  duplicate.
+- **Outbound auto-acknowledgement (opt-in).** Set `autoAckEnabled` on a
+  mailbox (`POST /api/admin/intake/mailboxes {address, autoAckEnabled:true}`
+  or `PUT .../[id] {autoAckEnabled:true}`) and the poller sends a threaded
+  reply (In-Reply-To) to each new sender via `sendDelegatedMail`,
+  referencing the ticket id. Best-effort — a send failure never fails the
+  poll. Off by default.

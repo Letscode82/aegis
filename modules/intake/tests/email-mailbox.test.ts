@@ -15,8 +15,8 @@ vi.mock("@aegis/db", () => ({
   getCurrentUser: vi.fn().mockResolvedValue({ id: "u-1", name: "Admin" }),
 }));
 
-// Graph poller is the matter module — mocked here.
-vi.mock("@aegis/matter", () => ({ pollDelegatedMailbox: vi.fn() }));
+// Graph poller + sender are the matter module — mocked here.
+vi.mock("@aegis/matter", () => ({ pollDelegatedMailbox: vi.fn(), sendDelegatedMail: vi.fn() }));
 
 // The ingest path is exercised by its own tests; here we just confirm it
 // is called once per message with the mapped fields.
@@ -113,5 +113,46 @@ describe("pollMailboxForIntake()", () => {
     const res = await pollMailboxForIntake("org1", "mb1");
     expect(res.created).toBe(0);
     expect(ingestMock).not.toHaveBeenCalled();
+  });
+
+  it("sends a threaded auto-acknowledgement when the mailbox opts in", async () => {
+    mailboxFindFirst.mockResolvedValue({
+      id: "mb1", address: "legal@contoso.com", enabled: true,
+      autoAckEnabled: true, lastReceivedAt: null,
+    });
+    const { pollDelegatedMailbox } = await import("@aegis/matter");
+    (pollDelegatedMailbox as ReturnType<typeof vi.fn>).mockResolvedValue([
+      msg("a", "2026-06-29T10:00:00Z"),
+    ]);
+    ingestMock.mockResolvedValue({ ticketId: "REQ-9", deduped: false });
+    const sendMail = vi.fn().mockResolvedValue(undefined);
+
+    const res = await pollMailboxForIntake("org1", "mb1", { sendMail });
+
+    expect(res.acknowledged).toBe(1);
+    expect(sendMail).toHaveBeenCalledTimes(1);
+    const [, mail] = sendMail.mock.calls[0];
+    expect(mail.to).toBe("dana@acme.com");
+    expect(mail.mailbox).toBe("legal@contoso.com");
+    expect(mail.inReplyToInternetMessageId).toBe("<a@x>");
+    expect(mail.body).toContain("REQ-9");
+  });
+
+  it("does NOT auto-ack a deduped redelivery", async () => {
+    mailboxFindFirst.mockResolvedValue({
+      id: "mb1", address: "legal@contoso.com", enabled: true,
+      autoAckEnabled: true, lastReceivedAt: null,
+    });
+    const { pollDelegatedMailbox } = await import("@aegis/matter");
+    (pollDelegatedMailbox as ReturnType<typeof vi.fn>).mockResolvedValue([
+      msg("a", "2026-06-29T10:00:00Z"),
+    ]);
+    ingestMock.mockResolvedValue({ ticketId: "REQ-existing", deduped: true });
+    const sendMail = vi.fn().mockResolvedValue(undefined);
+
+    const res = await pollMailboxForIntake("org1", "mb1", { sendMail });
+    expect(res.created).toBe(0);
+    expect(res.acknowledged).toBe(0);
+    expect(sendMail).not.toHaveBeenCalled();
   });
 });

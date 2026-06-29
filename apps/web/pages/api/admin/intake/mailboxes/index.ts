@@ -30,6 +30,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         {
           address: typeof body.address === "string" ? body.address : "",
           displayName: typeof body.displayName === "string" ? body.displayName : null,
+          autoAckEnabled: typeof body.autoAckEnabled === "boolean" ? body.autoAckEnabled : false,
         },
         { req, res },
       );

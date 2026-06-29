@@ -7,7 +7,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission } from "@aegis/auth";
 import {
-  setMailboxEnabled,
+  updateMailbox,
   deleteMailbox,
   MailboxNotFoundError,
 } from "@aegis/intake/mailbox";
@@ -21,8 +21,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     if (req.method === "PUT") {
       const body = (req.body ?? {}) as Record<string, unknown>;
-      const enabled = !!body.enabled;
-      const mailbox = await setMailboxEnabled(actor.organizationId, id, enabled, { req, res });
+      const mailbox = await updateMailbox(
+        actor.organizationId,
+        id,
+        {
+          enabled: typeof body.enabled === "boolean" ? body.enabled : undefined,
+          autoAckEnabled:
+            typeof body.autoAckEnabled === "boolean" ? body.autoAckEnabled : undefined,
+        },
+        { req, res },
+      );
       return res.status(200).json({ ok: true, mailbox });
     }
     if (req.method === "DELETE") {

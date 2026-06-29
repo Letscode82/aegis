@@ -8,6 +8,7 @@ import { describe, expect, it, vi, beforeEach } from "vitest";
 const personFindFirst = vi.fn();
 const personUpsert = vi.fn();
 const ticketCreate = vi.fn();
+const ticketFindFirst = vi.fn();
 const ruleFindMany = vi.fn();
 const ruleUpdateMany = vi.fn();
 const logAuditMock = vi.fn();
@@ -16,7 +17,7 @@ const getOrgMock = vi.fn();
 vi.mock("@aegis/db", () => ({
   prisma: {
     person: { findFirst: personFindFirst, upsert: personUpsert },
-    intakeTicket: { create: ticketCreate },
+    intakeTicket: { create: ticketCreate, findFirst: ticketFindFirst },
     intakeRoutingRule: { findMany: ruleFindMany, updateMany: ruleUpdateMany },
   },
   logAudit: logAuditMock,
@@ -53,6 +54,7 @@ beforeEach(() => {
   personFindFirst.mockReset().mockResolvedValue(null);
   personUpsert.mockReset().mockResolvedValue({ id: "p-auto-dana-acme-com" });
   ticketCreate.mockReset().mockResolvedValue({});
+  ticketFindFirst.mockReset().mockResolvedValue(null); // no prior message by default
   ruleFindMany.mockReset().mockResolvedValue([]); // no routing rules by default
   ruleUpdateMany.mockReset().mockResolvedValue({});
   logAuditMock.mockReset().mockResolvedValue("audit-1");
@@ -182,5 +184,38 @@ describe("ingestInboundEmail()", () => {
     });
     const data = ticketCreate.mock.calls[0][0].data;
     expect(data.description).toMatch(/\[Attachments: draft-nda\.pdf, terms\.docx\]/);
+  });
+
+  it("persists the messageId as externalMessageId for new messages", async () => {
+    await ingestInboundEmail({
+      fromEmail: "dana@acme.com",
+      subject: "NDA",
+      body: "Need an NDA.",
+      messageId: "<abc@contoso.com>",
+    });
+    expect(ticketFindFirst).toHaveBeenCalled(); // dedupe pre-check ran
+    expect(ticketCreate.mock.calls[0][0].data.externalMessageId).toBe("<abc@contoso.com>");
+  });
+
+  it("is idempotent — a redelivered messageId returns the existing ticket, no create", async () => {
+    ticketFindFirst.mockResolvedValueOnce({
+      id: "REQ-existing",
+      requesterId: "p-1",
+      type: "NDA — Standard",
+      priority: "Low",
+      slaHours: 2,
+      assignedTo: "AI Auto-Draft",
+    });
+    const res = await ingestInboundEmail({
+      fromEmail: "dana@acme.com",
+      subject: "NDA",
+      body: "Need an NDA.",
+      messageId: "<dup@contoso.com>",
+    });
+    expect(res.deduped).toBe(true);
+    expect(res.ticketId).toBe("REQ-existing");
+    expect(ticketCreate).not.toHaveBeenCalled();
+    // No audit row for a dedupe hit.
+    expect(logAuditMock).not.toHaveBeenCalled();
   });
 });

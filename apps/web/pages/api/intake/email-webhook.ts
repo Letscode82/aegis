@@ -17,23 +17,22 @@
  * server.ts for the P4a boundary).
  *
  * Auth: this endpoint is intentionally NOT behind the Auth0 session gate
- * — a mail gateway has no session. When AEGIS_EMAIL_WEBHOOK_SECRET is
- * set, the request must carry it in `x-aegis-webhook-secret` (or
- * `?secret=`); when unset (local demo), the endpoint is open. The ticket
- * is created by the SYSTEM actor on the chain-sealed audit ledger.
+ * — a mail gateway has no session. It authenticates with the shared
+ * secret AEGIS_EMAIL_WEBHOOK_SECRET in `x-aegis-webhook-secret` (or
+ * `?secret=`), compared in constant time. It is **fail-closed in
+ * production**: with no secret configured it returns 503 (never an open
+ * ingest endpoint). In dev (no secret) it stays open for curl demos.
+ * Idempotent on `messageId` — a redelivery resolves to the existing
+ * ticket. The ticket is created by the SYSTEM actor on the chain-sealed
+ * audit ledger.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { ingestInboundEmail, EmailIngestValidationError } from "@aegis/intake/email";
+import {
+  ingestInboundEmail,
+  EmailIngestValidationError,
+  checkWebhookAuth,
+} from "@aegis/intake/email";
 import { serverTriageRunner } from "@aegis/intake/agent-run";
-
-function authorized(req: NextApiRequest): boolean {
-  const secret = process.env.AEGIS_EMAIL_WEBHOOK_SECRET;
-  if (!secret) return true; // open in local / demo when no secret configured
-  const header = req.headers["x-aegis-webhook-secret"];
-  const provided = Array.isArray(header) ? header[0] : header;
-  const fromQuery = typeof req.query.secret === "string" ? req.query.secret : undefined;
-  return provided === secret || fromQuery === secret;
-}
 
 export default async function handler(
   req: NextApiRequest,
@@ -43,8 +42,16 @@ export default async function handler(
     res.setHeader("Allow", "POST");
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   }
-  if (!authorized(req)) {
-    return res.status(401).json({ ok: false, error: "Unauthorized" });
+
+  const header = req.headers["x-aegis-webhook-secret"];
+  const provided = Array.isArray(header) ? header[0] : header;
+  const auth = checkWebhookAuth({
+    configuredSecret: process.env.AEGIS_EMAIL_WEBHOOK_SECRET,
+    provided: provided ?? (typeof req.query.secret === "string" ? req.query.secret : null),
+    isProduction: process.env.NODE_ENV === "production",
+  });
+  if (!auth.ok) {
+    return res.status(auth.status).json({ ok: false, error: auth.reason });
   }
 
   const body = (req.body ?? {}) as Record<string, unknown>;
@@ -55,6 +62,7 @@ export default async function handler(
       subject: typeof body.subject === "string" ? body.subject : "",
       body: typeof body.body === "string" ? body.body : "",
       threadId: typeof body.threadId === "string" ? body.threadId : undefined,
+      messageId: typeof body.messageId === "string" ? body.messageId : undefined,
       department: typeof body.department === "string" ? body.department : undefined,
       attachments: Array.isArray(body.attachments)
         ? (body.attachments as Array<Record<string, unknown>>)
