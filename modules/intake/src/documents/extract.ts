@@ -179,7 +179,7 @@ function decodePdfLiteral(s: string): string {
       let oct = n; i++;
       for (let k = 0; k < 2; k++) {
         const d = s[i + 1];
-        if (d >= "0" && d <= "7") { oct += d; i++; } else break;
+        if (d !== undefined && d >= "0" && d <= "7") { oct += d; i++; } else break;
       }
       out += String.fromCharCode(parseInt(oct, 8) & 0xff);
     } else { out += n; i++; }
