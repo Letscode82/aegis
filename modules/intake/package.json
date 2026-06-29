@@ -15,6 +15,7 @@
     "./matter-spawn": "./src/matter-spawn/server.ts",
     "./counterparty": "./src/counterparty/server.ts",
     "./email": "./src/email/server.ts",
+    "./documents": "./src/documents/server.ts",
     "./sanctions": "./src/sanctions/server.ts",
     "./sanctions-bootstrap": "./src/sanctions/bootstrap.ts",
     "./sanctions-ofac": "./src/sanctions/ofac-feed.ts",
