@@ -98,7 +98,9 @@ export async function ingestIntakeDocument(
     input.mimeType ||
     (format === "docx"
       ? "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-      : "text/plain");
+      : format === "pdf"
+        ? "application/pdf"
+        : "text/plain");
 
   const doc = await prisma.document.create({
     data: {

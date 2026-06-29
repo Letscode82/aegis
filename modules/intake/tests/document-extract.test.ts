@@ -4,14 +4,36 @@
  * + WordprocessingML path is exercised end-to-end, offline.
  */
 import { describe, expect, it } from "vitest";
-import { deflateRawSync } from "node:zlib";
+import { deflateRawSync, deflateSync } from "node:zlib";
 import {
   detectFormat,
   docxXmlToText,
   extractDocumentText,
+  extractPdfText,
   UnsupportedDocumentFormatError,
   DocumentParseError,
 } from "../src/documents/extract";
+
+/** A minimal single-page PDF whose content stream shows `lines` via text
+ * operators. `compress` wraps the content stream in FlateDecode (zlib) so
+ * both the inflate path and the raw path are exercised. The xref is
+ * deliberately minimal — the extractor scans streams, not the xref. */
+function buildSimplePdf(lines: string[], compress = false): Buffer {
+  const ops =
+    "BT /F1 18 Tf 72 720 Td " +
+    lines.map((l) => `(${l.replace(/([()\\])/g, "\\$1")}) Tj T*`).join(" ") +
+    " ET";
+  const body = compress ? deflateSync(Buffer.from(ops, "latin1")) : Buffer.from(ops, "latin1");
+  const filter = compress ? " /Filter /FlateDecode" : "";
+  const head =
+    "%PDF-1.4\n" +
+    "1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj\n" +
+    "2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj\n" +
+    "3 0 obj << /Type /Page /Parent 2 0 R /Contents 4 0 R >> endobj\n" +
+    `4 0 obj << /Length ${body.length}${filter} >>\nstream\n`;
+  const tail = "\nendstream endobj\ntrailer << /Root 1 0 R >>\n%%EOF";
+  return Buffer.concat([Buffer.from(head, "latin1"), body, Buffer.from(tail, "latin1")]);
+}
 
 /** Assemble a minimal valid .docx (ZIP with one deflated entry). */
 function buildDocx(xml: string): Buffer {
@@ -50,16 +72,14 @@ function buildDocx(xml: string): Buffer {
 }
 
 describe("detectFormat", () => {
-  it("recognises .txt and .docx", () => {
+  it("recognises .txt, .docx and .pdf", () => {
     expect(detectFormat("a.txt")).toBe("txt");
     expect(detectFormat("a.docx")).toBe("docx");
+    expect(detectFormat("a.pdf")).toBe("pdf");
+    expect(detectFormat("x", "application/pdf")).toBe("pdf");
     expect(
       detectFormat("x", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
     ).toBe("docx");
-  });
-  it("rejects PDF with a helpful message", () => {
-    expect(() => detectFormat("nda.pdf")).toThrow(UnsupportedDocumentFormatError);
-    expect(() => detectFormat("nda.pdf")).toThrow(/PDF is not supported/i);
   });
   it("rejects legacy .doc and unknown types", () => {
     expect(() => detectFormat("old.doc")).toThrow(UnsupportedDocumentFormatError);
@@ -109,9 +129,45 @@ describe("extractDocumentText", () => {
     );
   });
 
-  it("rejects an unsupported extension before reading bytes", () => {
+  it("rejects an unsupported extension (.doc) before reading bytes", () => {
     expect(() =>
-      extractDocumentText("contract.pdf", "application/pdf", Buffer.from("x")),
+      extractDocumentText("contract.doc", undefined, Buffer.from("x")),
     ).toThrow(UnsupportedDocumentFormatError);
+  });
+
+  it("extracts text from an uncompressed PDF content stream", () => {
+    const pdf = buildSimplePdf([
+      "MUTUAL NON-DISCLOSURE AGREEMENT",
+      "between Acme Robotics and Globex Corporation.",
+      "Term: 2 years. Governing law: Delaware.",
+    ]);
+    const out = extractDocumentText("nda.pdf", "application/pdf", pdf);
+    expect(out.format).toBe("pdf");
+    expect(out.text).toMatch(/NON-DISCLOSURE AGREEMENT/i);
+    expect(out.text).toMatch(/Acme Robotics/);
+    expect(out.text).toMatch(/Delaware/);
+  });
+
+  it("extracts text from a FlateDecode-compressed PDF content stream", () => {
+    const pdf = buildSimplePdf(
+      ["CONFIDENTIALITY AGREEMENT for Initech and Soylent, governed by New York law."],
+      true,
+    );
+    const out = extractPdfText(pdf);
+    expect(out).toMatch(/CONFIDENTIALITY AGREEMENT/i);
+    expect(out).toMatch(/New York law/);
+  });
+
+  it("fails honestly on a PDF with no extractable text", () => {
+    // Valid header, but no content streams with text operators.
+    const buf = Buffer.from("%PDF-1.4\n%%EOF", "latin1");
+    expect(() => extractPdfText(buf)).toThrow(DocumentParseError);
+    expect(() => extractPdfText(buf)).toThrow(/scanned or image-only/i);
+  });
+
+  it("rejects a non-PDF buffer routed to the PDF parser", () => {
+    expect(() => extractPdfText(Buffer.from("not a pdf", "latin1"))).toThrow(
+      /missing %PDF header/i,
+    );
   });
 });

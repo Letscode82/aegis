@@ -76,12 +76,11 @@ describe("ingestIntakeDocument()", () => {
     ).rejects.toBeInstanceOf(DocumentParseError);
   });
 
-  it("rejects unsupported formats (PDF) before persisting", async () => {
+  it("rejects unsupported formats (legacy .doc) before persisting", async () => {
     await expect(
       ingestIntakeDocument({
-        filename: "contract.pdf",
-        mimeType: "application/pdf",
-        contentBase64: b64("%PDF-1.7 ..."),
+        filename: "contract.doc",
+        contentBase64: b64("\xd0\xcf binary doc"),
         ticketId: "REQ-1",
       }),
     ).rejects.toBeInstanceOf(UnsupportedDocumentFormatError);

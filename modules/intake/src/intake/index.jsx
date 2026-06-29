@@ -467,13 +467,13 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,settings}){
         <textarea value={form.desc} onChange={e=>setForm({...form,desc:e.target.value})} placeholder="E.g. Mutual NDA for discussions with Acme Corp — 2-year term, Delaware law." rows={5} style={{...inputStyle,resize:"vertical",fontFamily:F,minHeight:100}}/>
       </FormField>
 
-      {/* Document attach — .docx / .txt. Text is extracted server-side and
-          folded into the description so the agent reads it. */}
-      <FormField label="Attach a document" sub="Word (.docx) or text (.txt) — e.g. an NDA / MSA to review. The agent reads the extracted text. (PDF not supported yet.)">
+      {/* Document attach — .docx / .txt / .pdf. Text is extracted
+          server-side and folded into the description so the agent reads it. */}
+      <FormField label="Attach a document" sub="Word (.docx), text (.txt), or PDF — e.g. an NDA / MSA to review. The agent reads the extracted text. (Scanned/image-only PDFs can't be read — paste the text instead.)">
         <div style={{display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
           <label style={{padding:"8px 14px",border:`1px dashed ${C.br}`,borderRadius:5,cursor:docBusy?"wait":"pointer",fontSize:10.5,fontFamily:M,letterSpacing:1,color:C.cy,textTransform:"uppercase",background:C.s1}}>
             {docBusy?"◎ Extracting…":"📎 Choose file"}
-            <input type="file" accept=".docx,.txt,.text,.md,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={onPickFile} disabled={docBusy} style={{display:"none"}}/>
+            <input type="file" accept=".docx,.txt,.text,.md,.pdf,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={onPickFile} disabled={docBusy} style={{display:"none"}}/>
           </label>
           <span style={{fontSize:10,color:C.t4,fontFamily:M}}>Max 5 MB</span>
         </div>
