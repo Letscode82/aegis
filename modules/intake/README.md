@@ -17,7 +17,8 @@ src/
 ├── ai-insight.jsx         AIInsight panel + useAIInsight hook
 ├── shell/ai-copilot.jsx   "Ask Aurora" floating side panel
 ├── intake-ui.jsx          Intake-specific atoms (Kbd, ConfidenceBadge, …)
-├── intake-kb.js           KB topics + routing rules
+├── intake-kb.js           Self-Service articles (derived from agents/kb.js)
+├── email/                 P4a inbound-email ingest → IntakeTicket
 ├── hooks/                 useTicketStore, useAgentSettings, useCockpitState,
 │                          useAgentLog, useKeyboardShortcuts
 ├── storage/               window.storage polyfill + tickets / conversations /

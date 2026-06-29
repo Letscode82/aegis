@@ -3,7 +3,7 @@ import { C, F, M, SR, Pill, Dot, Bar, Card, SH, WorkflowSteps, pc, inputStyle, F
 import { classifyIntakeRegex } from "@aegis/ai";
 import { useCurrentUser } from "@aegis/auth/react";
 import { Kbd, ConfidenceBadge, AgentBadge, TypingDots, ChatBubble, CapacityMeter, SimilarMatterCard } from "../intake-ui";
-import { KB_TOPICS } from "../intake-kb";
+import { SELF_SERVE_ARTICLES, SELF_SERVE_CATEGORIES } from "../intake-kb";
 import { AGENTS_BY_ID, ALL_AGENTS } from "../agents";
 import { COPILOT_INITIAL_STATE, initialAssistantMessage, copilotTurn, mergeState, createCopilotTicket } from "../copilot/engine";
 import { findSimilarMatters } from "../copilot/similar-matters";
@@ -2006,26 +2006,52 @@ function RoutingTab({rules,loading,error,onRuleUpdated,onRuleCreated,onRuleDelet
   </div>;
 }
 
-// ── Self-Service (static KB) ─────────────────────────
+// ── Self-Service (real KB — derived from AGENT_KB) ───────────────────
+// Reads the same knowledge base the FAQ agent answers from (one source
+// of truth). Stats are real: article/category counts come from the KB
+// itself; FAQ activity comes from /api/intake/agent-metrics. No
+// fabricated resolution / deflection numbers.
 function SelfServeTab({onFileTicket}){
   const[q,setQ]=useState("");
+  const[catFilter,setCatFilter]=useState(null);
   const[sel,setSel]=useState(null);
-  const results=useMemo(()=>{
-    if(!q) return KB_TOPICS;
-    const qq=q.toLowerCase();
-    return KB_TOPICS.filter(t=>t.q.toLowerCase().includes(qq)||t.cat.toLowerCase().includes(qq)||t.answer.toLowerCase().includes(qq));
-  },[q]);
+  const[faqMetric,setFaqMetric]=useState(undefined); // undefined=loading, null=no data
 
-  const totalResolved=KB_TOPICS.reduce((a,t)=>a+t.resolved,0);
-  const avgDefl=Math.round(KB_TOPICS.reduce((a,t)=>a+t.deflectionRate,0)/KB_TOPICS.length);
+  // Real FAQ-agent activity over the last 7 days (deflection-eligible
+  // answers the agent produced + its average confidence).
+  useEffect(()=>{
+    let mounted=true;
+    fetch("/api/intake/agent-metrics?days=7")
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{ if(!mounted) return;
+        const m=d&&Array.isArray(d.agents)?d.agents.find(a=>a.agentId==="faq-agent"):null;
+        setFaqMetric(m||null);
+      })
+      .catch(()=>{ if(mounted) setFaqMetric(null); });
+    return()=>{ mounted=false; };
+  },[]);
+
+  const results=useMemo(()=>{
+    let list=SELF_SERVE_ARTICLES;
+    if(catFilter) list=list.filter(t=>t.cat===catFilter);
+    if(q){
+      const qq=q.toLowerCase();
+      list=list.filter(t=>t.q.toLowerCase().includes(qq)||t.cat.toLowerCase().includes(qq)||t.answer.toLowerCase().includes(qq)||t.source.toLowerCase().includes(qq));
+    }
+    return list;
+  },[q,catFilter]);
+
+  const faqAnswers=faqMetric&&typeof faqMetric.produced==="number"?faqMetric.produced:null;
+  const faqConf=faqMetric&&typeof faqMetric.avgConfidence==="number"?Math.round(faqMetric.avgConfidence*100):null;
+  const fmt=v=>faqMetric===undefined?"…":(v==null?"—":v);
 
   return <div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
       {[
-        {l:"KB Articles",v:KB_TOPICS.length,c:C.tl,sub:"AI-maintained"},
-        {l:"Questions Resolved",v:totalResolved.toLocaleString(),c:C.gn,sub:"Last 90 days"},
-        {l:"Avg Deflection",v:avgDefl+"%",c:C.cy,sub:"No legal ticket needed"},
-        {l:"Hours Saved",v:"1,247",c:C.am,sub:"Attorney time · 90d"},
+        {l:"KB Articles",v:SELF_SERVE_ARTICLES.length,c:C.tl,sub:"From the legal playbook"},
+        {l:"Categories",v:SELF_SERVE_CATEGORIES.length,c:C.pp,sub:"Coverage areas"},
+        {l:"FAQ Answers · 7d",v:fmt(faqAnswers),c:C.gn,sub:"Drafted by the FAQ agent"},
+        {l:"FAQ Confidence",v:faqConf==null?fmt(null):faqConf+"%",c:C.cy,sub:"Avg · last 7 days"},
       ].map((s,i)=><div key={i} style={{padding:14,background:C.cd,border:`1px solid ${C.br}`,animation:`fu .25s ease ${i*40}ms both`}}>
         <div style={{fontSize:10,fontFamily:M,color:C.t3,letterSpacing:1.5,textTransform:"uppercase",marginBottom:4}}>{s.l}</div>
         <div style={{fontSize:32,fontFamily:SR,fontWeight:400,color:s.c,lineHeight:1}}>{s.v}</div>
@@ -2033,7 +2059,7 @@ function SelfServeTab({onFileTicket}){
       </div>)}
     </div>
 
-    {/* Ask Aurora — AI chat above the static FAQ list */}
+    {/* Ask Aurora — AI chat above the FAQ list */}
     <AskAuroraChat onFileTicket={onFileTicket}/>
 
     <Card style={{marginBottom:14}}>
@@ -2042,19 +2068,23 @@ function SelfServeTab({onFileTicket}){
         <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search the legal knowledge base — try 'nda', 'sanctions', 'payment terms'..." style={{...inputStyle,fontSize:13,padding:"12px 14px 12px 38px"}}/>
         <span style={{position:"absolute",left:12,top:"50%",transform:"translateY(-50%)",fontSize:15,color:C.t4}}>🔍</span>
       </div>
-      <div style={{fontSize:10,color:C.t4,marginTop:6,fontFamily:M,letterSpacing:.5}}>{results.length} article{results.length===1?"":"s"} · Aurora AI reads your query and returns the best match</div>
+      <div style={{display:"flex",gap:6,flexWrap:"wrap",marginTop:10}}>
+        <span onClick={()=>setCatFilter(null)} style={{fontSize:10,fontFamily:M,padding:"4px 10px",borderRadius:12,cursor:"pointer",border:`1px solid ${catFilter===null?C.tl:C.br}`,background:catFilter===null?C.tl+"22":"transparent",color:catFilter===null?C.tl:C.t3}}>All</span>
+        {SELF_SERVE_CATEGORIES.map(cat=><span key={cat} onClick={()=>setCatFilter(cat===catFilter?null:cat)} style={{fontSize:10,fontFamily:M,padding:"4px 10px",borderRadius:12,cursor:"pointer",border:`1px solid ${catFilter===cat?C.pp:C.br}`,background:catFilter===cat?C.pp+"22":"transparent",color:catFilter===cat?C.pp:C.t3}}>{cat}</span>)}
+      </div>
+      <div style={{fontSize:10,color:C.t4,marginTop:8,fontFamily:M,letterSpacing:.5}}>{results.length} article{results.length===1?"":"s"} · Aurora AI reads your query and returns the best match</div>
     </Card>
 
     <div style={{display:"grid",gridTemplateColumns:sel?"1fr 1.3fr":"1fr",gap:14}}>
       <Card>
-        <div style={{fontSize:11,fontWeight:600,color:C.cy,marginBottom:12,letterSpacing:1.2,fontFamily:M,textTransform:"uppercase"}}>▤ Top Articles</div>
+        <div style={{fontSize:11,fontWeight:600,color:C.cy,marginBottom:12,letterSpacing:1.2,fontFamily:M,textTransform:"uppercase"}}>▤ Knowledge Base Articles</div>
         {results.length===0?<div style={{padding:"30px 10px",textAlign:"center",color:C.t4,fontSize:11,fontFamily:M}}>No matches — submit a legal ticket instead →</div>:results.map((t,i)=><div key={i} onClick={()=>setSel(t)} style={{padding:"11px 12px",background:sel===t?C.cdH:C.s1,border:`1px solid ${sel===t?C.tl:C.br}`,borderRadius:4,marginBottom:6,cursor:"pointer",animation:`fu .2s ease ${i*30}ms both`,transition:"all .15s"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
             <Pill t={t.cat} c={C.pp}/>
-            <span style={{fontSize:9.5,color:C.gn,fontFamily:M,fontWeight:600}}>{t.deflectionRate}% deflection</span>
+            <span style={{fontSize:9.5,color:C.t4,fontFamily:M,fontWeight:600}}>{t.source}</span>
           </div>
           <div style={{fontSize:12,color:C.t1,fontWeight:600,marginBottom:3,lineHeight:1.4}}>{t.q}</div>
-          <div style={{fontSize:9.5,color:C.t4,fontFamily:M,letterSpacing:.3}}>Resolved {t.resolved.toLocaleString()}× · Source: {t.owner}</div>
+          <div style={{fontSize:10,color:C.t4,lineHeight:1.4,overflow:"hidden",textOverflow:"ellipsis",display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical"}}>{t.answer}</div>
         </div>)}
       </Card>
 
@@ -2069,11 +2099,11 @@ function SelfServeTab({onFileTicket}){
           <div style={{fontSize:9,color:C.gn,textTransform:"uppercase",letterSpacing:1.5,fontFamily:M,marginBottom:5,fontWeight:600}}>Answer</div>
           <div style={{fontSize:12,color:C.t1,lineHeight:1.65}}>{sel.answer}</div>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:12}}>
-          <div style={{padding:10,background:C.s1,borderRadius:4,textAlign:"center"}}><div style={{fontSize:9,color:C.t3,textTransform:"uppercase",letterSpacing:1,fontFamily:M,marginBottom:3}}>Resolved</div><div style={{fontSize:18,color:C.gn,fontFamily:SR,fontWeight:400}}>{sel.resolved.toLocaleString()}</div></div>
-          <div style={{padding:10,background:C.s1,borderRadius:4,textAlign:"center"}}><div style={{fontSize:9,color:C.t3,textTransform:"uppercase",letterSpacing:1,fontFamily:M,marginBottom:3}}>Deflection</div><div style={{fontSize:18,color:C.cy,fontFamily:SR,fontWeight:400}}>{sel.deflectionRate}%</div></div>
-          <div style={{padding:10,background:C.s1,borderRadius:4,textAlign:"center"}}><div style={{fontSize:9,color:C.t3,textTransform:"uppercase",letterSpacing:1,fontFamily:M,marginBottom:3}}>Source</div><div style={{fontSize:10,color:C.t1,fontFamily:M,paddingTop:4,lineHeight:1.3}}>{sel.owner}</div></div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+          <div style={{padding:10,background:C.s1,borderRadius:4,textAlign:"center"}}><div style={{fontSize:9,color:C.t3,textTransform:"uppercase",letterSpacing:1,fontFamily:M,marginBottom:3}}>Category</div><div style={{fontSize:12,color:C.pp,fontFamily:M,paddingTop:4,lineHeight:1.3}}>{sel.cat}</div></div>
+          <div style={{padding:10,background:C.s1,borderRadius:4,textAlign:"center"}}><div style={{fontSize:9,color:C.t3,textTransform:"uppercase",letterSpacing:1,fontFamily:M,marginBottom:3}}>Source</div><div style={{fontSize:11,color:C.t1,fontFamily:M,paddingTop:4,lineHeight:1.3}}>{sel.source}</div></div>
         </div>
+        <div style={{fontSize:10,color:C.t4,fontFamily:M,lineHeight:1.5}}>Still need help? <span onClick={()=>onFileTicket&&onFileTicket(sel.q)} style={{color:C.tl,cursor:"pointer",textDecoration:"underline"}}>File a ticket</span> — the FAQ agent will answer from this same playbook entry.</div>
       </Card>}
     </div>
   </div>;
@@ -2134,7 +2164,7 @@ export function IntakeView(){
     {id:"kanban",label:"Kanban",icon:"◱"},
     {id:"sla",label:"SLA Dashboard",icon:"◔"},
     {id:"routing",label:"Smart Routing",icon:"⚯",count:routingRules?routingRules.length:undefined},
-    {id:"selfserve",label:"Self-Service",icon:"◈",count:KB_TOPICS.length},
+    {id:"selfserve",label:"Self-Service",icon:"◈",count:SELF_SERVE_ARTICLES.length},
   ];
 
   const awaiting=store.tickets.filter(isAwaitingTriage).length;
