@@ -56,7 +56,11 @@ Respond with ONLY this JSON:
         confidence,suggestedAction:"approve-and-send",
         draftedResponse,reasoning:reasoning||`Template-fit match (MNDA-v4.2). Counterparty check: ${priorNDA.found?"existing relationship — verify NDA reuse":"new counterparty"}.`,
         concerns:result.concerns||[],
-        precedentLinks:[{id:"NDA-TEMPLATE-v4.2",title:"Standard Mutual NDA Template"},...(priorNDA.found&&priorNDA.counterpartyId?[{id:priorNDA.counterpartyId,title:`Existing relationship: ${priorNDA.counterpartyName||counterparty} (${priorNDA.priorMatterCount} matter${priorNDA.priorMatterCount===1?"":"s"})`}]:[])],
+        precedentLinks:[
+          {id:"NDA-TEMPLATE-v4.2",title:"Standard Mutual NDA Template"},
+          ...(priorNDA.priorNda?[{id:priorNDA.priorNda.documentId,title:`↩ Prior NDA on file: ${priorNDA.priorNda.name}`}]:[]),
+          ...(priorNDA.found&&priorNDA.counterpartyId?[{id:priorNDA.counterpartyId,title:`Existing relationship: ${priorNDA.counterpartyName||counterparty} (${priorNDA.priorMatterCount} matter${priorNDA.priorMatterCount===1?"":"s"})`}]:[]),
+        ],
         alternativeTone:result.alternativeTone||null,
       });
     }catch(e){

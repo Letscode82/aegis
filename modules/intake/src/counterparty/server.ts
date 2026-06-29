@@ -17,6 +17,13 @@
  */
 import { prisma } from "@aegis/db";
 
+export interface PriorNDA {
+  documentId: string;
+  name: string;
+  /** ISO date the NDA document was uploaded/recorded. */
+  uploadedAt: string;
+}
+
 export interface CounterpartyRelationship {
   /** True when a counterparty with this name exists in the org. */
   found: boolean;
@@ -26,6 +33,9 @@ export interface CounterpartyRelationship {
   country: string | null;
   /** Matters already on file with this counterparty (prior dealings). */
   priorMatterCount: number;
+  /** A real prior NDA document on file with this counterparty, if one
+   * exists (found via the counterparty's matters). Null otherwise. */
+  priorNda: PriorNDA | null;
   /** One-line summary for the agent prompt + the recommendation note. */
   note: string;
 }
@@ -37,10 +47,46 @@ const NOT_FOUND = (name: string): CounterpartyRelationship => ({
   counterpartyType: null,
   country: null,
   priorMatterCount: 0,
+  priorNda: null,
   note: name
     ? `No existing relationship with "${name}" on file — treat as a new counterparty and draft from the standard template.`
     : "No counterparty named in the request — draft from the standard template.",
 });
+
+/**
+ * Find a real prior NDA document for a counterparty, via its matters.
+ * Documents are polymorphic (ownerType, ownerId); an NDA lives on a
+ * MATTER tied to the counterparty. Matches by name (NDA / non-disclosure
+ * / confidentiality). Returns the most recent, or null.
+ */
+async function findPriorNdaDocument(
+  organizationId: string,
+  counterpartyId: string,
+): Promise<PriorNDA | null> {
+  const matters = await prisma.matter.findMany({
+    where: { organizationId, counterpartyId },
+    select: { id: true },
+  });
+  if (matters.length === 0) return null;
+  const matterIds = matters.map((m) => m.id);
+  const doc = await prisma.document.findFirst({
+    where: {
+      organizationId,
+      ownerType: "MATTER",
+      ownerId: { in: matterIds },
+      OR: [
+        { name: { contains: "NDA", mode: "insensitive" } },
+        { name: { contains: "non-disclosure", mode: "insensitive" } },
+        { name: { contains: "nondisclosure", mode: "insensitive" } },
+        { name: { contains: "confidentialit", mode: "insensitive" } },
+      ],
+    },
+    select: { id: true, name: true, uploadedAt: true },
+    orderBy: { uploadedAt: "desc" },
+  });
+  if (!doc) return null;
+  return { documentId: doc.id, name: doc.name, uploadedAt: doc.uploadedAt.toISOString() };
+}
 
 /**
  * Look up a counterparty by name within an org. Case-insensitive; tries
@@ -105,10 +151,17 @@ export async function lookupCounterpartyRelationship(
   if (!match) return NOT_FOUND(name);
 
   const matterCount = match._count?.matters ?? 0;
-  const note =
-    matterCount > 0
-      ? `Existing counterparty "${match.name}" (${match.type}${match.country ? `, ${match.country}` : ""}) with ${matterCount} matter${matterCount === 1 ? "" : "s"} on file. Check for an existing NDA before drafting a new one.`
-      : `Existing counterparty "${match.name}" (${match.type}${match.country ? `, ${match.country}` : ""}) on file, no prior matters. Likely no NDA yet — drafting new is appropriate.`;
+  const priorNda = await findPriorNdaDocument(organizationId, match.id);
+  const cpLabel = `"${match.name}" (${match.type}${match.country ? `, ${match.country}` : ""})`;
+
+  let note: string;
+  if (priorNda) {
+    note = `Existing NDA on file with ${cpLabel}: "${priorNda.name}" (recorded ${priorNda.uploadedAt.slice(0, 10)}). Recommend REUSING / amending the existing agreement rather than drafting new — confirm it still covers the intended scope.`;
+  } else if (matterCount > 0) {
+    note = `Existing counterparty ${cpLabel} with ${matterCount} matter${matterCount === 1 ? "" : "s"} on file, but no NDA document found. Check the matter files before drafting a new NDA.`;
+  } else {
+    note = `Existing counterparty ${cpLabel} on file, no prior matters and no NDA on file. Drafting new is appropriate.`;
+  }
 
   return {
     found: true,
@@ -117,6 +170,7 @@ export async function lookupCounterpartyRelationship(
     counterpartyType: match.type,
     country: match.country,
     priorMatterCount: matterCount,
+    priorNda,
     note,
   };
 }
