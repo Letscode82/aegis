@@ -16,6 +16,7 @@
     "./counterparty": "./src/counterparty/server.ts",
     "./email": "./src/email/server.ts",
     "./mailbox": "./src/email/mailbox.ts",
+    "./agent-run": "./src/agents/run-server.ts",
     "./documents": "./src/documents/server.ts",
     "./sanctions": "./src/sanctions/server.ts",
     "./sanctions-bootstrap": "./src/sanctions/bootstrap.ts",

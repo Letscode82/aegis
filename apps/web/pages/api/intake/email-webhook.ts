@@ -24,6 +24,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { ingestInboundEmail, EmailIngestValidationError } from "@aegis/intake/email";
+import { serverTriageRunner } from "@aegis/intake/agent-run";
 
 function authorized(req: NextApiRequest): boolean {
   const secret = process.env.AEGIS_EMAIL_WEBHOOK_SECRET;
@@ -64,7 +65,7 @@ export default async function handler(
             }))
             .filter((a) => a.filename)
         : undefined,
-    });
+    }, { triage: serverTriageRunner });
     return res.status(201).json({ ok: true, ...result });
   } catch (err) {
     if (err instanceof EmailIngestValidationError) {

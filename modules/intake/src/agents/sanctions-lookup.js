@@ -3,6 +3,13 @@
 // failure or empty name returns status "unavailable" (NEVER "clear"), so
 // the agent flags for review rather than producing a false all-clear.
 // Replaces the hardcoded mockSanctionsCheck.
+// Optional server-side resolver. The server agent worker injects a
+// direct screen (screenAgainstSanctions) so the Vendor agent gets a real
+// result without a relative fetch (browser-only). Null in the browser →
+// the fetch path runs.
+let _resolver=null;
+export function setSanctionsResolver(fn){ _resolver=fn; }
+
 export async function screenSanctions(name, country){
   const UNAVAILABLE={
     status:"unavailable",
@@ -11,6 +18,10 @@ export async function screenSanctions(name, country){
     listAsOf:null,
     note:"Automated sanctions screening is unavailable — manual screening required before onboarding.",
   };
+  if(_resolver){
+    try{ const d=await _resolver(name,country); return d&&d.status?d:UNAVAILABLE; }
+    catch{ return UNAVAILABLE; }
+  }
   try{
     const qs=new URLSearchParams();
     if(name) qs.set("name",name);

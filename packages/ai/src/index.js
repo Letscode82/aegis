@@ -18,6 +18,7 @@ export {
   callClaude,
   callClaudeJSON,
   friendlyAIError,
+  setClaudeTransport,
 } from "./claude.js";
 
 export { classifyIntakeRegex } from "./classify-regex.js";

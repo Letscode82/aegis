@@ -20,6 +20,7 @@ import {
   type PollMailboxOptions,
 } from "@aegis/matter";
 import { ingestInboundEmail } from "./server";
+import { serverTriageRunner } from "../agents/run-server";
 
 export interface MailboxDTO {
   id: string;
@@ -256,7 +257,11 @@ export async function pollMailboxForIntake(
           ? [{ filename: "(email attachment)" }]
           : undefined,
       },
-      { organizationId, now: Number.isFinite(receivedMs) ? receivedMs : undefined },
+      {
+        organizationId,
+        now: Number.isFinite(receivedMs) ? receivedMs : undefined,
+        triage: serverTriageRunner,
+      },
     );
     created += 1;
     if (Number.isFinite(receivedMs) && receivedMs > watermarkMs) watermarkMs = receivedMs;

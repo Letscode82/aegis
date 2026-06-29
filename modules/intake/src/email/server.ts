@@ -82,13 +82,29 @@ export class EmailIngestValidationError extends Error {
   }
 }
 
-/** Test seam: deterministic clock + id generation. */
+/** Optional post-create triage hook. When provided, it runs the agent
+ * for the freshly-created ticket server-side (so an emailed/polled ticket
+ * is triaged on arrival, not on Cockpit open). Best-effort: a failure is
+ * swallowed so it never fails the ingest. */
+export type EmailTriageRunner = (input: {
+  organizationId: string;
+  ticketId: string;
+  from?: string | null;
+  dept?: string | null;
+  type?: string | null;
+  priority?: string | null;
+  desc?: string | null;
+}) => Promise<unknown>;
+
+/** Test seam: deterministic clock + id generation + triage injection. */
 export interface IngestOptions {
   /** Override the resolved org (tests). Defaults to the demo org. */
   organizationId?: string;
   now?: number;
   /** Generate the ticket id. Defaults to a time + random suffix. */
   makeTicketId?: () => string;
+  /** Run the agent server-side after the ticket is created. */
+  triage?: EmailTriageRunner;
 }
 
 function defaultTicketId(now: number): string {
@@ -312,6 +328,25 @@ export async function ingestInboundEmail(
     });
   }
   await recordRuleFirings(firedRuleIds);
+
+  // 6. Server-side triage (optional). Run the agent now so the ticket
+  // arrives in the Cockpit already triaged. Best-effort — never fails
+  // the ingest.
+  if (opts.triage) {
+    try {
+      await opts.triage({
+        organizationId: orgId,
+        ticketId,
+        from: fromName,
+        dept: department || null,
+        type,
+        priority,
+        desc: description,
+      });
+    } catch (err) {
+      console.error("[email/ingest] server triage failed (non-fatal):", err);
+    }
+  }
 
   return {
     ticketId,

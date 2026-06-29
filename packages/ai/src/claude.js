@@ -3,6 +3,14 @@ export const CLAUDE_MODEL="claude-sonnet-4-6";
 // Anthropic API key stays on the server and CORS is avoided.
 export const CLAUDE_ENDPOINT="/api/claude";
 
+// Optional server-side transport. The browser path POSTs to the relative
+// CLAUDE_ENDPOINT, which only resolves in a browser. Server runtimes (the
+// intake agent worker) install a transport via setClaudeTransport() that
+// calls Anthropic directly with the server-held key — so the SAME agent
+// code runs unchanged on the server. Null in the browser (default fetch).
+let _serverTransport=null;
+export function setClaudeTransport(fn){ _serverTransport=fn; }
+
 // Strip accidental markdown fences, then parse
 export function parseJSONLoose(text){
   if(!text) throw new Error("Empty response");
@@ -22,6 +30,14 @@ export async function callClaude(prompt,opts={}){
   const {maxTokens=1000,system,timeout=18000}=opts;
   const body={model:CLAUDE_MODEL,max_tokens:maxTokens,messages:[{role:"user",content:prompt}]};
   if(system) body.system=system;
+  // Server-side: skip the relative-URL fetch and call the injected
+  // transport directly (it returns the parsed Anthropic response).
+  if(_serverTransport){
+    const data=await _serverTransport(body);
+    const textBlock=(data&&data.content||[]).find(b=>b.type==="text");
+    if(!textBlock) throw new Error("No text block in response");
+    return textBlock.text;
+  }
   const ctrl=typeof AbortController!=="undefined"?new AbortController():null;
   const timer=ctrl?setTimeout(()=>ctrl.abort(),timeout):null;
   try{
