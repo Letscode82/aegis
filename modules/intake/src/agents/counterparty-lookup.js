@@ -5,7 +5,7 @@
 // hardcoded mockPriorNDACheck.
 export async function checkCounterpartyRelationship(name){
   const NONE={
-    found:false,counterpartyId:null,counterpartyName:null,priorMatterCount:0,
+    found:false,counterpartyId:null,counterpartyName:null,priorMatterCount:0,priorNda:null,
     note:"No existing relationship on file — draft from the standard template.",
   };
   if(!name||name.trim().length<2) return NONE;

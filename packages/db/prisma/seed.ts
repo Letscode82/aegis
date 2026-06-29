@@ -1399,6 +1399,9 @@ async function main() {
   const sx = await seedSanctionsList();
   console.log(`[seed] sanctions_list_entries=${sx}`);
 
+  const nd = await seedNdaDocuments(org.id, user.id);
+  console.log(`[seed] nda_documents=${nd}`);
+
   console.log("[seed] done.");
 }
 
@@ -1835,6 +1838,44 @@ const SANCTIONS_BOOTSTRAP: ReadonlyArray<{
   { sourceRef: "sb-lazarus", entityName: "Lazarus Group", programs: ["DPRK", "CYBER"], aliases: ["Lazarus", "Hidden Cobra"], country: "North Korea" },
   { sourceRef: "sb-garantex", entityName: "Garantex", programs: ["CYBER"], aliases: ["Garantex Europe OU"], country: "Russia" },
 ];
+
+// ───────────────────────────────────────────────────────────────────
+// Section 4f — Prior NDA document (Intake P2b)
+// ───────────────────────────────────────────────────────────────────
+//
+// One executed NDA document on the Snowflake matter so the NDA agent's
+// counterparty lookup detects a REAL prior NDA (via the counterparty's
+// matters) and recommends reuse. Demo: file an NDA request mentioning
+// "Snowflake" and the agent surfaces this document. Deterministic id →
+// idempotent upsert.
+
+async function seedNdaDocuments(
+  orgId: string,
+  userId: string,
+): Promise<number> {
+  // Snowflake matter (cp-snowflake) exists from §3; attach an NDA doc.
+  const matter = await prisma.matter.findFirst({
+    where: { organizationId: orgId, counterpartyId: "cp-snowflake" },
+    select: { id: true },
+  });
+  if (!matter) return 0;
+  await prisma.document.upsert({
+    where: { id: "doc-nda-snowflake" },
+    update: { name: "Mutual NDA — Snowflake Inc. (executed)" },
+    create: {
+      id: "doc-nda-snowflake",
+      organizationId: orgId,
+      name: "Mutual NDA — Snowflake Inc. (executed)",
+      mimeType: "application/pdf",
+      sizeBytes: 184320,
+      storageUrl: "s3://aegis-demo/nda/snowflake-mutual-nda.pdf",
+      ownerType: "MATTER",
+      ownerId: matter.id,
+      uploadedBy: userId,
+    },
+  });
+  return 1;
+}
 
 async function seedSanctionsList(): Promise<number> {
   const refreshedAt = new Date();
