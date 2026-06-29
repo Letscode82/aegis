@@ -16,6 +16,7 @@
     "./counterparty": "./src/counterparty/server.ts",
     "./sanctions": "./src/sanctions/server.ts",
     "./sanctions-bootstrap": "./src/sanctions/bootstrap.ts",
+    "./sanctions-ofac": "./src/sanctions/ofac-feed.ts",
     "./agent-metrics": "./src/agent-metrics/server.ts"
   },
   "files": ["src"],
