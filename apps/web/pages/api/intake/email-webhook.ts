@@ -41,7 +41,7 @@ const limiter = createRateLimiter({ windowMs: 60_000, max: 60 });
 
 function clientIp(req: NextApiRequest): string {
   const fwd = req.headers["x-forwarded-for"];
-  if (typeof fwd === "string" && fwd.length) return fwd.split(",")[0].trim();
+  if (typeof fwd === "string" && fwd.length) return (fwd.split(",")[0] ?? fwd).trim();
   const real = req.headers["x-real-ip"];
   if (typeof real === "string" && real.length) return real.trim();
   return "unknown";
