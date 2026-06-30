@@ -21,6 +21,7 @@ export {
   decryptSecret,
   secretFingerprint,
   SecretDecryptError,
+  SecretEncryptError,
 } from "./crypto";
 export {
   verifyAuditChain,

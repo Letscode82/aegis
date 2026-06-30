@@ -31,8 +31,21 @@ import {
   ingestInboundEmail,
   EmailIngestValidationError,
   checkWebhookAuth,
+  createRateLimiter,
 } from "@aegis/intake/email";
 import { serverTriageRunner } from "@aegis/intake/agent-run";
+
+// Per-instance sliding-window limiter (resets on cold start). 60 inbound
+// messages/min/IP is generous for a real mail gateway and caps abuse.
+const limiter = createRateLimiter({ windowMs: 60_000, max: 60 });
+
+function clientIp(req: NextApiRequest): string {
+  const fwd = req.headers["x-forwarded-for"];
+  if (typeof fwd === "string" && fwd.length) return (fwd.split(",")[0] ?? fwd).trim();
+  const real = req.headers["x-real-ip"];
+  if (typeof real === "string" && real.length) return real.trim();
+  return "unknown";
+}
 
 export default async function handler(
   req: NextApiRequest,
@@ -41,6 +54,12 @@ export default async function handler(
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).json({ ok: false, error: "Method not allowed" });
+  }
+
+  const rl = limiter.check(clientIp(req));
+  if (!rl.ok) {
+    if (rl.retryAfterSec) res.setHeader("Retry-After", String(rl.retryAfterSec));
+    return res.status(429).json({ ok: false, error: "Rate limit exceeded" });
   }
 
   const header = req.headers["x-aegis-webhook-secret"];

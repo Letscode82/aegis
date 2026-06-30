@@ -40,6 +40,7 @@ import { evaluateRoutingRules } from "../routing/rules";
 import { loadEnabledRoutingRules, recordRuleFirings } from "../routing/server";
 
 export { checkWebhookAuth, type WebhookAuthResult } from "./webhook-auth";
+export { createRateLimiter, type RateLimiter, type RateLimitResult } from "./rate-limit";
 
 /** Inbound email payload — the shape the webhook accepts and the shape
  * the future Graph poller will map each message into. */
