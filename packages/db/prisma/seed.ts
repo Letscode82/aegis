@@ -1329,7 +1329,43 @@ async function seedSystemBootAudit(orgId: string) {
   return true;
 }
 
+/**
+ * Production-foundation seed (AEGIS_SEED_PROFILE=production).
+ *
+ * For a real client deployment: seeds ONLY what the platform needs to
+ * run — the org, the admin (from SEED_ADMIN_EMAIL / SEED_ADMIN_NAME),
+ * the 8 role bundles, matter-type configs (so intake→matter auto-spawn
+ * numbers correctly), the OFAC sanctions bootstrap list (so the Vendor
+ * agent screens for real), and the audit-chain genesis row. NO demo
+ * tickets, matters, holds, personas, spend, or privacy data.
+ *
+ * Idempotent and safe to re-run. Set SEED_ADMIN_EMAIL + SEED_ADMIN_NAME
+ * before running so the admin row matches the client's Auth0 login.
+ */
+async function seedProductionFoundation() {
+  console.log("[seed:production] starting clean foundation…");
+  const { org, user } = await seedOrgAndAdmin();
+  const roles = await seedRoles(org.id);
+  const typeConfigs = await seedMatterTypeConfigs(org.id);
+  const bootRowAdded = await seedSystemBootAudit(org.id);
+  const sanctions = await seedSanctionsList();
+  console.log(
+    `[seed:production] org=${org.id} admin=${user.id} roles=${roles} ` +
+      `matter_type_configs=${typeConfigs} sanctions_list_entries=${sanctions} ` +
+      `genesis_audit=${bootRowAdded}`,
+  );
+  console.log(
+    "[seed:production] done. No demo data seeded. " +
+      "Configure routing rules + users in the admin UI.",
+  );
+}
+
 async function main() {
+  if ((process.env.AEGIS_SEED_PROFILE ?? "").trim().toLowerCase() === "production") {
+    await seedProductionFoundation();
+    return;
+  }
+
   console.log("[seed] starting…");
 
   const { org, user, alexPerson } = await seedOrgAndAdmin();
@@ -2329,10 +2365,10 @@ const TEST_USERS: ReadonlyArray<{
   { email: "felix.viewer@aegis-demo.example",        name: "Felix Brennan",     roleName: "viewer" },
 ].filter((u) => u.roleName !== ("admin" as never)));
 
-async function seedRolesAndTestUsers(orgId: string) {
-  // 1. Upsert every canonical role with the full ROLE_PERMISSIONS list.
-  //    For admin this overwrites Step 2's 20-string seed with the
-  //    canonical 37-string superset.
+/** Upsert all 8 canonical roles with their full permission bundles.
+ * Shared by the demo seed (§7) and the production-foundation seed. No
+ * demo users — just the role catalog so RBAC works. */
+async function seedRoles(orgId: string): Promise<number> {
   let rolesWritten = 0;
   for (const roleName of ALL_ROLES) {
     const permissions = Array.from(ROLE_PERMISSIONS[roleName]);
@@ -2349,6 +2385,14 @@ async function seedRolesAndTestUsers(orgId: string) {
     });
     rolesWritten += 1;
   }
+  return rolesWritten;
+}
+
+async function seedRolesAndTestUsers(orgId: string) {
+  // 1. Upsert every canonical role with the full ROLE_PERMISSIONS list.
+  //    For admin this overwrites Step 2's 20-string seed with the
+  //    canonical 37-string superset.
+  const rolesWritten = await seedRoles(orgId);
 
   // 2. Resolve the role rows so we can attach test users to them.
   const roleRows = await prisma.role.findMany({
