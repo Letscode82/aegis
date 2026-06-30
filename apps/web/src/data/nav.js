@@ -32,3 +32,28 @@ export const NAV=[
   {id:"roles",label:"Roles",icon:"◆",c:C.pp,group:"ADMIN",permission:"admin:manage_roles"},
   {id:"audit",label:"Audit Log",icon:"◇",c:C.am,group:"ADMIN",permission:"audit:read_all"},
 ];
+
+// ── Deployment profile ───────────────────────────────────────────────
+// A single client may license only Intake. The "intake" profile keeps the
+// whole platform running underneath (agents, M365 email polling,
+// ticket→matter auto-spawn, the audit chain) but shows ONLY the Intake
+// surface plus the admin tools Intake needs (Users / Roles / Audit Log,
+// still permission-gated). Set NEXT_PUBLIC_AEGIS_PROFILE=intake.
+// Default "full" renders every module nav entry as before.
+export const INTAKE_PROFILE_VIEWS = new Set(["intake", "users", "roles", "audit"]);
+
+export function resolveProfile() {
+  const p =
+    (typeof process !== "undefined" &&
+      process.env &&
+      process.env.NEXT_PUBLIC_AEGIS_PROFILE) ||
+    "full";
+  return p === "intake" ? "intake" : "full";
+}
+
+/** NAV entries for a profile. Dividers are kept here; AppShell already
+ * drops the ones left dangling after filtering. */
+export function navForProfile(profile) {
+  if (profile !== "intake") return NAV;
+  return NAV.filter((n) => n.id.startsWith("divider") || INTAKE_PROFILE_VIEWS.has(n.id));
+}
