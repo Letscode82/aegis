@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { C, F, M, SR, Dot, CSS } from "@aegis/ui";
 import { AICopilot, IntakeView } from "@aegis/intake";
 import { useCurrentUser } from "@aegis/auth/react";
-import { NAV } from "./data/nav";
+import { NAV, navForProfile, resolveProfile, INTAKE_PROFILE_VIEWS } from "./data/nav";
 import { ALL_APPROVALS, ALL_ALERTS } from "./data/aggregate";
 import { DailyView, AlertsView, ApprovalsView, ContractsView, RegulatoryView, LitigationView as _LitigationView, ComplianceView as _ComplianceView, SpendView, GovernanceView } from "./views/v72";
 import { MissionControlView, BoardReportView, BrainView, OCMView, CyberView, WorkflowBuilderView, ArchitectureView, RiskGraphView, ScenariosView } from "./views/v8";
@@ -21,7 +21,11 @@ function initialViewFromUrl(fallback){
 }
 
 export default function App(){
-  const[view,setView]=useState(()=>initialViewFromUrl("mission"));
+  // Deployment profile — "intake" ships an Intake-only nav (the rest of
+  // the platform still runs underneath). Default "full" is unchanged.
+  const PROFILE=resolveProfile();
+  const isIntakeOnly=PROFILE==="intake";
+  const[view,setView]=useState(()=>initialViewFromUrl(isIntakeOnly?"intake":"mission"));
   const[copilotOpen,setCopilotOpen]=useState(false);
   const[time,setTime]=useState(new Date());
   const{has,loading:authLoading}=useCurrentUser();
@@ -37,14 +41,18 @@ export default function App(){
     cyber:CyberView,brain:BrainView,board:BoardReportView,workflows:WorkflowBuilderView,
     architecture:ArchitectureView,
     users:AdminUsersShell,roles:AdminRolesShell,audit:AuditLogShell};
-  const Comp=V[view]||DailyView;
+  // In the intake-only profile, any view outside the allowed set (e.g. a
+  // stale ?view= deep link) falls back to Intake so hidden modules can't
+  // be reached through the URL.
+  const effectiveView=isIntakeOnly && !INTAKE_PROFILE_VIEWS.has(view) ? "intake" : view;
+  const Comp=V[effectiveView]||DailyView;
 
   // Filter NAV by the user's permissions. Entries without a `permission`
   // are visible to everyone; entries with one are hidden until the
   // current-user query returns and confirms the grant. The server-side
   // gate on the underlying API stays authoritative — the nav filter is
   // a UX-only refinement.
-  const permFiltered=NAV.filter(n=>!n.permission||(authLoading?false:has(n.permission)));
+  const permFiltered=navForProfile(PROFILE).filter(n=>!n.permission||(authLoading?false:has(n.permission)));
   // Drop dangling dividers — when a permission filter hides every
   // entry of a group (e.g. ADMIN for non-admins), the surrounding
   // divider is meaningless decor. Keep a divider only if the entries
@@ -69,7 +77,7 @@ export default function App(){
           <div style={{width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",background:C.em,fontSize:14,fontWeight:400,color:C.bg,fontFamily:SR}}>◎</div>
           <div>
             <div style={{fontSize:14,fontFamily:SR,fontWeight:400,letterSpacing:1,color:C.t1}}>AEGIS<span style={{color:C.em,fontStyle:"italic"}}></span></div>
-            <div style={{fontSize:8,letterSpacing:2,color:C.t3,textTransform:"uppercase",fontFamily:M,marginTop:1}}>Legal Mission Control</div>
+            <div style={{fontSize:8,letterSpacing:2,color:C.t3,textTransform:"uppercase",fontFamily:M,marginTop:1}}>{isIntakeOnly?"Legal Intake":"Legal Mission Control"}</div>
           </div>
         </div>
       </div>
@@ -105,8 +113,8 @@ export default function App(){
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div style={{padding:"10px 20px",borderBottom:`1px solid ${C.br}`,display:"flex",justifyContent:"space-between",alignItems:"center",background:C.s1}}>
         <div>
-          <div style={{fontSize:8,fontFamily:M,color:C.t4,letterSpacing:2,textTransform:"uppercase"}}>{NAV.find(n=>n.id===view)?.group||"MODULE"}</div>
-          <span style={{fontSize:14,fontFamily:SR,fontWeight:400,color:C.t1,letterSpacing:.3}}>{NAV.find(n=>n.id===view)?.label||"Today"}</span>
+          <div style={{fontSize:8,fontFamily:M,color:C.t4,letterSpacing:2,textTransform:"uppercase"}}>{NAV.find(n=>n.id===effectiveView)?.group||"MODULE"}</div>
+          <span style={{fontSize:14,fontFamily:SR,fontWeight:400,color:C.t1,letterSpacing:.3}}>{NAV.find(n=>n.id===effectiveView)?.label||"Today"}</span>
         </div>
         <div style={{display:"flex",alignItems:"center",gap:16}}>
           <div style={{display:"flex",alignItems:"center",gap:6}}><Dot c={C.em} p/><span style={{fontSize:9,color:C.em,fontFamily:M,letterSpacing:2,textTransform:"uppercase"}}>LIVE</span></div>
