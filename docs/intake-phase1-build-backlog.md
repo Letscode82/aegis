@@ -15,6 +15,9 @@ iteration, in dependency order.
 - Run the intake/matter vitest suites locally before pushing.
 - Wait for CI (`ci` + `db-integrity`) green, then squash-merge, then sync
   `main` and check the item off here.
+- **After each merge, append a one-line note to
+  `docs/intake-phase1-progress.md`** — `| <date -u UTC> | <item> | #<PR> |
+  merged |` — so the run has a durable audit trail without opening GitHub.
 - Follow CLAUDE.md: all DB via `@aegis/db`, module isolation, audit every
   mutation, conservative-AI (human approval gate) intact.
 
