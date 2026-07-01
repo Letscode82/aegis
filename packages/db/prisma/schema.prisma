@@ -68,6 +68,7 @@ model Organization {
   intakeTickets  IntakeTicket[]
   intakeRoutingRules IntakeRoutingRule[]
   intakeEmailMailboxes IntakeEmailMailbox[]
+  intakeRequestTypes IntakeRequestType[]
   vendors        Vendor[]
   budgets        Budget[]
   dsars          DataSubjectRequest[]
@@ -1287,6 +1288,13 @@ model IntakeTicket {
   /// are distinct in Postgres, so unscoped channels are unaffected).
   externalMessageId String?
 
+  /// Phase 1 — the configurable request type this ticket was filed under
+  /// (IntakeRequestType). Null for tickets filed before types existed /
+  /// via the legacy free-text `type`. `requestFieldValuesJson` holds the
+  /// structured field values keyed by IntakeRequestField.key.
+  requestTypeId          String?
+  requestFieldValuesJson Json?
+
   submittedAt DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -1380,6 +1388,58 @@ model IntakeEmailMailbox {
 
   @@unique([organizationId, address])
   @@index([organizationId, enabled])
+}
+
+/// Phase 1 — configurable request type (workstream) for intake. Mirrors
+/// MatterTypeConfig: the container that lets a client define their own
+/// request catalog (NDAs, contracts, trademarks, litigation, DPIA,
+/// notices, …) with structured fields and a stage workflow. The specific
+/// field sets per client are configuration, filled in post-discovery.
+model IntakeRequestType {
+  id             String  @id @default(cuid())
+  organizationId String
+  /// Stable machine key, unique per org, e.g. "litigation-noncourt".
+  key            String
+  name           String
+  /// High-level grouping, e.g. "Contracts", "Trademarks", "Litigation".
+  workstream     String?
+  description    String?
+  active         Boolean @default(true)
+  /// Ordered stage names for this type's workflow, e.g.
+  /// ["Intake","Triage","Assigned","In Review","Complete"].
+  stagesJson     Json    @default("[]")
+  /// Display order in pickers.
+  sortOrder      Int     @default(100)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  fields       IntakeRequestField[]
+
+  @@unique([organizationId, key])
+  @@index([organizationId, active])
+}
+
+/// A structured field on a request type (the intake form schema). Client-
+/// specific field sets are configuration authored via the admin API.
+model IntakeRequestField {
+  id            String  @id @default(cuid())
+  requestTypeId String
+  /// Machine key, unique within the type, e.g. "adverse_party".
+  key           String
+  label         String
+  /// text | textarea | select | date | number | boolean
+  kind          String  @default("text")
+  required      Boolean @default(false)
+  sortOrder     Int     @default(100)
+  /// Options for select kinds: array of {value,label}.
+  optionsJson   Json    @default("[]")
+
+  requestType IntakeRequestType @relation(fields: [requestTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([requestTypeId, key])
+  @@index([requestTypeId, sortOrder])
 }
 
 enum AgentRecommendationStatus {
