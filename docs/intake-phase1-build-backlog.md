@@ -37,13 +37,13 @@ iteration, in dependency order.
   current status / how delivery is happening" layer. Services + API +
   audit.
 
-- [ ] **3. Parties / people-involved tracking.** Link the shared `Person`
+- [x] **3. Parties / people-involved tracking.** Link the shared `Person`
   / `Counterparty` entities to a ticket as parties with a role
   (`IntakeTicketParty`: ticketId, personId?/counterpartyId?, role e.g.
   adverse-party / involved-counsel / witness / requester). Services + API
   + audit. Reuses shared entities (no new party tables).
 
-- [ ] **4. Litigation intake (tracking only — NO legal hold).** A
+- [x] **4. Litigation intake (tracking only — NO legal hold).** A
   litigation request type (via #1) + a Litigation intake agent that
   extracts adverse party + parties involved (→ #3), current status,
   assignments suggestion (→ #2), jurisdiction, and any response deadline.
