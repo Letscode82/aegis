@@ -8,3 +8,4 @@ progress without opening GitHub. Source backlog:
 | When (UTC) | Item | PR | Result |
 |---|---|---|---|
 | 2026-07-01 18:07 UTC | 1. Request-type framework | #84 | merged |
+| 2026-07-01 19:25 UTC | 2. Work-tracking / assignment + status | #85 | merged |

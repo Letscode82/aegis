@@ -29,7 +29,7 @@ iteration, in dependency order.
   Ticket carries `requestTypeId` + `fieldValuesJson`. Audit on create/edit.
   *(Container for every workstream; DRL's actual fields are config later.)*
 
-- [ ] **2. Work-tracking / assignment + status layer.** Multiple
+- [x] **2. Work-tracking / assignment + status layer.** Multiple
   assignments per ticket with a role (`IntakeTicketAssignment`:
   ticketId, userId, role, assignedAt) + optional sub-tasks
   (`IntakeTicketTask`: title, assigneeUserId, status) + a work-status
