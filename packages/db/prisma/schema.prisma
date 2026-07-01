@@ -1295,6 +1295,12 @@ model IntakeTicket {
   requestTypeId          String?
   requestFieldValuesJson Json?
 
+  /// Phase 1 — delivery/work status, distinct from the request `status`.
+  /// The request lifecycle answers "where is this in triage"; workStatus
+  /// answers "how is delivery going" (e.g. Not started / In progress /
+  /// Blocked / Delivered). Set by the assigned team, not the router.
+  workStatus String?
+
   submittedAt DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -1306,6 +1312,8 @@ model IntakeTicket {
 
   recommendations AgentRecommendation[]
   conversation    IntakeConversation[]
+  assignments     IntakeTicketAssignment[]
+  tasks           IntakeTicketTask[]
 
   @@index([organizationId, status])
   @@index([organizationId, priority])
@@ -1440,6 +1448,49 @@ model IntakeRequestField {
 
   @@unique([requestTypeId, key])
   @@index([requestTypeId, sortOrder])
+}
+
+/// Phase 1 — who is involved in DELIVERING a ticket. Multiple people can
+/// be assigned to one ticket, each in a role (lead / reviewer / support /
+/// senior-counsel). Coexists with the single free-text `assignedTo` and
+/// the typed `assignedToUserId` (the primary owner). `userId` is an
+/// application-level reference to User.id (no FK, same pattern as
+/// AuditLog.actorId) so the tier/pool model can populate it without a
+/// User back-relation.
+model IntakeTicketAssignment {
+  id           String   @id @default(cuid())
+  ticketId     String
+  userId       String
+  role         String   @default("support")
+  assignedAt   DateTime @default(now())
+  assignedById String? // User id who made the assignment
+
+  ticket IntakeTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@unique([ticketId, userId, role])
+  @@index([ticketId])
+  @@index([userId])
+}
+
+/// Phase 1 — sub-tasks that make up the delivery of a ticket ("how
+/// delivery is happening"): who is doing what and its status. This is the
+/// work-in-progress layer beneath the request.
+model IntakeTicketTask {
+  id             String   @id @default(cuid())
+  ticketId       String
+  title          String
+  description    String?
+  assigneeUserId String? // application-level User.id reference
+  /// open | in_progress | blocked | done
+  status         String   @default("open")
+  sortOrder      Int      @default(100)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  ticket IntakeTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, sortOrder])
+  @@index([assigneeUserId])
 }
 
 enum AgentRecommendationStatus {
