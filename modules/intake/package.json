@@ -21,6 +21,7 @@
     "./request-types": "./src/request-types/server.ts",
     "./work-tracking": "./src/work-tracking/server.ts",
     "./parties": "./src/parties/server.ts",
+    "./handoff": "./src/handoff/server.ts",
     "./documents": "./src/documents/server.ts",
     "./sanctions": "./src/sanctions/server.ts",
     "./sanctions-bootstrap": "./src/sanctions/bootstrap.ts",

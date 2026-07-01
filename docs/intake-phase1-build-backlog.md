@@ -56,7 +56,7 @@ iteration, in dependency order.
   round-robin) + overflow-on-capacity to another pool/senior. Extends the
   built Smart Routing engine; DRL's tier matrix is config on top.
 
-- [ ] **6. Agent ↔ human hand-off model.** Explicit, audited baton-pass
+- [x] **6. Agent ↔ human hand-off model.** Explicit, audited baton-pass
   states + a hand-off action (agent → human review → back to agent, or
   reassign across tiers), with the ticket never leaving the platform.
   Builds on the existing AgentDecision + triage states.
