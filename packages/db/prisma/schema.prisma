@@ -1305,6 +1305,16 @@ model IntakeTicket {
   /// Blocked / Delivered). Set by the assigned team, not the router.
   workStatus String?
 
+  /// Item 6 — hand-off baton: who currently "holds" the ticket.
+  /// "agent" (AI is processing) | "human" (a person owns it) | "queue"
+  /// (waiting for pickup). Denormalized current holder; the source of
+  /// truth is the append-only IntakeTicketHandoff log. Null until the
+  /// first hand-off is recorded.
+  handoffHolder    String?
+  /// The concrete person holding the baton when handoffHolder="human".
+  handoffUserId    String?
+  handoffUpdatedAt DateTime?
+
   submittedAt DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -1319,6 +1329,7 @@ model IntakeTicket {
   assignments     IntakeTicketAssignment[]
   tasks           IntakeTicketTask[]
   parties         IntakeTicketParty[]
+  handoffs        IntakeTicketHandoff[]
 
   @@index([organizationId, status])
   @@index([organizationId, priority])
@@ -1583,6 +1594,35 @@ model IntakeTicketParty {
   @@index([ticketId])
   @@index([personId])
   @@index([counterpartyId])
+}
+
+/// Item 6 — append-only baton-pass log. Every hand-off between an AI
+/// agent and a human (or across human tiers) writes one row; the
+/// ticket's denormalized `handoffHolder` / `handoffUserId` are a
+/// fast-read materialization of the latest row. A hand-off that
+/// escalates an agent recommendation for review links the governing
+/// `AgentDecision` so the review gate and the baton are one record.
+model IntakeTicketHandoff {
+  id       String  @id @default(cuid())
+  ticketId String
+  /// Prior holder ("agent" | "human" | "queue"); null on the first pass.
+  fromHolder String?
+  /// New holder ("agent" | "human" | "queue").
+  toHolder   String
+  /// Concrete person receiving the baton when toHolder="human".
+  toUserId   String?
+  reason     String?
+  /// Actor who performed the hand-off. Null actorId for AGENT / SYSTEM.
+  actorId    String?
+  /// "USER" | "AGENT" | "SYSTEM".
+  actorType  String  @default("USER")
+  /// The AgentDecision this hand-off relates to, when it gates a rec.
+  agentDecisionId String?
+  createdAt  DateTime @default(now())
+
+  ticket IntakeTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, createdAt])
 }
 
 enum AgentRecommendationStatus {
