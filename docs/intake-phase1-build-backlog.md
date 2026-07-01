@@ -23,7 +23,7 @@ iteration, in dependency order.
 
 ## Backlog (in order)
 
-- [ ] **1. Request-type framework.** `IntakeRequestType` (org, key, name,
+- [x] **1. Request-type framework.** `IntakeRequestType` (org, key, name,
   workstream, active) + per-type structured fields (`IntakeRequestField`:
   label, kind, required, order) + a stage list. Services + admin CRUD API.
   Ticket carries `requestTypeId` + `fieldValuesJson`. Audit on create/edit.

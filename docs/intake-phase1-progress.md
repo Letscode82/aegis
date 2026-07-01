@@ -7,4 +7,4 @@ progress without opening GitHub. Source backlog:
 
 | When (UTC) | Item | PR | Result |
 |---|---|---|---|
-| 2026-07-01 18:07 UTC | 1. Request-type framework | #84 | built, PR open — CI/merge pending |
+| 2026-07-01 18:07 UTC | 1. Request-type framework | #84 | merged |
