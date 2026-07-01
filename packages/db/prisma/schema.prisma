@@ -244,6 +244,7 @@ model Counterparty {
 
   matters Matter[]
   vendors Vendor[]
+  intakeTicketParties IntakeTicketParty[]
   // Persons attached to this counterparty as contacts (Person.type = COUNTERPARTY_CONTACT,
   // metadata.counterpartyId = this id). Not modeled as FK to keep Person polymorphic.
 
@@ -287,6 +288,7 @@ model Person {
   invoiceLineItems    InvoiceLineItem[]
   dsarRequests        DataSubjectRequest[]
   consentRecords      ConsentRecord[]
+  intakeTicketParties IntakeTicketParty[]
 
   @@index([organizationId, email])
   @@index([organizationId, externalRef])
@@ -1314,6 +1316,7 @@ model IntakeTicket {
   conversation    IntakeConversation[]
   assignments     IntakeTicketAssignment[]
   tasks           IntakeTicketTask[]
+  parties         IntakeTicketParty[]
 
   @@index([organizationId, status])
   @@index([organizationId, priority])
@@ -1491,6 +1494,32 @@ model IntakeTicketTask {
 
   @@index([ticketId, sortOrder])
   @@index([assigneeUserId])
+}
+
+/// Phase 1 — who is involved in a ticket, drawn from the SHARED entities
+/// (Person / Counterparty) with a role. This is how litigation intake
+/// (and others) record the adverse party, opposing / our counsel,
+/// witnesses, etc. — reusing the one-brain entities rather than a
+/// ticket-local party table. Exactly one of personId / counterpartyId is
+/// set per row.
+model IntakeTicketParty {
+  id             String  @id @default(cuid())
+  ticketId       String
+  personId       String?
+  counterpartyId String?
+  /// adverse_party | opposing_counsel | our_counsel | witness |
+  /// requester | third_party | other
+  role           String  @default("other")
+  note           String?
+  createdAt      DateTime @default(now())
+
+  ticket       IntakeTicket  @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  person       Person?       @relation(fields: [personId], references: [id], onDelete: SetNull)
+  counterparty Counterparty? @relation(fields: [counterpartyId], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+  @@index([personId])
+  @@index([counterpartyId])
 }
 
 enum AgentRecommendationStatus {
