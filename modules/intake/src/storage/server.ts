@@ -36,6 +36,7 @@ import {
 } from "@aegis/db";
 import { evaluateRoutingRules } from "../routing/rules";
 import { loadEnabledRoutingRules, recordRuleFirings } from "../routing/server";
+import { buildPoolResolver } from "../routing/teams";
 import { maybeSpawnMatterForApprovedTicket } from "../matter-spawn/server";
 import { syncAgentDecisionForTicket } from "../agent-decision/server";
 
@@ -248,6 +249,13 @@ async function saveTicketsV8(
   // first firing of each rule per ticket.
   const routingRules = await loadEnabledRoutingRules(orgId);
 
+  // Item 5 (tiering) — if any enabled rule routes to a pool, build the
+  // load-balancing resolver once per save. `resolve` is a pure sync
+  // lookup passed into the evaluator; `commitPicks` advances the
+  // round-robin cursors after all tickets are evaluated.
+  const hasPoolRules = routingRules.some((r) => !!r.setTeamId);
+  const poolResolver = hasPoolRules ? await buildPoolResolver(orgId) : null;
+
   for (const t of tickets) {
     if (!t.id) continue;
     const submittedAt = t.submittedTs
@@ -328,14 +336,18 @@ async function saveTicketsV8(
     } | null;
     let newlyFired: Array<{ id: string; name: string; actions: string[] }> = [];
     if (!incomingAction && !authoritativeTriagedBy && routingRules.length > 0) {
-      const { patch, fired } = evaluateRoutingRules(routingRules, {
-        type: common.type,
-        priority: common.priority,
-        department: common.department,
-        description: common.description,
-        slaHours: common.slaHours,
-        assignedToUserId: common.assignedToUserId,
-      });
+      const { patch, fired } = evaluateRoutingRules(
+        routingRules,
+        {
+          type: common.type,
+          priority: common.priority,
+          department: common.department,
+          description: common.description,
+          slaHours: common.slaHours,
+          assignedToUserId: common.assignedToUserId,
+        },
+        poolResolver ? { resolvePool: poolResolver.resolve } : {},
+      );
       if (fired.length > 0) {
         if (patch.priority !== undefined) common.priority = patch.priority;
         if (patch.slaHours !== undefined) common.slaHours = patch.slaHours;
@@ -704,6 +716,8 @@ async function saveTicketsV8(
       }
     }
   }
+  // Item 5 — advance round-robin cursors for pool members picked this pass.
+  if (poolResolver) await poolResolver.commitPicks();
   return { spawnedMatters };
 }
 

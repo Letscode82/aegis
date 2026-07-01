@@ -67,6 +67,7 @@ model Organization {
   legalHolds     LegalHold[]
   intakeTickets  IntakeTicket[]
   intakeRoutingRules IntakeRoutingRule[]
+  intakeTeams    IntakeTeam[]
   intakeEmailMailboxes IntakeEmailMailbox[]
   intakeRequestTypes IntakeRequestType[]
   vendors        Vendor[]
@@ -124,6 +125,7 @@ model User {
 
   intakeTicketsAssigned         IntakeTicket[]        @relation("IntakeTicketAssignee")
   intakeRoutingRulesAssigned    IntakeRoutingRule[]   @relation("IntakeRoutingRuleAssignee")
+  intakeTeamMemberships         IntakeTeamMember[]    @relation("IntakeTeamMembership")
   legalHoldsCreated             LegalHold[]           @relation("LegalHoldCreatedBy")
   legalHoldsReleased            LegalHold[]           @relation("LegalHoldReleasedBy")
   legalHoldEvents               LegalHoldEvent[]      @relation("LegalHoldEventActor")
@@ -1356,6 +1358,12 @@ model IntakeRoutingRule {
   setAssigneeUserId String?
   setPriority       String?
   setSlaHours       Int?
+  /// Item 5 (tiering) — route to a team/pool. The engine load-balances
+  /// within the pool at fire time (least-loaded / round-robin) and
+  /// overflows to the pool's `overflowTeam` when every member is at
+  /// capacity. Mutually complements `setAssigneeUserId`: a direct
+  /// assignee wins over a pool pick when both are set on one rule.
+  setTeamId         String?
 
   /// Effectiveness counters for the SLA Operations view.
   timesFired  Int       @default(0)
@@ -1366,8 +1374,63 @@ model IntakeRoutingRule {
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   assignee     User?        @relation("IntakeRoutingRuleAssignee", fields: [setAssigneeUserId], references: [id], onDelete: SetNull)
+  team         IntakeTeam?  @relation("IntakeRoutingRuleTeam", fields: [setTeamId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, enabled, evalOrder])
+}
+
+/// Item 5 (tiering) — a routing pool. DRL's competency/seniority tiers
+/// are modelled as teams: a routing rule points at a team, and the
+/// engine load-balances the ticket across the team's active members,
+/// overflowing to `overflowTeam` when all members are at capacity.
+model IntakeTeam {
+  id             String  @id @default(cuid())
+  organizationId String
+  /// Stable slug, unique per org (e.g. "contracts-senior").
+  key            String
+  name           String
+  description    String?
+  active         Boolean @default(true)
+  /// Load-balancing strategy within the pool.
+  /// "least_loaded" (default) | "round_robin".
+  strategy       String  @default("least_loaded")
+  /// Overflow target when every active member is at/over capacity.
+  /// Null = no overflow (ticket stays unassigned for manual pickup).
+  overflowTeamId String?
+  sortOrder      Int     @default(100)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  overflowTeam IntakeTeam?         @relation("IntakeTeamOverflow", fields: [overflowTeamId], references: [id], onDelete: SetNull)
+  overflowOf   IntakeTeam[]        @relation("IntakeTeamOverflow")
+  members      IntakeTeamMember[]
+  routingRules IntakeRoutingRule[] @relation("IntakeRoutingRuleTeam")
+
+  @@unique([organizationId, key])
+  @@index([organizationId, active, sortOrder])
+}
+
+/// A member of an intake pool. `capacity` is the max concurrent open
+/// tickets before the member is considered "at capacity" (0 =
+/// unbounded). `lastAssignedAt` is the round-robin cursor.
+model IntakeTeamMember {
+  id       String  @id @default(cuid())
+  teamId   String
+  userId   String
+  capacity Int     @default(0)
+  active   Boolean @default(true)
+  lastAssignedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  team IntakeTeam @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User       @relation("IntakeTeamMembership", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, userId])
+  @@index([teamId, active])
 }
 
 /// P4b — a Microsoft 365 mailbox AEGIS polls for inbound intake email.

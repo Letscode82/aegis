@@ -50,7 +50,7 @@ iteration, in dependency order.
   Explicitly **does not** trigger a legal hold in this phase. Human
   approval gate intact.
 
-- [ ] **5. Tiering layer on Smart Routing.** A team/pool concept
+- [x] **5. Tiering layer on Smart Routing.** A team/pool concept
   (`IntakeTeam` + members) + a route-to-pool action on the existing
   routing rules + load-balancing within a pool (least-loaded /
   round-robin) + overflow-on-capacity to another pool/senior. Extends the

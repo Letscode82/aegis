@@ -25,6 +25,9 @@ export interface RoutingRuleDTO {
   assigneeName: string | null;
   setPriority: string | null;
   setSlaHours: number | null;
+  /** Item 5 — route-to-pool action + resolved IntakeTeam.name mirror. */
+  setTeamId: string | null;
+  teamName: string | null;
   timesFired: number;
   lastFiredAt: string | null;
 }
@@ -42,9 +45,11 @@ type RuleRow = {
   setAssigneeUserId: string | null;
   setPriority: string | null;
   setSlaHours: number | null;
+  setTeamId: string | null;
   timesFired: number;
   lastFiredAt: Date | null;
   assignee: { name: string } | null;
+  team: { name: string } | null;
 };
 
 const RULE_SELECT = {
@@ -60,9 +65,11 @@ const RULE_SELECT = {
   setAssigneeUserId: true,
   setPriority: true,
   setSlaHours: true,
+  setTeamId: true,
   timesFired: true,
   lastFiredAt: true,
   assignee: { select: { name: true } },
+  team: { select: { name: true } },
 } as const;
 
 function toDTO(r: RuleRow): RoutingRuleDTO {
@@ -80,6 +87,8 @@ function toDTO(r: RuleRow): RoutingRuleDTO {
     assigneeName: r.assignee?.name ?? null,
     setPriority: r.setPriority,
     setSlaHours: r.setSlaHours,
+    setTeamId: r.setTeamId,
+    teamName: r.team?.name ?? null,
     timesFired: r.timesFired,
     lastFiredAt: r.lastFiredAt?.toISOString() ?? null,
   };
@@ -181,6 +190,7 @@ export interface RoutingRuleInput {
   setAssigneeUserId?: string | null;
   setPriority?: string | null;
   setSlaHours?: number | null;
+  setTeamId?: string | null;
 }
 
 export class RoutingRuleValidationError extends Error {
@@ -212,6 +222,7 @@ function assertRuleSemantics(merged: {
   setAssigneeUserId: string | null;
   setPriority: string | null;
   setSlaHours: number | null;
+  setTeamId: string | null;
 }) {
   if (!merged.name || merged.name.trim().length === 0) {
     throw new RoutingRuleValidationError("Rule name is required");
@@ -229,10 +240,11 @@ function assertRuleSemantics(merged: {
   const hasAction =
     !!merged.setAssigneeUserId ||
     !!merged.setPriority ||
-    merged.setSlaHours != null;
+    merged.setSlaHours != null ||
+    !!merged.setTeamId;
   if (!hasAction) {
     throw new RoutingRuleValidationError(
-      "A rule needs at least one action (assignee / priority / SLA).",
+      "A rule needs at least one action (assignee / pool / priority / SLA).",
     );
   }
 }
@@ -263,8 +275,12 @@ export async function createRoutingRule(
     setAssigneeUserId: input.setAssigneeUserId ?? null,
     setPriority: input.setPriority ?? null,
     setSlaHours: input.setSlaHours ?? null,
+    setTeamId: input.setTeamId ?? null,
   };
   assertRuleSemantics(merged);
+  if (merged.setTeamId) {
+    await assertTeamExists(organizationId, merged.setTeamId);
+  }
 
   const created = await prisma.intakeRoutingRule.create({
     data: { organizationId, ...merged },
@@ -291,11 +307,23 @@ export async function createRoutingRule(
         setAssigneeUserId: merged.setAssigneeUserId,
         setPriority: merged.setPriority,
         setSlaHours: merged.setSlaHours,
+        setTeamId: merged.setTeamId,
       },
       evalOrder: merged.evalOrder,
     },
   });
   return toDTO(created);
+}
+
+/** Guard: a route-to-pool action must point at a team in the same org. */
+async function assertTeamExists(organizationId: string, teamId: string) {
+  const team = await prisma.intakeTeam.findFirst({
+    where: { id: teamId, organizationId },
+    select: { id: true },
+  });
+  if (!team) {
+    throw new RoutingRuleValidationError("Route-to-pool team not found in this organization");
+  }
 }
 
 /**
@@ -339,6 +367,8 @@ export async function updateRoutingRule(
     patch.setPriority = normalizeNullable(input.setPriority);
   if (input.setSlaHours !== undefined)
     patch.setSlaHours = input.setSlaHours; // null OK to clear
+  if (input.setTeamId !== undefined)
+    patch.setTeamId = normalizeNullable(input.setTeamId);
 
   // Use Object.hasOwn so an explicit `null` in the patch is honored
   // (clears the field) instead of falling back to the prior value
@@ -354,7 +384,12 @@ export async function updateRoutingRule(
     setAssigneeUserId: pick("setAssigneeUserId") as string | null,
     setPriority: pick("setPriority") as string | null,
     setSlaHours: pick("setSlaHours") as number | null,
+    setTeamId: pick("setTeamId") as string | null,
   });
+  const mergedTeamId = pick("setTeamId") as string | null;
+  if (mergedTeamId && mergedTeamId !== before.setTeamId) {
+    await assertTeamExists(organizationId, mergedTeamId);
+  }
 
   const updated = await prisma.intakeRoutingRule.update({
     where: { id: ruleId },
@@ -392,6 +427,7 @@ function toAuditSnapshot(r: RuleRow) {
       setAssigneeUserId: r.setAssigneeUserId,
       setPriority: r.setPriority,
       setSlaHours: r.setSlaHours,
+      setTeamId: r.setTeamId,
     },
   };
 }

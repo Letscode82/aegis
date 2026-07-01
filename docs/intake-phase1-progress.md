@@ -10,4 +10,5 @@ progress without opening GitHub. Source backlog:
 | 2026-07-01 18:07 UTC | 1. Request-type framework | #84 | merged |
 | 2026-07-01 19:25 UTC | 2. Work-tracking / assignment + status | #85 | merged |
 | 2026-07-01 19:32 UTC | 3. Parties / people-involved tracking | #86 | merged |
-| 2026-07-01 19:43 UTC | 4. Litigation intake (tracking-only, no legal hold) | #87 | in review |
+| 2026-07-01 19:43 UTC | 4. Litigation intake (tracking-only, no legal hold) | #87 | merged |
+| 2026-07-01 20:02 UTC | 5. Tiering layer on Smart Routing (pools + load-balance + overflow) | #88 | in review |

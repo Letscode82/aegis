@@ -32,8 +32,31 @@ export interface RoutingRuleLike {
   setAssigneeUserId: string | null;
   setPriority: string | null;
   setSlaHours: number | null;
+  /** Item 5 (tiering) — route-to-pool action. Resolved to a concrete
+   *  member at fire time via the injected pool resolver. A direct
+   *  `setAssigneeUserId` on the same rule wins over the pool pick. */
+  setTeamId?: string | null;
   /** Resolved User.name for setAssigneeUserId (display mirror). */
   assigneeName?: string | null;
+  /** Resolved IntakeTeam.name for setTeamId (display mirror). */
+  teamName?: string | null;
+}
+
+/** What the injected resolver returns for a route-to-pool action. */
+export interface ResolvedPoolPick {
+  teamId: string;
+  teamName?: string | null;
+  /** Chosen member, or null when the whole pool chain is at capacity. */
+  userId: string | null;
+  userName?: string | null;
+  /** Pools traversed via overflow before landing on the pick. */
+  overflowPath?: string[];
+}
+
+export interface EvaluateOptions {
+  /** Resolve a route-to-pool action to a concrete member (load-balanced,
+   *  overflow-aware). Omitted in DB-free contexts; pool rules then no-op. */
+  resolvePool?: (teamId: string) => ResolvedPoolPick | null;
 }
 
 export interface RoutableTicket {
@@ -51,6 +74,10 @@ export interface RoutingPatch {
   assignedToUserId?: string;
   /** Display mirror of the assignee's name, when resolvable. */
   assignedTo?: string;
+  /** Item 5 — the pool a route-to-pool action selected from (post
+   *  overflow). Present only when a pool rule assigned a member. */
+  teamId?: string;
+  teamName?: string;
 }
 
 export interface FiredRuleSummary {
@@ -72,12 +99,27 @@ type Changes = Partial<
   Pick<WorkingTicket, "priority" | "slaHours" | "assignedToUserId">
 >;
 
-function describeActions(rule: RoutingRuleLike, changes: Changes): string[] {
+function describeActions(
+  rule: RoutingRuleLike,
+  changes: Changes,
+  poolPick: ResolvedPoolPick | null,
+): string[] {
   const out: string[] = [];
   if (changes.priority !== undefined) out.push(`priority → ${changes.priority}`);
   if (changes.slaHours !== undefined) out.push(`SLA → ${changes.slaHours}h`);
-  if (changes.assignedToUserId !== undefined)
-    out.push(`assignee → ${rule.assigneeName || rule.setAssigneeUserId}`);
+  if (changes.assignedToUserId !== undefined) {
+    if (poolPick) {
+      const via = poolPick.teamName || rule.teamName || rule.setTeamId;
+      const who = poolPick.userName || poolPick.userId;
+      const overflowed =
+        poolPick.overflowPath && poolPick.overflowPath.length > 0
+          ? " (overflow)"
+          : "";
+      out.push(`pool ${via} → ${who}${overflowed}`);
+    } else {
+      out.push(`assignee → ${rule.assigneeName || rule.setAssigneeUserId}`);
+    }
+  }
   return out;
 }
 
@@ -99,6 +141,7 @@ export function ruleMatches(
 export function evaluateRoutingRules(
   rules: RoutingRuleLike[],
   ticket: RoutableTicket,
+  opts: EvaluateOptions = {},
 ): { patch: RoutingPatch; fired: FiredRuleSummary[] } {
   const ordered = [...rules]
     .filter((r) => r.enabled)
@@ -120,11 +163,26 @@ export function evaluateRoutingRules(
       changes.priority = rule.setPriority;
     if (rule.setSlaHours != null && rule.setSlaHours !== working.slaHours)
       changes.slaHours = rule.setSlaHours;
+    // Direct assignee action.
     if (
       rule.setAssigneeUserId &&
       rule.setAssigneeUserId !== working.assignedToUserId
     )
       changes.assignedToUserId = rule.setAssigneeUserId;
+    // Item 5 — route-to-pool action. A direct assignee on the same rule
+    // wins; otherwise load-balance across the pool via the resolver.
+    let poolPick: ResolvedPoolPick | null = null;
+    if (
+      rule.setTeamId &&
+      !rule.setAssigneeUserId &&
+      typeof opts.resolvePool === "function"
+    ) {
+      const pick = opts.resolvePool(rule.setTeamId);
+      if (pick && pick.userId && pick.userId !== working.assignedToUserId) {
+        changes.assignedToUserId = pick.userId;
+        poolPick = pick;
+      }
+    }
     if (Object.keys(changes).length === 0) continue; // no-op match ≠ firing
     Object.assign(working, changes);
     if (changes.priority !== undefined) patch.priority = changes.priority;
@@ -132,9 +190,19 @@ export function evaluateRoutingRules(
       patch.slaHours = changes.slaHours;
     if (changes.assignedToUserId !== undefined && changes.assignedToUserId !== null) {
       patch.assignedToUserId = changes.assignedToUserId;
-      if (rule.assigneeName) patch.assignedTo = rule.assigneeName;
+      if (poolPick) {
+        patch.teamId = poolPick.teamId;
+        if (poolPick.teamName) patch.teamName = poolPick.teamName;
+        if (poolPick.userName) patch.assignedTo = poolPick.userName;
+      } else if (rule.assigneeName) {
+        patch.assignedTo = rule.assigneeName;
+      }
     }
-    fired.push({ id: rule.id, name: rule.name, actions: describeActions(rule, changes) });
+    fired.push({
+      id: rule.id,
+      name: rule.name,
+      actions: describeActions(rule, changes, poolPick),
+    });
   }
   return { patch, fired };
 }
