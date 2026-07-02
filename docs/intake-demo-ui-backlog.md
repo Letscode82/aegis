@@ -40,7 +40,7 @@ a branch and is queued for PR.
   list parties (Person/Counterparty + role), add/remove. Wired to
   `/api/intake/tickets/[id]/parties` (item 3).
 
-- [ ] **6. Litigation tracking view.** A focused view for litigation
+- [x] **6. Litigation tracking view.** A focused view for litigation
   tickets composing parties (adverse party / counsel), current status,
   assignments, and the response deadline the Litigation agent
   extracted (items 2 + 3 + 4).

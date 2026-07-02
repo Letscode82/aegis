@@ -19,6 +19,7 @@ import { TeamsTab } from "./teams-admin";
 import { HandoffDialog } from "./handoff-dialog";
 import { WorkPanel } from "./work-panel";
 import { PartiesPanel } from "./parties-panel";
+import { LitigationSummaryCard } from "./litigation-view";
 
 // Type picker gate — shown at top of New Request tab
 // Splits simple vs complex request types into Form path vs Copilot path.
@@ -1088,6 +1089,7 @@ function CockpitTab({store,cockpit}){
           <span style={{fontSize:14}}>{selected.includes(current.id)?"☑":"☐"}</span>
           <span>{selected.includes(current.id)?"selected for bulk":"press space to select"}</span>
         </div>}
+        <LitigationSummaryCard ticket={current}/>
         <TicketDetailPanel ticket={current}/>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:12}}>
