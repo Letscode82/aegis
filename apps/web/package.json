@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 5173",
+    "prebuild": "pnpm --filter @aegis/db exec prisma generate",
     "build": "next build",
     "start": "next start",
     "lint": "next lint --dir src --dir pages",
