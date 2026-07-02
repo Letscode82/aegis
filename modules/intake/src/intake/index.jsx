@@ -15,6 +15,7 @@ import { useAgentLog } from "../hooks/use-agent-log";
 import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
 import { TicketSummaryButton, AskAuroraChat } from "../ai-features";
 import { isAwaitingTriage } from "./triage-filter";
+import { TeamsTab } from "./teams-admin";
 
 // Type picker gate — shown at top of New Request tab
 // Splits simple vs complex request types into Form path vs Copilot path.
@@ -2245,6 +2246,8 @@ export function IntakeView(){
     {id:"kanban",label:"Kanban",icon:"◱"},
     {id:"sla",label:"SLA Dashboard",icon:"◔"},
     {id:"routing",label:"Smart Routing",icon:"⚯",count:routingRules?routingRules.length:undefined},
+    // Teams/pools admin — routing tiers (item 5). Admin-only surface.
+    ...(canManageRouting?[{id:"teams",label:"Teams",icon:"◪"}]:[]),
     {id:"selfserve",label:"Self-Service",icon:"◈",count:SELF_SERVE_ARTICLES.length},
   ];
 
@@ -2294,6 +2297,7 @@ export function IntakeView(){
     {tab==="kanban"&&<KanbanTab store={store}/>}
     {tab==="sla"&&<SLATab store={store}/>}
     {tab==="routing"&&<RoutingTab rules={routingRules} loading={routingRules===null&&!routingError} error={routingError} onRuleUpdated={onRuleUpdated} onRuleCreated={onRuleCreated} onRuleDeleted={onRuleDeleted} assignees={routingAssignees} canManage={canManageRouting}/>}
+    {tab==="teams"&&<TeamsTab canManage={canManageRouting}/>}
     {tab==="selfserve"&&<SelfServeTab onFileTicket={(draft)=>{setPrefillDesc(draft||"");setTab("new");}}/>}
   </div>;
 }
