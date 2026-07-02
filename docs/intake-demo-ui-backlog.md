@@ -36,7 +36,7 @@ a branch and is queued for PR.
   `/api/intake/tickets/[id]/{delivery,assignments,tasks,work-status}`
   (items 1–2).
 
-- [ ] **5. Parties / people-involved panel.** On the ticket detail,
+- [x] **5. Parties / people-involved panel.** On the ticket detail,
   list parties (Person/Counterparty + role), add/remove. Wired to
   `/api/intake/tickets/[id]/parties` (item 3).
 

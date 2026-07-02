@@ -208,3 +208,38 @@ export async function removeParty(
     beforeJson: { partyId, personId: before.personId, counterpartyId: before.counterpartyId, role: before.role },
   });
 }
+
+export interface PartyCandidatesDTO {
+  persons: Array<{ id: string; name: string; email: string | null }>;
+  counterparties: Array<{ id: string; name: string; type: string | null }>;
+}
+
+/**
+ * Candidate shared entities for the add-party picker — the org's Persons
+ * and Counterparties. Read-only; capped so the picker stays snappy.
+ * Optional `q` filters by name substring (case-insensitive).
+ */
+export async function listPartyCandidates(
+  organizationId: string,
+  q?: string,
+): Promise<PartyCandidatesDTO> {
+  const nameFilter = q && q.trim() ? { contains: q.trim(), mode: "insensitive" as const } : undefined;
+  const [persons, counterparties] = await Promise.all([
+    prisma.person.findMany({
+      where: { organizationId, ...(nameFilter ? { name: nameFilter } : {}) },
+      select: { id: true, name: true, email: true },
+      orderBy: { name: "asc" },
+      take: 200,
+    }),
+    prisma.counterparty.findMany({
+      where: { organizationId, ...(nameFilter ? { name: nameFilter } : {}) },
+      select: { id: true, name: true, type: true },
+      orderBy: { name: "asc" },
+      take: 200,
+    }),
+  ]);
+  return {
+    persons: persons.map((p) => ({ id: p.id, name: p.name, email: p.email ?? null })),
+    counterparties: counterparties.map((c) => ({ id: c.id, name: c.name, type: (c.type as string | null) ?? null })),
+  };
+}

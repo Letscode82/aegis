@@ -18,6 +18,7 @@ import { isAwaitingTriage } from "./triage-filter";
 import { TeamsTab } from "./teams-admin";
 import { HandoffDialog } from "./handoff-dialog";
 import { WorkPanel } from "./work-panel";
+import { PartiesPanel } from "./parties-panel";
 
 // Type picker gate — shown at top of New Request tab
 // Splits simple vs complex request types into Form path vs Copilot path.
@@ -1106,6 +1107,7 @@ function CockpitTab({store,cockpit}){
         />
         <SimilarMattersPanel currentTicket={current} allTickets={allTickets}/>
         <WorkPanel ticket={current}/>
+        <PartiesPanel ticket={current}/>
         <CapacityPanel allTickets={allTickets} attorney={attorney}/>
 
         {/* Secondary actions */}
