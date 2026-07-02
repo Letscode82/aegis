@@ -45,9 +45,13 @@ a branch and is queued for PR.
   assignments, and the response deadline the Litigation agent
   extracted (items 2 + 3 + 4).
 
-- [ ] **7. Request-type surfaces.** Request-type picker on New Request
-  (drives which fields show) + a small admin list for request types.
-  Wired to `/api/admin/intake/request-types/*` + ticket create (item 1).
+- [x] **7. Request-type surfaces.** Admin "Request Types" tab (list,
+  create with stage workflow, activate/deactivate, delete) wired to
+  `/api/admin/intake/request-types/*` (item 1). **Follow-up:** the
+  New-Request dynamic-field picker (`requestTypeId` → which fields
+  show) needs create-path plumbing for `requestTypeId` /
+  `requestFieldValuesJson`; deferred to keep the demo-critical New
+  Request flow untouched without a visual-QA pass.
 
 ## Not in Track 1 (later)
 - Track B hardening: blob storage + presigned upload (removes the 3 MB

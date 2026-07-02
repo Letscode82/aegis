@@ -20,6 +20,7 @@ import { HandoffDialog } from "./handoff-dialog";
 import { WorkPanel } from "./work-panel";
 import { PartiesPanel } from "./parties-panel";
 import { LitigationSummaryCard } from "./litigation-view";
+import { RequestTypesTab } from "./request-types-admin";
 
 // Type picker gate — shown at top of New Request tab
 // Splits simple vs complex request types into Form path vs Copilot path.
@@ -2274,6 +2275,8 @@ export function IntakeView(){
     {id:"routing",label:"Smart Routing",icon:"⚯",count:routingRules?routingRules.length:undefined},
     // Teams/pools admin — routing tiers (item 5). Admin-only surface.
     ...(canManageRouting?[{id:"teams",label:"Teams",icon:"◪"}]:[]),
+    // Request types admin — configurable workstreams (item 1). Admin-only.
+    ...(canManageRouting?[{id:"request-types",label:"Request Types",icon:"❏"}]:[]),
     {id:"selfserve",label:"Self-Service",icon:"◈",count:SELF_SERVE_ARTICLES.length},
   ];
 
@@ -2324,6 +2327,7 @@ export function IntakeView(){
     {tab==="sla"&&<SLATab store={store}/>}
     {tab==="routing"&&<RoutingTab rules={routingRules} loading={routingRules===null&&!routingError} error={routingError} onRuleUpdated={onRuleUpdated} onRuleCreated={onRuleCreated} onRuleDeleted={onRuleDeleted} assignees={routingAssignees} canManage={canManageRouting}/>}
     {tab==="teams"&&<TeamsTab canManage={canManageRouting}/>}
+    {tab==="request-types"&&<RequestTypesTab canManage={canManageRouting}/>}
     {tab==="selfserve"&&<SelfServeTab onFileTicket={(draft)=>{setPrefillDesc(draft||"");setTab("new");}}/>}
   </div>;
 }
