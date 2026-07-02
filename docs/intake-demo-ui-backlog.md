@@ -30,7 +30,7 @@ a branch and is queued for PR.
   queue) with a reason, a current-holder badge, and the baton-pass
   history. Wired to `/api/intake/tickets/[id]/handoff` (item 6).
 
-- [ ] **4. Ticket work panel — assignments + tasks + workStatus.**
+- [x] **4. Ticket work panel — assignments + tasks + workStatus.**
   Delivery layer on the ticket detail: assignees with roles, sub-tasks
   with status, a workStatus selector. Wired to
   `/api/intake/tickets/[id]/{delivery,assignments,tasks,work-status}`
