@@ -19,7 +19,7 @@ a branch and is queued for PR.
   members with capacity + active toggle. Wired to
   `/api/admin/intake/teams/*` (item 5).
 
-- [ ] **2. Route-to-pool action in the routing-rule editor.** Add the
+- [x] **2. Route-to-pool action in the routing-rule editor.** Add the
   `setTeamId` action (pool dropdown) to the routing-rule editor, and
   render "pool → member (overflow?)" on each ticket's fired-rule
   summary. Wired to the existing rule API (`setTeamId` already

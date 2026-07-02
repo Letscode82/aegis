@@ -1770,11 +1770,20 @@ function RoutingRuleEditor({initial,assignees,onCancel,onSaved}){
   const[setAssigneeUserId,setSetAssigneeUserId]=useState(initial?.setAssigneeUserId||"");
   const[setPriority,setSetPriority]=useState(initial?.setPriority||"");
   const[setSlaHours,setSetSlaHours]=useState(initial?.setSlaHours??"");
+  const[setTeamId,setSetTeamId]=useState(initial?.setTeamId||"");
+  const[pools,setPools]=useState([]);
   const[saving,setSaving]=useState(false);
   const[error,setError]=useState(null);
 
+  // Route-to-pool option (item 5). Active pools only.
+  useEffect(()=>{
+    let on=true;
+    fetch("/api/admin/intake/teams").then(r=>r.json()).then(d=>{ if(on) setPools((d.teams||[]).filter(t=>t.active)); }).catch(()=>{});
+    return()=>{on=false;};
+  },[]);
+
   const hasCondition=matchType||matchPriority||matchDepartment||matchKeyword;
-  const hasAction=setAssigneeUserId||setPriority||setSlaHours!=="";
+  const hasAction=setAssigneeUserId||setPriority||setSlaHours!==""||setTeamId;
   const canSave=name.trim().length>0&&hasCondition&&hasAction&&!saving;
 
   const submit=async()=>{
@@ -1791,6 +1800,7 @@ function RoutingRuleEditor({initial,assignees,onCancel,onSaved}){
       setAssigneeUserId:setAssigneeUserId||null,
       setPriority:setPriority||null,
       setSlaHours:setSlaHours===""?null:Number(setSlaHours),
+      setTeamId:setTeamId||null,
     };
     try{
       const resp=await fetch(isCreate?"/api/intake/routing-rules":`/api/intake/routing-rules/${initial.id}`,{
@@ -1862,6 +1872,11 @@ function RoutingRuleEditor({initial,assignees,onCancel,onSaved}){
         <div style={{gridColumn:"1 / span 2"}}>
           {fieldLabel("Reassign to")}
           {select(setAssigneeUserId,setSetAssigneeUserId,(assignees||[]).map(a=>({value:a.id,label:`${a.name} · ${a.roleName||"user"}`})),"(don't reassign)")}
+        </div>
+        <div style={{gridColumn:"1 / span 2"}}>
+          {fieldLabel("Or route to pool (load-balanced)")}
+          {select(setTeamId,setSetTeamId,pools.map(p=>({value:p.id,label:`${p.name} · ${p.strategy==="round_robin"?"round robin":"least loaded"} · ${p.members.length} member${p.members.length===1?"":"s"}`})),"(don't route to a pool)")}
+          {setAssigneeUserId&&setTeamId&&<div style={{fontSize:9.5,color:C.am,fontFamily:M,marginTop:3}}>⚠ A direct assignee wins over the pool — clear one.</div>}
         </div>
         <div>
           {fieldLabel("Set priority to")}
@@ -1940,6 +1955,7 @@ function ruleActionText(r){
   if(r.setPriority) acts.push(`priority → ${r.setPriority}`);
   if(r.setSlaHours!=null) acts.push(`SLA → ${r.setSlaHours}h`);
   if(r.setAssigneeUserId) acts.push(`assign → ${r.assigneeName||"(user)"}`);
+  else if(r.setTeamId) acts.push(`route to pool → ${r.teamName||"(pool)"}`);
   return acts.join(" · ")||"(no actions)";
 }
 
