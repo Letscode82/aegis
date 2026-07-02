@@ -1,0 +1,65 @@
+name: Deploy migrations (prod)
+
+# Keeps the production database schema in sync with the code on `main`.
+# Runs `prisma migrate deploy` (applies only pending migrations, in order,
+# idempotent) whenever a migration lands on `main` — and on demand via the
+# Actions tab ("Run workflow").
+#
+# Setup (one-time): add a repository secret PROD_DATABASE_URL set to the
+# Neon **direct** connection string (the host WITHOUT `-pooler`) — Prisma
+# migrations need a direct connection for the advisory lock, the pooled
+# endpoint breaks it. Example:
+#   postgresql://USER:PW@ep-xxxx.REGION.aws.neon.tech/neondb?sslmode=require
+#
+# Without the secret set the job is skipped (no-op), so this never blocks a
+# push before you've configured it.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "packages/db/prisma/migrations/**"
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-migrations
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Guard — secret configured
+        id: guard
+        run: |
+          if [ -z "${{ secrets.PROD_DATABASE_URL }}" ]; then
+            echo "PROD_DATABASE_URL is not set — skipping. Add it in Settings → Secrets to enable auto-migrate."
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install pnpm
+        if: steps.guard.outputs.run == 'true'
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node
+        if: steps.guard.outputs.run == 'true'
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+
+      - name: Install dependencies
+        if: steps.guard.outputs.run == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply pending migrations to prod
+        if: steps.guard.outputs.run == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+        run: pnpm --filter @aegis/db run db:migrate:deploy
