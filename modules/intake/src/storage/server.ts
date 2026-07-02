@@ -128,6 +128,9 @@ type V8Ticket = {
   triagedAt?: number | null;
   triagedAction?: string | null;
   agentProcessedAt?: number | null;
+  /** Item-1 wiring — the configured IntakeRequestType this ticket was
+   *  filed under (null for the built-in hardcoded types). */
+  requestTypeId?: string | null;
   /**
    * P2b — agent routing outcome the client stamps after running the
    * router: "matched" | "no-match". Drives the
@@ -211,6 +214,7 @@ async function loadTicketsV8(orgId: string): Promise<V8Ticket[]> {
       agentProcessedAt: t.agentProcessedAt?.getTime() ?? null,
       firedRules: (t.firedRulesJson as unknown) ?? null,
       matterId: t.matterId ?? null,
+      requestTypeId: t.requestTypeId ?? null,
     };
   });
 }
@@ -275,6 +279,7 @@ async function saveTicketsV8(
         firedRulesJson: true,
         matterId: true,
         agentProcessedAt: true,
+        requestTypeId: true,
       },
     });
 
@@ -321,6 +326,13 @@ async function saveTicketsV8(
       triagedAt: t.triagedAt ? new Date(t.triagedAt) : null,
       triagedAction: incomingAction,
       agentProcessedAt: t.agentProcessedAt ? new Date(t.agentProcessedAt) : null,
+      // Item-1 wiring — configured request type. Undefined preserves the
+      // stored value (stale clients that don't send the field can't
+      // clear it); null/value writes through.
+      requestTypeId:
+        t.requestTypeId !== undefined
+          ? t.requestTypeId
+          : (before?.requestTypeId ?? null),
       // Server-computed below; the client's copy is never trusted.
       firedRulesJson: (before?.firedRulesJson ?? null) as never,
     };

@@ -386,6 +386,19 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,settings}){
   const[docBusy,setDocBusy]=useState(false);
   const[docErr,setDocErr]=useState(null);
 
+  // Item-1 wiring — ACTIVE configured request types (admin-defined
+  // workstreams). They merge into the type grid below; picking one
+  // stamps requestTypeId on the ticket and previews its stage workflow.
+  // Empty/unreachable → the built-in list alone (demo-safe fallback).
+  const[reqTypes,setReqTypes]=useState([]);
+  useEffect(()=>{
+    let on=true;
+    fetch("/api/intake/request-types").then(r=>r.json())
+      .then(d=>{ if(on&&d.ok) setReqTypes(d.types||[]); }).catch(()=>{});
+    return()=>{on=false;};
+  },[]);
+  const selectedReqType=reqTypes.find(rt=>rt.name===form.type)||null;
+
   const onPickFile=async(e)=>{
     const file=e.target.files&&e.target.files[0];
     e.target.value=""; // allow re-picking the same filename
@@ -438,7 +451,12 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,settings}){
       sla:triage.sla,slaHours:triage.slaHours,slaStatus:"On Track",desc:effectiveDesc,
       assigned:"Cockpit Queue",status:"Awaiting Triage",stage:"new",
       seeded:false,attach:docs.length,
-      workflow:[{label:"Submitted",done:true},{label:"Agent Analysis",active:true},{label:"Attorney Review"},{label:"Close"}],
+      requestTypeId:selectedReqType?selectedReqType.id:null,
+      // A configured type's stage workflow becomes the ticket's visible
+      // steps ("Submitted" first, "Close" last stay implicit book-ends).
+      workflow:selectedReqType&&selectedReqType.stages.length>0
+        ?[{label:"Submitted",done:true},...selectedReqType.stages.map((s,i)=>({label:s,...(i===0?{active:true}:{})})),{label:"Close"}]
+        :[{label:"Submitted",done:true},{label:"Agent Analysis",active:true},{label:"Attorney Review"},{label:"Close"}],
       aiTriage:{category:triage.cat,riskFlag:`${triage.risk} — ${triage.note}`,suggestedAssignee:triage.team,estimatedHours:triage.hrs,similarMatters:Math.floor(Math.random()*40)+5,confidence:triage.conf,routingRule:`${triage.rule}: ${triage.cat}`,source:triage.source||"regex"},
       conversation:null,agentRecommendation:null,triagedBy:null,triagedAt:null,triagedAction:null,
     };
@@ -482,11 +500,23 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,settings}){
       </div>
       <FormField label="Request Type" required>
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
-          {["Contract Review","NDA Request","IP Question","Privacy Question","Trademark Check","Vendor Due Diligence","Contract Question","Legal Question — General","Other"].map(t=>{
-            const active=form.type===t;
-            return <div key={t} onClick={()=>setForm({...form,type:t})} style={{padding:"7px 8px",border:`1px solid ${active?C.cy:C.br}`,background:active?C.cy+"22":"transparent",cursor:"pointer",fontSize:10,fontFamily:M,letterSpacing:.5,color:active?C.cy:C.t2,textAlign:"center",transition:"all .12s"}}>{t}</div>;
-          })}
+          {(()=>{
+            const builtIn=["Contract Review","NDA Request","IP Question","Privacy Question","Trademark Check","Vendor Due Diligence","Contract Question","Legal Question — General","Other"];
+            // Configured workstreams merge in (deduped by name); they
+            // carry a ▣ marker so the demo can point at "that one is
+            // config, not code".
+            const configured=reqTypes.filter(rt=>!builtIn.includes(rt.name)).map(rt=>rt.name);
+            return [...builtIn,...configured].map(t=>{
+              const active=form.type===t;
+              const isConfigured=configured.includes(t);
+              return <div key={t} onClick={()=>setForm({...form,type:t})} title={isConfigured?"Configured workstream (Request Types)":undefined} style={{padding:"7px 8px",border:`1px solid ${active?C.cy:C.br}`,background:active?C.cy+"22":"transparent",cursor:"pointer",fontSize:10,fontFamily:M,letterSpacing:.5,color:active?C.cy:isConfigured?C.tl:C.t2,textAlign:"center",transition:"all .12s"}}>{isConfigured?"▣ ":""}{t}</div>;
+            });
+          })()}
         </div>
+        {selectedReqType&&selectedReqType.stages.length>0&&<div style={{display:"flex",flexWrap:"wrap",alignItems:"center",gap:5,marginTop:7}}>
+          <span style={{fontSize:9,fontFamily:M,color:C.t4,letterSpacing:1,textTransform:"uppercase"}}>Workflow:</span>
+          {selectedReqType.stages.map((s,i)=><span key={i} style={{fontSize:9.5,fontFamily:M,color:C.t2,background:C.s2,borderRadius:3,padding:"2px 7px"}}>{i+1}. {s}</span>)}
+        </div>}
       </FormField>
       <FormField label="Describe your request" required sub="Be specific — regex + Claude triage and agent routing use this">
         <textarea value={form.desc} onChange={e=>setForm({...form,desc:e.target.value})} placeholder="E.g. Mutual NDA for discussions with Acme Corp — 2-year term, Delaware law." rows={5} style={{...inputStyle,resize:"vertical",fontFamily:F,minHeight:100}}/>
