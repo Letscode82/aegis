@@ -25,7 +25,7 @@ a branch and is queued for PR.
   summary. Wired to the existing rule API (`setTeamId` already
   supported) (item 5).
 
-- [ ] **3. Hand-off control on the Triage Cockpit.** Per-ticket
+- [x] **3. Hand-off control on the Triage Cockpit.** Per-ticket
   "Hand off" control (to human [assignee picker] / back to agent / to
   queue) with a reason, a current-holder badge, and the baton-pass
   history. Wired to `/api/intake/tickets/[id]/handoff` (item 6).

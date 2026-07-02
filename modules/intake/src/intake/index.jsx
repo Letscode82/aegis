@@ -16,6 +16,7 @@ import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
 import { TicketSummaryButton, AskAuroraChat } from "../ai-features";
 import { isAwaitingTriage } from "./triage-filter";
 import { TeamsTab } from "./teams-admin";
+import { HandoffDialog } from "./handoff-dialog";
 
 // Type picker gate — shown at top of New Request tab
 // Splits simple vs complex request types into Form path vs Copilot path.
@@ -873,6 +874,7 @@ function CockpitTab({store,cockpit}){
   const[selected,setSelected]=useState([]);
   const[showBulkConfirm,setShowBulkConfirm]=useState(false);
   const[showReassign,setShowReassign]=useState(false);
+  const[showHandoff,setShowHandoff]=useState(false);
   const[search,setSearch]=useState("");
   const[showSearch,setShowSearch]=useState(false);
   const[toast,setToast]=useState(null);
@@ -1033,13 +1035,14 @@ function CockpitTab({store,cockpit}){
       else if(showSearch){ setShowSearch(false); setSearch(""); }
     },
     " ":bulkMode&&current?()=>toggleSelected(current.id):null,
-  },true);
+  },!showHandoff); // suspend shortcuts while the hand-off dialog is open
 
   const recAgent=current?.agentRecommendation?AGENTS_BY_ID[current.agentRecommendation.agentId]:null;
 
   return <div style={{position:"relative"}}>
     {showCheatsheet&&<ShortcutCheatsheet onClose={()=>setShowCheatsheet(false)}/>}
     {showReassign&&current&&<ReassignPicker ticket={current} onPick={pickAssignee} onCancel={()=>setShowReassign(false)}/>}
+    {showHandoff&&current&&<HandoffDialog ticket={current} onClose={()=>setShowHandoff(false)} onDone={(msg,tone)=>showToast(msg,tone)}/>}
     {showBulkConfirm&&<BulkConfirmCard selected={selected} tickets={visibleQueue} onConfirm={confirmBulkApprove} onCancel={()=>setShowBulkConfirm(false)}/>}
 
     {/* Cockpit header — status bar */}
@@ -1108,6 +1111,7 @@ function CockpitTab({store,cockpit}){
           <div style={{fontSize:9.5,fontFamily:M,color:C.t3,letterSpacing:1.5,textTransform:"uppercase",fontWeight:600,marginBottom:8}}>Other Actions</div>
           <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
             <div onClick={reassign} style={{padding:"6px 10px",background:C.s2,border:`1px solid ${C.br}`,borderRadius:3,cursor:"pointer",fontSize:10,fontFamily:M,color:C.t2,letterSpacing:.8,display:"flex",alignItems:"center",gap:6}}><Kbd k="r"/> Reassign</div>
+            <div onClick={()=>setShowHandoff(true)} title="Pass this ticket's baton — to a person, back to the agent, or to the queue" style={{padding:"6px 10px",background:C.s2,border:`1px solid ${C.br}`,borderRadius:3,cursor:"pointer",fontSize:10,fontFamily:M,color:C.t2,letterSpacing:.8,display:"flex",alignItems:"center",gap:6}}>⇄ Hand off</div>
             <div onClick={manualClose} style={{padding:"6px 10px",background:C.s2,border:`1px solid ${C.br}`,borderRadius:3,cursor:"pointer",fontSize:10,fontFamily:M,color:C.t2,letterSpacing:.8,display:"flex",alignItems:"center",gap:6}}><Kbd k="c"/> Manual Close</div>
             <div onClick={snooze} style={{padding:"6px 10px",background:C.s2,border:`1px solid ${C.br}`,borderRadius:3,cursor:"pointer",fontSize:10,fontFamily:M,color:C.t2,letterSpacing:.8,display:"flex",alignItems:"center",gap:6}}><Kbd k="s"/> Snooze</div>
             <div onClick={toggleBulk} style={{padding:"6px 10px",background:bulkMode?C.am+"22":C.s2,border:`1px solid ${bulkMode?C.am:C.br}`,borderRadius:3,cursor:"pointer",fontSize:10,fontFamily:M,color:bulkMode?C.am:C.t2,letterSpacing:.8,display:"flex",alignItems:"center",gap:6,fontWeight:bulkMode?600:400}}><Kbd k="b" active={bulkMode}/> Bulk</div>
