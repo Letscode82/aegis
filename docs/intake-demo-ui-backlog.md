@@ -13,7 +13,7 @@ every checkpoint. Local quality gate per item: `pnpm build` (typecheck)
 GitHub connection to be re-authorized** — until then each item lands on
 a branch and is queued for PR.
 
-- [ ] **1. Teams / pools admin surface.** A "Teams" view under Smart
+- [x] **1. Teams / pools admin surface.** A "Teams" view under Smart
   Routing: list pools, create/edit (name, key, strategy
   least_loaded|round_robin, overflow team, sortOrder), add/remove
   members with capacity + active toggle. Wired to
