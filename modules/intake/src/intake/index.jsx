@@ -344,6 +344,11 @@ function NewRequestV8({store,goToInbox,goToCockpit,settings,prefillDesc}){
 // ── Compact v7-compatible form for the standalone demo.
 //    On integration with aegis-v7-aurora.jsx, this is replaced by the real v7.2 NewRequestTab
 //    (lines 1512–1712 in v7), just re-routed through the v8 addTicketAndRunAgent path.
+// Honest client-side upload ceiling. Mirrors MAX_DOCUMENT_BYTES on the
+// server (documents/server.ts): ~3 MB decoded keeps the base64 JSON body
+// under the 4.5 MB serverless request cap. Keep the two in sync.
+const MAX_UPLOAD_BYTES = 3 * 1024 * 1024;
+
 // Read a File as bare base64 (strips the data: URL prefix).
 function fileToBase64(file){
   return new Promise((resolve,reject)=>{
@@ -379,12 +384,26 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,settings}){
     const file=e.target.files&&e.target.files[0];
     e.target.value=""; // allow re-picking the same filename
     if(!file) return;
-    setDocErr(null); setDocBusy(true);
+    setDocErr(null);
+    // Pre-flight size guard. The file rides to the server as base64 in a
+    // JSON body (~33% larger) and serverless platforms cap the request at
+    // 4.5 MB, so ~3 MB decoded is the honest ceiling. Reject before the
+    // network call so the user gets an instant, clear message instead of
+    // an opaque platform 413.
+    if(file.size>MAX_UPLOAD_BYTES){
+      setDocErr(`"${file.name}" is ${(file.size/1024/1024).toFixed(1)} MB — max ${MAX_UPLOAD_BYTES/1024/1024} MB. Upload a smaller file or paste the text into the description.`);
+      return;
+    }
+    setDocBusy(true);
     try{
       const contentBase64=await fileToBase64(file);
       const resp=await fetch("/api/intake/documents/upload",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({filename:file.name,mimeType:file.type,contentBase64,ticketId})});
+      // A 413 from the platform/framework may not carry a JSON body.
+      if(resp.status===413){
+        throw new Error(`"${file.name}" is too large to upload. Max ${MAX_UPLOAD_BYTES/1024/1024} MB — upload a smaller file or paste the text.`);
+      }
       const data=await resp.json().catch(()=>({}));
-      if(!resp.ok||!data.ok) throw new Error(data.error||`Upload failed (HTTP ${resp.status})`);
+      if(!resp.ok||!data.ok) throw new Error(data.error||`Upload failed (HTTP ${resp.status}).`);
       setDocs(d=>[...d,{documentId:data.documentId,name:data.name,charCount:data.charCount,text:data.text||"",format:data.format}]);
     }catch(err){ setDocErr(String(err.message||err)); }
     finally{ setDocBusy(false); }

@@ -21,9 +21,12 @@ import {
 } from "@aegis/intake/documents";
 import { requireActor } from "../../../../lib/matter-actor";
 
-// Base64 of a 5 MB file is ~6.7 MB; lift the default 1 MB body cap.
+// The file arrives as base64 in a JSON body (~33% larger than the raw
+// bytes). We allow ~3 MB decoded → ~4 MB base64; a 5 MB parser limit
+// leaves headroom for the JSON envelope while staying under the 4.5 MB
+// request-body cap that serverless platforms (Vercel) enforce anyway.
 export const config = {
-  api: { bodyParser: { sizeLimit: "8mb" } },
+  api: { bodyParser: { sizeLimit: "5mb" } },
 };
 
 export default async function handler(

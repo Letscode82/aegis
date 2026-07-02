@@ -94,4 +94,20 @@ describe("ingestIntakeDocument()", () => {
     ).rejects.toBeInstanceOf(DocumentTooLargeError);
     expect(documentCreate).not.toHaveBeenCalled();
   });
+
+  it("keeps the size ceiling under the 4.5 MB serverless request cap once base64-encoded", () => {
+    // The file rides as base64 (~4/3 the raw bytes) inside a JSON body.
+    // The decoded max must stay small enough that the encoded request
+    // fits under the 4.5 MB serverless body cap — else uploads at the
+    // advertised limit fail with an opaque platform 413.
+    const base64Bytes = Math.ceil(MAX_DOCUMENT_BYTES / 3) * 4;
+    expect(base64Bytes).toBeLessThan(4.5 * 1024 * 1024);
+  });
+
+  it("oversized error tells the user how to recover", async () => {
+    const big = Buffer.alloc(MAX_DOCUMENT_BYTES + 1, 0x41).toString("base64");
+    await expect(
+      ingestIntakeDocument({ filename: "big.txt", contentBase64: big, ticketId: "REQ-1" }),
+    ).rejects.toThrow(/paste the text/i);
+  });
 });

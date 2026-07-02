@@ -32,13 +32,21 @@ import {
 
 export { UnsupportedDocumentFormatError, DocumentParseError };
 
-/** Max upload size (decoded). Demo guard — inline storage isn't for big
- * files. 5 MB comfortably covers any NDA / MSA as .docx or .txt. */
-export const MAX_DOCUMENT_BYTES = 5 * 1024 * 1024;
+/** Max upload size (decoded). The file rides to the server as base64
+ * inside a JSON body, which inflates the bytes ~33%, and serverless
+ * platforms (Vercel) hard-cap the *request* body at 4.5 MB regardless
+ * of the framework's own parser limit. So the honest decoded ceiling is
+ * ~3 MB: 3 MB → ~4 MB base64 → fits under 4.5 MB with JSON overhead.
+ * A larger file needs a real blob store + presigned direct upload; see
+ * the upload-path note in ./server.ts's header and the roadmap. */
+export const MAX_DOCUMENT_BYTES = 3 * 1024 * 1024;
 
 export class DocumentTooLargeError extends Error {
   constructor(bytes: number) {
-    super(`Document is ${(bytes / 1024 / 1024).toFixed(1)} MB — max ${MAX_DOCUMENT_BYTES / 1024 / 1024} MB.`);
+    super(
+      `Document is ${(bytes / 1024 / 1024).toFixed(1)} MB — max ${MAX_DOCUMENT_BYTES / 1024 / 1024} MB. ` +
+        `Upload a smaller file or paste the text into the description.`,
+    );
     this.name = "DocumentTooLargeError";
   }
 }
