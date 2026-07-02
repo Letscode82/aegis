@@ -37,6 +37,21 @@ const nextConfig = {
     // We run ESLint via turbo; don't block production builds on lint.
     ignoreDuringBuilds: true,
   },
+  webpack: (config, { webpack }) => {
+    // pdfkit → fontkit → restructure do a *guarded optional* require of
+    // `iconv-lite` (only for exotic string encodings we never hit):
+    //   try { iconv = require('iconv-lite'); } catch {}
+    // iconv-lite isn't installed, so it's a no-op at runtime — but
+    // webpack tries to statically resolve the bare require and fails the
+    // production build with "Module not found: Can't resolve 'iconv-lite'"
+    // (surfaced on Vercel, where pnpm's strict node_modules can't hoist a
+    // phantom dep). Tell webpack to ignore the optional module; the
+    // try/catch handles its absence exactly as it does today.
+    config.plugins.push(
+      new webpack.IgnorePlugin({ resourceRegExp: /^iconv-lite$/ }),
+    );
+    return config;
+  },
 };
 
 export default nextConfig;
