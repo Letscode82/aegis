@@ -1434,15 +1434,18 @@ function InboxTab({store,sel,setSel}){
 
 // ── Detail view (with working quick-actions) ─────────
 function IntakeDetail({req,store,onBack}){
-  const advance=()=>{
-    const stages=["new","triage","assigned","review","complete"];
-    const idx=stages.indexOf(req.stage);
-    if(idx<stages.length-1){
-      const nextStage=stages[idx+1];
-      const wf=req.workflow.map((s,i)=>i<=idx+1?{...s,done:i<=idx,active:i===idx+1&&nextStage!=="complete"}:{...s,done:false,active:false});
-      if(nextStage==="complete") wf.forEach(s=>{s.done=true;s.active=false});
-      store.updateTicket(req.id,{stage:nextStage,status:nextStage==="complete"?"Completed":nextStage==="review"?"In Review":nextStage==="assigned"?"Assigned":"Triage",workflow:wf});
-    }
+  // W1-5 — server-enforced stage advancement (audited + timestamped).
+  // The endpoint owns the transition; the local store syncs from the
+  // response so the polyfill persists the same values (one codepath
+  // for the display-status mapping).
+  const advance=async()=>{
+    try{
+      const r=await fetch(`/api/intake/tickets/${encodeURIComponent(req.id)}/advance-stage`,{method:"POST"});
+      const d=await r.json().catch(()=>({}));
+      if(r.status===409) return; // already at final stage — button is a no-op
+      if(!r.ok||!d.ok) throw new Error(d.error||`Advance failed (HTTP ${r.status})`);
+      store.updateTicket(req.id,{stage:d.stage,...(d.status?{status:d.status}:{}),workflow:d.workflow});
+    }catch(e){ alert(String(e.message||e)); }
   };
   const escalate=()=>{
     store.updateTicket(req.id,{status:"Escalated to GC",priority:"Critical",assigned:"Mark Williams, GC + "+req.assigned});

@@ -280,6 +280,7 @@ async function saveTicketsV8(
         matterId: true,
         agentProcessedAt: true,
         requestTypeId: true,
+        stageTimestampsJson: true,
       },
     });
 
@@ -333,6 +334,8 @@ async function saveTicketsV8(
         t.requestTypeId !== undefined
           ? t.requestTypeId
           : (before?.requestTypeId ?? null),
+      // Server-owned (W1-5 advance endpoint writes it); preserve.
+      stageTimestampsJson: (before?.stageTimestampsJson ?? null) as never,
       // Server-computed below; the client's copy is never trusted.
       firedRulesJson: (before?.firedRulesJson ?? null) as never,
     };

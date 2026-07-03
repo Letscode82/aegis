@@ -1305,6 +1305,11 @@ model IntakeTicket {
   /// Blocked / Delivered). Set by the assigned team, not the router.
   workStatus String?
 
+  /// W1-5 — append-only [{stage, at}] stamps written on each server-
+  /// enforced stage advancement. Feeds per-stage TAT and the multi-leg
+  /// SLA legs (W2-4).
+  stageTimestampsJson Json?
+
   /// Item 6 — hand-off baton: who currently "holds" the ticket.
   /// "agent" (AI is processing) | "human" (a person owns it) | "queue"
   /// (waiting for pickup). Denormalized current holder; the source of
