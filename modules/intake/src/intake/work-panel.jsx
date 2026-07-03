@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { C, F, M, Card, inputStyle } from "@aegis/ui";
+import { C, F, M, Card, inputStyle, useToast } from "@aegis/ui";
 
 // ── Track 1 · Activity 4 — delivery / work panel ─────────────────────
 //
@@ -20,6 +20,7 @@ const taskMeta = (s) => TASK_STATUS.find((t) => t.value === s) || TASK_STATUS[0]
 const label = { fontSize: 9, fontFamily: M, color: C.t3, letterSpacing: 1.5, textTransform: "uppercase", fontWeight: 600, marginBottom: 6 };
 
 export function WorkPanel({ ticket }) {
+  const toast = useToast();
   const [delivery, setDelivery] = useState(null);
   const [assignees, setAssignees] = useState([]);
   const [err, setErr] = useState(null);
@@ -50,7 +51,7 @@ export function WorkPanel({ ticket }) {
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) throw new Error(d.error || `Failed (HTTP ${r.status})`);
       if (d.delivery) setDelivery(d.delivery); else load();
-    } catch (e) { alert(String(e.message || e)); }
+    } catch (e) { toast.error(String(e.message || e)); }
   };
 
   const base = `/api/intake/tickets/${encodeURIComponent(ticket.id)}`;

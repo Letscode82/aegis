@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { C, F, M, SR, Card, inputStyle } from "@aegis/ui";
+import { C, F, M, SR, Card, inputStyle, useToast } from "@aegis/ui";
 
 // ── Track 1 · Activity 1 — Teams / pools admin surface ───────────────
 //
@@ -93,6 +93,7 @@ function PoolForm({ initial, teams, onCancel, onSaved }) {
 }
 
 function MemberRow({ teamId, member, canManage, onChanged }) {
+  const toast = useToast();
   const [busy, setBusy] = useState(false);
   const act = async (method, body) => {
     setBusy(true);
@@ -103,7 +104,7 @@ function MemberRow({ teamId, member, canManage, onChanged }) {
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) throw new Error(d.error || `Failed (HTTP ${r.status})`);
       onChanged();
-    } catch (e) { alert(String(e.message || e)); }
+    } catch (e) { toast.error(String(e.message || e)); }
     finally { setBusy(false); }
   };
   return (
@@ -119,6 +120,7 @@ function MemberRow({ teamId, member, canManage, onChanged }) {
 }
 
 function AddMember({ teamId, assignees, existingUserIds, onAdded }) {
+  const toast = useToast();
   const [userId, setUserId] = useState("");
   const [capacity, setCapacity] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -134,7 +136,7 @@ function AddMember({ teamId, assignees, existingUserIds, onAdded }) {
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) throw new Error(d.error || `Failed (HTTP ${r.status})`);
       setUserId(""); setCapacity(0); onAdded();
-    } catch (e) { alert(String(e.message || e)); }
+    } catch (e) { toast.error(String(e.message || e)); }
     finally { setBusy(false); }
   };
   return (
@@ -150,6 +152,7 @@ function AddMember({ teamId, assignees, existingUserIds, onAdded }) {
 }
 
 export function TeamsTab({ canManage }) {
+  const toast = useToast();
   const { teams, error, reload } = useTeams();
   const [assignees, setAssignees] = useState([]);
   const [creating, setCreating] = useState(false);
@@ -166,7 +169,7 @@ export function TeamsTab({ canManage }) {
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) throw new Error(d.error || `Delete failed (HTTP ${r.status})`);
       reload();
-    } catch (e) { alert(String(e.message || e)); }
+    } catch (e) { toast.error(String(e.message || e)); }
   };
 
   if (teams === null && !error) return <div style={{ padding: 40, textAlign: "center", color: C.t3, fontFamily: M, fontSize: 12, letterSpacing: 1 }}>◎ Loading pools…</div>;

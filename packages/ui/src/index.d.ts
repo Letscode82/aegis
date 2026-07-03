@@ -120,3 +120,11 @@ export interface SparklineProps {
   ariaLabel?: string;
 }
 export const Sparkline: React.FC<SparklineProps>;
+
+// PanelBoundary (W4-1)
+export interface PanelBoundaryProps {
+  label?: string;
+  compact?: boolean;
+  children?: ReactNode;
+}
+export class PanelBoundary extends React.Component<PanelBoundaryProps> {}

@@ -32,3 +32,6 @@ export { ToastProvider, useToast } from "./Toast";
 
 // Sparkline (sub-PR 4c.5) — reusable trend visualisation.
 export { Sparkline } from "./Sparkline";
+
+// PanelBoundary (W4-1) — contained error boundary for one panel.
+export { PanelBoundary } from "./PanelBoundary";

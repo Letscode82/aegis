@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { C, F, M, SR, Card, inputStyle } from "@aegis/ui";
+import { C, F, M, SR, Card, inputStyle, useToast } from "@aegis/ui";
 
 // ── Track 1 · Activity 7 — request-types admin surface ───────────────
 //
@@ -122,6 +122,7 @@ function FieldsEditor({ type, onCancel, onSaved }) {
 }
 
 export function RequestTypesTab({ canManage }) {
+  const toast = useToast();
   const [types, setTypes] = useState(null);
   const [error, setError] = useState(null);
   const [creating, setCreating] = useState(false);
@@ -143,7 +144,7 @@ export function RequestTypesTab({ canManage }) {
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) throw new Error(d.error || `Update failed (HTTP ${r.status})`);
       reload();
-    } catch (e) { alert(String(e.message || e)); }
+    } catch (e) { toast.error(String(e.message || e)); }
   };
   const del = async (t) => {
     if (!window.confirm(`Delete request type "${t.name}"?`)) return;
@@ -152,7 +153,7 @@ export function RequestTypesTab({ canManage }) {
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) throw new Error(d.error || `Delete failed (HTTP ${r.status})`);
       reload();
-    } catch (e) { alert(String(e.message || e)); }
+    } catch (e) { toast.error(String(e.message || e)); }
   };
 
   if (types === null && !error) return <div style={{ padding: 40, textAlign: "center", color: C.t3, fontFamily: M, fontSize: 12, letterSpacing: 1 }}>◎ Loading request types…</div>;

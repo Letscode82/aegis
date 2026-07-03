@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { C, F, M, Card, inputStyle } from "@aegis/ui";
+import { C, F, M, Card, inputStyle, useToast } from "@aegis/ui";
 
 // ── Track 1 · Activity 5 — parties / people-involved panel ───────────
 //
@@ -20,6 +20,7 @@ const roleLabel = (v) => ROLE_OPTIONS.find((r) => r.value === v)?.label || v;
 const label = { fontSize: 9, fontFamily: M, color: C.t3, letterSpacing: 1.5, textTransform: "uppercase", fontWeight: 600, marginBottom: 6 };
 
 export function PartiesPanel({ ticket }) {
+  const toast = useToast();
   const [parties, setParties] = useState(null);
   const [err, setErr] = useState(null);
   const [adding, setAdding] = useState(false);
@@ -50,14 +51,14 @@ export function PartiesPanel({ ticket }) {
   }, [adding]);
 
   const add = async () => {
-    if (!entityId) { alert("Pick a person or counterparty."); return; }
+    if (!entityId) { toast.warning("Pick a person or counterparty first."); return; }
     try {
       const body = kind === "person" ? { personId: entityId, role, note: note || null } : { counterpartyId: entityId, role, note: note || null };
       const r = await fetch(base, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) throw new Error(d.error || `Add failed (HTTP ${r.status})`);
       setAdding(false); setEntityId(""); setNote(""); load();
-    } catch (e) { alert(String(e.message || e)); }
+    } catch (e) { toast.error(String(e.message || e)); }
   };
   const remove = async (id) => {
     try {
@@ -65,7 +66,7 @@ export function PartiesPanel({ ticket }) {
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) throw new Error(d.error || `Remove failed (HTTP ${r.status})`);
       load();
-    } catch (e) { alert(String(e.message || e)); }
+    } catch (e) { toast.error(String(e.message || e)); }
   };
 
   // W3-4 — every ticket AND matter involving this entity, one click.

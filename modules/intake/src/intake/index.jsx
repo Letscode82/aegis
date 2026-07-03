@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { C, F, M, SR, Pill, Dot, Bar, Card, SH, WorkflowSteps, pc, inputStyle, FormField } from "@aegis/ui";
+import { C, F, M, SR, Pill, Dot, Bar, Card, SH, WorkflowSteps, pc, inputStyle, FormField, PanelBoundary, useToast } from "@aegis/ui";
 import { classifyIntakeRegex } from "@aegis/ai";
 import { useCurrentUser } from "@aegis/auth/react";
 import { Kbd, ConfidenceBadge, AgentBadge, TypingDots, ChatBubble, CapacityMeter, SimilarMatterCard } from "../intake-ui";
@@ -99,6 +99,7 @@ function CopilotChat({initialType,onFiled,onSwitchToForm,store,settings}){
   // from the Auth0-resolved user; the field stays editable so a user
   // filing on behalf of someone else can override.
   const{user:sessionUser}=useCurrentUser();
+  const toast=useToast();
   const[state,setState]=useState(()=>({...COPILOT_INITIAL_STATE(),requestType:initialType}));
   const[history,setHistory]=useState(()=>[{role:"assistant",content:initialAssistantMessage(initialType),ts:Date.now()}]);
   const[input,setInput]=useState("");
@@ -174,7 +175,7 @@ function CopilotChat({initialType,onFiled,onSwitchToForm,store,settings}){
 
   const submit=async(overrideReady)=>{
     if(submitting) return;
-    if(!requesterName.trim()){ alert("Please enter your name before submitting."); return; }
+    if(!requesterName.trim()){ toast.error("Please enter your name before submitting."); return; }
     setSubmitting(true);
     try{
       const transcript=history.map(m=>({role:m.role,content:m.content,ts:m.ts,...(m.fieldsExtracted?{fieldsExtracted:m.fieldsExtracted}:{})}));
@@ -1162,8 +1163,8 @@ function CockpitTab({store,cockpit}){
           onCancelEdit={cancelEdit}
         />
         <SimilarMattersPanel currentTicket={current} allTickets={allTickets}/>
-        <WorkPanel ticket={current}/>
-        <PartiesPanel ticket={current}/>
+        <PanelBoundary label="Work panel" compact><WorkPanel ticket={current}/></PanelBoundary>
+        <PanelBoundary label="Parties panel" compact><PartiesPanel ticket={current}/></PanelBoundary>
         <CapacityPanel allTickets={allTickets} attorney={attorney}/>
 
         {/* Secondary actions */}
@@ -1493,6 +1494,7 @@ function InboxTab({store,sel,setSel}){
 
 // ── Detail view (with working quick-actions) ─────────
 function IntakeDetail({req,store,onBack}){
+  const toast=useToast();
   // W1-5 — server-enforced stage advancement (audited + timestamped).
   // The endpoint owns the transition; the local store syncs from the
   // response so the polyfill persists the same values (one codepath
@@ -1504,7 +1506,7 @@ function IntakeDetail({req,store,onBack}){
       if(r.status===409) return; // already at final stage — button is a no-op
       if(!r.ok||!d.ok) throw new Error(d.error||`Advance failed (HTTP ${r.status})`);
       store.updateTicket(req.id,{stage:d.stage,...(d.status?{status:d.status}:{}),workflow:d.workflow});
-    }catch(e){ alert(String(e.message||e)); }
+    }catch(e){ toast.error(String(e.message||e)); }
   };
   const escalate=()=>{
     store.updateTicket(req.id,{status:"Escalated to GC",priority:"Critical",assigned:"Mark Williams, GC + "+req.assigned});
@@ -1550,10 +1552,10 @@ function IntakeDetail({req,store,onBack}){
     <WorkflowSteps steps={req.workflow}/>
 
     {/* W2-4 — one SLA window, partitioned by custody (issue #111) */}
-    <SlaLegsPanel ticketId={req.id}/>
+    <PanelBoundary label="SLA custody legs" compact><SlaLegsPanel ticketId={req.id}/></PanelBoundary>
 
     {/* W1-3 — the whole story as one verifiable chain (issue #105) */}
-    <TicketTimelinePanel ticketId={req.id}/>
+    <PanelBoundary label="Ticket timeline" compact><TicketTimelinePanel ticketId={req.id}/></PanelBoundary>
 
     <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:14,marginTop:14}}>
       <Card d={100}>
@@ -2485,7 +2487,10 @@ export function IntakeView(){
       })}
     </div>
 
-    {/* v8 tabs */}
+    {/* v8 tabs — one boundary around the whole region (key resets it
+        on tab switch) so a crashed tab degrades to a contained fallback
+        while the nav + header keep working (W4-1). */}
+    <PanelBoundary key={tab} label={`The ${tab} view`}>
     {tab==="mywork"&&<MyWorkTab onOpenTicket={openTicketById} userName={routingSession?.user?.name}/>}
     {tab==="myrequests"&&<MyRequestsTab onFileNew={()=>setTab("new")}/>}
     {tab==="cockpit"&&<CockpitTab store={store} cockpit={cockpit}/>}
@@ -2500,6 +2505,7 @@ export function IntakeView(){
     {tab==="teams"&&<TeamsTab canManage={canManageRouting}/>}
     {tab==="request-types"&&<RequestTypesTab canManage={canManageRouting}/>}
     {tab==="selfserve"&&<SelfServeTab onFileTicket={(draft)=>{setPrefillDesc(draft||"");setTab("new");}}/>}
+    </PanelBoundary>
   </div>;
 }
 
