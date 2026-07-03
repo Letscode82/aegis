@@ -35,3 +35,6 @@ export { Sparkline } from "./Sparkline";
 
 // PanelBoundary (W4-1) — contained error boundary for one panel.
 export { PanelBoundary } from "./PanelBoundary";
+
+// useIsNarrow (W4-3) — responsive breakpoint hook.
+export { useIsNarrow } from "./useIsNarrow";

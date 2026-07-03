@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { C, F, M, SR, Pill, Dot, Bar, Card, SH, WorkflowSteps, pc, inputStyle, FormField, PanelBoundary, useToast } from "@aegis/ui";
+import { C, F, M, SR, Pill, Dot, Bar, Card, SH, WorkflowSteps, pc, inputStyle, FormField, PanelBoundary, useToast, useIsNarrow } from "@aegis/ui";
 import { classifyIntakeRegex } from "@aegis/ai";
 import { useCurrentUser } from "@aegis/auth/react";
 import { Kbd, ConfidenceBadge, AgentBadge, TypingDots, ChatBubble, CapacityMeter, SimilarMatterCard } from "../intake-ui";
@@ -100,6 +100,7 @@ function CopilotChat({initialType,onFiled,onSwitchToForm,store,settings}){
   // filing on behalf of someone else can override.
   const{user:sessionUser}=useCurrentUser();
   const toast=useToast();
+  const phone=useIsNarrow(760); // W4-3 — sidebar stacks under the chat
   const[state,setState]=useState(()=>({...COPILOT_INITIAL_STATE(),requestType:initialType}));
   const[history,setHistory]=useState(()=>[{role:"assistant",content:initialAssistantMessage(initialType),ts:Date.now()}]);
   const[input,setInput]=useState("");
@@ -220,7 +221,7 @@ function CopilotChat({initialType,onFiled,onSwitchToForm,store,settings}){
     </div>;
   }
 
-  return <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:14,maxWidth:1100,margin:"0 auto"}}>
+  return <div style={{display:"grid",gridTemplateColumns:phone?"1fr":"2fr 1fr",gap:14,maxWidth:1100,margin:"0 auto"}}>
     {/* Left: chat */}
     <div>
       <div style={{background:C.cd,border:`1px solid ${C.br}`,borderLeft:`3px solid ${C.em}`,borderRadius:6,padding:12,marginBottom:10}}>
@@ -320,6 +321,7 @@ function CopilotChat({initialType,onFiled,onSwitchToForm,store,settings}){
 // runs alone. On splice, this replaces the existing NewRequestTab — the legacy form body moves
 // from v7 (lines 1512–1712) into <LegacyFormInner/> verbatim.
 function NewRequestV8({store,goToInbox,goToCockpit,goToMyRequests,settings,prefillDesc}){
+  const phone=useIsNarrow(640); // W4-3 — single-column form on phones
   // If we arrive with a pre-filled description (from "File a ticket" in
   // Ask Aurora), skip the picker and go straight to the legacy form so
   // the user sees their question already in the description box.
@@ -505,7 +507,7 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,goToMyRequests
       <FormField label="Your Name" required>
         <input value={form.from} onChange={e=>setForm({...form,from:e.target.value})} placeholder="Jane Smith" style={inputStyle}/>
       </FormField>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      <div style={{display:"grid",gridTemplateColumns:phone?"1fr":"1fr 1fr",gap:12}}>
         <FormField label="Department" required>
           <select value={form.dept} onChange={e=>setForm({...form,dept:e.target.value})} style={inputStyle}>
             {["Product","Engineering","Sales","HR","Finance","Procurement","Marketing","Operations","Legal","Executive"].map(d=><option key={d} value={d} style={{background:C.s1}}>{d}</option>)}
@@ -518,7 +520,7 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,goToMyRequests
         </FormField>
       </div>
       <FormField label="Request Type" required>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6}}>
+        <div style={{display:"grid",gridTemplateColumns:phone?"repeat(2,1fr)":"repeat(3,1fr)",gap:6}}>
           {(()=>{
             const builtIn=["Contract Review","NDA Request","IP Question","Privacy Question","Trademark Check","Vendor Due Diligence","Contract Question","Legal Question — General","Other"];
             // Configured workstreams merge in (deduped by name); they
@@ -902,6 +904,7 @@ function ReassignPicker({ticket,onPick,onCancel}){
 // CockpitTab — the main component
 // ══════════════════════════════════════════════════
 function CockpitTab({store,cockpit}){
+  const stacked=useIsNarrow(1024); // W4-3 — tablet: panels stack
   // Session-resolved attribution (Phase 1a). cockpit.state.attorney
   // is null on a fresh load; we fall back to the Auth0-resolved
   // user. The server is still authoritative on persisted audit rows
@@ -1138,7 +1141,7 @@ function CockpitTab({store,cockpit}){
     </div>
 
     {/* Main view: ticket + right panels */}
-    {current?<div style={{display:"grid",gridTemplateColumns:"1.4fr 1fr",gap:14}}>
+    {current?<div style={{display:"grid",gridTemplateColumns:stacked?"1fr":"1.4fr 1fr",gap:14}}>
       <div>
         {bulkMode&&<div onClick={()=>toggleSelected(current.id)} style={{padding:"8px 12px",marginBottom:10,background:selected.includes(current.id)?C.gnG:C.s1,border:`1px solid ${selected.includes(current.id)?C.gn:C.br}`,borderRadius:4,cursor:"pointer",display:"flex",alignItems:"center",gap:10,fontSize:11,fontFamily:M,color:selected.includes(current.id)?C.gn:C.t2,letterSpacing:1,textTransform:"uppercase",fontWeight:600}}>
           <span style={{fontSize:14}}>{selected.includes(current.id)?"☑":"☐"}</span>
@@ -1422,6 +1425,7 @@ function LogRow({e}){
 // ══════════════════════════════════════════════════
 const INBOX_PAGE_SIZE=60;
 function InboxTab({store,sel,setSel}){
+  const phone=useIsNarrow(640); // W4-3 — stat tiles reflow; table scrolls sideways
   const[flt,setFlt]=useState("all");
   // W4-2 — windowed list render: rows mount in pages of 60 so a
   // many-hundreds inbox stays instant. Filters reset the window.
@@ -1459,7 +1463,7 @@ function InboxTab({store,sel,setSel}){
   if(req) return <IntakeDetail req={req} store={store} onBack={()=>setSel(null)}/>;
 
   return <div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>
+    <div style={{display:"grid",gridTemplateColumns:phone?"repeat(2,1fr)":"repeat(5,1fr)",gap:10,marginBottom:14}}>
       {[{l:"Today's Requests",v:tickets.length,c:C.bl},
         {l:"Auto-Resolved",v:tickets.filter(r=>r.status==="Auto-Completed").length,c:C.gn,sub:tickets.length?Math.round(tickets.filter(r=>r.status==="Auto-Completed").length/tickets.length*100)+"% deflection":"—"},
         {l:"In Flight",v:tickets.filter(r=>r.stage==="review"||r.stage==="assigned").length,c:C.tl},
@@ -1480,6 +1484,9 @@ function InboxTab({store,sel,setSel}){
     </div>
 
     <Card>
+      {/* W4-3 — the table keeps its columns and scrolls sideways inside
+          its own container on narrow screens (never squishes). */}
+      <div style={{overflowX:"auto"}}><div style={{minWidth:860}}>
       <div style={{display:"grid",gridTemplateColumns:"75px 115px 95px 1fr 70px 130px 85px 95px",padding:"8px 10px",fontSize:9,fontWeight:600,color:C.t3,letterSpacing:1.2,textTransform:"uppercase",fontFamily:M,borderBottom:`1px solid ${C.br}`}}>
         <span>ID</span><span>Requester</span><span>Type</span><span>Description</span><span>Priority</span><span>SLA</span><span>Status</span><span>Assignee</span>
       </div>
@@ -1494,6 +1501,7 @@ function InboxTab({store,sel,setSel}){
         <span style={{fontSize:9.5,color:C.t3}}>{r.assigned}</span>
       </div>)}
       {filtered.length>visibleCount&&<div onClick={()=>setVisibleCount(c=>c+INBOX_PAGE_SIZE)} style={{padding:"12px 10px",textAlign:"center",cursor:"pointer",fontSize:10,fontFamily:M,letterSpacing:1.2,color:C.cy,textTransform:"uppercase",borderTop:`1px solid ${C.br}`}} onMouseEnter={e=>e.currentTarget.style.background=C.cdH} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>▾ Show more · {filtered.length-visibleCount} remaining</div>}
+      </div></div>
     </Card>
   </div>;
 }
@@ -1501,6 +1509,7 @@ function InboxTab({store,sel,setSel}){
 // ── Detail view (with working quick-actions) ─────────
 function IntakeDetail({req,store,onBack}){
   const toast=useToast();
+  const phone=useIsNarrow(760); // W4-3 — panels stack on phones
   // W1-5 — server-enforced stage advancement (audited + timestamped).
   // The endpoint owns the transition; the local store syncs from the
   // response so the polyfill persists the same values (one codepath
@@ -1563,13 +1572,13 @@ function IntakeDetail({req,store,onBack}){
     {/* W1-3 — the whole story as one verifiable chain (issue #105) */}
     <PanelBoundary label="Ticket timeline" compact><TicketTimelinePanel ticketId={req.id}/></PanelBoundary>
 
-    <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:14,marginTop:14}}>
+    <div style={{display:"grid",gridTemplateColumns:phone?"1fr":"2fr 1fr",gap:14,marginTop:14}}>
       <Card d={100}>
         <div style={{fontSize:11,fontWeight:600,color:C.tl,marginBottom:10,letterSpacing:1.2,fontFamily:M,textTransform:"uppercase",display:"flex",justifyContent:"space-between"}}>
           <span>◎ AI Triage Analysis{req.aiTriage.complexity&&<span style={{marginLeft:8,fontSize:8.5,fontFamily:M,letterSpacing:1,padding:"2px 7px",borderRadius:3,textTransform:"uppercase",color:req.aiTriage.complexity==="complex"?C.rd:req.aiTriage.complexity==="simple"?C.gn:C.am,border:`1px solid ${req.aiTriage.complexity==="complex"?C.rd:req.aiTriage.complexity==="simple"?C.gn:C.am}55`}}>{req.aiTriage.complexity}</span>}</span>
           <span style={{fontSize:9,color:req.aiTriage.source==="claude"?C.em:C.t4,fontFamily:M,letterSpacing:1}}>{req.aiTriage.source==="claude"?"CLAUDE LLM":req.aiTriage.source==="regex"?"REGEX CLASSIFIER":"FALLBACK"}</span>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10,marginBottom:12}}>
+        <div style={{display:"grid",gridTemplateColumns:phone?"repeat(2,1fr)":"1fr 1fr 1fr 1fr",gap:10,marginBottom:12}}>
           <div style={{padding:10,background:C.s1,borderRadius:5}}><div style={{fontSize:9,color:C.t3,textTransform:"uppercase",letterSpacing:.8,fontWeight:600,marginBottom:3,fontFamily:M}}>Category</div><div style={{fontSize:11.5,fontWeight:600,color:C.t1}}>{req.aiTriage.category}</div></div>
           <div style={{padding:10,background:C.s1,borderRadius:5}}><div style={{fontSize:9,color:C.t3,textTransform:"uppercase",letterSpacing:.8,fontWeight:600,marginBottom:3,fontFamily:M}}>Est Hours</div><div style={{fontSize:20,fontWeight:400,color:C.tl,fontFamily:SR}}>{req.aiTriage.estimatedHours}</div></div>
           <div style={{padding:10,background:C.s1,borderRadius:5}}><div style={{fontSize:9,color:C.t3,textTransform:"uppercase",letterSpacing:.8,fontWeight:600,marginBottom:3,fontFamily:M}}>Similar</div><div style={{fontSize:20,fontWeight:400,color:C.bl,fontFamily:SR}}>{req.aiTriage.similarMatters||"—"}</div></div>
@@ -1646,7 +1655,8 @@ function KanbanTab({store}){
       </div>
     </div>
 
-    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,height:"calc(100vh - 330px)",minHeight:520}}>
+    <div style={{overflowX:"auto"}}>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(5,minmax(190px,1fr))",gap:10,height:"calc(100vh - 330px)",minHeight:520,minWidth:990}}>
       {stages.map((stage,si)=>{
         const col=tickets.filter(it=>it.stage===stage.id);
         return <div key={stage.id} onDragOver={e=>e.preventDefault()} onDrop={()=>onDrop(stage.id)} style={{background:C.s1,border:`1px solid ${C.br}`,borderTop:`3px solid ${stage.c}`,borderRadius:"0 0 6px 6px",display:"flex",flexDirection:"column",overflow:"hidden",animation:`fu .25s ease ${si*50}ms both`}}>
@@ -1680,6 +1690,7 @@ function KanbanTab({store}){
           </div>
         </div>;
       })}
+    </div>
     </div>
   </div>;
 }
@@ -2258,6 +2269,7 @@ function RoutingTab({rules,loading,error,onRuleUpdated,onRuleCreated,onRuleDelet
 // itself; FAQ activity comes from /api/intake/agent-metrics. No
 // fabricated resolution / deflection numbers.
 function SelfServeTab({onFileTicket}){
+  const phone=useIsNarrow(640); // W4-3 — tiles reflow on phones
   const[q,setQ]=useState("");
   const[catFilter,setCatFilter]=useState(null);
   const[sel,setSel]=useState(null);
@@ -2292,7 +2304,7 @@ function SelfServeTab({onFileTicket}){
   const fmt=v=>faqMetric===undefined?"…":(v==null?"—":v);
 
   return <div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
+    <div style={{display:"grid",gridTemplateColumns:phone?"repeat(2,1fr)":"repeat(4,1fr)",gap:10,marginBottom:14}}>
       {[
         {l:"KB Articles",v:SELF_SERVE_ARTICLES.length,c:C.tl,sub:"From the legal playbook"},
         {l:"Categories",v:SELF_SERVE_CATEGORIES.length,c:C.pp,sub:"Coverage areas"},
