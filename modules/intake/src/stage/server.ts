@@ -46,11 +46,14 @@ export function computeStageAdvance(
   if (typeStages.length > 0) {
     const idx = typeStages.indexOf(currentStage);
     if (idx === typeStages.length - 1) throw new FinalStageError(currentStage);
-    return { next: typeStages[idx + 1] ?? typeStages[0], sequence: "configured", index: idx + 1 };
+    // noUncheckedIndexedAccess: the length guard makes [0] safe, but TS
+    // can't see it — currentStage terminates the chain with a plain string.
+    const next = typeStages[idx + 1] ?? typeStages[0] ?? currentStage;
+    return { next, sequence: "configured", index: idx + 1 };
   }
   const idx = LEGACY_STAGES.indexOf(currentStage as (typeof LEGACY_STAGES)[number]);
   if (idx === LEGACY_STAGES.length - 1) throw new FinalStageError(currentStage);
-  const next = LEGACY_STAGES[idx + 1] ?? LEGACY_STAGES[1];
+  const next: string = LEGACY_STAGES[idx + 1] ?? "triage";
   return { next, sequence: "legacy", index: idx + 1 };
 }
 
