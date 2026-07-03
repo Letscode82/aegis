@@ -53,6 +53,12 @@ export interface ClosedTicketInput {
   daysAgo: number;
 }
 
+/** One effort log inside the window (W3-5), attributed to the logger. */
+export interface EffortLogInput {
+  userId: string | null;
+  minutes: number;
+}
+
 export interface PoolOpsMemberDTO {
   userId: string;
   userName: string | null;
@@ -85,6 +91,8 @@ export interface PoolOpsTeamDTO {
   overflowInCount: number;
   closed7d: number;
   closed30d: number;
+  /** W3-5 — minutes logged by members inside the window. */
+  effortMinutes: number;
 }
 
 export interface PoolOpsSummaryDTO {
@@ -126,10 +134,14 @@ export function computePoolOps(input: {
   openTickets: PoolOpsOpenTicketInput[];
   firings: PoolFiringInput[];
   closed: ClosedTicketInput[];
+  /** W3-5 — effort logs inside the window. Optional for callers that
+   *  predate effort capture. */
+  efforts?: EffortLogInput[];
   windowDays: number;
   now: Date;
 }): PoolOpsSummaryDTO {
   const { teams, openTickets, firings, closed, windowDays, now } = input;
+  const efforts = input.efforts ?? [];
 
   // Open tickets grouped once by assignee.
   const openByUser = new Map<string, PoolOpsOpenTicketInput[]>();
@@ -151,6 +163,13 @@ export function computePoolOps(input: {
     row.routed += 1;
     if (f.overflow) row.overflow += 1;
     routedByTeam.set(f.teamName, row);
+  }
+
+  // Effort minutes by logger (W3-5).
+  const effortByUser = new Map<string, number>();
+  for (const e of efforts) {
+    if (!e.userId || !(e.minutes > 0)) continue;
+    effortByUser.set(e.userId, (effortByUser.get(e.userId) ?? 0) + e.minutes);
   }
 
   // Closed counts by assignee, split 7d / windowDays.
@@ -180,6 +199,7 @@ export function computePoolOps(input: {
       let capacityTotal = 0;
       let closed7 = 0;
       let closedAll = 0;
+      let effortMinutes = 0;
 
       const members = team.members.map((m): PoolOpsMemberDTO => {
         const mine = openByUser.get(m.userId) ?? [];
@@ -192,6 +212,7 @@ export function computePoolOps(input: {
         }
         closed7 += closed7ByUser.get(m.userId) ?? 0;
         closedAll += closedAllByUser.get(m.userId) ?? 0;
+        effortMinutes += effortByUser.get(m.userId) ?? 0;
         return {
           userId: m.userId,
           userName: m.userName,
@@ -223,6 +244,7 @@ export function computePoolOps(input: {
         overflowInCount: routed.overflow,
         closed7d: closed7,
         closed30d: closedAll,
+        effortMinutes,
       };
     });
 

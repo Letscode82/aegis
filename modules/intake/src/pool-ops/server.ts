@@ -141,5 +141,22 @@ export async function getPoolOpsSummary(
     };
   });
 
-  return computePoolOps({ teams, openTickets, firings, closed, windowDays, now });
+  // 5 — effort logs inside the window (W3-5), attributed to the user
+  // who logged the minutes (the person who did the work).
+  const effortRows = await prisma.auditLog.findMany({
+    where: {
+      organizationId,
+      action: "intake.task.effort_logged",
+      timestamp: { gte: since },
+    },
+    orderBy: { timestamp: "desc" },
+    take: AUDIT_SCAN_LIMIT,
+    select: { actorId: true, afterJson: true },
+  });
+  const efforts = effortRows.map((r) => ({
+    userId: r.actorId,
+    minutes: Number((r.afterJson as { minutes?: unknown } | null)?.minutes ?? 0),
+  }));
+
+  return computePoolOps({ teams, openTickets, firings, closed, efforts, windowDays, now });
 }

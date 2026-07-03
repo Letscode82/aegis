@@ -103,6 +103,7 @@ function TeamCard({ team, d }) {
           Routed <span style={{ color: C.t1 }}>{team.routedCount}</span>
           {" · "}Closed 7d <span style={{ color: C.gn }}>{team.closed7d}</span>
           {" · "}30d <span style={{ color: C.gn }}>{team.closed30d}</span>
+          {team.effortMinutes > 0 && <span> · Effort <span style={{ color: C.tl }}>{team.effortMinutes >= 60 ? `${Math.round(team.effortMinutes / 60 * 10) / 10}h` : `${team.effortMinutes}m`}</span></span>}
           {team.overdueCount > 0 && <span> · <span style={{ color: C.rd }}>{team.overdueCount} overdue</span></span>}
           {team.atRiskCount > 0 && <span> · <span style={{ color: C.am }}>{team.atRiskCount} at risk</span></span>}
         </div>

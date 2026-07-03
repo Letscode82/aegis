@@ -1590,6 +1590,10 @@ model IntakeTicketTask {
   /// open | in_progress | blocked | done
   status         String   @default("open")
   sortOrder      Int      @default(100)
+  /// W3-5 — cumulative logged effort, minutes. Each log increment is
+  /// audited (intake.task.effort_logged) so the per-entry ledger lives
+  /// on the chain; this column is the fast-read total.
+  effortMinutes  Int      @default(0)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

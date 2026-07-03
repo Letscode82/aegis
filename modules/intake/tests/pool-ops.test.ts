@@ -74,6 +74,13 @@ describe("computePoolOps", () => {
       { assignedToUserId: "u-dee", daysAgo: 6 },
       { assignedToUserId: null, daysAgo: 1 },
     ],
+    efforts: [
+      { userId: "u-ana", minutes: 45 },
+      { userId: "u-ana", minutes: 30 },
+      { userId: "u-dee", minutes: 60 },
+      { userId: null, minutes: 999 }, // unattributed → dropped
+      { userId: "u-nonmember", minutes: 15 }, // not in any pool
+    ],
     windowDays: 30,
     now: NOW,
   });
@@ -118,6 +125,11 @@ describe("computePoolOps", () => {
   it("splits throughput into 7d and window totals", () => {
     expect(t1).toMatchObject({ closed7d: 1, closed30d: 2 });
     expect(t2).toMatchObject({ closed7d: 1, closed30d: 1 });
+  });
+
+  it("rolls logged effort minutes up per tier (W3-5)", () => {
+    expect(t1?.effortMinutes).toBe(75);
+    expect(t2?.effortMinutes).toBe(60);
   });
 
   it("reports the unassigned queue depth (non-members excluded)", () => {

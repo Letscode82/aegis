@@ -7,6 +7,7 @@ import { Permission } from "@aegis/auth";
 import {
   updateTask,
   removeTask,
+  logTaskEffort,
   WorkItemNotFoundError,
   WorkTrackingValidationError,
 } from "@aegis/intake/work-tracking";
@@ -19,6 +20,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const body = (req.body ?? {}) as Record<string, unknown>;
   try {
     if (req.method === "PUT") {
+      // W3-5 — effort quick entry rides the same endpoint: a body with
+      // logEffortMinutes increments the task's logged time (audited).
+      if (typeof body.logEffortMinutes === "number") {
+        const task = await logTaskEffort(
+          actor.organizationId,
+          taskId,
+          body.logEffortMinutes,
+          { req, res },
+        );
+        return res.status(200).json({ ok: true, task });
+      }
       const task = await updateTask(
         actor.organizationId,
         taskId,

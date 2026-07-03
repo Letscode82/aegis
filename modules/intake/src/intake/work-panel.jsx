@@ -64,6 +64,10 @@ export function WorkPanel({ ticket }) {
     call(`${base}/tasks/${t.id}`, "PUT", { status: nextStatus });
   };
   const removeTask = (id) => call(`${base}/tasks/${id}`, "DELETE");
+  // W3-5 — minutes-per-task quick entry (server audits each log and
+  // rolls the minutes into the Pool Ops effort-per-tier view).
+  const logEffort = (t, minutes) => call(`${base}/tasks/${t.id}`, "PUT", { logEffortMinutes: minutes });
+  const fmtEffort = (m) => (m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? ` ${m % 60}m` : ""}` : `${m}m`);
   const nameFor = (userId) => assignees.find((a) => a.id === userId)?.name || userId;
 
   if (err === "forbidden") return null; // caller lacks read_all — hide the panel
@@ -107,6 +111,10 @@ export function WorkPanel({ ticket }) {
               <div key={t.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 7px", background: C.s2, borderRadius: 4, marginBottom: 4 }}>
                 <span onClick={() => cycleTask(t)} title="Click to advance status" style={{ fontSize: 8.5, fontFamily: M, color: m.c, border: `1px solid ${m.c}66`, borderRadius: 3, padding: "1px 5px", cursor: "pointer", letterSpacing: .5, textTransform: "uppercase", whiteSpace: "nowrap" }}>{m.label}</span>
                 <span style={{ fontSize: 11, color: t.status === "done" ? C.t3 : C.t1, flex: 1, textDecoration: t.status === "done" ? "line-through" : "none" }}>{t.title}</span>
+                {t.effortMinutes > 0 && <span title="Logged effort" style={{ fontSize: 9, fontFamily: M, color: C.tl, whiteSpace: "nowrap" }}>⏱ {fmtEffort(t.effortMinutes)}</span>}
+                {[15, 30, 60].map((mins) => (
+                  <span key={mins} onClick={() => logEffort(t, mins)} title={`Log ${mins} minutes on this task`} style={{ fontSize: 8.5, fontFamily: M, color: C.t3, border: `1px solid ${C.br}`, borderRadius: 3, padding: "1px 4px", cursor: "pointer", whiteSpace: "nowrap" }} onMouseEnter={(e) => { e.currentTarget.style.color = C.tl; e.currentTarget.style.borderColor = C.tl; }} onMouseLeave={(e) => { e.currentTarget.style.color = C.t3; e.currentTarget.style.borderColor = C.br; }}>+{mins === 60 ? "1h" : mins + "m"}</span>
+                ))}
                 <span onClick={() => removeTask(t.id)} title="Remove" style={{ fontSize: 12, color: C.t3, cursor: "pointer" }}>✕</span>
               </div>
             );

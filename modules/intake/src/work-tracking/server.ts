@@ -29,6 +29,8 @@ export interface TaskDTO {
   assigneeUserId: string | null;
   status: string;
   sortOrder: number;
+  /** W3-5 — cumulative logged minutes. */
+  effortMinutes: number;
 }
 export interface TicketDeliveryDTO {
   ticketId: string;
@@ -98,14 +100,7 @@ export async function getTicketDelivery(
       assignedAt: a.assignedAt.toISOString(),
       assignedById: a.assignedById,
     })),
-    tasks: tasks.map((t) => ({
-      id: t.id,
-      title: t.title,
-      description: t.description,
-      assigneeUserId: t.assigneeUserId,
-      status: t.status,
-      sortOrder: t.sortOrder,
-    })),
+    tasks: tasks.map(toTaskDTO),
   };
 }
 
@@ -285,6 +280,7 @@ function toTaskDTO(t: {
   assigneeUserId: string | null;
   status: string;
   sortOrder: number;
+  effortMinutes: number;
 }): TaskDTO {
   return {
     id: t.id,
@@ -293,5 +289,48 @@ function toTaskDTO(t: {
     assigneeUserId: t.assigneeUserId,
     status: t.status,
     sortOrder: t.sortOrder,
+    effortMinutes: t.effortMinutes,
   };
+}
+
+// ── W3-5 · Effort capture — minutes-per-task quick entry ─────────────
+
+/** One log = one chain-sealed audit row; the column is the fast total.
+ *  Feeds effort-per-tier in the Pool Ops dashboard (attributed to the
+ *  session user who logged it — the person who did the work). */
+export async function logTaskEffort(
+  organizationId: string,
+  taskId: string,
+  minutes: number,
+  ctx: Ctx = {},
+): Promise<TaskDTO> {
+  if (!Number.isFinite(minutes) || !Number.isInteger(minutes) || minutes < 1 || minutes > 1440) {
+    throw new WorkTrackingValidationError("minutes must be a whole number between 1 and 1440.");
+  }
+  const before = await prisma.intakeTicketTask.findFirst({
+    where: { id: taskId, ticket: { organizationId } },
+    select: { id: true, ticketId: true, title: true, effortMinutes: true },
+  });
+  if (!before) throw new WorkItemNotFoundError("Task", taskId);
+
+  const updated = await prisma.intakeTicketTask.update({
+    where: { id: taskId },
+    data: { effortMinutes: { increment: minutes } },
+  });
+  const actor = await getCurrentUser(ctx.req, ctx.res);
+  await logAudit({
+    organizationId,
+    actorId: actor.id,
+    actorType: "USER",
+    action: "intake.task.effort_logged",
+    resourceType: "IntakeTicket",
+    resourceId: before.ticketId,
+    afterJson: {
+      taskId,
+      taskTitle: before.title,
+      minutes,
+      totalMinutes: updated.effortMinutes,
+    },
+  });
+  return toTaskDTO(updated);
 }
