@@ -40,6 +40,7 @@ import { buildPoolResolver } from "../routing/teams";
 import { deriveComplexity } from "../routing/complexity";
 import { maybeSpawnMatterForApprovedTicket } from "../matter-spawn/server";
 import { syncAgentDecisionForTicket } from "../agent-decision/server";
+import { buildAutoBatonRows } from "../handoff/auto";
 
 // ── Storage keys (mirror modules/intake/src/storage/keys.js) ─────────
 const K_TICKETS = "aegis:tickets:v1";
@@ -152,6 +153,13 @@ type V8Ticket = {
    * server-side by the matter-spawn helper on first approval.
    */
   matterId?: string | null;
+  /**
+   * Item 6 / W2-2 — denormalized baton holder ("agent" | "human" |
+   * "queue") and the concrete person when human. Read-only for the
+   * client; written by the hand-off endpoint and the auto baton-pass.
+   */
+  handoffHolder?: string | null;
+  handoffUserId?: string | null;
 };
 
 // ── Read path: assemble v8 ticket array from DB rows ─────────────────
@@ -216,6 +224,8 @@ async function loadTicketsV8(orgId: string): Promise<V8Ticket[]> {
       firedRules: (t.firedRulesJson as unknown) ?? null,
       matterId: t.matterId ?? null,
       requestTypeId: t.requestTypeId ?? null,
+      handoffHolder: t.handoffHolder ?? null,
+      handoffUserId: t.handoffUserId ?? null,
     };
   });
 }
@@ -282,6 +292,8 @@ async function saveTicketsV8(
         agentProcessedAt: true,
         requestTypeId: true,
         stageTimestampsJson: true,
+        handoffHolder: true,
+        handoffUserId: true,
       },
     });
 
@@ -683,6 +695,10 @@ async function saveTicketsV8(
     }
 
     // Replace recommendation if present.
+    // W2-2 — captured so the auto baton-pass below can link the pass to
+    // the governing AgentDecision (one record ties the review gate and
+    // the custody hand-off together).
+    let pendingDecisionId: string | null = null;
     if (t.agentRecommendation && t.agentRecommendation.agentId) {
       const r = t.agentRecommendation;
       // Map the ticket's triagedAction onto the rec's review status —
@@ -717,13 +733,80 @@ async function saveTicketsV8(
       // save (no triage action yet). Idempotent: syncAgentDecision
       // no-ops if a decision already exists.
       if (recStatus === AgentRecommendationStatus.PENDING) {
-        await syncAgentDecisionForTicket({
+        const sync = await syncAgentDecisionForTicket({
           organizationId: orgId,
           ticketId: t.id,
           rec: r,
           action: null,
         });
+        pendingDecisionId = sync.decision?.id ?? null;
       }
+    }
+
+    // W2-2 — auto baton-pass (issue #109). On the same first-processing
+    // transition as the no-match audit above, the agent pipeline writes
+    // its own chain of custody: (prior → agent) while the agent worked,
+    // then (agent → assignee|queue) when the draft landed — or
+    // (agent → queue) when no agent matched. Nobody remembers to log
+    // it; the ledger populates itself. Deduped by the becameProcessed
+    // transition, so re-saves never double-write. AGENT actor rows
+    // (actorId null) — the pipeline, not the session user, moved the
+    // baton. One summarizing chain-sealed audit row covers both passes.
+    if (becameProcessed) {
+      const outcome =
+        t.agentRecommendation?.agentId ? ("drafted" as const) : ("no-match" as const);
+      const plan = buildAutoBatonRows({
+        currentHolder: before?.handoffHolder ?? null,
+        assignedToUserId: common.assignedToUserId ?? null,
+        outcome,
+      });
+      for (const [i, row] of plan.rows.entries()) {
+        await prisma.intakeTicketHandoff.create({
+          data: {
+            ticketId: t.id,
+            fromHolder: row.fromHolder,
+            toHolder: row.toHolder,
+            toUserId: row.toUserId,
+            reason: row.reason,
+            actorId: null,
+            actorType: "AGENT",
+            // The final pass (the one that queues the draft for review)
+            // links the governing AgentDecision when one was created.
+            agentDecisionId:
+              i === plan.rows.length - 1 ? pendingDecisionId : null,
+          },
+        });
+      }
+      await prisma.intakeTicket.update({
+        where: { id: t.id },
+        data: {
+          handoffHolder: plan.finalHolder,
+          handoffUserId: plan.finalUserId,
+          handoffUpdatedAt: new Date(),
+        },
+      });
+      await logAudit({
+        organizationId: orgId,
+        actorId: null,
+        actorType: "AGENT",
+        action: "intake.ticket.handoff",
+        resourceType: "IntakeTicket",
+        resourceId: t.id,
+        beforeJson: {
+          holder: before?.handoffHolder ?? null,
+          holderUserId: before?.handoffUserId ?? null,
+        },
+        afterJson: {
+          holder: plan.finalHolder,
+          holderUserId: plan.finalUserId,
+        },
+        metadata: {
+          auto: "agent-pipeline",
+          outcome,
+          passes: plan.rows.length,
+          agentDecisionId: pendingDecisionId,
+        },
+      });
     }
 
     // Replace conversation if present.
