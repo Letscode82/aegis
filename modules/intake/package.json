@@ -30,7 +30,8 @@
     "./sanctions-bootstrap": "./src/sanctions/bootstrap.ts",
     "./sanctions-ofac": "./src/sanctions/ofac-feed.ts",
     "./agent-metrics": "./src/agent-metrics/server.ts",
-    "./pool-ops": "./src/pool-ops/server.ts"
+    "./pool-ops": "./src/pool-ops/server.ts",
+    "./teams-channel": "./src/teams-channel/server.ts"
   },
   "files": ["src"],
   "scripts": {
