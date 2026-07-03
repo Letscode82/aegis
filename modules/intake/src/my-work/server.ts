@@ -265,9 +265,9 @@ export async function getMyRequests(
   const latest = ids.length
     ? await prisma.auditLog.findMany({
         where: { organizationId, resourceType: "IntakeTicket", resourceId: { in: ids } },
-        orderBy: [{ resourceId: "asc" }, { createdAt: "desc" }],
+        orderBy: [{ resourceId: "asc" }, { timestamp: "desc" }],
         distinct: ["resourceId"],
-        select: { resourceId: true, action: true, createdAt: true },
+        select: { resourceId: true, action: true, timestamp: true },
       })
     : [];
   const lastByTicket = new Map(latest.map((a) => [a.resourceId, a]));
@@ -285,7 +285,7 @@ export async function getMyRequests(
       slaStatus: t.slaStatus,
       submittedAt: t.submittedAt.toISOString(),
       descSnippet: (t.description || "").slice(0, 120),
-      lastActivity: last ? { action: last.action, at: last.createdAt.toISOString() } : null,
+      lastActivity: last ? { action: last.action, at: last.timestamp.toISOString() } : null,
     };
   });
 }
