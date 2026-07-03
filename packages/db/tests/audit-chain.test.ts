@@ -36,12 +36,16 @@ async function cleanupOrg(orgId: string): Promise<void> {
   // which IS what we want to forbid in normal operation. For test
   // teardown we use session_replication_role=replica to disable
   // triggers for the cleanup, then re-enable.
-  await prisma.$executeRawUnsafe(`SET session_replication_role = replica`);
-  try {
-    await prisma.organization.delete({ where: { id: orgId } });
-  } finally {
-    await prisma.$executeRawUnsafe(`SET session_replication_role = origin`);
-  }
+  //
+  // The SET is session-scoped, so all three statements MUST run on the
+  // same pooled connection — an interactive transaction pins one.
+  // (Running them as separate prisma.$executeRawUnsafe calls let the
+  // pool hand the DELETE to a different connection, which then hit the
+  // trigger — an intermittent CI failure, seen 2026-07-03.)
+  await prisma.$transaction(async (tx) => {
+    await tx.$executeRawUnsafe(`SET LOCAL session_replication_role = replica`);
+    await tx.organization.delete({ where: { id: orgId } });
+  });
 }
 
 beforeAll(async () => {

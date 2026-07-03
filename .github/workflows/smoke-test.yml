@@ -1,9 +1,16 @@
 name: Production smoke test
 
-# Sends a trivial POST to /api/claude on the deployed production URL and
-# asserts a 200. Catches env-var regressions (ANTHROPIC_API_KEY missing
-# from Vercel production) and proxy breakage before users notice via a
-# broken Copilot.
+# Two assertions against the deployed production URL:
+#   1. GET /api/health returns 200 — the deployment is alive (public
+#      path, exempt from the Auth0 middleware).
+#   2. An anonymous POST to /api/claude does NOT return 200 — the auth
+#      wall is up. Since Auth0 went live in production, anonymous
+#      requests 307-redirect to /api/auth/login; if this probe ever
+#      gets a 200 the proxy is publicly exposed (API-key burner) and
+#      the run fails loudly.
+# The pre-Auth0 version of this workflow asserted a 200 from
+# /api/claude to catch ANTHROPIC_API_KEY regressions; that check needs
+# a session now and moved out of scope for an unauthenticated probe.
 #
 # Configuration (one-time, per repo):
 #   Repo → Settings → Secrets and variables → Actions → Variables tab
@@ -69,22 +76,15 @@ jobs:
         if: github.event_name == 'push'
         run: sleep 90
 
-      - name: Poll /api/claude until 200 (max ~5 min)
+      - name: Poll /api/health until 200 (max ~5 min)
         env:
           URL: ${{ steps.url.outputs.url }}
         run: |
-          echo "Target: $URL/api/claude"
-
-          # Minimal valid Anthropic Messages payload — max_tokens:5 keeps
-          # this test cheap. If the proxy + key work, Anthropic returns
-          # 200 with a content array.
-          PAYLOAD='{"model":"claude-sonnet-4-6","max_tokens":5,"messages":[{"role":"user","content":"ping"}]}'
+          echo "Target: $URL/api/health"
 
           for attempt in $(seq 1 20); do
-            status=$(curl -sS -o /tmp/body.json -w "%{http_code}" \
-              -X POST "$URL/api/claude" \
-              -H "content-type: application/json" \
-              -d "$PAYLOAD" 2>/tmp/curl.err)
+            status=$(curl -sS -o /tmp/health.json -w "%{http_code}" \
+              "$URL/api/health" 2>/tmp/curl.err)
             rc=$?
 
             if [ "$rc" != "0" ]; then
@@ -95,22 +95,44 @@ jobs:
             fi
 
             if [ "$status" = "200" ]; then
-              echo "::notice::Smoke test passed — /api/claude returned 200"
-              head -c 300 /tmp/body.json
+              echo "::notice::Deployment is alive — /api/health returned 200"
+              head -c 300 /tmp/health.json
               echo
               exit 0
-            fi
-
-            if [ "$status" = "500" ] && grep -q "not configured" /tmp/body.json 2>/dev/null; then
-              echo "::error::Proxy reports ANTHROPIC_API_KEY not configured in Vercel production env."
-              cat /tmp/body.json
-              exit 1
             fi
 
             sleep 15
           done
 
-          echo "::error::Smoke test failed — /api/claude never returned 200 within the retry window"
+          echo "::error::Smoke test failed — /api/health never returned 200 within the retry window"
           echo "Last response body:"
-          cat /tmp/body.json 2>/dev/null || echo "(no body — curl never completed a request)"
+          cat /tmp/health.json 2>/dev/null || echo "(no body — curl never completed a request)"
           exit 1
+
+      - name: Assert the auth wall is up on /api/claude
+        env:
+          URL: ${{ steps.url.outputs.url }}
+        run: |
+          echo "Target: $URL/api/claude (anonymous — expecting a redirect/deny)"
+
+          PAYLOAD='{"model":"claude-sonnet-5","max_tokens":5,"messages":[{"role":"user","content":"ping"}]}'
+          status=$(curl -sS -o /tmp/claude.json -w "%{http_code}" \
+            -X POST "$URL/api/claude" \
+            -H "content-type: application/json" \
+            -d "$PAYLOAD")
+          echo "Anonymous POST /api/claude: HTTP $status"
+
+          case "$status" in
+            200)
+              echo "::error::SECURITY: anonymous /api/claude returned 200 — the Auth0 wall is down and the Claude proxy is publicly exposed."
+              head -c 300 /tmp/claude.json
+              exit 1
+              ;;
+            307|302|401|403)
+              echo "::notice::Auth wall confirmed — anonymous request was refused (HTTP $status)."
+              ;;
+            *)
+              echo "::warning::Unexpected status $status from anonymous /api/claude (wall still effectively up — not a 200). Body:"
+              head -c 300 /tmp/claude.json || true
+              ;;
+          esac
