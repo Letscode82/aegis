@@ -196,3 +196,92 @@ export async function getMyWork(
     },
   };
 }
+
+// ── W1-2 · My Requests — the requester's status portal (issue #104) ──
+
+const STATUS_LABEL: Record<string, string> = {
+  AWAITING_TRIAGE: "Awaiting triage",
+  IN_REVIEW: "In review",
+  APPROVED: "Approved",
+  REJECTED: "Rejected",
+  ESCALATED: "Escalated",
+  CLOSED: "Closed",
+};
+
+export interface MyRequestDTO {
+  id: string;
+  type: string;
+  priority: string;
+  /** Friendly status label. */
+  status: string;
+  /** True when the request has reached a terminal state. */
+  closed: boolean;
+  stage: string;
+  slaHours: number;
+  slaStatus: string;
+  submittedAt: string;
+  descSnippet: string;
+  /** Most recent chain-sealed audit action on this ticket, if any. */
+  lastActivity: { action: string; at: string } | null;
+}
+
+/**
+ * Everything the caller filed, newest first, each with its latest
+ * audit-ledger activity. Requester resolution mirrors the filing path
+ * (Phase 1a): the session user's Person via `Person.userId`, falling
+ * back to Person.email for seeded/legacy accounts.
+ */
+export async function getMyRequests(
+  organizationId: string,
+  userId: string,
+  email: string,
+): Promise<MyRequestDTO[]> {
+  const rows = await prisma.intakeTicket.findMany({
+    where: {
+      organizationId,
+      requester: { OR: [{ userId }, { email }] },
+    },
+    select: {
+      id: true,
+      type: true,
+      priority: true,
+      status: true,
+      stage: true,
+      slaHours: true,
+      slaStatus: true,
+      submittedAt: true,
+      description: true,
+    },
+    orderBy: { submittedAt: "desc" },
+    take: 100,
+  });
+
+  // Latest ledger row per ticket, batched (distinct-on keeps it one query).
+  const ids = rows.map((r) => r.id);
+  const latest = ids.length
+    ? await prisma.auditLog.findMany({
+        where: { organizationId, resourceType: "IntakeTicket", resourceId: { in: ids } },
+        orderBy: [{ resourceId: "asc" }, { createdAt: "desc" }],
+        distinct: ["resourceId"],
+        select: { resourceId: true, action: true, createdAt: true },
+      })
+    : [];
+  const lastByTicket = new Map(latest.map((a) => [a.resourceId, a]));
+
+  return rows.map((t) => {
+    const last = lastByTicket.get(t.id);
+    return {
+      id: t.id,
+      type: t.type,
+      priority: t.priority,
+      status: STATUS_LABEL[t.status as string] ?? (t.status as string),
+      closed: t.status === IntakeStatus.CLOSED || t.status === IntakeStatus.REJECTED,
+      stage: t.stage,
+      slaHours: t.slaHours,
+      slaStatus: t.slaStatus,
+      submittedAt: t.submittedAt.toISOString(),
+      descSnippet: (t.description || "").slice(0, 120),
+      lastActivity: last ? { action: last.action, at: last.createdAt.toISOString() } : null,
+    };
+  });
+}

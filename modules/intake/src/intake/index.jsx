@@ -22,6 +22,7 @@ import { PartiesPanel } from "./parties-panel";
 import { LitigationSummaryCard } from "./litigation-view";
 import { RequestTypesTab } from "./request-types-admin";
 import { MyWorkTab } from "./my-work";
+import { MyRequestsTab } from "./my-requests";
 
 // Type picker gate — shown at top of New Request tab
 // Splits simple vs complex request types into Form path vs Copilot path.
@@ -313,7 +314,7 @@ function CopilotChat({initialType,onFiled,onSwitchToForm,store,settings}){
 // Note: in the standalone demo file, we ship a compact v7-form-compatible version here so the file
 // runs alone. On splice, this replaces the existing NewRequestTab — the legacy form body moves
 // from v7 (lines 1512–1712) into <LegacyFormInner/> verbatim.
-function NewRequestV8({store,goToInbox,goToCockpit,settings,prefillDesc}){
+function NewRequestV8({store,goToInbox,goToCockpit,goToMyRequests,settings,prefillDesc}){
   // If we arrive with a pre-filled description (from "File a ticket" in
   // Ask Aurora), skip the picker and go straight to the legacy form so
   // the user sees their question already in the description box.
@@ -344,7 +345,7 @@ function NewRequestV8({store,goToInbox,goToCockpit,settings,prefillDesc}){
       <span onClick={()=>setMode("picker")} style={{display:"inline-flex",alignItems:"center",gap:4,cursor:"pointer",fontSize:10.5,color:C.cy,padding:"3px 6px",fontFamily:M,letterSpacing:1,textTransform:"uppercase"}}>← Change path</span>
       <span onClick={()=>setMode("copilot")} style={{marginLeft:14,display:"inline-flex",alignItems:"center",gap:4,cursor:"pointer",fontSize:10.5,color:C.em,padding:"3px 6px",fontFamily:M,letterSpacing:1,textTransform:"uppercase"}}>⇄ Switch to Copilot</span>
     </div>
-    <LegacyFormInner store={store} initialType={initialType} initialDesc={prefillDesc} goToInbox={goToInbox} settings={settings}/>
+    <LegacyFormInner store={store} initialType={initialType} initialDesc={prefillDesc} goToInbox={goToInbox} goToMyRequests={goToMyRequests} settings={settings}/>
   </div>;
 }
 
@@ -366,7 +367,7 @@ function fileToBase64(file){
   });
 }
 
-function LegacyFormInner({store,initialType,initialDesc,goToInbox,settings}){
+function LegacyFormInner({store,initialType,initialDesc,goToInbox,goToMyRequests,settings}){
   // Session-resolved default for the requester `from` field. Same
   // pattern as CopilotChat: pre-fill, leave editable. Phase 1a.
   const{user:sessionUser}=useCurrentUser();
@@ -479,6 +480,7 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,settings}){
     <div style={{display:"flex",gap:8}}>
       <div onClick={()=>window.location.reload()} style={{padding:"9px 16px",border:`1px solid ${C.br}`,color:C.t2,fontSize:10,fontFamily:M,letterSpacing:1.5,cursor:"pointer",textTransform:"uppercase"}}>File Another</div>
       <div onClick={goToInbox} style={{padding:"9px 16px",background:C.cy,color:C.bg,fontSize:10,fontFamily:M,letterSpacing:1.5,cursor:"pointer",textTransform:"uppercase",fontWeight:600}}>→ Inbox</div>
+      {goToMyRequests&&<div onClick={goToMyRequests} style={{padding:"9px 16px",border:`1px solid ${C.gn}`,color:C.gn,fontSize:10,fontFamily:M,letterSpacing:1.5,cursor:"pointer",textTransform:"uppercase",fontWeight:600}}>Track it · My Requests</div>}
     </div>
   </div>;
 
@@ -2283,7 +2285,7 @@ export function IntakeView(){
   useEffect(()=>{
     if(defaultTabApplied.current||!routingSession?.user) return;
     defaultTabApplied.current=true;
-    if(routingSession.has?.("intake:read_all_tickets")) setTab(t=>t==="cockpit"?"mywork":t);
+    setTab(t=>t==="cockpit"?(routingSession.has?.("intake:read_all_tickets")?"mywork":"myrequests"):t);
   },[routingSession]);
 
   // Deep link from My Work rows into the ticket (Inbox drill-in).
@@ -2319,6 +2321,8 @@ export function IntakeView(){
     {id:"mywork",label:"My Work",icon:"☰"},
     {id:"inbox",label:"Inbox",icon:"◉"},
     {id:"new",label:"New Request",icon:"＋",v8:true},
+    // W1-2 — requester status portal.
+    {id:"myrequests",label:"My Requests",icon:"◍"},
     {id:"cockpit",label:"Triage Cockpit",icon:"⌘",v8:true},
     {id:"kanban",label:"Kanban",icon:"◱"},
     {id:"sla",label:"SLA Dashboard",icon:"◔"},
@@ -2369,8 +2373,9 @@ export function IntakeView(){
 
     {/* v8 tabs */}
     {tab==="mywork"&&<MyWorkTab onOpenTicket={openTicketById} userName={routingSession?.user?.name}/>}
+    {tab==="myrequests"&&<MyRequestsTab onFileNew={()=>setTab("new")}/>}
     {tab==="cockpit"&&<CockpitTab store={store} cockpit={cockpit}/>}
-    {tab==="new"&&<NewRequestV8 store={store} goToInbox={()=>setTab("inbox")} goToCockpit={()=>setTab("cockpit")} settings={agentSettingsHook.settings} prefillDesc={prefillDesc}/>}
+    {tab==="new"&&<NewRequestV8 store={store} goToInbox={()=>setTab("inbox")} goToCockpit={()=>setTab("cockpit")} goToMyRequests={()=>setTab("myrequests")} settings={agentSettingsHook.settings} prefillDesc={prefillDesc}/>}
 
     {/* v7.2 preserved tabs */}
     {tab==="inbox"&&<InboxTab store={store} sel={sel} setSel={setSel}/>}
