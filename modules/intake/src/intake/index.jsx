@@ -1420,8 +1420,12 @@ function LogRow({e}){
 // v7.2 Preserved Sub-tabs: Inbox + Detail
 // (Operate on v8 store — agent fields render gracefully when present)
 // ══════════════════════════════════════════════════
+const INBOX_PAGE_SIZE=60;
 function InboxTab({store,sel,setSel}){
   const[flt,setFlt]=useState("all");
+  // W4-2 — windowed list render: rows mount in pages of 60 so a
+  // many-hundreds inbox stays instant. Filters reset the window.
+  const[visibleCount,setVisibleCount]=useState(INBOX_PAGE_SIZE);
   // "My Queue" (P1b) — tickets whose typed assignee FK is the
   // session user. The FK is set by the Cockpit's reassign picker and
   // the seed; free-text `assigned` doesn't count (it's display-only
@@ -1450,6 +1454,7 @@ function InboxTab({store,sel,setSel}){
     {id:"new",l:"New (You)",n:tickets.filter(FILTER_PREDICATES.new).length,c:C.pp},
   ];
   const filtered=tickets.filter(FILTER_PREDICATES[flt]||FILTER_PREDICATES.all);
+  const visible=filtered.slice(0,visibleCount);
 
   if(req) return <IntakeDetail req={req} store={store} onBack={()=>setSel(null)}/>;
 
@@ -1470,7 +1475,7 @@ function InboxTab({store,sel,setSel}){
     <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>
       {filters.map(f=>{
         const active=flt===f.id;
-        return <div key={f.id} onClick={()=>setFlt(f.id)} style={{padding:"5px 11px",border:`1px solid ${active?f.c:C.br}`,background:active?f.c+"18":"transparent",cursor:"pointer",transition:"all .15s",fontFamily:M,fontSize:10,letterSpacing:1,textTransform:"uppercase",color:active?f.c:C.t2}}>{f.l} <span style={{color:C.t3,marginLeft:4}}>{f.n}</span></div>;
+        return <div key={f.id} onClick={()=>{setFlt(f.id);setVisibleCount(INBOX_PAGE_SIZE);}} style={{padding:"5px 11px",border:`1px solid ${active?f.c:C.br}`,background:active?f.c+"18":"transparent",cursor:"pointer",transition:"all .15s",fontFamily:M,fontSize:10,letterSpacing:1,textTransform:"uppercase",color:active?f.c:C.t2}}>{f.l} <span style={{color:C.t3,marginLeft:4}}>{f.n}</span></div>;
       })}
     </div>
 
@@ -1478,7 +1483,7 @@ function InboxTab({store,sel,setSel}){
       <div style={{display:"grid",gridTemplateColumns:"75px 115px 95px 1fr 70px 130px 85px 95px",padding:"8px 10px",fontSize:9,fontWeight:600,color:C.t3,letterSpacing:1.2,textTransform:"uppercase",fontFamily:M,borderBottom:`1px solid ${C.br}`}}>
         <span>ID</span><span>Requester</span><span>Type</span><span>Description</span><span>Priority</span><span>SLA</span><span>Status</span><span>Assignee</span>
       </div>
-      {filtered.length===0?<div style={{padding:"40px 10px",textAlign:"center",color:C.t4,fontSize:11,fontFamily:M}}>No tickets match this filter.</div>:filtered.map((r,i)=><div key={r.id} onClick={()=>setSel(r.id)} style={{display:"grid",gridTemplateColumns:"75px 115px 95px 1fr 70px 130px 85px 95px",padding:"10px 10px",borderBottom:`1px solid ${C.br}22`,cursor:"pointer",animation:`fu .25s ease ${i*25}ms both`,fontSize:11,alignItems:"center",background:r.slaStatus==="Overdue"?C.rdG:r.slaStatus==="At Risk"?C.amG:"transparent",transition:"background .12s"}} onMouseEnter={e=>e.currentTarget.style.background=C.cdH} onMouseLeave={e=>e.currentTarget.style.background=r.slaStatus==="Overdue"?C.rdG:r.slaStatus==="At Risk"?C.amG:"transparent"}>
+      {filtered.length===0?<div style={{padding:"40px 10px",textAlign:"center",color:C.t4,fontSize:11,fontFamily:M}}>No tickets match this filter.</div>:visible.map((r,i)=><div key={r.id} onClick={()=>setSel(r.id)} style={{display:"grid",gridTemplateColumns:"75px 115px 95px 1fr 70px 130px 85px 95px",padding:"10px 10px",borderBottom:`1px solid ${C.br}22`,cursor:"pointer",animation:`fu .25s ease ${Math.min(i*25,500)}ms both`,fontSize:11,alignItems:"center",background:r.slaStatus==="Overdue"?C.rdG:r.slaStatus==="At Risk"?C.amG:"transparent",transition:"background .12s"}} onMouseEnter={e=>e.currentTarget.style.background=C.cdH} onMouseLeave={e=>e.currentTarget.style.background=r.slaStatus==="Overdue"?C.rdG:r.slaStatus==="At Risk"?C.amG:"transparent"}>
         <span style={{fontFamily:M,color:r.seeded?C.cy:C.pp,fontWeight:600,fontSize:10}}>{r.id}</span>
         <div><div style={{color:C.t1,fontWeight:500,fontSize:11}}>{r.from}</div><div style={{color:C.t4,fontSize:9}}>{r.dept}</div></div>
         <Pill t={r.type} c={C.pp}/>
@@ -1488,6 +1493,7 @@ function InboxTab({store,sel,setSel}){
         <Pill t={r.status} c={r.status==="Auto-Completed"?C.gn:r.status.includes("Escalated")?C.rd:r.status==="Triage"?C.am:C.tl}/>
         <span style={{fontSize:9.5,color:C.t3}}>{r.assigned}</span>
       </div>)}
+      {filtered.length>visibleCount&&<div onClick={()=>setVisibleCount(c=>c+INBOX_PAGE_SIZE)} style={{padding:"12px 10px",textAlign:"center",cursor:"pointer",fontSize:10,fontFamily:M,letterSpacing:1.2,color:C.cy,textTransform:"uppercase",borderTop:`1px solid ${C.br}`}} onMouseEnter={e=>e.currentTarget.style.background=C.cdH} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>▾ Show more · {filtered.length-visibleCount} remaining</div>}
     </Card>
   </div>;
 }

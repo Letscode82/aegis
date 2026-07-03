@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
 import { useCurrentUser } from "@aegis/auth/react";
-import { ensureSeeded, loadTickets, migrateTicketV72, saveTickets } from "../storage/tickets";
+import { ensureSeeded, loadTickets, migrateTicketV72, saveTicketsDelta } from "../storage/tickets";
 import { storeDel } from "../storage/store";
 import { appendAgentLog } from "../storage/agent-log";
 import { K } from "../storage/keys";
@@ -40,18 +40,21 @@ export function useTicketStore(agentSettings){
 
   const addTicket=useCallback(async(ticket)=>{
     const migrated=migrateTicketV72(ticket);
-    const next=[migrated,...tickets];
-    setTickets(next);
-    await saveTickets(next);
+    setTickets(prev=>[migrated,...prev]);
+    // W4-2 — delta save: only the new ticket rides the wire.
+    await saveTicketsDelta([migrated]);
     return migrated;
-  },[tickets]);
+  },[]);
 
   const updateTicket=useCallback(async(id,patch)=>{
-    const next=tickets.map(t=>t.id===id?{...t,...patch}:t);
-    setTickets(next);
-    // P2b — saveTickets may return { spawnedMatters } from the server.
-    // Return it so callers (recordTriageAction) can surface a toast.
-    const result=await saveTickets(next);
+    const target=tickets.find(t=>t.id===id);
+    if(!target) return null;
+    const changed={...target,...patch};
+    setTickets(prev=>prev.map(t=>t.id===id?changed:t));
+    // W4-2 — delta save: one changed ticket, not the whole array.
+    // P2b — the server may return { spawnedMatters }; pass it through
+    // so callers (recordTriageAction) can surface a toast.
+    const result=await saveTicketsDelta([changed]);
     return (result&&typeof result==="object")?result:null;
   },[tickets]);
 
@@ -111,18 +114,19 @@ export function useTicketStore(agentSettings){
     // Persist once with the final state. Same closure-stale workaround
     // as the v8 demo's original path: build the canonical array from
     // (a) the patched created ticket, plus (b) all OTHER tickets.
-    const finalArr=[{...created,...patch},...tickets.filter(t=>t.id!==created.id)];
-    setTickets(finalArr);
-    await saveTickets(finalArr);
+    const finalTicketState={...created,...patch};
+    setTickets(prev=>prev.map(t=>t.id===created.id?finalTicketState:t));
+    // W4-2 — delta save: only the just-processed ticket.
+    await saveTicketsDelta([finalTicketState]);
     // P2a — re-fetch the server-canonical array. Routing rules run
     // inside the save chokepoint and may have changed priority / SLA /
     // assignee and stamped firedRules; without this round-trip the UI
     // keeps showing the pre-routing optimistic values until reload.
     const canonical=await loadTickets();
     if(canonical&&canonical.length>0) setTickets(canonical);
-    const finalTicket=(canonical||finalArr).find(t=>t.id===created.id)||{...created,...patch};
+    const finalTicket=(canonical||[]).find(t=>t.id===created.id)||finalTicketState;
     return {ticket:finalTicket,agent,recommendation};
-  },[tickets,agentSettings,addTicket]);
+  },[agentSettings,addTicket]);
 
   // Attorney triage action — always attorney-initiated. The
   // server-side saveTicketsV8 overwrites `triagedBy` with the
@@ -166,16 +170,20 @@ export function useTicketStore(agentSettings){
   },[tickets,updateTicket,currentUserName]);
 
   const bulkApprove=useCallback(async(ids,attorney)=>{
+    const changed=[];
     const next=tickets.map(t=>{
       if(!ids.includes(t.id)) return t;
-      return {...t,
+      const c={...t,
         triagedBy:attorney,triagedAt:Date.now(),triagedAction:"approved",
         stage:"complete",status:"Completed",
         workflow:t.workflow?t.workflow.map(s=>({...s,done:true,active:false})):[],
       };
+      changed.push(c);
+      return c;
     });
     setTickets(next);
-    await saveTickets(next);
+    // W4-2 — delta save: only the approved subset.
+    await saveTicketsDelta(changed);
     await appendAgentLog({type:"attorney-bulk-approve",ticketIds:ids,attorney,count:ids.length});
   },[tickets]);
 
