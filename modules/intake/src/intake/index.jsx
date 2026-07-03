@@ -1466,6 +1466,8 @@ function IntakeDetail({req,store,onBack}){
             <Pill t={req.priority} c={pc(req.priority)}/>
             <Pill t={req.type} c={C.pp}/>
             <Pill t={req.status} c={req.status==="Auto-Completed"||req.status==="Completed"?C.gn:req.status.includes("Escalated")?C.rd:C.tl}/>
+            {/* W2-2 — who holds the baton right now (auto-populated by the agent pipeline) */}
+            {req.handoffHolder&&<Pill t={req.handoffHolder==="agent"?"🤖 WITH AGENT":req.handoffHolder==="human"?"HELD · HUMAN":"IN QUEUE"} c={req.handoffHolder==="agent"?C.pp:req.handoffHolder==="human"?C.cy:C.t3}/>}
             {!req.seeded&&<Pill t="YOU CREATED" c={C.pp}/>}
           </div>
           <div style={{fontSize:16,fontWeight:400,color:C.t1,fontFamily:SR,lineHeight:1.35,marginBottom:8}}>{req.desc}</div>
