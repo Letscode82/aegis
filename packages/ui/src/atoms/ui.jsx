@@ -23,3 +23,25 @@ export const WorkflowSteps=({steps})=><div style={{display:"flex",gap:2,marginTo
 
 // ── Approval Badge ──
 export const ApprovalBadge=({status})=>{const m={Approved:{c:C.gn,i:"✓"},Pending:{c:C.am,i:"⏳"},Rejected:{c:C.rd,i:"✗"},Escalated:{c:C.or,i:"⚡"}};const s=m[status]||m.Pending;return <Pill t={`${s.i} ${status}`} c={s.c}/>;};
+
+
+// ── pressable (W4-4) — keyboard-operable click handler bundle ────────
+//
+// The Aurora idiom uses styled <div onClick>. Spreading
+// {...pressable(fn, label)} upgrades one to a real control: focusable,
+// Enter/Space activate it, role=button, optional aria-label. Apply to
+// the daily-path controls; visual style is untouched.
+export function pressable(fn, ariaLabel) {
+  return {
+    role: "button",
+    tabIndex: 0,
+    ...(ariaLabel ? { "aria-label": ariaLabel } : {}),
+    onClick: fn,
+    onKeyDown: (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        fn(e);
+      }
+    },
+  };
+}

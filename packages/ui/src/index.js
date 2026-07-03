@@ -22,6 +22,7 @@ export {
   ApprovalBadge,
   rc,
   pc,
+  pressable,
 } from "./atoms/ui.jsx";
 
 // Atoms — forms

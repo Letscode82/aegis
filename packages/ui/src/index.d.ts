@@ -131,3 +131,15 @@ export class PanelBoundary extends React.Component<PanelBoundaryProps> {}
 
 // useIsNarrow (W4-3)
 export function useIsNarrow(maxWidthPx?: number): boolean;
+
+// pressable (W4-4)
+export function pressable(
+  fn: (e?: unknown) => void,
+  ariaLabel?: string,
+): {
+  role: "button";
+  tabIndex: number;
+  onClick: (e?: unknown) => void;
+  onKeyDown: (e: { key: string; preventDefault: () => void }) => void;
+  "aria-label"?: string;
+};

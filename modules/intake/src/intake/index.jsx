@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
-import { C, F, M, SR, Pill, Dot, Bar, Card, SH, WorkflowSteps, pc, inputStyle, FormField, PanelBoundary, useToast, useIsNarrow } from "@aegis/ui";
+import { C, F, M, SR, Pill, Dot, Bar, Card, SH, WorkflowSteps, pc, inputStyle, FormField, PanelBoundary, useToast, useIsNarrow, pressable } from "@aegis/ui";
 import { classifyIntakeRegex } from "@aegis/ai";
 import { useCurrentUser } from "@aegis/auth/react";
 import { Kbd, ConfidenceBadge, AgentBadge, TypingDots, ChatBubble, CapacityMeter, SimilarMatterCard } from "../intake-ui";
@@ -530,7 +530,7 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,goToMyRequests
             return [...builtIn,...configured].map(t=>{
               const active=form.type===t;
               const isConfigured=configured.includes(t);
-              return <div key={t} onClick={()=>setForm({...form,type:t})} title={isConfigured?"Configured workstream (Request Types)":undefined} style={{padding:"7px 8px",border:`1px solid ${active?C.cy:C.br}`,background:active?C.cy+"22":"transparent",cursor:"pointer",fontSize:10,fontFamily:M,letterSpacing:.5,color:active?C.cy:isConfigured?C.tl:C.t2,textAlign:"center",transition:"all .12s"}}>{isConfigured?"▣ ":""}{t}</div>;
+              return <div key={t} {...pressable(()=>setForm({...form,type:t}),`Request type: ${t}`)} aria-pressed={active} title={isConfigured?"Configured workstream (Request Types)":undefined} style={{padding:"7px 8px",border:`1px solid ${active?C.cy:C.br}`,background:active?C.cy+"22":"transparent",cursor:"pointer",fontSize:10,fontFamily:M,letterSpacing:.5,color:active?C.cy:isConfigured?C.tl:C.t2,textAlign:"center",transition:"all .12s"}}>{isConfigured?"▣ ":""}{t}</div>;
             });
           })()}
         </div>
@@ -567,7 +567,7 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,goToMyRequests
       </FormField>
 
       <div style={{display:"flex",gap:10,marginTop:16,flexWrap:"wrap"}}>
-        <div onClick={submit} style={{padding:"11px 22px",background:canSubmit?C.cy:C.br,color:canSubmit?C.bg:C.t4,fontSize:11,fontFamily:M,letterSpacing:1.8,cursor:canSubmit?"pointer":"not-allowed",textTransform:"uppercase",fontWeight:600}}>{busy?"◎ Triaging + Routing to Agent…":"→ Submit · Route to Agent"}</div>
+        <div {...(canSubmit?pressable(submit,"Submit request"):{"aria-disabled":true,role:"button",tabIndex:0})} style={{padding:"11px 22px",background:canSubmit?C.cy:C.br,color:canSubmit?C.bg:C.t4,fontSize:11,fontFamily:M,letterSpacing:1.8,cursor:canSubmit?"pointer":"not-allowed",textTransform:"uppercase",fontWeight:600}}>{busy?"◎ Triaging + Routing to Agent…":"→ Submit · Route to Agent"}</div>
       </div>
       {missingFields.length>0&&<div style={{marginTop:8,fontSize:10,color:C.am,fontFamily:M}}>⚠ Required for {selectedReqType.name}: {missingFields.join(", ")}</div>}
       <div style={{marginTop:14,padding:11,background:C.s1,borderRadius:5,borderLeft:`2px solid ${C.em}`,fontSize:10.5,color:C.t2,fontFamily:M,lineHeight:1.55}}>
@@ -662,8 +662,8 @@ function AgentRecommendationPanel({ticket,rec,agent,editing,draftEdit,onDraftEdi
 
     {/* Action buttons — disabled during edit mode */}
     {!editing&&<div style={{display:"flex",gap:7,marginTop:14,flexWrap:"wrap"}}>
-      {action==="approve-and-send"&&<div onClick={onApprove} style={{padding:"9px 14px",background:C.gn,color:C.bg,fontSize:10,fontFamily:M,letterSpacing:1.5,cursor:"pointer",textTransform:"uppercase",fontWeight:700,display:"flex",alignItems:"center",gap:7}}><Kbd k="a" active/> Approve + Send</div>}
-      {action==="flag-for-review"&&<div onClick={onApprove} style={{padding:"9px 14px",background:C.am,color:C.bg,fontSize:10,fontFamily:M,letterSpacing:1.5,cursor:"pointer",textTransform:"uppercase",fontWeight:700,display:"flex",alignItems:"center",gap:7}}><Kbd k="a" active/> Approve as-is</div>}
+      {action==="approve-and-send"&&<div {...pressable(onApprove,"Approve and send")} style={{padding:"9px 14px",background:C.gn,color:C.bg,fontSize:10,fontFamily:M,letterSpacing:1.5,cursor:"pointer",textTransform:"uppercase",fontWeight:700,display:"flex",alignItems:"center",gap:7}}><Kbd k="a" active/> Approve + Send</div>}
+      {action==="flag-for-review"&&<div {...pressable(onApprove,"Approve as-is")} style={{padding:"9px 14px",background:C.am,color:C.bg,fontSize:10,fontFamily:M,letterSpacing:1.5,cursor:"pointer",textTransform:"uppercase",fontWeight:700,display:"flex",alignItems:"center",gap:7}}><Kbd k="a" active/> Approve as-is</div>}
       {action==="escalate"&&<div onClick={onEscalate} style={{padding:"9px 14px",background:C.rd,color:C.bone,fontSize:10,fontFamily:M,letterSpacing:1.5,cursor:"pointer",textTransform:"uppercase",fontWeight:700,display:"flex",alignItems:"center",gap:7}}><Kbd k="a" active/> Escalate</div>}
       {rec.draftedResponse&&<div onClick={onEdit} style={{padding:"9px 14px",border:`1px solid ${C.cy}`,color:C.cy,fontSize:10,fontFamily:M,letterSpacing:1.5,cursor:"pointer",textTransform:"uppercase",fontWeight:600,display:"flex",alignItems:"center",gap:7}}><Kbd k="e"/> Edit Draft</div>}
       <div onClick={onReject} style={{padding:"9px 14px",border:`1px solid ${C.rd}`,color:C.rd,fontSize:10,fontFamily:M,letterSpacing:1.5,cursor:"pointer",textTransform:"uppercase",fontWeight:600,display:"flex",alignItems:"center",gap:7}}><Kbd k="x"/> Reject</div>
@@ -1479,7 +1479,7 @@ function InboxTab({store,sel,setSel}){
     <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>
       {filters.map(f=>{
         const active=flt===f.id;
-        return <div key={f.id} onClick={()=>{setFlt(f.id);setVisibleCount(INBOX_PAGE_SIZE);}} style={{padding:"5px 11px",border:`1px solid ${active?f.c:C.br}`,background:active?f.c+"18":"transparent",cursor:"pointer",transition:"all .15s",fontFamily:M,fontSize:10,letterSpacing:1,textTransform:"uppercase",color:active?f.c:C.t2}}>{f.l} <span style={{color:C.t3,marginLeft:4}}>{f.n}</span></div>;
+        return <div key={f.id} {...pressable(()=>{setFlt(f.id);setVisibleCount(INBOX_PAGE_SIZE);},`Filter: ${f.l}`)} aria-pressed={active} style={{padding:"5px 11px",border:`1px solid ${active?f.c:C.br}`,background:active?f.c+"18":"transparent",cursor:"pointer",transition:"all .15s",fontFamily:M,fontSize:10,letterSpacing:1,textTransform:"uppercase",color:active?f.c:C.t2}}>{f.l} <span style={{color:C.t3,marginLeft:4}}>{f.n}</span></div>;
       })}
     </div>
 
@@ -1490,7 +1490,7 @@ function InboxTab({store,sel,setSel}){
       <div style={{display:"grid",gridTemplateColumns:"75px 115px 95px 1fr 70px 130px 85px 95px",padding:"8px 10px",fontSize:9,fontWeight:600,color:C.t3,letterSpacing:1.2,textTransform:"uppercase",fontFamily:M,borderBottom:`1px solid ${C.br}`}}>
         <span>ID</span><span>Requester</span><span>Type</span><span>Description</span><span>Priority</span><span>SLA</span><span>Status</span><span>Assignee</span>
       </div>
-      {filtered.length===0?<div style={{padding:"40px 10px",textAlign:"center",color:C.t4,fontSize:11,fontFamily:M}}>No tickets match this filter.</div>:visible.map((r,i)=><div key={r.id} onClick={()=>setSel(r.id)} style={{display:"grid",gridTemplateColumns:"75px 115px 95px 1fr 70px 130px 85px 95px",padding:"10px 10px",borderBottom:`1px solid ${C.br}22`,cursor:"pointer",animation:`fu .25s ease ${Math.min(i*25,500)}ms both`,fontSize:11,alignItems:"center",background:r.slaStatus==="Overdue"?C.rdG:r.slaStatus==="At Risk"?C.amG:"transparent",transition:"background .12s"}} onMouseEnter={e=>e.currentTarget.style.background=C.cdH} onMouseLeave={e=>e.currentTarget.style.background=r.slaStatus==="Overdue"?C.rdG:r.slaStatus==="At Risk"?C.amG:"transparent"}>
+      {filtered.length===0?<div style={{padding:"40px 10px",textAlign:"center",color:C.t4,fontSize:11,fontFamily:M}}>No tickets match this filter.</div>:visible.map((r,i)=><div key={r.id} {...pressable(()=>setSel(r.id),`Open ticket ${r.id}: ${r.type}, ${r.priority} priority, ${r.slaStatus}`)} style={{display:"grid",gridTemplateColumns:"75px 115px 95px 1fr 70px 130px 85px 95px",padding:"10px 10px",borderBottom:`1px solid ${C.br}22`,cursor:"pointer",animation:`fu .25s ease ${Math.min(i*25,500)}ms both`,fontSize:11,alignItems:"center",background:r.slaStatus==="Overdue"?C.rdG:r.slaStatus==="At Risk"?C.amG:"transparent",transition:"background .12s"}} onMouseEnter={e=>e.currentTarget.style.background=C.cdH} onMouseLeave={e=>e.currentTarget.style.background=r.slaStatus==="Overdue"?C.rdG:r.slaStatus==="At Risk"?C.amG:"transparent"}>
         <span style={{fontFamily:M,color:r.seeded?C.cy:C.pp,fontWeight:600,fontSize:10}}>{r.id}</span>
         <div><div style={{color:C.t1,fontWeight:500,fontSize:11}}>{r.from}</div><div style={{color:C.t4,fontSize:9}}>{r.dept}</div></div>
         <Pill t={r.type} c={C.pp}/>
@@ -1500,7 +1500,7 @@ function InboxTab({store,sel,setSel}){
         <Pill t={r.status} c={r.status==="Auto-Completed"?C.gn:r.status.includes("Escalated")?C.rd:r.status==="Triage"?C.am:C.tl}/>
         <span style={{fontSize:9.5,color:C.t3}}>{r.assigned}</span>
       </div>)}
-      {filtered.length>visibleCount&&<div onClick={()=>setVisibleCount(c=>c+INBOX_PAGE_SIZE)} style={{padding:"12px 10px",textAlign:"center",cursor:"pointer",fontSize:10,fontFamily:M,letterSpacing:1.2,color:C.cy,textTransform:"uppercase",borderTop:`1px solid ${C.br}`}} onMouseEnter={e=>e.currentTarget.style.background=C.cdH} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>▾ Show more · {filtered.length-visibleCount} remaining</div>}
+      {filtered.length>visibleCount&&<div {...pressable(()=>setVisibleCount(c=>c+INBOX_PAGE_SIZE),"Show more tickets")} style={{padding:"12px 10px",textAlign:"center",cursor:"pointer",fontSize:10,fontFamily:M,letterSpacing:1.2,color:C.cy,textTransform:"uppercase",borderTop:`1px solid ${C.br}`}} onMouseEnter={e=>e.currentTarget.style.background=C.cdH} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>▾ Show more · {filtered.length-visibleCount} remaining</div>}
       </div></div>
     </Card>
   </div>;
@@ -1532,7 +1532,7 @@ function IntakeDetail({req,store,onBack}){
   };
 
   return <div>
-    <div onClick={onBack} style={{display:"inline-flex",alignItems:"center",gap:4,cursor:"pointer",fontSize:11,color:C.cy,marginBottom:12,padding:"3px 6px",fontFamily:M,letterSpacing:1}} onMouseEnter={e=>e.currentTarget.style.background=C.cy+"18"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>← Back to Inbox</div>
+    <div {...pressable(onBack,"Back to inbox")} style={{display:"inline-flex",alignItems:"center",gap:4,cursor:"pointer",fontSize:11,color:C.cy,marginBottom:12,padding:"3px 6px",fontFamily:M,letterSpacing:1}} onMouseEnter={e=>e.currentTarget.style.background=C.cy+"18"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>← Back to Inbox</div>
 
     <div style={{background:C.cd,border:`1px solid ${C.br}`,borderLeft:`3px solid ${pc(req.priority)}`,padding:18,marginBottom:14}}>
       <div style={{display:"flex",justifyContent:"space-between",gap:20}}>
@@ -1600,7 +1600,7 @@ function IntakeDetail({req,store,onBack}){
           {l:req.stage==="complete"?"✓ Completed":"Advance Stage",c:C.bl,i:"→",fn:advance,disabled:req.stage==="complete"},
           {l:"Escalate to GC",c:C.rd,i:"⚡",fn:escalate,disabled:req.status==="Escalated to GC"},
           {l:"Mark Complete",c:C.gn,i:"✓",fn:complete,disabled:req.stage==="complete"},
-        ].map((a,i)=><div key={i} onClick={a.disabled?null:a.fn} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 11px",background:C.s1,borderRadius:4,cursor:a.disabled?"not-allowed":"pointer",marginBottom:6,border:`1px solid ${C.br}`,transition:"all .15s",opacity:a.disabled?.4:1}} onMouseEnter={e=>{if(a.disabled)return;e.currentTarget.style.borderColor=a.c;e.currentTarget.style.background=a.c+"18"}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.br;e.currentTarget.style.background=C.s1}}>
+        ].map((a,i)=><div key={i} {...(a.disabled?{"aria-disabled":true}:pressable(a.fn,a.l))} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 11px",background:C.s1,borderRadius:4,cursor:a.disabled?"not-allowed":"pointer",marginBottom:6,border:`1px solid ${C.br}`,transition:"all .15s",opacity:a.disabled?.4:1}} onMouseEnter={e=>{if(a.disabled)return;e.currentTarget.style.borderColor=a.c;e.currentTarget.style.background=a.c+"18"}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.br;e.currentTarget.style.background=C.s1}}>
           <span style={{fontSize:13,color:a.c,width:18,textAlign:"center"}}>{a.i}</span>
           <span style={{fontSize:11,color:C.t1,flex:1}}>{a.l}</span>
         </div>)}
@@ -2491,19 +2491,20 @@ export function IntakeView(){
       </div>
     </div>
 
-    {/* Tab bar */}
-    <div style={{display:"flex",gap:2,marginBottom:14,borderBottom:`1px solid ${C.br}`,overflowX:"auto",flexWrap:"wrap"}}>
+    {/* Tab bar — W4-4: a nav landmark; every tab is focusable and
+        Enter/Space-operable; the active one carries aria-current. */}
+    <nav aria-label="Intake sections" style={{display:"flex",gap:2,marginBottom:14,borderBottom:`1px solid ${C.br}`,overflowX:"auto",flexWrap:"wrap"}}>
       {tabs.map((t,ti)=>{
-        if(t.divider) return <div key={`div-${ti}`} style={{width:1,alignSelf:"stretch",background:C.br,margin:"7px 5px"}}/>;
+        if(t.divider) return <div key={`div-${ti}`} aria-hidden="true" style={{width:1,alignSelf:"stretch",background:C.br,margin:"7px 5px"}}/>;
         const active=tab===t.id;
-        return <div key={t.id} onClick={()=>{setTab(t.id);setSel(null)}} style={{padding:"8px 14px",borderBottom:`2px solid ${active?C.cy:"transparent"}`,cursor:"pointer",transition:"all .15s",fontFamily:M,fontSize:10.5,letterSpacing:1.2,textTransform:"uppercase",color:active?C.cy:C.t3,fontWeight:active?600:400,display:"flex",alignItems:"center",gap:6,marginBottom:-1,whiteSpace:"nowrap"}} onMouseEnter={e=>{if(!active)e.currentTarget.style.color=C.t1}} onMouseLeave={e=>{if(!active)e.currentTarget.style.color=C.t3}}>
+        return <div key={t.id} {...pressable(()=>{setTab(t.id);setSel(null)},`${t.label} section`)} aria-current={active?"page":undefined} style={{padding:"8px 14px",borderBottom:`2px solid ${active?C.cy:"transparent"}`,cursor:"pointer",transition:"all .15s",fontFamily:M,fontSize:10.5,letterSpacing:1.2,textTransform:"uppercase",color:active?C.cy:C.t3,fontWeight:active?600:400,display:"flex",alignItems:"center",gap:6,marginBottom:-1,whiteSpace:"nowrap"}} onMouseEnter={e=>{if(!active)e.currentTarget.style.color=C.t1}} onMouseLeave={e=>{if(!active)e.currentTarget.style.color=C.t3}}>
           <span style={{fontSize:12}}>{t.icon}</span>{t.label}
           {t.v8&&<Pill t="v8" c={C.em}/>}
           {t.count!==undefined&&<span style={{fontSize:9,padding:"1px 5px",background:active?C.cy+"22":C.br+"44",color:active?C.cy:C.t3,borderRadius:2,fontFamily:M}}>{t.count}</span>}
           {t.id==="cockpit"&&awaiting>0&&<span style={{fontSize:9,color:C.am,fontFamily:M,fontWeight:700}}>·{awaiting}</span>}
         </div>;
       })}
-    </div>
+    </nav>
 
     {/* v8 tabs — one boundary around the whole region (key resets it
         on tab switch) so a crashed tab degrades to a contained fallback
