@@ -23,6 +23,7 @@
     "./parties": "./src/parties/server.ts",
     "./handoff": "./src/handoff/server.ts",
     "./my-work": "./src/my-work/server.ts",
+    "./timeline": "./src/timeline/server.ts",
     "./documents": "./src/documents/server.ts",
     "./sanctions": "./src/sanctions/server.ts",
     "./sanctions-bootstrap": "./src/sanctions/bootstrap.ts",

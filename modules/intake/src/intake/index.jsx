@@ -23,6 +23,7 @@ import { LitigationSummaryCard } from "./litigation-view";
 import { RequestTypesTab } from "./request-types-admin";
 import { MyWorkTab } from "./my-work";
 import { MyRequestsTab } from "./my-requests";
+import { TicketTimelinePanel } from "./timeline-panel";
 
 // Type picker gate — shown at top of New Request tab
 // Splits simple vs complex request types into Form path vs Copilot path.
@@ -1480,6 +1481,9 @@ function IntakeDetail({req,store,onBack}){
     <div style={{fontSize:11,fontWeight:600,color:C.cy,marginBottom:6,letterSpacing:1,textTransform:"uppercase",fontFamily:M}}>Request Workflow</div>
     <WorkflowSteps steps={req.workflow}/>
 
+    {/* W1-3 — the whole story as one verifiable chain (issue #105) */}
+    <TicketTimelinePanel ticketId={req.id}/>
+
     <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:14,marginTop:14}}>
       <Card d={100}>
         <div style={{fontSize:11,fontWeight:600,color:C.tl,marginBottom:10,letterSpacing:1.2,fontFamily:M,textTransform:"uppercase",display:"flex",justifyContent:"space-between"}}>
@@ -2290,10 +2294,9 @@ export function IntakeView(){
 
   // Deep link from My Work rows into the ticket (Inbox drill-in).
   const openTicketById=useCallback((id)=>{
-    const t=store.tickets.find(x=>x.id===id);
-    if(t) setSel(t);
+    setSel(id); // Inbox sel is the ticket ID; IntakeDetail resolves it.
     setTab("inbox");
-  },[store.tickets]);
+  },[]);
   useEffect(()=>{
     let mounted=true;
     fetch("/api/intake/routing-rules")
