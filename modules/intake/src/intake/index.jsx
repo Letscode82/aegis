@@ -21,6 +21,7 @@ import { WorkPanel } from "./work-panel";
 import { PartiesPanel } from "./parties-panel";
 import { LitigationSummaryCard } from "./litigation-view";
 import { RequestTypesTab } from "./request-types-admin";
+import { MyWorkTab } from "./my-work";
 
 // Type picker gate — shown at top of New Request tab
 // Splits simple vs complex request types into Form path vs Copilot path.
@@ -2274,6 +2275,23 @@ export function IntakeView(){
   const[routingAssignees,setRoutingAssignees]=useState([]);
   const routingSession=useCurrentUser();
   const canManageRouting=routingSession?.has?.("admin:manage_users")||false;
+
+  // W1-1 — staff land on My Work by default (one screen per persona).
+  // Applies once, after the session resolves, and only if the user
+  // hasn't already navigated away from the initial default.
+  const defaultTabApplied=useRef(false);
+  useEffect(()=>{
+    if(defaultTabApplied.current||!routingSession?.user) return;
+    defaultTabApplied.current=true;
+    if(routingSession.has?.("intake:read_all_tickets")) setTab(t=>t==="cockpit"?"mywork":t);
+  },[routingSession]);
+
+  // Deep link from My Work rows into the ticket (Inbox drill-in).
+  const openTicketById=useCallback((id)=>{
+    const t=store.tickets.find(x=>x.id===id);
+    if(t) setSel(t);
+    setTab("inbox");
+  },[store.tickets]);
   useEffect(()=>{
     let mounted=true;
     fetch("/api/intake/routing-rules")
@@ -2297,6 +2315,8 @@ export function IntakeView(){
   },[]);
 
   const tabs=[
+    // W1-1 — personal work inbox; default landing for legal staff.
+    {id:"mywork",label:"My Work",icon:"☰"},
     {id:"inbox",label:"Inbox",icon:"◉"},
     {id:"new",label:"New Request",icon:"＋",v8:true},
     {id:"cockpit",label:"Triage Cockpit",icon:"⌘",v8:true},
@@ -2348,6 +2368,7 @@ export function IntakeView(){
     </div>
 
     {/* v8 tabs */}
+    {tab==="mywork"&&<MyWorkTab onOpenTicket={openTicketById} userName={routingSession?.user?.name}/>}
     {tab==="cockpit"&&<CockpitTab store={store} cockpit={cockpit}/>}
     {tab==="new"&&<NewRequestV8 store={store} goToInbox={()=>setTab("inbox")} goToCockpit={()=>setTab("cockpit")} settings={agentSettingsHook.settings} prefillDesc={prefillDesc}/>}
 
