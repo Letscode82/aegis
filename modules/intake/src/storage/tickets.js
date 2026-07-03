@@ -28,6 +28,16 @@ export async function loadTickets(){
 }
 export async function saveTickets(tickets){ return storeSet(K.TICKETS,tickets); }
 
+// W4-2 — delta save: send ONLY the changed tickets. The server
+// chokepoint (saveTicketsV8) upserts what it receives and never
+// deletes absent rows, so a subset payload is the same code path the
+// integration tests exercise — with O(changed) DB work instead of
+// O(all tickets) per mutation. Full-array saves remain for seeding.
+export async function saveTicketsDelta(changed){
+  if(!changed||changed.length===0) return null;
+  return storeSet(K.TICKETS,changed);
+}
+
 export async function ensureSeeded(){
   const existing=await loadTickets();
   if(existing&&existing.length>0) return existing;
