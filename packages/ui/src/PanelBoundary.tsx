@@ -34,13 +34,13 @@ export class PanelBoundary extends React.Component<
   PanelBoundaryProps,
   PanelBoundaryState
 > {
-  state: PanelBoundaryState = { error: null };
+  override state: PanelBoundaryState = { error: null };
 
   static getDerivedStateFromError(error: Error): PanelBoundaryState {
     return { error };
   }
 
-  componentDidCatch(error: Error): void {
+  override componentDidCatch(error: Error): void {
     // Server logs pick this up via the browser console; W4-5 wires
     // structured client reporting.
     console.error(
@@ -51,7 +51,7 @@ export class PanelBoundary extends React.Component<
 
   private reset = () => this.setState({ error: null });
 
-  render(): React.ReactNode {
+  override render(): React.ReactNode {
     const { error } = this.state;
     if (!error) return this.props.children ?? null;
 
