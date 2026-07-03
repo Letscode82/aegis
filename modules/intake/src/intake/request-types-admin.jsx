@@ -50,10 +50,82 @@ function TypeForm({ onCancel, onSaved }) {
   );
 }
 
+// W3-3 — per-type field editor. Fields are replaced wholesale on save
+// (the PUT already supports it), which keeps edits deterministic.
+const FIELD_KINDS = ["text", "textarea", "select", "date", "number", "boolean"];
+
+function keyFromLabel(label) {
+  return String(label || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+function FieldsEditor({ type, onCancel, onSaved }) {
+  const [rows, setRows] = useState(() =>
+    (type.fields || []).map((f) => ({
+      key: f.key, label: f.label, kind: f.kind, required: !!f.required,
+      options: (f.options || []).map((o) => o.label ?? o.value).join(", "),
+    })),
+  );
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const patch = (i, k, v) => setRows((r) => r.map((row, j) => (j === i ? { ...row, [k]: v } : row)));
+  const addRow = () => setRows((r) => [...r, { key: "", label: "", kind: "text", required: false, options: "" }]);
+  const removeRow = (i) => setRows((r) => r.filter((_, j) => j !== i));
+
+  const save = async () => {
+    setBusy(true); setErr(null);
+    try {
+      const fields = rows
+        .filter((r) => r.label.trim())
+        .map((r, i) => ({
+          key: (r.key.trim() || keyFromLabel(r.label)),
+          label: r.label.trim(),
+          kind: r.kind,
+          required: !!r.required,
+          sortOrder: (i + 1) * 10,
+          options: r.kind === "select"
+            ? r.options.split(",").map((o) => o.trim()).filter(Boolean).map((o) => ({ value: o, label: o }))
+            : [],
+        }));
+      const resp = await fetch(`/api/admin/intake/request-types/${type.id}`, { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify({ fields }) });
+      const d = await resp.json().catch(() => ({}));
+      if (!resp.ok || !d.ok) throw new Error(d.error || `Save failed (HTTP ${resp.status})`);
+      onSaved();
+    } catch (e) { setErr(String(e.message || e)); } finally { setBusy(false); }
+  };
+
+  return (
+    <div style={{ marginTop: 10, padding: 10, background: C.s1, border: `1px solid ${C.br}`, borderRadius: 5 }}>
+      <div style={{ fontSize: 9.5, fontFamily: M, color: C.tl, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>Fields shown on New Request</div>
+      {rows.length === 0 && <div style={{ fontSize: 10.5, color: C.t4, fontFamily: M, marginBottom: 8 }}>No fields yet — add the questions this workstream needs answered up front.</div>}
+      {rows.map((r, i) => (
+        <div key={i} style={{ display: "grid", gridTemplateColumns: "2fr 1fr auto auto", gap: 6, alignItems: "center", marginBottom: 5 }}>
+          <input value={r.label} onChange={(e) => patch(i, "label", e.target.value)} placeholder="Label (e.g. Counterparty name)" style={{ ...inputStyle, fontSize: 10.5 }} />
+          <select value={r.kind} onChange={(e) => patch(i, "kind", e.target.value)} style={{ ...inputStyle, fontSize: 10.5 }}>
+            {FIELD_KINDS.map((k) => <option key={k} value={k} style={{ background: C.s1 }}>{k}</option>)}
+          </select>
+          <label style={{ fontSize: 9.5, fontFamily: M, color: C.t3, display: "flex", alignItems: "center", gap: 4, cursor: "pointer" }}>
+            <input type="checkbox" checked={r.required} onChange={(e) => patch(i, "required", e.target.checked)} /> req
+          </label>
+          <span onClick={() => removeRow(i)} style={{ fontSize: 12, color: C.t4, cursor: "pointer", padding: "0 4px" }}>✕</span>
+          {r.kind === "select" && <input value={r.options} onChange={(e) => patch(i, "options", e.target.value)} placeholder="Options, comma-separated" style={{ ...inputStyle, fontSize: 10.5, gridColumn: "1 / span 4" }} />}
+        </div>
+      ))}
+      {err && <div style={{ margin: "8px 0", padding: "6px 10px", background: C.rdG, borderLeft: `3px solid ${C.rd}`, borderRadius: 4, fontSize: 10.5, color: C.t1, fontFamily: M }}>{err}</div>}
+      <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+        <button onClick={addRow} style={{ ...btn(C.s2), color: C.t2 }}>+ Field</button>
+        <button onClick={save} disabled={busy} style={{ ...btn(C.tl), opacity: busy ? .6 : 1 }}>{busy ? "Saving…" : "Save fields"}</button>
+        <button onClick={onCancel} style={{ ...btn(C.s1), color: C.t2 }}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
 export function RequestTypesTab({ canManage }) {
   const [types, setTypes] = useState(null);
   const [error, setError] = useState(null);
   const [creating, setCreating] = useState(false);
+  const [editingFieldsId, setEditingFieldsId] = useState(null);
 
   const reload = useCallback(async () => {
     try {
@@ -120,7 +192,11 @@ export function RequestTypesTab({ canManage }) {
                 {t.stages.map((s, i) => <span key={i} style={{ fontSize: 9, fontFamily: M, color: C.t2, background: C.s2, borderRadius: 3, padding: "2px 6px" }}>{i + 1}. {s}</span>)}
               </div>
             )}
-            {t.fields.length > 0 && <div style={{ fontSize: 9.5, fontFamily: M, color: C.t4, marginTop: 6 }}>{t.fields.length} custom field{t.fields.length === 1 ? "" : "s"}</div>}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 6 }}>
+              {t.fields.length > 0 && <span style={{ fontSize: 9.5, fontFamily: M, color: C.t4 }}>{t.fields.length} custom field{t.fields.length === 1 ? "" : "s"}</span>}
+              {canManage && <span onClick={() => setEditingFieldsId(editingFieldsId === t.id ? null : t.id)} style={{ fontSize: 9.5, fontFamily: M, color: C.tl, cursor: "pointer", letterSpacing: .8 }}>{editingFieldsId === t.id ? "▾ Close fields" : "▸ Edit fields"}</span>}
+            </div>
+            {editingFieldsId === t.id && <FieldsEditor type={t} onCancel={() => setEditingFieldsId(null)} onSaved={() => { setEditingFieldsId(null); reload(); }} />}
           </Card>
         ))}
       </div>

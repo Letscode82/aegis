@@ -24,6 +24,7 @@ import { RequestTypesTab } from "./request-types-admin";
 import { MyWorkTab } from "./my-work";
 import { MyRequestsTab } from "./my-requests";
 import { PoolOpsTab } from "./pool-ops";
+import { DynamicFields, missingRequiredFields, fieldValuesToLines, RequestFieldValues } from "./request-fields";
 import { TicketTimelinePanel } from "./timeline-panel";
 import { SlaLegsPanel } from "./sla-legs-panel";
 
@@ -403,6 +404,11 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,goToMyRequests
     return()=>{on=false;};
   },[]);
   const selectedReqType=reqTypes.find(rt=>rt.name===form.type)||null;
+  // W3-3 — structured answers for the selected type's configured
+  // fields. Reset when the type changes (different fields, clean slate).
+  const[fieldValues,setFieldValues]=useState({});
+  const selectedReqTypeId=selectedReqType?selectedReqType.id:null;
+  useEffect(()=>{ setFieldValues({}); },[selectedReqTypeId]);
 
   const onPickFile=async(e)=>{
     const file=e.target.files&&e.target.files[0];
@@ -435,11 +441,15 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,goToMyRequests
   const removeDoc=(id)=>setDocs(d=>d.filter(x=>x.documentId!==id));
 
   // The text the classifier + agent see: typed description plus the
-  // extracted text of every attached document.
+  // structured field answers (W3-3) plus the extracted text of every
+  // attached document.
+  const fieldLines=selectedReqType?fieldValuesToLines(selectedReqType.fields,fieldValues):[];
+  const descWithFields=fieldLines.length?`${form.desc.trim()}\n\n[Request details]\n${fieldLines.join("\n")}`:form.desc;
   const effectiveDesc=docs.length
-    ? [form.desc.trim(),...docs.map(d=>`--- Attached document: ${d.name} ---\n${d.text}`)].filter(Boolean).join("\n\n")
-    : form.desc;
-  const canSubmit=!!form.from&&(form.desc.length>=10||docs.length>0)&&!busy&&!docBusy;
+    ? [descWithFields.trim(),...docs.map(d=>`--- Attached document: ${d.name} ---\n${d.text}`)].filter(Boolean).join("\n\n")
+    : descWithFields;
+  const missingFields=selectedReqType?missingRequiredFields(selectedReqType.fields,fieldValues):[];
+  const canSubmit=!!form.from&&(form.desc.length>=10||docs.length>0)&&missingFields.length===0&&!busy&&!docBusy;
 
   const regexTriage=useMemo(()=>classifyIntakeRegex(effectiveDesc,form.dept),[effectiveDesc,form.dept]);
 
@@ -457,6 +467,8 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,goToMyRequests
       assigned:"Cockpit Queue",status:"Awaiting Triage",stage:"new",
       seeded:false,attach:docs.length,
       requestTypeId:selectedReqType?selectedReqType.id:null,
+      // W3-3 — structured answers, keyed by IntakeRequestField.key.
+      requestFieldValues:selectedReqType&&Object.keys(fieldValues).length>0?fieldValues:null,
       // A configured type's stage workflow becomes the ticket's visible
       // steps ("Submitted" first, "Close" last stay implicit book-ends).
       workflow:selectedReqType&&selectedReqType.stages.length>0
@@ -524,6 +536,10 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,goToMyRequests
           {selectedReqType.stages.map((s,i)=><span key={i} style={{fontSize:9.5,fontFamily:M,color:C.t2,background:C.s2,borderRadius:3,padding:"2px 7px"}}>{i+1}. {s}</span>)}
         </div>}
       </FormField>
+
+      {/* W3-3 — the selected type's configured fields render here;
+          answers persist structured AND feed the agent as context. */}
+      {selectedReqType&&<DynamicFields typeName={selectedReqType.name} fields={selectedReqType.fields} values={fieldValues} onChange={(k,v)=>setFieldValues(fv=>({...fv,[k]:v}))}/>}
       <FormField label="Describe your request" required sub="Be specific — regex + Claude triage and agent routing use this">
         <textarea value={form.desc} onChange={e=>setForm({...form,desc:e.target.value})} placeholder="E.g. Mutual NDA for discussions with Acme Corp — 2-year term, Delaware law." rows={5} style={{...inputStyle,resize:"vertical",fontFamily:F,minHeight:100}}/>
       </FormField>
@@ -550,6 +566,7 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,goToMyRequests
       <div style={{display:"flex",gap:10,marginTop:16,flexWrap:"wrap"}}>
         <div onClick={submit} style={{padding:"11px 22px",background:canSubmit?C.cy:C.br,color:canSubmit?C.bg:C.t4,fontSize:11,fontFamily:M,letterSpacing:1.8,cursor:canSubmit?"pointer":"not-allowed",textTransform:"uppercase",fontWeight:600}}>{busy?"◎ Triaging + Routing to Agent…":"→ Submit · Route to Agent"}</div>
       </div>
+      {missingFields.length>0&&<div style={{marginTop:8,fontSize:10,color:C.am,fontFamily:M}}>⚠ Required for {selectedReqType.name}: {missingFields.join(", ")}</div>}
       <div style={{marginTop:14,padding:11,background:C.s1,borderRadius:5,borderLeft:`2px solid ${C.em}`,fontSize:10.5,color:C.t2,fontFamily:M,lineHeight:1.55}}>
         <div style={{color:C.em,fontWeight:600,marginBottom:3,letterSpacing:.5}}>v8 FLOW</div>
         On submit: regex triage runs → ticket saved → agent router picks best fit → recommendation generated → ticket lands in Cockpit for attorney review. <span style={{color:C.am}}>Agents never auto-close.</span>
@@ -1516,6 +1533,8 @@ function IntakeDetail({req,store,onBack}){
           </div>
           <div style={{fontSize:16,fontWeight:400,color:C.t1,fontFamily:SR,lineHeight:1.35,marginBottom:8}}>{req.desc}</div>
           <div style={{fontSize:11,color:C.t3,fontFamily:M}}>From <span style={{color:C.t1}}>{req.from}</span> · {req.dept} · Submitted {req.submitted} · Assigned to <span style={{color:C.tl}}>{req.assigned}</span></div>
+          {/* W3-3 — structured answers captured by the type's configured fields */}
+          <RequestFieldValues values={req.requestFieldValues}/>
         </div>
         <div style={{textAlign:"right",minWidth:130}}>
           <div style={{fontSize:9,color:C.t3,textTransform:"uppercase",letterSpacing:1.5,fontFamily:M,marginBottom:4}}>SLA {req.slaStatus}</div>

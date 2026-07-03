@@ -169,6 +169,12 @@ type V8Ticket = {
    */
   approvalGateUserId?: string | null;
   approvalGateUserName?: string | null;
+  /**
+   * W3-3 — structured answers for the type's configured fields, keyed
+   * by IntakeRequestField.key. Undefined preserves the stored value;
+   * null/object writes through.
+   */
+  requestFieldValues?: Record<string, unknown> | null;
 };
 
 // ── Read path: assemble v8 ticket array from DB rows ─────────────────
@@ -238,6 +244,8 @@ async function loadTicketsV8(orgId: string): Promise<V8Ticket[]> {
       handoffUserId: t.handoffUserId ?? null,
       approvalGateUserId: t.approvalGateUserId ?? null,
       approvalGateUserName: t.approvalGateUser?.name ?? null,
+      requestFieldValues:
+        (t.requestFieldValuesJson as Record<string, unknown> | null) ?? null,
     };
   });
 }
@@ -308,6 +316,7 @@ async function saveTicketsV8(
         handoffUserId: true,
         approvalGateUserId: true,
         triagedAt: true,
+        requestFieldValuesJson: true,
       },
     });
 
@@ -385,6 +394,11 @@ async function saveTicketsV8(
         t.requestTypeId !== undefined
           ? t.requestTypeId
           : (before?.requestTypeId ?? null),
+      // W3-3 — structured field answers; same undefined-preserving
+      // semantics as requestTypeId.
+      requestFieldValuesJson: (t.requestFieldValues !== undefined
+        ? t.requestFieldValues
+        : (before?.requestFieldValuesJson ?? null)) as never,
       // Server-owned (W1-5 advance endpoint writes it); preserve.
       stageTimestampsJson: (before?.stageTimestampsJson ?? null) as never,
       // Server-owned (W2-5 requireApprovalFrom rules write it); preserve.
