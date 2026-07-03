@@ -14,6 +14,7 @@
  */
 import { prisma, logAudit, IntakeStatus } from "@aegis/db";
 import { buildSlaLegs } from "./legs";
+import { notifyTicketEvent } from "../notifications/server";
 import type { SlaLegsDTO } from "./legs";
 
 const HOUR_MS = 3600 * 1000;
@@ -91,6 +92,13 @@ export async function evaluateSlaBreaches(
       resourceId: t.id,
       beforeJson: { status: t.status },
       afterJson: { status: IntakeStatus.ESCALATED },
+    });
+    // W3-2 — tell the assignee their ticket breached (best-effort;
+    // notifyTicketEvent never throws).
+    await notifyTicketEvent({
+      organizationId,
+      ticketId: t.id,
+      kind: "breach",
     });
     escalated.push(t.id);
   }

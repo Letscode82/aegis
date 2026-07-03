@@ -1196,6 +1196,21 @@ function CockpitTab({store,cockpit}){
 function AgentSettingsPanel({onClose,settings,toggle,log}){
   const[tab,setTab]=useState("agents"); // "agents" | "log"
 
+  // W3-2 — the session user's outbound email notification toggles.
+  const[notifyPrefs,setNotifyPrefs]=useState(null);
+  useEffect(()=>{
+    let on=true;
+    fetch("/api/intake/notification-prefs").then(r=>r.ok?r.json():null)
+      .then(d=>{ if(on&&d?.prefs) setNotifyPrefs(d.prefs); }).catch(()=>{});
+    return()=>{ on=false; };
+  },[]);
+  const toggleNotify=(k)=>{
+    if(!notifyPrefs) return;
+    const next={...notifyPrefs,[k]:!notifyPrefs[k]};
+    setNotifyPrefs(next); // optimistic — the PUT is fire-and-forget
+    fetch("/api/intake/notification-prefs",{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify({prefs:next})}).catch(()=>{});
+  };
+
   // P2b — per-agent health metrics (produced / accept-rate / avg-conf /
   // degraded-rate, 7-day window) from /api/intake/agent-metrics. Keyed
   // by agentId for the per-card render. Best-effort: a fetch failure
@@ -1314,6 +1329,31 @@ function AgentSettingsPanel({onClose,settings,toggle,log}){
               </div>;
             })}
           </div>
+
+          {/* W3-2 — outbound email notification toggles (per user) */}
+          {notifyPrefs&&<div style={{marginTop:18}}>
+            <div style={{fontSize:9.5,fontFamily:M,color:C.t3,letterSpacing:1.5,textTransform:"uppercase",fontWeight:600,marginBottom:10}}>🔔 Email notifications (yours)</div>
+            {[
+              {k:"enabled",l:"Email notifications",d:"Master switch — off silences everything below."},
+              {k:"assignment",l:"Assigned to me",d:"A ticket lands on your plate (routing or reassignment)."},
+              {k:"stage",l:"My request moved forward",d:"A request you filed advanced a stage."},
+              {k:"breach",l:"SLA breach on my ticket",d:"A ticket assigned to you blew its SLA window."},
+              {k:"closure",l:"My request resolved",d:"A request you filed was closed."},
+            ].map(row=>{
+              const on=!!notifyPrefs[row.k];
+              const dimmed=row.k!=="enabled"&&!notifyPrefs.enabled;
+              return <div key={row.k} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 12px",background:C.s1,border:`1px solid ${C.br}`,borderRadius:4,marginBottom:5,opacity:dimmed?.45:1}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontSize:11.5,color:C.t1,fontWeight:row.k==="enabled"?600:400}}>{row.l}</div>
+                  <div style={{fontSize:9.5,color:C.t3,fontFamily:M,marginTop:1}}>{row.d}</div>
+                </div>
+                <div onClick={()=>dimmed?null:toggleNotify(row.k)} style={{width:36,height:20,background:on&&!dimmed?C.gn:C.br,borderRadius:10,position:"relative",cursor:dimmed?"not-allowed":"pointer",transition:"background .15s",flexShrink:0}}>
+                  <div style={{width:16,height:16,background:on&&!dimmed?C.bg:C.t3,borderRadius:"50%",position:"absolute",top:2,left:on?18:2,transition:"left .15s"}}/>
+                </div>
+              </div>;
+            })}
+            <div style={{fontSize:9.5,color:C.t4,fontFamily:M,lineHeight:1.5}}>Delivery uses the org's intake mailbox (Admin → Mailboxes). Without one configured, notifications are recorded on the audit ledger but not emailed.</div>
+          </div>}
 
           <div style={{marginTop:16,padding:11,background:C.amG,borderLeft:`2px solid ${C.am}`,borderRadius:3,fontSize:10.5,color:C.t2,lineHeight:1.6,fontFamily:M}}>
             <span style={{color:C.am,fontWeight:600,letterSpacing:.5}}>v8 SAFETY RULE:</span> Agents <span style={{color:C.am,fontWeight:600}}>never auto-close tickets</span>. They produce recommendations. Every close is attorney-initiated, logged, and reversible.

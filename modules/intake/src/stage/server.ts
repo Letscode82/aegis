@@ -12,6 +12,7 @@
  * Server-only — imports @aegis/db.
  */
 import { prisma, logAudit, getCurrentUser } from "@aegis/db";
+import { notifyTicketEvent } from "../notifications/server";
 
 export const LEGACY_STAGES = ["new", "triage", "assigned", "review", "complete"] as const;
 
@@ -161,6 +162,10 @@ export async function advanceTicketStage(
     afterJson: { stage: next },
     metadata: { sequence },
   });
+
+  // W3-2 — tell the requester their request moved forward (best-effort;
+  // notifyTicketEvent never throws).
+  await notifyTicketEvent({ organizationId, ticketId, kind: "stage" });
 
   return { stage: next, status: newStatus, workflow, stageTimestamps: stamps };
 }
