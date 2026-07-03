@@ -38,10 +38,21 @@ export interface RoutingRuleLike {
    *  member at fire time via the injected pool resolver. A direct
    *  `setAssigneeUserId` on the same rule wins over the pool pick. */
   setTeamId?: string | null;
+  /** W2-5 — escalate action: assign to this user (unless a direct
+   *  assignee is set on the same rule), raise priority to Critical
+   *  (unless the rule sets one explicitly), flag the ticket ESCALATED. */
+  escalateToUserId?: string | null;
+  /** W2-5 — approval gate: only this user may approve agent
+   *  recommendations on matched tickets. */
+  requireApprovalFromUserId?: string | null;
   /** Resolved User.name for setAssigneeUserId (display mirror). */
   assigneeName?: string | null;
   /** Resolved IntakeTeam.name for setTeamId (display mirror). */
   teamName?: string | null;
+  /** Resolved User.name for escalateToUserId (display mirror). */
+  escalateToName?: string | null;
+  /** Resolved User.name for requireApprovalFromUserId (display mirror). */
+  approverName?: string | null;
 }
 
 /** What the injected resolver returns for a route-to-pool action. */
@@ -70,6 +81,8 @@ export interface RoutableTicket {
   assignedToUserId?: string | null;
   /** W2-1 — derived complexity band ("standard" when no triage ran). */
   complexity?: string | null;
+  /** W2-5 — current approval gate on the ticket, if any. */
+  approvalGateUserId?: string | null;
 }
 
 export interface RoutingPatch {
@@ -82,6 +95,11 @@ export interface RoutingPatch {
    *  overflow). Present only when a pool rule assigned a member. */
   teamId?: string;
   teamName?: string;
+  /** W2-5 — an escalate rule fired: the chokepoint flips the ticket
+   *  to ESCALATED alongside the assignee/priority changes above. */
+  escalated?: boolean;
+  /** W2-5 — approval gate to stamp onto the ticket. */
+  approvalGateUserId?: string;
 }
 
 export interface FiredRuleSummary {
@@ -98,11 +116,15 @@ interface WorkingTicket {
   slaHours: number | null;
   assignedToUserId: string | null;
   complexity: string;
+  approvalGateUserId: string | null;
 }
 
 type Changes = Partial<
-  Pick<WorkingTicket, "priority" | "slaHours" | "assignedToUserId">
->;
+  Pick<
+    WorkingTicket,
+    "priority" | "slaHours" | "assignedToUserId" | "approvalGateUserId"
+  >
+> & { escalated?: boolean };
 
 function describeActions(
   rule: RoutingRuleLike,
@@ -110,9 +132,11 @@ function describeActions(
   poolPick: ResolvedPoolPick | null,
 ): string[] {
   const out: string[] = [];
+  if (changes.escalated)
+    out.push(`escalate → ${rule.escalateToName || rule.escalateToUserId}`);
   if (changes.priority !== undefined) out.push(`priority → ${changes.priority}`);
   if (changes.slaHours !== undefined) out.push(`SLA → ${changes.slaHours}h`);
-  if (changes.assignedToUserId !== undefined) {
+  if (changes.assignedToUserId !== undefined && !changes.escalated) {
     if (poolPick) {
       const via = poolPick.teamName || rule.teamName || rule.setTeamId;
       const who = poolPick.userName || poolPick.userId;
@@ -125,6 +149,10 @@ function describeActions(
       out.push(`assignee → ${rule.assigneeName || rule.setAssigneeUserId}`);
     }
   }
+  if (changes.approvalGateUserId !== undefined)
+    out.push(
+      `approval gate → ${rule.approverName || rule.requireApprovalFromUserId}`,
+    );
   return out;
 }
 
@@ -160,6 +188,7 @@ export function evaluateRoutingRules(
     slaHours: ticket.slaHours ?? null,
     assignedToUserId: ticket.assignedToUserId ?? null,
     complexity: ticket.complexity ?? "standard",
+    approvalGateUserId: ticket.approvalGateUserId ?? null,
   };
   const patch: RoutingPatch = {};
   const fired: FiredRuleSummary[] = [];
@@ -190,6 +219,32 @@ export function evaluateRoutingRules(
         poolPick = pick;
       }
     }
+    // W2-5 — escalate: assign to the target (a direct assignee or pool
+    // pick on the same rule wins the assignment), and raise to Critical
+    // unless the rule sets a priority explicitly. Idempotent: once the
+    // target holds the ticket at the escalated priority, nothing
+    // changes and the rule stops firing.
+    if (rule.escalateToUserId) {
+      if (
+        changes.assignedToUserId === undefined &&
+        !rule.setAssigneeUserId &&
+        rule.escalateToUserId !== working.assignedToUserId
+      )
+        changes.assignedToUserId = rule.escalateToUserId;
+      if (!rule.setPriority && working.priority !== "Critical")
+        changes.priority = "Critical";
+      if (
+        changes.assignedToUserId !== undefined ||
+        changes.priority !== undefined
+      )
+        changes.escalated = true;
+    }
+    // W2-5 — approval gate: stamp the required approver onto the ticket.
+    if (
+      rule.requireApprovalFromUserId &&
+      rule.requireApprovalFromUserId !== working.approvalGateUserId
+    )
+      changes.approvalGateUserId = rule.requireApprovalFromUserId;
     if (Object.keys(changes).length === 0) continue; // no-op match ≠ firing
     Object.assign(working, changes);
     if (changes.priority !== undefined) patch.priority = changes.priority;
@@ -201,10 +256,19 @@ export function evaluateRoutingRules(
         patch.teamId = poolPick.teamId;
         if (poolPick.teamName) patch.teamName = poolPick.teamName;
         if (poolPick.userName) patch.assignedTo = poolPick.userName;
+      } else if (
+        changes.escalated &&
+        changes.assignedToUserId === rule.escalateToUserId &&
+        rule.escalateToName
+      ) {
+        patch.assignedTo = rule.escalateToName;
       } else if (rule.assigneeName) {
         patch.assignedTo = rule.assigneeName;
       }
     }
+    if (changes.escalated) patch.escalated = true;
+    if (changes.approvalGateUserId !== undefined && changes.approvalGateUserId !== null)
+      patch.approvalGateUserId = changes.approvalGateUserId;
     fired.push({
       id: rule.id,
       name: rule.name,

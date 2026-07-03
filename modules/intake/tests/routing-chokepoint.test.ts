@@ -427,3 +427,125 @@ describe("saveTicketsV8 — auto baton-pass (W2-2)", () => {
     expect(handoffAudits()).toHaveLength(0);
   });
 });
+
+describe("saveTicketsV8 — escalation + approval gate (W2-5)", () => {
+  const ESCALATE_RULE_ROW = {
+    ...NDA_RULE_ROW,
+    id: "rule-escalate",
+    name: "Litigation → GC",
+    matchType: "Litigation Notice",
+    setSlaHours: null,
+    escalateToUserId: "u-gc",
+    escalateTo: { name: "Mark Williams" },
+  };
+
+  it("escalate rule assigns + raises + flips status to ESCALATED with audit", async () => {
+    intakeTicketFindUniqueMock.mockResolvedValue(null); // create path
+    routingRuleFindManyMock.mockResolvedValue([ESCALATE_RULE_ROW]);
+    await intakeStorageSet(
+      "aegis:tickets:v1",
+      ticketsPayload({ type: "Litigation Notice", desc: "We have been served" }),
+    );
+    const upsert = intakeTicketUpsertMock.mock.calls[0][0];
+    expect(upsert.create.status).toBe("ESCALATED");
+    expect(upsert.create.priority).toBe("Critical");
+    expect(upsert.create.assignedToUserId).toBe("u-gc");
+    // Fired-rule audit carries the escalate action description.
+    const fired = logAuditMock.mock.calls.filter(
+      (c) => c[0]?.action === "intake.routing_rule.fired",
+    );
+    expect(fired).toHaveLength(1);
+    expect(fired[0][0].afterJson.actions).toContain("escalate → Mark Williams");
+  });
+
+  it("requireApprovalFrom rule stamps the gate onto the ticket", async () => {
+    intakeTicketFindUniqueMock.mockResolvedValue(null);
+    routingRuleFindManyMock.mockResolvedValue([
+      {
+        ...NDA_RULE_ROW,
+        id: "rule-gate",
+        name: "NDA drafts need GC sign-off",
+        setSlaHours: null,
+        requireApprovalFromUserId: "u-gc",
+        approver: { name: "Mark Williams" },
+      },
+    ]);
+    await intakeStorageSet("aegis:tickets:v1", ticketsPayload());
+    const upsert = intakeTicketUpsertMock.mock.calls[0][0];
+    expect(upsert.create.approvalGateUserId).toBe("u-gc");
+  });
+
+  it("blocks an approve attempt by anyone but the gate user and audits it", async () => {
+    // Gate says u-gc; the session actor is u-alex.
+    intakeTicketFindUniqueMock.mockResolvedValue({
+      status: "AWAITING_TRIAGE",
+      stage: "assigned",
+      triagedAction: null,
+      triagedBy: null,
+      triagedAt: null,
+      assignedToUserId: null,
+      firedRulesJson: null,
+      approvalGateUserId: "u-gc",
+    });
+    routingRuleFindManyMock.mockResolvedValue([]);
+    await intakeStorageSet(
+      "aegis:tickets:v1",
+      ticketsPayload({
+        status: "Approved",
+        triagedAction: "approved",
+        triagedBy: "You (Alex Nguyen)",
+        triagedAt: Date.now(),
+      }),
+    );
+    const upsert = intakeTicketUpsertMock.mock.calls[0][0];
+    // Triage fields reverted to pre-mutation state.
+    expect(upsert.update.triagedAction).toBeNull();
+    expect(upsert.update.status).toBe("AWAITING_TRIAGE");
+    expect(upsert.update.triagedAt).toBeNull();
+    // Gate preserved; approval audit NOT written; blocked audit written.
+    expect(upsert.update.approvalGateUserId).toBe("u-gc");
+    const approved = logAuditMock.mock.calls.filter(
+      (c) => c[0]?.action === "intake.recommendation.approved",
+    );
+    expect(approved).toHaveLength(0);
+    const blocked = logAuditMock.mock.calls.filter(
+      (c) => c[0]?.action === "intake.recommendation.approval_blocked",
+    );
+    expect(blocked).toHaveLength(1);
+    expect(blocked[0][0]).toMatchObject({
+      actorId: "u-alex",
+      afterJson: { attemptedAction: "approved", requiredApproverId: "u-gc" },
+    });
+  });
+
+  it("lets the gate user approve normally", async () => {
+    // Gate says u-alex — the session actor.
+    intakeTicketFindUniqueMock.mockResolvedValue({
+      status: "AWAITING_TRIAGE",
+      stage: "assigned",
+      triagedAction: null,
+      triagedBy: null,
+      triagedAt: null,
+      assignedToUserId: null,
+      firedRulesJson: null,
+      approvalGateUserId: "u-alex",
+    });
+    routingRuleFindManyMock.mockResolvedValue([]);
+    await intakeStorageSet(
+      "aegis:tickets:v1",
+      ticketsPayload({
+        status: "Approved",
+        triagedAction: "approved",
+        triagedAt: Date.now(),
+      }),
+    );
+    const upsert = intakeTicketUpsertMock.mock.calls[0][0];
+    expect(upsert.update.triagedAction).toBe("approved");
+    expect(upsert.update.status).toBe("APPROVED");
+    expect(
+      logAuditMock.mock.calls.filter(
+        (c) => c[0]?.action === "intake.recommendation.approval_blocked",
+      ),
+    ).toHaveLength(0);
+  });
+});

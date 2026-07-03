@@ -124,7 +124,10 @@ model User {
   preferences  UserPreference[]
 
   intakeTicketsAssigned         IntakeTicket[]        @relation("IntakeTicketAssignee")
+  intakeTicketsApprovalGate     IntakeTicket[]        @relation("IntakeTicketApprovalGate")
   intakeRoutingRulesAssigned    IntakeRoutingRule[]   @relation("IntakeRoutingRuleAssignee")
+  intakeRoutingRulesEscalateTo  IntakeRoutingRule[]   @relation("IntakeRoutingRuleEscalateTo")
+  intakeRoutingRulesApprover    IntakeRoutingRule[]   @relation("IntakeRoutingRuleApprover")
   intakeTeamMemberships         IntakeTeamMember[]    @relation("IntakeTeamMembership")
   legalHoldsCreated             LegalHold[]           @relation("LegalHoldCreatedBy")
   legalHoldsReleased            LegalHold[]           @relation("LegalHoldReleasedBy")
@@ -1320,6 +1323,11 @@ model IntakeTicket {
   handoffUserId    String?
   handoffUpdatedAt DateTime?
 
+  /// W2-5 — approval gate. When set (by a requireApprovalFrom routing
+  /// rule), only this user may approve agent recommendations on the
+  /// ticket; the save chokepoint blocks + audits any other approver.
+  approvalGateUserId String?
+
   submittedAt DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -1328,6 +1336,7 @@ model IntakeTicket {
   requester    Person       @relation("IntakeRequester", fields: [requesterId], references: [id], onDelete: Cascade)
   matter       Matter?      @relation(fields: [matterId], references: [id], onDelete: SetNull)
   assignedToUser User?      @relation("IntakeTicketAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  approvalGateUser User?    @relation("IntakeTicketApprovalGate", fields: [approvalGateUserId], references: [id], onDelete: SetNull)
 
   recommendations AgentRecommendation[]
   conversation    IntakeConversation[]
@@ -1377,6 +1386,14 @@ model IntakeRoutingRule {
   setAssigneeUserId String?
   setPriority       String?
   setSlaHours       Int?
+  /// W2-5 — escalate action: assign to the named user, raise priority
+  /// to Critical (unless the rule sets one explicitly), and flip the
+  /// ticket to ESCALATED. Route + raise in one rule.
+  escalateToUserId String?
+  /// W2-5 — approval gate: stamps IntakeTicket.approvalGateUserId so
+  /// only the named user can approve agent recommendations on matched
+  /// tickets. The save chokepoint enforces + audits the gate.
+  requireApprovalFromUserId String?
   /// Item 5 (tiering) — route to a team/pool. The engine load-balances
   /// within the pool at fire time (least-loaded / round-robin) and
   /// overflows to the pool's `overflowTeam` when every member is at
@@ -1394,6 +1411,8 @@ model IntakeRoutingRule {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   assignee     User?        @relation("IntakeRoutingRuleAssignee", fields: [setAssigneeUserId], references: [id], onDelete: SetNull)
   team         IntakeTeam?  @relation("IntakeRoutingRuleTeam", fields: [setTeamId], references: [id], onDelete: SetNull)
+  escalateTo   User?        @relation("IntakeRoutingRuleEscalateTo", fields: [escalateToUserId], references: [id], onDelete: SetNull)
+  approver     User?        @relation("IntakeRoutingRuleApprover", fields: [requireApprovalFromUserId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, enabled, evalOrder])
 }

@@ -1470,6 +1470,8 @@ function IntakeDetail({req,store,onBack}){
             <Pill t={req.status} c={req.status==="Auto-Completed"||req.status==="Completed"?C.gn:req.status.includes("Escalated")?C.rd:C.tl}/>
             {/* W2-2 — who holds the baton right now (auto-populated by the agent pipeline) */}
             {req.handoffHolder&&<Pill t={req.handoffHolder==="agent"?"🤖 WITH AGENT":req.handoffHolder==="human"?"HELD · HUMAN":"IN QUEUE"} c={req.handoffHolder==="agent"?C.pp:req.handoffHolder==="human"?C.cy:C.t3}/>}
+            {/* W2-5 — only the named approver can ship agent output on this ticket */}
+            {req.approvalGateUserId&&<span title={`Only ${req.approvalGateUserName||"the designated approver"} can approve agent recommendations on this ticket (routing-rule approval gate).`}><Pill t={`🔒 APPROVAL: ${(req.approvalGateUserName||"designated approver").toUpperCase()}`} c={C.am}/></span>}
             {!req.seeded&&<Pill t="YOU CREATED" c={C.pp}/>}
           </div>
           <div style={{fontSize:16,fontWeight:400,color:C.t1,fontFamily:SR,lineHeight:1.35,marginBottom:8}}>{req.desc}</div>
@@ -1830,6 +1832,8 @@ function RoutingRuleEditor({initial,assignees,onCancel,onSaved}){
   const[setPriority,setSetPriority]=useState(initial?.setPriority||"");
   const[setSlaHours,setSetSlaHours]=useState(initial?.setSlaHours??"");
   const[setTeamId,setSetTeamId]=useState(initial?.setTeamId||"");
+  const[escalateToUserId,setEscalateToUserId]=useState(initial?.escalateToUserId||"");
+  const[requireApprovalFromUserId,setRequireApprovalFromUserId]=useState(initial?.requireApprovalFromUserId||"");
   const[pools,setPools]=useState([]);
   const[saving,setSaving]=useState(false);
   const[error,setError]=useState(null);
@@ -1842,7 +1846,7 @@ function RoutingRuleEditor({initial,assignees,onCancel,onSaved}){
   },[]);
 
   const hasCondition=matchType||matchPriority||matchDepartment||matchKeyword||matchComplexity;
-  const hasAction=setAssigneeUserId||setPriority||setSlaHours!==""||setTeamId;
+  const hasAction=setAssigneeUserId||setPriority||setSlaHours!==""||setTeamId||escalateToUserId||requireApprovalFromUserId;
   const canSave=name.trim().length>0&&hasCondition&&hasAction&&!saving;
 
   const submit=async()=>{
@@ -1861,6 +1865,8 @@ function RoutingRuleEditor({initial,assignees,onCancel,onSaved}){
       setPriority:setPriority||null,
       setSlaHours:setSlaHours===""?null:Number(setSlaHours),
       setTeamId:setTeamId||null,
+      escalateToUserId:escalateToUserId||null,
+      requireApprovalFromUserId:requireApprovalFromUserId||null,
     };
     try{
       const resp=await fetch(isCreate?"/api/intake/routing-rules":`/api/intake/routing-rules/${initial.id}`,{
@@ -1950,6 +1956,14 @@ function RoutingRuleEditor({initial,assignees,onCancel,onSaved}){
           {fieldLabel("Set SLA (hours)")}
           <input type="number" min="1" value={setSlaHours} onChange={e=>setSetSlaHours(e.target.value)} placeholder="(don't change)" style={{...inputStyle,width:"100%",fontSize:11}}/>
         </div>
+        <div style={{gridColumn:"1 / span 2"}}>
+          {fieldLabel("Escalate to (assign + raise to Critical + mark Escalated)")}
+          {select(escalateToUserId,setEscalateToUserId,(assignees||[]).map(a=>({value:a.id,label:`${a.name} · ${a.roleName||"user"}`})),"(don't escalate)")}
+        </div>
+        <div style={{gridColumn:"1 / span 2"}}>
+          {fieldLabel("Require approval from (only they can approve agent output)")}
+          {select(requireApprovalFromUserId,setRequireApprovalFromUserId,(assignees||[]).map(a=>({value:a.id,label:`${a.name} · ${a.roleName||"user"}`})),"(no approval gate)")}
+        </div>
       </div>
       {!hasAction&&<div style={{fontSize:10,color:C.am,fontFamily:M,marginBottom:8}}>⚠ Set at least one action or the rule will be a no-op.</div>}
 
@@ -2019,8 +2033,10 @@ function ruleActionText(r){
   const acts=[];
   if(r.setPriority) acts.push(`priority → ${r.setPriority}`);
   if(r.setSlaHours!=null) acts.push(`SLA → ${r.setSlaHours}h`);
+  if(r.escalateToUserId) acts.push(`escalate → ${r.escalateToName||"(user)"}`);
   if(r.setAssigneeUserId) acts.push(`assign → ${r.assigneeName||"(user)"}`);
   else if(r.setTeamId) acts.push(`route to pool → ${r.teamName||"(pool)"}`);
+  if(r.requireApprovalFromUserId) acts.push(`approval gate → ${r.approverName||"(user)"}`);
   return acts.join(" · ")||"(no actions)";
 }
 
