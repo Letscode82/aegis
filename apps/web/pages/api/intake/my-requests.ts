@@ -16,6 +16,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   }
   const actor = await requireActor(req, res, Permission.IntakeReadOwnTickets);
   if (!actor) return;
-  const requests = await getMyRequests(actor.organizationId, actor.id, actor.email);
+  const requests = await getMyRequests(actor.organizationId, actor.id, actor.email ?? null);
   return res.status(200).json({ ok: true, requests });
 }

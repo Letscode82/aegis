@@ -234,12 +234,16 @@ export interface MyRequestDTO {
 export async function getMyRequests(
   organizationId: string,
   userId: string,
-  email: string,
+  email?: string | null,
 ): Promise<MyRequestDTO[]> {
+  // userId is the canonical link (Person.userId); email is a fallback
+  // for seeded/legacy accounts and may be absent on the session actor.
+  const requesterOr: Array<{ userId: string } | { email: string }> = [{ userId }];
+  if (email) requesterOr.push({ email });
   const rows = await prisma.intakeTicket.findMany({
     where: {
       organizationId,
-      requester: { OR: [{ userId }, { email }] },
+      requester: { OR: requesterOr },
     },
     select: {
       id: true,
