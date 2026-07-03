@@ -10,11 +10,12 @@
  */
 
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withRequestLog } from "@aegis/observability";
 import { Permission } from "@aegis/auth";
 import { getPoolOpsSummary } from "@aegis/intake/pool-ops";
 import { requireActorAny } from "../../../lib/matter-actor";
 
-export default async function handler(
+async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
@@ -39,3 +40,6 @@ export default async function handler(
     res.status(500).json({ error: "Internal error" });
   }
 }
+
+// W4-5 — structured request log + slow-request flag + last-resort catch.
+export default withRequestLog(handler, "/api/intake/pool-ops");

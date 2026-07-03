@@ -27,6 +27,7 @@
  * audit ledger.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withRequestLog } from "@aegis/observability";
 import {
   ingestInboundEmail,
   EmailIngestValidationError,
@@ -47,7 +48,7 @@ function clientIp(req: NextApiRequest): string {
   return "unknown";
 }
 
-export default async function handler(
+async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
@@ -102,3 +103,6 @@ export default async function handler(
     return res.status(500).json({ ok: false, error: "Internal error" });
   }
 }
+
+// W4-5 — structured request log + slow-request flag + last-resort catch.
+export default withRequestLog(handler, "/api/intake/email-webhook");

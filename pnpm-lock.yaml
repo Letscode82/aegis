@@ -35,6 +35,9 @@ importers:
       '@aegis/matter':
         specifier: workspace:*
         version: link:../../modules/matter
+      '@aegis/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@aegis/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -121,6 +124,9 @@ importers:
       '@aegis/matter':
         specifier: workspace:*
         version: link:../matter
+      '@aegis/observability':
+        specifier: workspace:*
+        version: link:../../packages/observability
       '@aegis/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -303,6 +309,21 @@ importers:
         version: 5.1.0(eslint@8.57.1)
 
   packages/identity-graph: {}
+
+  packages/observability:
+    devDependencies:
+      '@aegis/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@types/node':
+        specifier: ^20.17.9
+        version: 20.19.39
+      eslint:
+        specifier: ^8.57.1
+        version: 8.57.1
+      typescript:
+        specifier: 5.6.3
+        version: 5.6.3
 
   packages/search: {}
 
@@ -1135,6 +1156,7 @@ packages:
 
   '@ungap/structured-clone@1.3.0':
     resolution: {integrity: sha512-WmoN8qaIAo7WTYWbAZuG8PYEhn5fkz7dZrqTBZ7dtt//lL2Gwms1IcnQ5yHqjDfX8Ft5j4YzDM23f87zBfDe9g==}
+    deprecated: Potential CWE-502 - Update to 1.3.1 or higher
 
   '@unrs/resolver-binding-android-arm-eabi@1.11.1':
     resolution: {integrity: sha512-ppLRUgHVaGRWUx0R0Ut06Mjo9gBaBkg3v/8AxusGLhsIotbBLuRk51rAzqLC8gq6NyyAojEXglNjzf6R948DNw==}

@@ -41,12 +41,16 @@ export class PanelBoundary extends React.Component<
   }
 
   override componentDidCatch(error: Error): void {
-    // Server logs pick this up via the browser console; W4-5 wires
-    // structured client reporting.
     console.error(
       `[PanelBoundary${this.props.label ? `:${this.props.label}` : ""}]`,
       error,
     );
+    // W4-5 — forward to the app's client-error reporter when installed
+    // (a window global so @aegis/ui stays dependency-free).
+    const w = globalThis as {
+      __aegisReportError?: (err: unknown, source?: string) => void;
+    };
+    w.__aegisReportError?.(error, `panel:${this.props.label ?? "unlabelled"}`);
   }
 
   private reset = () => this.setState({ error: null });
