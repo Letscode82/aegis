@@ -160,6 +160,13 @@ type V8Ticket = {
    */
   handoffHolder?: string | null;
   handoffUserId?: string | null;
+  /**
+   * W2-5 — approval gate: only this user may approve agent
+   * recommendations on the ticket. Read-only for the client; stamped
+   * by requireApprovalFrom routing rules, enforced server-side.
+   */
+  approvalGateUserId?: string | null;
+  approvalGateUserName?: string | null;
 };
 
 // ── Read path: assemble v8 ticket array from DB rows ─────────────────
@@ -171,6 +178,7 @@ async function loadTicketsV8(orgId: string): Promise<V8Ticket[]> {
       requester: true,
       recommendations: { orderBy: { createdAt: "desc" }, take: 1 },
       conversation: { orderBy: { timestamp: "asc" } },
+      approvalGateUser: { select: { name: true } },
     },
     orderBy: { submittedAt: "desc" },
   });
@@ -226,6 +234,8 @@ async function loadTicketsV8(orgId: string): Promise<V8Ticket[]> {
       requestTypeId: t.requestTypeId ?? null,
       handoffHolder: t.handoffHolder ?? null,
       handoffUserId: t.handoffUserId ?? null,
+      approvalGateUserId: t.approvalGateUserId ?? null,
+      approvalGateUserName: t.approvalGateUser?.name ?? null,
     };
   });
 }
@@ -294,6 +304,8 @@ async function saveTicketsV8(
         stageTimestampsJson: true,
         handoffHolder: true,
         handoffUserId: true,
+        approvalGateUserId: true,
+        triagedAt: true,
       },
     });
 
@@ -308,8 +320,28 @@ async function saveTicketsV8(
     // path. When no transition is happening, the prior value is
     // preserved verbatim.
     const incomingAction = t.triagedAction ?? null;
+
+    // W2-5 — approval gate (requireApprovalFrom rule action). When a
+    // gate user is stamped on the ticket, ONLY that user's session can
+    // land an approve / edited-approve transition. Anyone else's
+    // attempt is refused server-side: the triage fields revert to the
+    // pre-mutation state (the optimistic client resyncs on next load),
+    // the AgentDecision stays PENDING, and a chain-sealed audit row
+    // records who tried. Reject / reassign / snooze are NOT gated —
+    // the gate reserves the power to ship agent output, not to stop
+    // colleagues from flagging problems.
+    const gateUserId = before?.approvalGateUserId ?? null;
+    const attemptedApproval =
+      (incomingAction === "approved" || incomingAction === "edited-approved") &&
+      before?.triagedAction !== incomingAction;
+    const approvalBlocked =
+      !!gateUserId && attemptedApproval && demoUser.id !== gateUserId;
+    const effectiveAction = approvalBlocked
+      ? (before?.triagedAction ?? null)
+      : incomingAction;
+
     const isNewTriageTransition =
-      !!incomingAction && before?.triagedAction !== incomingAction;
+      !!effectiveAction && before?.triagedAction !== effectiveAction;
     const authoritativeTriagedBy = isNewTriageTransition
       ? demoUser.name
       : (before?.triagedBy ?? t.triagedBy ?? null);
@@ -326,7 +358,7 @@ async function saveTicketsV8(
     const common = {
       type: t.type ?? "",
       priority: t.priority ?? "Medium",
-      status: v8StatusToEnum(t.status),
+      status: approvalBlocked ? (before?.status ?? v8StatusToEnum(t.status)) : v8StatusToEnum(t.status),
       stage: t.stage ?? "new",
       description: t.desc ?? "",
       slaHours: t.slaHours ?? 24,
@@ -337,8 +369,12 @@ async function saveTicketsV8(
       aiTriageJson: (t.aiTriage ?? null) as never,
       workflowJson: (t.workflow ?? []) as never,
       triagedBy: authoritativeTriagedBy,
-      triagedAt: t.triagedAt ? new Date(t.triagedAt) : null,
-      triagedAction: incomingAction,
+      triagedAt: approvalBlocked
+        ? (before?.triagedAt ?? null)
+        : t.triagedAt
+          ? new Date(t.triagedAt)
+          : null,
+      triagedAction: effectiveAction,
       agentProcessedAt: t.agentProcessedAt ? new Date(t.agentProcessedAt) : null,
       // Item-1 wiring — configured request type. Undefined preserves the
       // stored value (stale clients that don't send the field can't
@@ -349,6 +385,8 @@ async function saveTicketsV8(
           : (before?.requestTypeId ?? null),
       // Server-owned (W1-5 advance endpoint writes it); preserve.
       stageTimestampsJson: (before?.stageTimestampsJson ?? null) as never,
+      // Server-owned (W2-5 requireApprovalFrom rules write it); preserve.
+      approvalGateUserId: (before?.approvalGateUserId ?? null) as string | null,
       // Server-computed below; the client's copy is never trusted.
       firedRulesJson: (before?.firedRulesJson ?? null) as never,
     };
@@ -372,7 +410,7 @@ async function saveTicketsV8(
     if (triageSignal && triageSignal.complexity !== complexity) {
       common.aiTriageJson = { ...triageSignal, complexity } as never;
     }
-    if (!incomingAction && !authoritativeTriagedBy && routingRules.length > 0) {
+    if (!effectiveAction && !authoritativeTriagedBy && routingRules.length > 0) {
       const { patch, fired } = evaluateRoutingRules(
         routingRules,
         {
@@ -383,6 +421,7 @@ async function saveTicketsV8(
           slaHours: common.slaHours,
           assignedToUserId: common.assignedToUserId,
           complexity,
+          approvalGateUserId: common.approvalGateUserId,
         },
         poolResolver ? { resolvePool: poolResolver.resolve } : {},
       );
@@ -392,6 +431,12 @@ async function saveTicketsV8(
         if (patch.assignedToUserId !== undefined)
           common.assignedToUserId = patch.assignedToUserId;
         if (patch.assignedTo !== undefined) common.assignedTo = patch.assignedTo;
+        // W2-5 — escalate flips the ticket to ESCALATED (the status-
+        // boundary audit below fires on the transition); the approval
+        // gate stamps the required approver onto the ticket.
+        if (patch.escalated) common.status = IntakeStatus.ESCALATED;
+        if (patch.approvalGateUserId !== undefined)
+          common.approvalGateUserId = patch.approvalGateUserId;
         const priorIds = new Set(priorFired?.ruleIds ?? []);
         newlyFired = fired.filter((f) => !priorIds.has(f.id));
         common.firedRulesJson = {
@@ -532,6 +577,24 @@ async function saveTicketsV8(
           resourceId: t.id,
           beforeJson: { stage: before.stage ?? null },
           afterJson: { stage: common.stage ?? null },
+        });
+      }
+      // W2-5 — refused approval attempt (approval gate). The mutation
+      // was already reverted above; this row is the evidence.
+      if (approvalBlocked) {
+        await logAudit({
+          organizationId: orgId,
+          actorId: actor,
+          actorType: "USER",
+          action: "intake.recommendation.approval_blocked",
+          resourceType: "IntakeTicket",
+          resourceId: t.id,
+          beforeJson: { triagedAction: before.triagedAction ?? null },
+          afterJson: {
+            attemptedAction: incomingAction,
+            requiredApproverId: gateUserId,
+          },
+          metadata: { source: "approval-gate" },
         });
       }
       // Status transitions that cross a meaningful boundary.

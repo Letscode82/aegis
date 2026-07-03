@@ -26,6 +26,7 @@ const ACTION_LABEL = {
   "intake.recommendation.reassigned": "Reassigned",
   "intake.recommendation.snoozed": "Snoozed",
   "intake.recommendation.manual_close": "Manually closed",
+  "intake.recommendation.approval_blocked": "Approval blocked (gate)",
   "intake.ticket.escalated": "Escalated",
   "intake.ticket.sla_breached": "SLA breached",
   "intake.ticket.auto_escalated": "Auto-escalated",
