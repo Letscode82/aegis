@@ -41,6 +41,7 @@ import { deriveComplexity } from "../routing/complexity";
 import { maybeSpawnMatterForApprovedTicket } from "../matter-spawn/server";
 import { syncAgentDecisionForTicket } from "../agent-decision/server";
 import { buildAutoBatonRows } from "../handoff/auto";
+import { notifyTicketEvent } from "../notifications/server";
 
 // ── Storage keys (mirror modules/intake/src/storage/keys.js) ─────────
 const K_TICKETS = "aegis:tickets:v1";
@@ -544,6 +545,14 @@ async function saveTicketsV8(
         resourceId: t.id,
         afterJson: { status: newStatus, source: t._source ?? "form" },
       });
+      // W3-2 — routing may have assigned someone at creation; tell them.
+      if (common.assignedToUserId) {
+        await notifyTicketEvent({
+          organizationId: orgId,
+          ticketId: t.id,
+          kind: "assignment",
+        });
+      }
     } else {
       // Phase 1b — assignment transitions (typed FK only; free-text
       // edits don't fire the audit because they aren't a structural
@@ -564,6 +573,14 @@ async function saveTicketsV8(
           beforeJson: { assignedToUserId: before.assignedToUserId ?? null },
           afterJson: { assignedToUserId: common.assignedToUserId ?? null },
         });
+        // W3-2 — tell the new assignee (best-effort; never throws).
+        if (common.assignedToUserId) {
+          await notifyTicketEvent({
+            organizationId: orgId,
+            ticketId: t.id,
+            kind: "assignment",
+          });
+        }
       }
       // Phase 1b — stage transitions. Stage is the Kanban-column
       // dimension; promoting from "new" → "triage" → "assigned" →
@@ -578,6 +595,12 @@ async function saveTicketsV8(
           resourceId: t.id,
           beforeJson: { stage: before.stage ?? null },
           afterJson: { stage: common.stage ?? null },
+        });
+        // W3-2 — tell the requester their request moved forward.
+        await notifyTicketEvent({
+          organizationId: orgId,
+          ticketId: t.id,
+          kind: "stage",
         });
       }
       // W2-5 — refused approval attempt (approval gate). The mutation
@@ -621,6 +644,12 @@ async function saveTicketsV8(
           resourceId: t.id,
           beforeJson: { status: before.status },
           afterJson: { status: newStatus, triagedAction: newAction },
+        });
+        // W3-2 — tell the requester their request is resolved.
+        await notifyTicketEvent({
+          organizationId: orgId,
+          ticketId: t.id,
+          kind: "closure",
         });
       }
       // Recommendation review actions — only fire when triagedAction
