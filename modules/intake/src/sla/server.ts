@@ -13,6 +13,8 @@
  * function when the worker runtime ships.
  */
 import { prisma, logAudit, IntakeStatus } from "@aegis/db";
+import { buildSlaLegs } from "./legs";
+import type { SlaLegsDTO } from "./legs";
 
 const HOUR_MS = 3600 * 1000;
 
@@ -219,4 +221,77 @@ export async function getSlaOperationsSummary(
     })),
     asOf: new Date(now).toISOString(),
   };
+}
+
+// ── W2-4 · Multi-leg SLA — per-leg custody clocks for one ticket ─────
+
+export class SlaTicketNotFoundError extends Error {
+  constructor(id: string) {
+    super(`Intake ticket ${id} not found`);
+    this.name = "SlaTicketNotFoundError";
+  }
+}
+
+/** Statuses whose leg clock has stopped (verdict reached). */
+const LEG_CLOCK_STOPPED: IntakeStatus[] = [
+  IntakeStatus.APPROVED,
+  IntakeStatus.REJECTED,
+  IntakeStatus.CLOSED,
+];
+
+/**
+ * Partition one ticket's SLA window into custody legs from the
+ * hand-off ledger. Read-only; the math lives in ./legs (pure).
+ * Human passes get display names resolved in one batched lookup.
+ */
+export async function getTicketSlaLegs(
+  organizationId: string,
+  ticketId: string,
+): Promise<SlaLegsDTO> {
+  const ticket = await prisma.intakeTicket.findFirst({
+    where: { id: ticketId, organizationId },
+    select: {
+      submittedAt: true,
+      slaHours: true,
+      status: true,
+      triagedAt: true,
+      updatedAt: true,
+    },
+  });
+  if (!ticket) throw new SlaTicketNotFoundError(ticketId);
+
+  const rows = await prisma.intakeTicketHandoff.findMany({
+    where: { ticketId },
+    orderBy: { createdAt: "asc" },
+    select: { toHolder: true, toUserId: true, createdAt: true },
+  });
+
+  const userIds = Array.from(
+    new Set(rows.map((r) => r.toUserId).filter((v): v is string => !!v)),
+  );
+  const users = userIds.length
+    ? await prisma.user.findMany({
+        where: { id: { in: userIds } },
+        select: { id: true, name: true },
+      })
+    : [];
+  const nameById = new Map(users.map((u) => [u.id, u.name]));
+
+  const clockStopped = LEG_CLOCK_STOPPED.includes(ticket.status);
+  return buildSlaLegs({
+    submittedTs: ticket.submittedAt.getTime(),
+    slaHours: ticket.slaHours,
+    handoffs: rows.map((r) => ({
+      toHolder: r.toHolder,
+      toUserId: r.toUserId,
+      toUserName: r.toUserId ? (nameById.get(r.toUserId) ?? null) : null,
+      atTs: r.createdAt.getTime(),
+    })),
+    // Best available verdict instant: the triage action's timestamp,
+    // falling back to the row's last write.
+    closedTs: clockStopped
+      ? (ticket.triagedAt ?? ticket.updatedAt).getTime()
+      : null,
+    now: Date.now(),
+  });
 }

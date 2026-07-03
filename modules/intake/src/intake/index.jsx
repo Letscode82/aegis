@@ -25,6 +25,7 @@ import { MyWorkTab } from "./my-work";
 import { MyRequestsTab } from "./my-requests";
 import { PoolOpsTab } from "./pool-ops";
 import { TicketTimelinePanel } from "./timeline-panel";
+import { SlaLegsPanel } from "./sla-legs-panel";
 
 // Type picker gate — shown at top of New Request tab
 // Splits simple vs complex request types into Form path vs Copilot path.
@@ -1486,6 +1487,9 @@ function IntakeDetail({req,store,onBack}){
 
     <div style={{fontSize:11,fontWeight:600,color:C.cy,marginBottom:6,letterSpacing:1,textTransform:"uppercase",fontFamily:M}}>Request Workflow</div>
     <WorkflowSteps steps={req.workflow}/>
+
+    {/* W2-4 — one SLA window, partitioned by custody (issue #111) */}
+    <SlaLegsPanel ticketId={req.id}/>
 
     {/* W1-3 — the whole story as one verifiable chain (issue #105) */}
     <TicketTimelinePanel ticketId={req.id}/>
