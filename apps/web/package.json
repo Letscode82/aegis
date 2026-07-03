@@ -17,6 +17,7 @@
     "@aegis/db": "workspace:*",
     "@aegis/admin": "workspace:*",
     "@aegis/intake": "workspace:*",
+    "@aegis/observability": "workspace:*",
     "@aegis/matter": "workspace:*",
     "@aegis/ui": "workspace:*",
     "@auth0/nextjs-auth0": "3.5.0",

@@ -12,6 +12,7 @@
  * adds the Auth0 session check via @aegis/auth.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
+import { withRequestLog } from "@aegis/observability";
 import {
   intakeStorageGet,
   intakeStorageSet,
@@ -26,7 +27,7 @@ function getKey(req: NextApiRequest): string | null {
   return k;
 }
 
-export default async function handler(
+async function handler(
   req: NextApiRequest,
   res: NextApiResponse,
 ) {
@@ -87,3 +88,6 @@ export const config = {
     },
   },
 };
+
+// W4-5 — structured request log + slow-request flag + last-resort catch.
+export default withRequestLog(handler, "/api/intake/storage");

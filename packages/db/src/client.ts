@@ -29,3 +29,41 @@ export const prisma: PrismaClient =
 if (process.env.NODE_ENV !== "production") {
   globalThis.__aegis_prisma__ = prisma;
 }
+
+// ── W4-5 — slow-query flagging ───────────────────────────────────────
+// Every Prisma operation is timed; anything past AEGIS_SLOW_QUERY_MS
+// (default 500ms) emits ONE structured JSON warn line so a log drain
+// can alert on "slow-query" events. Installed once per client (the
+// guard survives hot reloads on the globalThis singleton).
+declare global {
+  // eslint-disable-next-line no-var
+  var __aegis_prisma_slowlog__: boolean | undefined;
+}
+
+const SLOW_QUERY_MS = (() => {
+  const raw = Number(process.env.AEGIS_SLOW_QUERY_MS);
+  return Number.isFinite(raw) && raw > 0 ? raw : 500;
+})();
+
+if (!globalThis.__aegis_prisma_slowlog__) {
+  globalThis.__aegis_prisma_slowlog__ = true;
+  prisma.$use(async (params, next) => {
+    const started = Date.now();
+    const result = await next(params);
+    const ms = Date.now() - started;
+    if (ms >= SLOW_QUERY_MS) {
+      console.warn(
+        JSON.stringify({
+          ts: new Date().toISOString(),
+          level: "warn",
+          kind: "slow-query",
+          model: params.model ?? "$raw",
+          action: params.action,
+          ms,
+          thresholdMs: SLOW_QUERY_MS,
+        }),
+      );
+    }
+    return result;
+  });
+}
