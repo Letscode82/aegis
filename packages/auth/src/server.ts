@@ -140,24 +140,116 @@ export async function getResolvedUser(
 
   return resolveByEmail(session.user.email, {
     name: session.user.name as string | undefined,
+    // W4-7 — a verified IdP session may JIT-provision (domain-gated).
+    allowJit: true,
   });
 }
 
-/** Look up (or upsert) a User by email and assemble the AuthUser. */
+// ── W4-7 · SSO just-in-time provisioning ─────────────────────────────
+//
+// When an enterprise IdP (Entra ID via the Auth0 enterprise
+// connection) verifies a user the seed doesn't know, the platform can
+// provision them on first login instead of showing an empty session.
+// This is the sanctioned registration-flow pattern (see CLAUDE.md
+// "Auto-create patterns"): explicit opt-in, domain-allowlisted,
+// default least-privilege role, chain-sealed audit row.
+//
+// Gated by AEGIS_SSO_AUTO_PROVISION_DOMAINS — a comma-separated list
+// of email domains (e.g. "drreddys.com,drl.example"). Unset = strict
+// mode (unknown emails are refused), exactly as before. Only the
+// REAL-session path passes allowJit; the dev fallback never provisions.
+
+/** Pure: is this verified email eligible for JIT provisioning? */
+export function isJitEligible(
+  email: string,
+  domainsCsv: string | undefined | null,
+): boolean {
+  if (!domainsCsv) return false;
+  const domain = email.split("@")[1]?.toLowerCase().trim();
+  if (!domain) return false;
+  return domainsCsv
+    .split(",")
+    .map((d) => d.trim().toLowerCase().replace(/^@/, ""))
+    .filter(Boolean)
+    .includes(domain);
+}
+
+/** Default role for JIT-provisioned users: least privilege. */
+const JIT_DEFAULT_ROLE: RoleName = "requester";
+
+/**
+ * Provision a first-login SSO user: User row with the `requester`
+ * role, a linked Person (so filed tickets attribute correctly), and a
+ * chain-sealed `auth.user.jit_provisioned` audit row. Returns null if
+ * the platform isn't in a provisionable state (no org / no requester
+ * role seeded) — the caller then refuses the session, same as strict
+ * mode.
+ */
+export async function jitProvisionUser(
+  email: string,
+  name?: string,
+): Promise<AuthUser | null> {
+  const org = await prisma.organization.findFirst({ select: { id: true } });
+  if (!org) return null;
+  const role = await prisma.role.findFirst({
+    where: { organizationId: org.id, name: JIT_DEFAULT_ROLE },
+    select: { id: true },
+  });
+  if (!role) return null;
+
+  const displayName = (name ?? "").trim() || (email.split("@")[0] ?? email);
+  const user = await prisma.user.create({
+    data: {
+      organizationId: org.id,
+      email,
+      name: displayName,
+      roleId: role.id,
+    },
+  });
+  await prisma.person.create({
+    data: {
+      organizationId: org.id,
+      type: "EMPLOYEE",
+      externalRef: `employee:sso:${user.id}`,
+      name: displayName,
+      email,
+      userId: user.id,
+      metadata: { provisionedBy: "sso-jit" } as never,
+    },
+  });
+  const { logAudit } = await import("@aegis/db");
+  await logAudit({
+    organizationId: org.id,
+    actorId: user.id,
+    actorType: "USER",
+    action: "auth.user.jit_provisioned",
+    resourceType: "User",
+    resourceId: user.id,
+    afterJson: { email, name: displayName, role: JIT_DEFAULT_ROLE },
+    metadata: { source: "sso-jit" },
+  });
+  return resolveByEmail(email);
+}
+
+/** Look up a User by email and assemble the AuthUser. */
 async function resolveByEmail(
   email: string,
-  hint?: { name?: string },
+  hint?: { name?: string; allowJit?: boolean },
 ): Promise<AuthUser | null> {
   const dbUser = await prisma.user.findFirst({
     where: { email },
     include: { role: true, organization: true },
   });
   if (!dbUser) {
-    // In configured mode, the first login from an unknown email would
-    // upsert a User row here. In Step 3 we keep this strict — the seed
-    // owns the canonical user list — and only return null. Step 4+ may
-    // add an "auto-provision on first login" branch, gated behind a
-    // tenant-level setting.
+    // Strict by default — the seed owns the canonical user list. The
+    // one sanctioned exception: a REAL session (allowJit) whose email
+    // domain is on the SSO auto-provision allowlist (W4-7).
+    if (
+      hint?.allowJit &&
+      isJitEligible(email, process.env.AEGIS_SSO_AUTO_PROVISION_DOMAINS)
+    ) {
+      return jitProvisionUser(email, hint.name);
+    }
     return null;
   }
   // Admin module's soft-suspend: refuse to authenticate suspended users.
