@@ -14,8 +14,9 @@ import { prisma, logAudit, getCurrentUser, IntakeStatus } from "@aegis/db";
 import { POOL_STRATEGIES, selectFromPool } from "./pool";
 import type { PoolLike, PoolPick } from "./pool";
 
-/** Open = counts against a member's capacity. Closed/rejected don't. */
-const OPEN_TICKET_STATUSES: IntakeStatus[] = [
+/** Open = counts against a member's capacity. Closed/rejected don't.
+ *  Exported so the pool-ops dashboard (W2-3) counts load identically. */
+export const OPEN_TICKET_STATUSES: IntakeStatus[] = [
   IntakeStatus.AWAITING_TRIAGE,
   IntakeStatus.IN_REVIEW,
   IntakeStatus.APPROVED,

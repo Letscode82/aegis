@@ -23,6 +23,7 @@ import { LitigationSummaryCard } from "./litigation-view";
 import { RequestTypesTab } from "./request-types-admin";
 import { MyWorkTab } from "./my-work";
 import { MyRequestsTab } from "./my-requests";
+import { PoolOpsTab } from "./pool-ops";
 import { TicketTimelinePanel } from "./timeline-panel";
 
 // Type picker gate — shown at top of New Request tab
@@ -2354,6 +2355,7 @@ export function IntakeView(){
     {id:"selfserve",label:"Self-Service",icon:"◈",count:SELF_SERVE_ARTICLES.length},
     {divider:true},
     {id:"sla",label:"SLA Dashboard",icon:"◔"},
+    {id:"poolops",label:"Pool Ops",icon:"⛁"},
     {id:"routing",label:"Smart Routing",icon:"⚯",count:routingRules?routingRules.length:undefined},
     ...(canManageRouting?[
       {divider:true},
@@ -2414,6 +2416,7 @@ export function IntakeView(){
     {tab==="inbox"&&<InboxTab store={store} sel={sel} setSel={setSel}/>}
     {tab==="kanban"&&<KanbanTab store={store}/>}
     {tab==="sla"&&<SLATab store={store}/>}
+    {tab==="poolops"&&<PoolOpsTab/>}
     {tab==="routing"&&<RoutingTab rules={routingRules} loading={routingRules===null&&!routingError} error={routingError} onRuleUpdated={onRuleUpdated} onRuleCreated={onRuleCreated} onRuleDeleted={onRuleDeleted} assignees={routingAssignees} canManage={canManageRouting}/>}
     {tab==="teams"&&<TeamsTab canManage={canManageRouting}/>}
     {tab==="request-types"&&<RequestTypesTab canManage={canManageRouting}/>}
