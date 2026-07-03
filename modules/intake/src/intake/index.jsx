@@ -2289,7 +2289,13 @@ export function IntakeView(){
   useEffect(()=>{
     if(defaultTabApplied.current||!routingSession?.user) return;
     defaultTabApplied.current=true;
-    setTab(t=>t==="cockpit"?(routingSession.has?.("intake:read_all_tickets")?"mywork":"myrequests"):t);
+    const staff=routingSession.has?.("intake:read_all_tickets");
+    const requesterTabs=["new","myrequests","selfserve"];
+    setTab(t=>{
+      if(t==="cockpit") return staff?"mywork":"myrequests"; // untouched default
+      if(!staff&&!requesterTabs.includes(t)) return "myrequests"; // hidden for this role
+      return t;
+    });
   },[routingSession]);
 
   // Deep link from My Work rows into the ticket (Inbox drill-in).
@@ -2319,21 +2325,32 @@ export function IntakeView(){
     setRoutingRules(prev=>prev?prev.filter(r=>r.id!==id):prev);
   },[]);
 
-  const tabs=[
-    // W1-1 — personal work inbox; default landing for legal staff.
+  // W1-4 — role-shaped navigation (issue #106). Requesters see only
+  // their three surfaces; staff see Work | File | Insights groups
+  // (thin dividers); admin config appends behind its own divider.
+  // While the session resolves we show the staff set (sans admin) so
+  // the majority persona never sees a layout flash.
+  const isStaffNav=routingSession?.user?routingSession.has?.("intake:read_all_tickets"):true;
+  const tabs=isStaffNav?[
     {id:"mywork",label:"My Work",icon:"☰"},
     {id:"inbox",label:"Inbox",icon:"◉"},
-    {id:"new",label:"New Request",icon:"＋",v8:true},
-    // W1-2 — requester status portal.
-    {id:"myrequests",label:"My Requests",icon:"◍"},
     {id:"cockpit",label:"Triage Cockpit",icon:"⌘",v8:true},
     {id:"kanban",label:"Kanban",icon:"◱"},
+    {divider:true},
+    {id:"new",label:"New Request",icon:"＋",v8:true},
+    {id:"myrequests",label:"My Requests",icon:"◍"},
+    {id:"selfserve",label:"Self-Service",icon:"◈",count:SELF_SERVE_ARTICLES.length},
+    {divider:true},
     {id:"sla",label:"SLA Dashboard",icon:"◔"},
     {id:"routing",label:"Smart Routing",icon:"⚯",count:routingRules?routingRules.length:undefined},
-    // Teams/pools admin — routing tiers (item 5). Admin-only surface.
-    ...(canManageRouting?[{id:"teams",label:"Teams",icon:"◪"}]:[]),
-    // Request types admin — configurable workstreams (item 1). Admin-only.
-    ...(canManageRouting?[{id:"request-types",label:"Request Types",icon:"❏"}]:[]),
+    ...(canManageRouting?[
+      {divider:true},
+      {id:"teams",label:"Teams",icon:"◪"},
+      {id:"request-types",label:"Request Types",icon:"❏"},
+    ]:[]),
+  ]:[
+    {id:"new",label:"New Request",icon:"＋",v8:true},
+    {id:"myrequests",label:"My Requests",icon:"◍"},
     {id:"selfserve",label:"Self-Service",icon:"◈",count:SELF_SERVE_ARTICLES.length},
   ];
 
@@ -2363,7 +2380,8 @@ export function IntakeView(){
 
     {/* Tab bar */}
     <div style={{display:"flex",gap:2,marginBottom:14,borderBottom:`1px solid ${C.br}`,overflowX:"auto",flexWrap:"wrap"}}>
-      {tabs.map(t=>{
+      {tabs.map((t,ti)=>{
+        if(t.divider) return <div key={`div-${ti}`} style={{width:1,alignSelf:"stretch",background:C.br,margin:"7px 5px"}}/>;
         const active=tab===t.id;
         return <div key={t.id} onClick={()=>{setTab(t.id);setSel(null)}} style={{padding:"8px 14px",borderBottom:`2px solid ${active?C.cy:"transparent"}`,cursor:"pointer",transition:"all .15s",fontFamily:M,fontSize:10.5,letterSpacing:1.2,textTransform:"uppercase",color:active?C.cy:C.t3,fontWeight:active?600:400,display:"flex",alignItems:"center",gap:6,marginBottom:-1,whiteSpace:"nowrap"}} onMouseEnter={e=>{if(!active)e.currentTarget.style.color=C.t1}} onMouseLeave={e=>{if(!active)e.currentTarget.style.color=C.t3}}>
           <span style={{fontSize:12}}>{t.icon}</span>{t.label}
