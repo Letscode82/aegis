@@ -32,7 +32,8 @@
     "./agent-metrics": "./src/agent-metrics/server.ts",
     "./pool-ops": "./src/pool-ops/server.ts",
     "./teams-channel": "./src/teams-channel/server.ts",
-    "./notifications": "./src/notifications/server.ts"
+    "./notifications": "./src/notifications/server.ts",
+    "./conflict": "./src/conflict/server.ts"
   },
   "files": ["src"],
   "scripts": {

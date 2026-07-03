@@ -28,6 +28,9 @@ export function PartiesPanel({ ticket }) {
   const [entityId, setEntityId] = useState("");
   const [role, setRole] = useState("adverse_party");
   const [note, setNote] = useState("");
+  // W3-4 — conflict check result for one party (keyed by party id).
+  const [conflict, setConflict] = useState(null); // {partyId, busy, result?, error?}
+
 
   const base = `/api/intake/tickets/${encodeURIComponent(ticket.id)}/parties`;
   const load = useCallback(async () => {
@@ -65,6 +68,20 @@ export function PartiesPanel({ ticket }) {
     } catch (e) { alert(String(e.message || e)); }
   };
 
+  // W3-4 — every ticket AND matter involving this entity, one click.
+  // The server records the check on the chain-sealed audit ledger.
+  const checkConflicts = async (p) => {
+    if (conflict?.partyId === p.id && !conflict.busy) { setConflict(null); return; } // toggle off
+    setConflict({ partyId: p.id, busy: true });
+    try {
+      const q = p.kind === "counterparty" ? `counterpartyId=${encodeURIComponent(p.counterpartyId)}` : `personId=${encodeURIComponent(p.personId)}`;
+      const r = await fetch(`/api/intake/conflict-check?${q}`);
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) throw new Error(d.error || `Check failed (HTTP ${r.status})`);
+      setConflict({ partyId: p.id, busy: false, result: d });
+    } catch (e) { setConflict({ partyId: p.id, busy: false, error: String(e.message || e) }); }
+  };
+
   if (err === "forbidden") return null;
   const list = kind === "person" ? candidates.persons : candidates.counterparties;
   return (
@@ -79,11 +96,42 @@ export function PartiesPanel({ ticket }) {
         <>
           {parties && parties.length === 0 && !adding && <div style={{ fontSize: 10.5, color: C.t4, fontFamily: M, padding: "2px 0 6px" }}>No parties recorded. The Litigation agent and manual triage populate these.</div>}
           {parties && parties.map((p) => (
-            <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 7px", background: C.s2, borderRadius: 4, marginBottom: 4 }}>
-              <span style={{ fontSize: 8, fontFamily: M, color: p.kind === "counterparty" ? C.am : C.cy, letterSpacing: .5 }}>{p.kind === "counterparty" ? "◆" : "●"}</span>
-              <span style={{ fontSize: 11, color: C.t1, flex: 1 }}>{p.name || (p.kind === "counterparty" ? p.counterpartyId : p.personId)}</span>
-              <span style={{ fontSize: 8.5, fontFamily: M, color: C.t3, letterSpacing: .5, textTransform: "uppercase" }}>{roleLabel(p.role)}</span>
-              <span onClick={() => remove(p.id)} title="Remove" style={{ fontSize: 12, color: C.t3, cursor: "pointer" }}>✕</span>
+            <div key={p.id} style={{ marginBottom: 4 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "5px 7px", background: C.s2, borderRadius: 4 }}>
+                <span style={{ fontSize: 8, fontFamily: M, color: p.kind === "counterparty" ? C.am : C.cy, letterSpacing: .5 }}>{p.kind === "counterparty" ? "◆" : "●"}</span>
+                <span style={{ fontSize: 11, color: C.t1, flex: 1 }}>{p.name || (p.kind === "counterparty" ? p.counterpartyId : p.personId)}</span>
+                <span style={{ fontSize: 8.5, fontFamily: M, color: C.t3, letterSpacing: .5, textTransform: "uppercase" }}>{roleLabel(p.role)}</span>
+                <span onClick={() => checkConflicts(p)} title="Every ticket and matter involving this party (recorded on the audit ledger)" style={{ fontSize: 9, fontFamily: M, color: conflict?.partyId === p.id ? C.cy : C.tl, cursor: "pointer", letterSpacing: .5, whiteSpace: "nowrap" }}>{conflict?.partyId === p.id && conflict.busy ? "◎…" : "⚖ Conflicts"}</span>
+                <span onClick={() => remove(p.id)} title="Remove" style={{ fontSize: 12, color: C.t3, cursor: "pointer" }}>✕</span>
+              </div>
+              {conflict?.partyId === p.id && !conflict.busy && (
+                <div style={{ marginTop: 3, padding: "8px 10px", background: C.s2, border: `1px solid ${C.br}`, borderLeft: `3px solid ${conflict.error ? C.rd : (conflict.result.tickets.length + conflict.result.matters.length > 0 ? C.am : C.gn)}`, borderRadius: 4 }}>
+                  {conflict.error ? (
+                    <div style={{ fontSize: 10.5, color: C.rd, fontFamily: M }}>{conflict.error}</div>
+                  ) : (
+                    <>
+                      <div style={{ fontSize: 9, fontFamily: M, color: C.t3, letterSpacing: 1, textTransform: "uppercase", marginBottom: 5 }}>
+                        Conflict check · {conflict.result.entity.name} · {conflict.result.tickets.length} ticket{conflict.result.tickets.length === 1 ? "" : "s"} · {conflict.result.matters.length} matter{conflict.result.matters.length === 1 ? "" : "s"}
+                      </div>
+                      {conflict.result.tickets.length === 0 && conflict.result.matters.length === 0 && (
+                        <div style={{ fontSize: 10.5, color: C.gn, fontFamily: M }}>✓ No other engagements found across intake and matters.</div>
+                      )}
+                      {conflict.result.tickets.map((t) => (
+                        <div key={t.id} style={{ fontSize: 10.5, color: C.t2, padding: "2px 0", fontFamily: M }}>
+                          <span style={{ color: C.cy }}>{t.id}</span> · {t.type} · {t.status} <span style={{ color: C.t4 }}>· via {t.via.replace(/_/g, " ")}</span>
+                          <div style={{ fontSize: 10, color: C.t4, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{t.descSnippet}</div>
+                        </div>
+                      ))}
+                      {conflict.result.matters.map((m) => (
+                        <div key={m.id} style={{ fontSize: 10.5, color: C.t2, padding: "2px 0", fontFamily: M }}>
+                          <span style={{ color: C.pp }}>{m.matterNumber || "DRAFT"}</span> · {m.title} · {m.status} <span style={{ color: C.t4 }}>· via {m.via.replace(/_/g, " ").toLowerCase()}</span>
+                        </div>
+                      ))}
+                      <div style={{ fontSize: 8.5, color: C.t4, fontFamily: M, marginTop: 5 }}>Check recorded on the audit ledger · {new Date(conflict.result.checkedAt).toLocaleString()}</div>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </>
