@@ -25,6 +25,7 @@ import { MyWorkTab } from "./my-work";
 import { MyRequestsTab } from "./my-requests";
 import { PoolOpsTab } from "./pool-ops";
 import { DynamicFields, missingRequiredFields, fieldValuesToLines, RequestFieldValues } from "./request-fields";
+import { upload as blobUpload } from "@vercel/blob/client";
 import { TicketTimelinePanel } from "./timeline-panel";
 import { SlaLegsPanel } from "./sla-legs-panel";
 
@@ -322,6 +323,15 @@ function CopilotChat({initialType,onFiled,onSwitchToForm,store,settings}){
 // from v7 (lines 1512–1712) into <LegacyFormInner/> verbatim.
 function NewRequestV8({store,goToInbox,goToCockpit,goToMyRequests,settings,prefillDesc}){
   const phone=useIsNarrow(640); // W4-3 — single-column form on phones
+  // W4-6 — upload path capability: "direct" (Vercel Blob connected,
+  // 25 MB, original bytes retained) or "inline" (base64 JSON, 3 MB).
+  const[uploadMode,setUploadMode]=useState({mode:"inline",maxBytes:MAX_UPLOAD_BYTES});
+  useEffect(()=>{
+    let on=true;
+    fetch("/api/intake/documents/upload-mode").then(r=>r.ok?r.json():null)
+      .then(d=>{ if(on&&d?.ok&&d.mode) setUploadMode({mode:d.mode,maxBytes:d.maxBytes}); }).catch(()=>{});
+    return()=>{ on=false; };
+  },[]);
   // If we arrive with a pre-filled description (from "File a ticket" in
   // Ask Aurora), skip the picker and go straight to the legacy form so
   // the user sees their question already in the description box.
@@ -418,25 +428,36 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,goToMyRequests
     e.target.value=""; // allow re-picking the same filename
     if(!file) return;
     setDocErr(null);
-    // Pre-flight size guard. The file rides to the server as base64 in a
-    // JSON body (~33% larger) and serverless platforms cap the request at
-    // 4.5 MB, so ~3 MB decoded is the honest ceiling. Reject before the
-    // network call so the user gets an instant, clear message instead of
-    // an opaque platform 413.
-    if(file.size>MAX_UPLOAD_BYTES){
-      setDocErr(`"${file.name}" is ${(file.size/1024/1024).toFixed(1)} MB — max ${MAX_UPLOAD_BYTES/1024/1024} MB. Upload a smaller file or paste the text into the description.`);
+    // Pre-flight size guard against the active path's honest ceiling:
+    // inline rides base64 through a JSON body (serverless caps the
+    // request at 4.5 MB → ~3 MB decoded); direct streams the original
+    // bytes to blob storage (25 MB). Reject before the network call so
+    // the user gets an instant, clear message, never a platform 413.
+    if(file.size>uploadMode.maxBytes){
+      setDocErr(`"${file.name}" is ${(file.size/1024/1024).toFixed(1)} MB — max ${Math.round(uploadMode.maxBytes/1024/1024)} MB. Upload a smaller file or paste the text into the description.`);
       return;
     }
     setDocBusy(true);
     try{
-      const contentBase64=await fileToBase64(file);
-      const resp=await fetch("/api/intake/documents/upload",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({filename:file.name,mimeType:file.type,contentBase64,ticketId})});
-      // A 413 from the platform/framework may not carry a JSON body.
-      if(resp.status===413){
-        throw new Error(`"${file.name}" is too large to upload. Max ${MAX_UPLOAD_BYTES/1024/1024} MB — upload a smaller file or paste the text.`);
+      let data;
+      if(uploadMode.mode==="direct"){
+        // W4-6 — original bytes go straight to blob storage (the token
+        // broker gates + constrains the upload), then finalize extracts
+        // the text server-side and writes the Document row.
+        const blob=await blobUpload(file.name,file,{access:"public",handleUploadUrl:"/api/intake/documents/blob-upload"});
+        const resp=await fetch("/api/intake/documents/finalize",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({url:blob.url,filename:file.name,mimeType:file.type,ticketId})});
+        data=await resp.json().catch(()=>({}));
+        if(!resp.ok||!data.ok) throw new Error(data.error||`Upload failed (HTTP ${resp.status}).`);
+      }else{
+        const contentBase64=await fileToBase64(file);
+        const resp=await fetch("/api/intake/documents/upload",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({filename:file.name,mimeType:file.type,contentBase64,ticketId})});
+        // A 413 from the platform/framework may not carry a JSON body.
+        if(resp.status===413){
+          throw new Error(`"${file.name}" is too large to upload. Max ${MAX_UPLOAD_BYTES/1024/1024} MB — upload a smaller file or paste the text.`);
+        }
+        data=await resp.json().catch(()=>({}));
+        if(!resp.ok||!data.ok) throw new Error(data.error||`Upload failed (HTTP ${resp.status}).`);
       }
-      const data=await resp.json().catch(()=>({}));
-      if(!resp.ok||!data.ok) throw new Error(data.error||`Upload failed (HTTP ${resp.status}).`);
       setDocs(d=>[...d,{documentId:data.documentId,name:data.name,charCount:data.charCount,text:data.text||"",format:data.format}]);
     }catch(err){ setDocErr(String(err.message||err)); }
     finally{ setDocBusy(false); }
@@ -555,7 +576,7 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,goToMyRequests
             {docBusy?"◎ Extracting…":"📎 Choose file"}
             <input type="file" accept=".docx,.txt,.text,.md,.pdf,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" onChange={onPickFile} disabled={docBusy} style={{display:"none"}}/>
           </label>
-          <span style={{fontSize:10,color:C.t4,fontFamily:M}}>Max 5 MB</span>
+          <span style={{fontSize:10,color:C.t4,fontFamily:M}}>Max {Math.round(uploadMode.maxBytes/1024/1024)} MB{uploadMode.mode==="direct"?" · original file retained":""}</span>
         </div>
         {docErr&&<div style={{marginTop:8,padding:8,background:C.rdG||C.s1,borderLeft:`2px solid ${C.rd}`,borderRadius:3,fontSize:10.5,color:C.rd,fontFamily:M}}>⚠ {docErr}</div>}
         {docs.length>0&&<div style={{display:"flex",flexDirection:"column",gap:5,marginTop:10}}>
