@@ -115,6 +115,10 @@ export interface IngestOptions {
   makeTicketId?: () => string;
   /** Run the agent server-side after the ticket is created. */
   triage?: EmailTriageRunner;
+  /** Channel the message arrived on. Defaults to EMAIL; the Teams
+   *  webhook (W3-1) passes TEAMS — everything else on the pipeline
+   *  (classify → route → persist → audit) is channel-agnostic. */
+  source?: IntakeSource;
 }
 
 function defaultTicketId(now: number): string {
@@ -302,7 +306,7 @@ export async function ingestInboundEmail(
       id: ticketId,
       organizationId: orgId,
       requesterId,
-      source: IntakeSource.EMAIL,
+      source: opts.source ?? IntakeSource.EMAIL,
       type,
       priority,
       status: IntakeStatus.AWAITING_TRIAGE,

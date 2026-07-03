@@ -78,6 +78,7 @@ function v8SourceToEnum(raw: string | undefined): IntakeSource {
   if (raw === "copilot") return IntakeSource.COPILOT;
   if (raw === "email") return IntakeSource.EMAIL;
   if (raw === "slack") return IntakeSource.SLACK;
+  if (raw === "teams") return IntakeSource.TEAMS;
   if (raw === "api") return IntakeSource.API;
   return IntakeSource.FORM;
 }

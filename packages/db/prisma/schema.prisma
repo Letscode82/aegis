@@ -1230,6 +1230,8 @@ enum IntakeSource {
   EMAIL
   SLACK
   API
+  /// W3-1 — filed from a Microsoft Teams channel (outgoing webhook).
+  TEAMS
 }
 
 enum IntakeStatus {
