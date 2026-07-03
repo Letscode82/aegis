@@ -37,6 +37,7 @@ import {
 import { evaluateRoutingRules } from "../routing/rules";
 import { loadEnabledRoutingRules, recordRuleFirings } from "../routing/server";
 import { buildPoolResolver } from "../routing/teams";
+import { deriveComplexity } from "../routing/complexity";
 import { maybeSpawnMatterForApprovedTicket } from "../matter-spawn/server";
 import { syncAgentDecisionForTicket } from "../agent-decision/server";
 
@@ -350,6 +351,15 @@ async function saveTicketsV8(
       summaries?: Array<{ id: string; name: string; actions: string[] }>;
     } | null;
     let newlyFired: Array<{ id: string; name: string; actions: string[] }> = [];
+    // W2-1 — derive the complexity band from the triage signal, stamp
+    // it onto aiTriage for display, and feed it to the rule engine.
+    const triageSignal = (t.aiTriage ?? null) as {
+      riskFlag?: string; confidence?: number; estimatedHours?: number; complexity?: string;
+    } | null;
+    const complexity = deriveComplexity(triageSignal);
+    if (triageSignal && triageSignal.complexity !== complexity) {
+      common.aiTriageJson = { ...triageSignal, complexity } as never;
+    }
     if (!incomingAction && !authoritativeTriagedBy && routingRules.length > 0) {
       const { patch, fired } = evaluateRoutingRules(
         routingRules,
@@ -360,6 +370,7 @@ async function saveTicketsV8(
           description: common.description,
           slaHours: common.slaHours,
           assignedToUserId: common.assignedToUserId,
+          complexity,
         },
         poolResolver ? { resolvePool: poolResolver.resolve } : {},
       );

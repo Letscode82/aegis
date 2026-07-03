@@ -1369,6 +1369,9 @@ model IntakeRoutingRule {
   matchDepartment String?
   /// Case-insensitive substring on the ticket description.
   matchKeyword    String?
+  /// W2-1 — complexity band from the classifier/agent signal:
+  /// "simple" | "standard" | "complex".
+  matchComplexity String?
 
   // ── Actions (null = no-op) ──
   setAssigneeUserId String?

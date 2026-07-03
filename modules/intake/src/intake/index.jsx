@@ -1490,7 +1490,7 @@ function IntakeDetail({req,store,onBack}){
     <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:14,marginTop:14}}>
       <Card d={100}>
         <div style={{fontSize:11,fontWeight:600,color:C.tl,marginBottom:10,letterSpacing:1.2,fontFamily:M,textTransform:"uppercase",display:"flex",justifyContent:"space-between"}}>
-          <span>◎ AI Triage Analysis</span>
+          <span>◎ AI Triage Analysis{req.aiTriage.complexity&&<span style={{marginLeft:8,fontSize:8.5,fontFamily:M,letterSpacing:1,padding:"2px 7px",borderRadius:3,textTransform:"uppercase",color:req.aiTriage.complexity==="complex"?C.rd:req.aiTriage.complexity==="simple"?C.gn:C.am,border:`1px solid ${req.aiTriage.complexity==="complex"?C.rd:req.aiTriage.complexity==="simple"?C.gn:C.am}55`}}>{req.aiTriage.complexity}</span>}</span>
           <span style={{fontSize:9,color:req.aiTriage.source==="claude"?C.em:C.t4,fontFamily:M,letterSpacing:1}}>{req.aiTriage.source==="claude"?"CLAUDE LLM":req.aiTriage.source==="regex"?"REGEX CLASSIFIER":"FALLBACK"}</span>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:10,marginBottom:12}}>
@@ -1818,6 +1818,7 @@ function RoutingRuleEditor({initial,assignees,onCancel,onSaved}){
   const[matchPriority,setMatchPriority]=useState(initial?.matchPriority||"");
   const[matchDepartment,setMatchDepartment]=useState(initial?.matchDepartment||"");
   const[matchKeyword,setMatchKeyword]=useState(initial?.matchKeyword||"");
+  const[matchComplexity,setMatchComplexity]=useState(initial?.matchComplexity||"");
   const[setAssigneeUserId,setSetAssigneeUserId]=useState(initial?.setAssigneeUserId||"");
   const[setPriority,setSetPriority]=useState(initial?.setPriority||"");
   const[setSlaHours,setSetSlaHours]=useState(initial?.setSlaHours??"");
@@ -1833,7 +1834,7 @@ function RoutingRuleEditor({initial,assignees,onCancel,onSaved}){
     return()=>{on=false;};
   },[]);
 
-  const hasCondition=matchType||matchPriority||matchDepartment||matchKeyword;
+  const hasCondition=matchType||matchPriority||matchDepartment||matchKeyword||matchComplexity;
   const hasAction=setAssigneeUserId||setPriority||setSlaHours!==""||setTeamId;
   const canSave=name.trim().length>0&&hasCondition&&hasAction&&!saving;
 
@@ -1848,6 +1849,7 @@ function RoutingRuleEditor({initial,assignees,onCancel,onSaved}){
       matchPriority:matchPriority||null,
       matchDepartment:matchDepartment.trim()||null,
       matchKeyword:matchKeyword.trim()||null,
+      matchComplexity:matchComplexity||null,
       setAssigneeUserId:setAssigneeUserId||null,
       setPriority:setPriority||null,
       setSlaHours:setSlaHours===""?null:Number(setSlaHours),
@@ -1914,6 +1916,10 @@ function RoutingRuleEditor({initial,assignees,onCancel,onSaved}){
         <div>
           {fieldLabel("Keyword in description")}
           <input value={matchKeyword} onChange={e=>setMatchKeyword(e.target.value)} placeholder="(any)" style={{...inputStyle,width:"100%",fontSize:11}}/>
+        </div>
+        <div>
+          {fieldLabel("Complexity (from AI triage)")}
+          {select(matchComplexity,setMatchComplexity,[{value:"simple",label:"Simple — template-fit, low risk"},{value:"standard",label:"Standard"},{value:"complex",label:"Complex — high risk / heavy effort"}])}
         </div>
       </div>
       {!hasCondition&&<div style={{fontSize:10,color:C.am,fontFamily:M,marginBottom:8}}>⚠ Set at least one condition or the rule would match everything.</div>}
@@ -1999,6 +2005,7 @@ function ruleConditionText(r){
   if(r.matchPriority) conds.push(`priority = ${r.matchPriority}`);
   if(r.matchDepartment) conds.push(`department = ${r.matchDepartment}`);
   if(r.matchKeyword) conds.push(`description contains "${r.matchKeyword}"`);
+  if(r.matchComplexity) conds.push(`complexity = ${r.matchComplexity}`);
   return conds.length?conds.join(" AND "):"(matches everything)";
 }
 function ruleActionText(r){

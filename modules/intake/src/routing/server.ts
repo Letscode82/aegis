@@ -20,6 +20,7 @@ export interface RoutingRuleDTO {
   matchPriority: string | null;
   matchDepartment: string | null;
   matchKeyword: string | null;
+  matchComplexity: string | null;
   setAssigneeUserId: string | null;
   /** Resolved User.name for the setAssigneeUserId action. */
   assigneeName: string | null;
@@ -42,6 +43,7 @@ type RuleRow = {
   matchPriority: string | null;
   matchDepartment: string | null;
   matchKeyword: string | null;
+  matchComplexity: string | null;
   setAssigneeUserId: string | null;
   setPriority: string | null;
   setSlaHours: number | null;
@@ -62,6 +64,7 @@ const RULE_SELECT = {
   matchPriority: true,
   matchDepartment: true,
   matchKeyword: true,
+  matchComplexity: true,
   setAssigneeUserId: true,
   setPriority: true,
   setSlaHours: true,
@@ -83,6 +86,7 @@ function toDTO(r: RuleRow): RoutingRuleDTO {
     matchPriority: r.matchPriority,
     matchDepartment: r.matchDepartment,
     matchKeyword: r.matchKeyword,
+    matchComplexity: r.matchComplexity,
     setAssigneeUserId: r.setAssigneeUserId,
     assigneeName: r.assignee?.name ?? null,
     setPriority: r.setPriority,
@@ -187,6 +191,7 @@ export interface RoutingRuleInput {
   matchPriority?: string | null;
   matchDepartment?: string | null;
   matchKeyword?: string | null;
+  matchComplexity?: string | null;
   setAssigneeUserId?: string | null;
   setPriority?: string | null;
   setSlaHours?: number | null;
@@ -219,6 +224,7 @@ function assertRuleSemantics(merged: {
   matchPriority: string | null;
   matchDepartment: string | null;
   matchKeyword: string | null;
+  matchComplexity: string | null;
   setAssigneeUserId: string | null;
   setPriority: string | null;
   setSlaHours: number | null;
@@ -231,7 +237,8 @@ function assertRuleSemantics(merged: {
     !!merged.matchType ||
     !!merged.matchPriority ||
     !!merged.matchDepartment ||
-    !!merged.matchKeyword;
+    !!merged.matchKeyword ||
+    !!merged.matchComplexity;
   if (!hasCondition) {
     throw new RoutingRuleValidationError(
       "A rule needs at least one condition (type / priority / department / keyword).",
@@ -272,6 +279,7 @@ export async function createRoutingRule(
     matchPriority: input.matchPriority ?? null,
     matchDepartment: input.matchDepartment ?? null,
     matchKeyword: input.matchKeyword ?? null,
+    matchComplexity: input.matchComplexity ?? null,
     setAssigneeUserId: input.setAssigneeUserId ?? null,
     setPriority: input.setPriority ?? null,
     setSlaHours: input.setSlaHours ?? null,
@@ -361,6 +369,8 @@ export async function updateRoutingRule(
     patch.matchDepartment = normalizeNullable(input.matchDepartment);
   if (input.matchKeyword !== undefined)
     patch.matchKeyword = normalizeNullable(input.matchKeyword);
+  if (input.matchComplexity !== undefined)
+    patch.matchComplexity = normalizeNullable(input.matchComplexity);
   if (input.setAssigneeUserId !== undefined)
     patch.setAssigneeUserId = normalizeNullable(input.setAssigneeUserId);
   if (input.setPriority !== undefined)
@@ -381,6 +391,7 @@ export async function updateRoutingRule(
     matchPriority: pick("matchPriority") as string | null,
     matchDepartment: pick("matchDepartment") as string | null,
     matchKeyword: pick("matchKeyword") as string | null,
+    matchComplexity: pick("matchComplexity") as string | null,
     setAssigneeUserId: pick("setAssigneeUserId") as string | null,
     setPriority: pick("setPriority") as string | null,
     setSlaHours: pick("setSlaHours") as number | null,
@@ -422,6 +433,7 @@ function toAuditSnapshot(r: RuleRow) {
       matchPriority: r.matchPriority,
       matchDepartment: r.matchDepartment,
       matchKeyword: r.matchKeyword,
+      matchComplexity: r.matchComplexity,
     },
     actions: {
       setAssigneeUserId: r.setAssigneeUserId,

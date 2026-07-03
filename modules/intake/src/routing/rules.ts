@@ -29,6 +29,8 @@ export interface RoutingRuleLike {
   matchPriority: string | null;
   matchDepartment: string | null;
   matchKeyword: string | null;
+  /** W2-1 — complexity band condition: "simple"|"standard"|"complex". */
+  matchComplexity?: string | null;
   setAssigneeUserId: string | null;
   setPriority: string | null;
   setSlaHours: number | null;
@@ -66,6 +68,8 @@ export interface RoutableTicket {
   description?: string | null;
   slaHours?: number | null;
   assignedToUserId?: string | null;
+  /** W2-1 — derived complexity band ("standard" when no triage ran). */
+  complexity?: string | null;
 }
 
 export interface RoutingPatch {
@@ -93,6 +97,7 @@ interface WorkingTicket {
   description: string;
   slaHours: number | null;
   assignedToUserId: string | null;
+  complexity: string;
 }
 
 type Changes = Partial<
@@ -135,6 +140,7 @@ export function ruleMatches(
     if (!ticket.description.toLowerCase().includes(rule.matchKeyword.toLowerCase()))
       return false;
   }
+  if (rule.matchComplexity && rule.matchComplexity !== ticket.complexity) return false;
   return true;
 }
 
@@ -153,6 +159,7 @@ export function evaluateRoutingRules(
     description: ticket.description ?? "",
     slaHours: ticket.slaHours ?? null,
     assignedToUserId: ticket.assignedToUserId ?? null,
+    complexity: ticket.complexity ?? "standard",
   };
   const patch: RoutingPatch = {};
   const fired: FiredRuleSummary[] = [];
