@@ -82,7 +82,19 @@ export function makeAuthHandler(): AuthHandler {
       });
       return;
     }
-    const { handleAuth } = await import("@auth0/nextjs-auth0");
-    return handleAuth()(req, res);
+    const { handleAuth, handleLogin } = await import("@auth0/nextjs-auth0");
+    // W4-7 — enterprise SSO: when AUTH0_ENTERPRISE_CONNECTION names an
+    // Auth0 enterprise connection (e.g. the Entra ID connection for the
+    // client tenant), /api/auth/login sends users straight to that IdP
+    // instead of the Auth0 universal-login picker. Unset = unchanged.
+    const connection = process.env.AUTH0_ENTERPRISE_CONNECTION;
+    const handler = connection
+      ? handleAuth({
+          login: handleLogin({
+            authorizationParams: { connection },
+          }),
+        })
+      : handleAuth();
+    return handler(req, res);
   };
 }
