@@ -1,4 +1,4 @@
-import { C, F, M, inputStyle } from "@aegis/ui";
+import { C, F, M, inputStyle, useIsNarrow } from "@aegis/ui";
 
 // ── W3-3 · Dynamic request-type fields (issue #115) ──────────────────
 //
@@ -84,6 +84,7 @@ function FieldInput({ field, value, onChange }) {
  *  type with fields is selected. Controlled: `values` keyed by
  *  field.key, `onChange(key, value)`. */
 export function DynamicFields({ typeName, fields, values, onChange }) {
+  const phone = useIsNarrow(640); // W4-3 — one column on phones
   if (!fields || fields.length === 0) return null;
   const sorted = [...fields].sort((a, b) => (a.sortOrder ?? 100) - (b.sortOrder ?? 100));
   return (
@@ -91,7 +92,7 @@ export function DynamicFields({ typeName, fields, values, onChange }) {
       <div style={{ fontSize: 9.5, fontFamily: M, color: C.tl, letterSpacing: 1.5, textTransform: "uppercase", fontWeight: 600, marginBottom: 10 }}>
         ▣ {typeName} — details
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+      <div style={{ display: "grid", gridTemplateColumns: phone ? "1fr" : "1fr 1fr", gap: 10 }}>
         {sorted.map((f) => (
           <div key={f.key} style={f.kind === "textarea" ? { gridColumn: "1 / span 2" } : undefined}>
             <div style={fieldLabel}>

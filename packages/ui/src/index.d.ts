@@ -128,3 +128,6 @@ export interface PanelBoundaryProps {
   children?: ReactNode;
 }
 export class PanelBoundary extends React.Component<PanelBoundaryProps> {}
+
+// useIsNarrow (W4-3)
+export function useIsNarrow(maxWidthPx?: number): boolean;
