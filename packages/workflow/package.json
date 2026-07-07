@@ -1,8 +1,8 @@
 {
   "name": "@aegis/workflow",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
-  "description": "Cross-module workflow primitives (stub — see README)",
+  "description": "Cross-module workflow primitives — approval-ladder engine (W-A)",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -11,8 +11,19 @@
   },
   "files": ["src"],
   "scripts": {
-    "lint": "echo 'stub package'",
-    "typecheck": "echo 'stub package'",
-    "test": "echo 'stub package'"
+    "lint": "eslint src tests",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run tests/rules.test.ts",
+    "test:db": "vitest run tests/engine-db.test.ts"
+  },
+  "dependencies": {
+    "@aegis/db": "workspace:*"
+  },
+  "devDependencies": {
+    "@aegis/eslint-config": "workspace:*",
+    "@types/node": "^20.17.9",
+    "eslint": "^8.57.1",
+    "typescript": "5.6.3",
+    "vitest": "1.6.1"
   }
 }

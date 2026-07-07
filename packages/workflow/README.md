@@ -1,70 +1,90 @@
 # @aegis/workflow
 
-**Status: STUB.** Empty in Step 1. This README is an architectural commitment
-— it locks in *where* workflow primitives live so future work cannot invent
-parallel alternatives.
+**Status: ACTIVE (W-A shipped).** The approval-ladder engine adopted via
+[`docs/workflow-engine-assessment.md`](../../docs/workflow-engine-assessment.md).
+The stub's activation condition ("until two modules need it") was met by
+owner decision in July 2026: intake dynamic workflows + CLM ladders are
+the two consumers.
 
-## What this package will do
-A single, shared engine for the multi-step, multi-actor processes that recur
-across modules: intake triage, contract approval chains, DSAR fulfillment,
-incident response runbooks, board-pack assembly. Each module defines
-*workflow definitions* (typed step graphs); this package owns *workflow
-execution* — instances, state transitions, due dates, escalations,
-notifications, audit trail.
+## What this package does
 
-Without a shared engine, each module would invent its own approval-chain
-state machine, and "approve in Intake" would not be auditable the same way
-as "approve in Spend." That breaks both Differentiator #1 (one brain) and
-Differentiator #3 (conservative AI governance with full audit trail).
+A single, shared engine for the multi-step, multi-actor governance
+ladders that recur across modules: intake triage chains, contract
+approval ladders, DSAR fulfillment, incident-response runbooks. Ladder
+*definitions* are data (up to 15 ordered steps); this package owns
+*execution* — instances, transitions, skip conditions, SLA aging,
+optimistic locking, and the audit twin.
 
-## When it will be implemented
-**Phase: post-Step 6.** First needed when a second module wants the same
-approval-chain mechanics (e.g. Step 6 introduces invoice approval and we
-realize Intake's recommendation-approval flow can share the engine). Until
-two modules need it, it stays a stub.
+## Semantics
 
-## Public API surface (planned)
+| Action | Behaviour |
+|---|---|
+| `approve` | Moves to the next non-skipped step; approving the last step completes the workflow |
+| `reject` | Resets the instance to the first non-skipped step |
+| `send_back` | Moves to **any previous step** the actor selects |
+| `cancel` | Terminates the workflow (audit-logged) |
+
+Plus:
+- **Skip conditions** — a step may declare
+  `metadataJson: {"skip_if": {"field","op","value"}}` evaluated against
+  the instance's `contextJson` (e.g. skip Finance Review when
+  `contract_value < 10000`). A malformed rule never blocks a workflow.
+- **SLA aging** — a step with `slaHours` turns the RAG strip's Amber to
+  Red once the instance has been waiting on it longer than the SLA.
+- **Optimistic lock** — callers pass `expectedVersion`; two approvers
+  acting at the same moment can't both succeed
+  (`WorkflowVersionConflictError`).
+- **Agent steps** — `kind: AGENT` steps queue a `WorkflowAgentTask` on
+  arrival. This package does NOT run agents; the host module's runner
+  (W-B) executes the agent and applies the decision back through
+  `actOnWorkflow`, gated by the `AgentDecision` contract. Humans can
+  always act on an agent step directly.
+
+## Governance
+
+Every movement writes a `WorkflowTransition` row (product surface) AND
+a chain-sealed `AuditLog` row via `@aegis/db.logAudit`
+(`workflow.instance.*` actions), linked via
+`WorkflowTransition.resultingAuditLogId` — the twin-recording pattern
+from the Architectural Foundations. Agent actors (`"agent:<key>"`)
+land as `actorType: AGENT`.
+
+## Public API
 
 ```ts
 import {
-  defineWorkflow,
-  startWorkflow,
-  advanceStep,
-  cancelWorkflow,
-  getWorkflowInstance,
-  listInstancesForResource,
+  defineWorkflow,      // upsert a ladder template (org, key) — max 15 steps
+  startWorkflow,       // attach an instance to any host entity
+  actOnWorkflow,       // approve / reject / send_back / cancel
+  getWorkflowInstance, // instance + steps + transitions + RAG strip
+  listInstancesForEntity,
+  computeRag,          // pure — Red/Amber/Green per step
+  shouldSkip, nextActionable, // pure rule helpers
+  WorkflowError, WorkflowVersionConflictError,
 } from "@aegis/workflow";
-
-defineWorkflow({
-  id: "contract.approval.standard",
-  steps: [
-    { id: "legal_review",    actor: "role:attorney" },
-    { id: "finance_review",  actor: "role:finance",   when: ctx => ctx.amount > 50_000 },
-    { id: "gc_signoff",      actor: "role:gc",        when: ctx => ctx.risk === "high" },
-  ],
-  onComplete: ctx => contractsApi.markApproved(ctx.contractId),
-});
 ```
 
-The engine handles: step ordering, conditional steps, timeouts/escalations,
-parallel branches, recall/cancel, restart-on-edit, and a single `WorkflowEvent`
-stream that feeds `AuditLog`.
+Entities (in `@aegis/db`): `WorkflowDefinition`, `WorkflowStep`,
+`WorkflowInstance`, `WorkflowTransition`, `WorkflowAgentTask`.
+Instances attach polymorphically via `entityType` + `entityId`
+(`"intake_ticket"`, `"contract"`, …).
 
-## Entities owned/managed
-- `WorkflowDefinition` (in code, registered at startup)
-- `WorkflowInstance` (in `@aegis/db`) — id, definitionId, resourceType,
-  resourceId, status, startedAt, completedAt, currentStepId
-- `WorkflowStepInstance` — id, workflowInstanceId, stepId, actor, status,
-  startedAt, completedAt, decision
-- `WorkflowEvent` — append-only log mirroring shared `Event` entity
+## Tests
 
-## Why a shared service vs. a module
-- Workflows cross module boundaries (a contract approval may pull in Spend
-  for budget check, Privacy for DPIA, Governance for policy attestation).
-- The execution engine is purely infrastructure — no UI, no domain logic.
-- Auditability requires a single ledger of state transitions, not one per
-  module.
+- `pnpm --filter @aegis/workflow test` — pure rules (no DB).
+- `pnpm --filter @aegis/workflow run test:db` — engine integration
+  suite; runs in CI's `db-integrity` job against migrated Postgres.
+
+## Roadmap (per the assessment)
+
+- **W-B** — HTTP routes + RBAC gating + agent-step runner through
+  `AgentDecision`.
+- **W-C** — intake integration (`IntakeRequestType.workflowKey`,
+  instance per ticket, Cockpit RAG strip, approve = stage advance).
+- **W-D** — Aurora wizard / builder UI + the 10-ladder governance
+  library as seed data.
 
 ## Out of scope
-- Visual workflow builder UI (that's a feature of the **Governance** module).
-- Routing rules engine (lives inside the relevant module's triage logic).
+- Domain logic and module UI (modules own their screens; the wizard
+  resolves `screenKey` through the host's screen registry).
+- Routing rules (they live in intake's Smart Routing).
