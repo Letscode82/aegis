@@ -37,7 +37,9 @@
     "./conflict": "./src/conflict/server.ts",
     "./agents": "./src/agents/index.js"
   },
-  "files": ["src"],
+  "files": [
+    "src"
+  ],
   "scripts": {
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
@@ -49,8 +51,9 @@
     "@aegis/auth": "workspace:*",
     "@aegis/db": "workspace:*",
     "@aegis/matter": "workspace:*",
-    "@aegis/ui": "workspace:*",
     "@aegis/observability": "workspace:*",
+    "@aegis/ui": "workspace:*",
+    "@aegis/workflow": "workspace:*",
     "@vercel/blob": "^1.1.1",
     "react": "^18.3.1"
   },

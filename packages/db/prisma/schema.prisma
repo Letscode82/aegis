@@ -1524,6 +1524,11 @@ model IntakeRequestType {
   /// Ordered stage names for this type's workflow, e.g.
   /// ["Intake","Triage","Assigned","In Review","Complete"].
   stagesJson     Json    @default("[]")
+  /// Optional WorkflowDefinition.key (W-C): when set, creating a
+  /// ticket of this type starts an approval-ladder instance in
+  /// @aegis/workflow (entityType "intake_ticket"). Null = no ladder;
+  /// the plain stagesJson flow is unchanged.
+  workflowKey    String?
   /// Display order in pickers.
   sortOrder      Int     @default(100)
 

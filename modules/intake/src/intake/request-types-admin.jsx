@@ -16,6 +16,7 @@ function TypeForm({ onCancel, onSaved }) {
   const [key, setKey] = useState("");
   const [workstream, setWorkstream] = useState("");
   const [stages, setStages] = useState("");
+  const [workflowKey, setWorkflowKey] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const save = async () => {
@@ -25,6 +26,7 @@ function TypeForm({ onCancel, onSaved }) {
       const body = {
         name, key: key || undefined, workstream: workstream || null,
         stages: stages.split(",").map((s) => s.trim()).filter(Boolean),
+        workflowKey: workflowKey.trim() || null,
       };
       const r = await fetch("/api/admin/intake/request-types", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json().catch(() => ({}));
@@ -40,6 +42,7 @@ function TypeForm({ onCancel, onSaved }) {
         <div><div style={labelS}>Key (auto if blank)</div><input value={key} onChange={(e) => setKey(e.target.value)} style={inputStyle} placeholder="trademark-clearance" /></div>
         <div><div style={labelS}>Workstream</div><input value={workstream} onChange={(e) => setWorkstream(e.target.value)} style={inputStyle} placeholder="Trademarks" /></div>
         <div><div style={labelS}>Stages (comma-separated)</div><input value={stages} onChange={(e) => setStages(e.target.value)} style={inputStyle} placeholder="Intake, Search, Opinion, Filed" /></div>
+        <div><div style={labelS}>Workflow ladder key (optional)</div><input value={workflowKey} onChange={(e) => setWorkflowKey(e.target.value)} style={inputStyle} placeholder="clm_contract_approval" /></div>
       </div>
       {err && <div style={{ marginTop: 10, padding: "7px 11px", background: C.rdG, borderLeft: `3px solid ${C.rd}`, borderRadius: 4, fontSize: 11, color: C.t1, fontFamily: M }}>{err}</div>}
       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
