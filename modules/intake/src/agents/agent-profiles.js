@@ -70,6 +70,15 @@ export const AGENT_PROFILES={
       "Cure-period interaction: contractual and statutory windows can conflict — the computed set is an input to counsel's own computation, not a substitute.",
     ],
   },
+  "contract-specialist-agent":{
+    playbook:{id:"CONTRACT-TYPE-CATALOG",version:"v1"},
+    risks:[
+      "Wrong-playbook selection: a misclassified contract reviewed against the wrong standard can look cleaner than it is — sanity-check the playbook choice (shown at the top) before anything else.",
+      "Playbook governance: many playbooks means many drift risks — each needs an owner, version, and review date; an outdated playbook silently miscalibrates every review of that type.",
+      "Fallthrough blind spots: types without a playbook get generalist review — track fallthrough volume so high-frequency types get promoted to their own playbook.",
+      "Hybrid documents: real contracts mix types (supply + quality + IP); a single playbook may under-review secondary aspects — flag hybrids for combined review.",
+    ],
+  },
   "litigation-agent":{
     playbook:{id:"CASE-BRIEF",version:"non-court-facing-v1"},
     risks:[
