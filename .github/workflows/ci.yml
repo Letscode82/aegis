@@ -94,3 +94,6 @@ jobs:
 
       - name: Admin guard integration tests (@aegis/admin)
         run: pnpm --filter @aegis/admin run test:db
+
+      - name: Workflow engine integration tests (@aegis/workflow)
+        run: pnpm --filter @aegis/workflow run test:db

@@ -85,6 +85,8 @@ model Organization {
   agentDecisions      AgentDecision[]
   m365Credential      OrganizationM365Credential?
   m365DeviceCodeSessions M365DeviceCodeSession[]
+  workflowDefinitions WorkflowDefinition[]
+  workflowInstances   WorkflowInstance[]
 
   @@index([name])
 }
@@ -2162,4 +2164,171 @@ model M365DeviceCodeSession {
 
   @@index([organizationId, status])
   @@index([expiresAt])
+}
+
+/// ══════════════════════════════════════════════════════════════════
+/// Workflow engine (W-A) — approval ladders as data.
+///
+/// Ported from the approval-ladder engine adopted via
+/// docs/workflow-engine-assessment.md. One engine, many ladders:
+/// definitions are reusable templates; instances attach to any host
+/// entity polymorphically (entityType + entityId — the Document /
+/// Tagging pattern). Semantics live in @aegis/workflow:
+///   approve    → next non-skipped step (last step completes)
+///   reject     → back to the first non-skipped step
+///   send_back  → any previous step the actor selects
+///   cancel     → terminated, audit-logged
+/// Every transition twin-records to the chain-sealed AuditLog; the
+/// resulting id is stored on WorkflowTransition.resultingAuditLogId
+/// (the LegalHoldEvent pattern).
+/// ══════════════════════════════════════════════════════════════════
+
+enum WorkflowStepKind {
+  HUMAN
+  AGENT
+}
+
+enum WorkflowInstanceStatus {
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum WorkflowAction {
+  START
+  APPROVE
+  REJECT
+  SEND_BACK
+  CANCEL
+}
+
+enum WorkflowAgentTaskStatus {
+  PENDING
+  RUNNING
+  DONE
+  FAILED
+  ESCALATED
+}
+
+/// A reusable ladder template, e.g. "Contract Approval Ladder".
+model WorkflowDefinition {
+  id             String   @id @default(cuid())
+  organizationId String
+  /// Stable machine key used by host modules, e.g. "clm_contract_approval".
+  key            String
+  name           String
+  description    String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  steps        WorkflowStep[]
+  instances    WorkflowInstance[]
+
+  @@unique([organizationId, key])
+  @@index([organizationId, isActive])
+}
+
+/// Ordered steps of a definition. Max 15 per definition — enforced in
+/// @aegis/workflow's defineWorkflow (service layer, testable) rather
+/// than a trigger.
+model WorkflowStep {
+  id           String           @id @default(cuid())
+  definitionId String
+  /// 1..15
+  stepOrder    Int
+  name         String
+  /// Key of a host-app screen/panel rendered for this step
+  /// (the wizard's screenRegistry resolves it).
+  screenKey    String
+  /// RoleName from @aegis/auth allowed to act; null = any staff role.
+  approverRole String?
+  kind         WorkflowStepKind @default(HUMAN)
+  /// {"agentKey": "...", "minConfidence": 0.8} for AGENT steps.
+  agentConfigJson Json          @default("{}")
+  /// Optional per-step SLA — drives Amber→Red aging in the RAG strip.
+  slaHours     Int?
+  /// {"skip_if": {"field","op","value"}} — evaluated against the
+  /// instance's contextJson by @aegis/workflow.
+  metadataJson Json             @default("{}")
+
+  definition WorkflowDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+
+  @@unique([definitionId, stepOrder])
+  @@index([definitionId, stepOrder])
+}
+
+/// A running ladder attached to a host entity (intake ticket,
+/// contract, …).
+model WorkflowInstance {
+  id               String                 @id @default(cuid())
+  organizationId   String
+  definitionId     String
+  /// Polymorphic host: "intake_ticket", "contract", …
+  entityType       String
+  entityId         String
+  currentStepOrder Int                    @default(1)
+  status           WorkflowInstanceStatus @default(IN_PROGRESS)
+  /// User.id — application-level reference (AuditLog.actorId pattern).
+  startedById      String
+  /// Entity facts for skip conditions, e.g. {"contract_value": 5000}.
+  contextJson      Json                   @default("{}")
+  /// Optimistic lock — two approvers acting at once can't both succeed.
+  version          Int                    @default(0)
+  /// Drives SLA aging (Amber → Red) for the current step.
+  stepEnteredAt    DateTime               @default(now())
+  createdAt        DateTime               @default(now())
+  updatedAt        DateTime               @updatedAt
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  definition   WorkflowDefinition   @relation(fields: [definitionId], references: [id])
+  transitions  WorkflowTransition[]
+  agentTasks   WorkflowAgentTask[]
+
+  @@index([organizationId, entityType, entityId])
+  @@index([organizationId, status])
+}
+
+/// Product-surface record of every movement. The compliance record is
+/// the chain-sealed AuditLog row linked via resultingAuditLogId.
+model WorkflowTransition {
+  id            String         @id @default(cuid())
+  instanceId    String
+  fromStepOrder Int
+  /// Null when the workflow completes or is cancelled.
+  toStepOrder   Int?
+  action        WorkflowAction
+  /// User.id, or "agent:<agentKey>" for agent-applied decisions.
+  actor         String
+  comment       String?
+  /// AuditLog.id of the twin-recorded chain row (null only if the
+  /// best-effort audit write failed — surfaced in logs).
+  resultingAuditLogId String?
+  createdAt     DateTime       @default(now())
+
+  instance WorkflowInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([instanceId, createdAt])
+}
+
+/// Work queue for AGENT-kind steps. The engine inserts a PENDING task
+/// on arrival; the runner executes the agent and applies its decision
+/// back through the engine. Below minConfidence the decision is NOT
+/// applied — the task flips to ESCALATED and the step's human role
+/// acts instead.
+model WorkflowAgentTask {
+  id         String                  @id @default(cuid())
+  instanceId String
+  stepOrder  Int
+  status     WorkflowAgentTaskStatus @default(PENDING)
+  inputJson  Json                    @default("{}")
+  /// {"action","comment","confidence"} from the agent handler.
+  outputJson Json                    @default("{}")
+  createdAt  DateTime                @default(now())
+  finishedAt DateTime?
+
+  instance WorkflowInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+
+  @@index([status])
+  @@index([instanceId, stepOrder])
 }
