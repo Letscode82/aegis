@@ -23,7 +23,7 @@ beforeEach(() => {
 
 describe("LitigationAgent", () => {
   it("is registered (7 agents) and resolvable by id", () => {
-    expect(ALL_AGENTS.length).toBe(9);
+    expect(ALL_AGENTS.length).toBe(11);
     expect(AGENTS_BY_ID["litigation-agent"]).toBeTruthy();
   });
 
