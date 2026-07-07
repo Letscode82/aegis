@@ -68,28 +68,53 @@ Decision: **graph layer = recursive CTEs in `@aegis/db`**, exposed
 through a typed `traverse()` service. Revisit AGE only if we ever
 leave Neon or Neon adds the extension.
 
-### 2. Embeddings need a provider decision
+### 2. Embeddings — DECIDED (July 2026): self-hosted, BGE-M3 first
 
 pgvector itself IS available on Neon — but Claude models do not
-produce embeddings, so hybrid search needs a second vendor
-(e.g. Voyage AI — Anthropic's recommended embedding partner — or
-OpenAI / Cohere embeddings). That is a real decision with real
-consequences:
+produce embeddings, so hybrid search needs an embedding model. The
+decision (evaluated: Microsoft Harrier-OSS, BAAI/BGE-M3, Jina
+Embeddings):
 
-- **PII boundary** — embedding legal documents sends their text to a
-  second processor; needs the same DPA scrutiny we apply to vendors.
-- **Cost + operations** — an indexer, a backfill job, and re-embedding
-  on model upgrades.
+**Primary: `BAAI/bge-m3`, self-hosted.**
+- **MIT license** — free commercial self-hosting, no usage
+  restrictions; no PII egress (legal text never leaves our
+  infrastructure — the strongest posture for a legal platform).
+- **Hybrid by design** — natively produces dense + sparse (lexical)
+  vectors in one pass, which maps 1:1 onto the C2 rank-fusion design
+  below; 100+ languages; 8k context; 1024-dim dense output.
+- **Mature serving** — supported out of the box by standard inference
+  servers (e.g. Hugging Face TEI); runs acceptably on CPU for pilot
+  volumes, small GPU for production.
+
+**Upgrade path: `Harrier-OSS-v1` (Microsoft Bing team, April 2026).**
+MIT-licensed, tops the multilingual MTEB-v2 leaderboard, 32k context;
+the 0.6B variant is the realistic self-host candidate (the 27B leader
+is impractical for a pilot). It is ~3 months old with a younger
+serving/ecosystem story — benchmark it against BGE-M3 on our own
+retrieval set once C2 is live; swapping is a re-embed + one config
+change, not an architecture change. Bonus: a Microsoft-origin model
+is an easy story in a Microsoft-shop customer (Entra/M365 tenants).
+
+**Ruled out: Jina embeddings (v3/v4).** Model weights are
+CC-BY-NC — commercial self-hosting requires a paid license, and using
+their API reintroduces the PII-egress problem the self-host decision
+exists to avoid. Strong models; wrong license shape for us.
+
+Remaining consequences (unchanged by the model choice):
+- **Inference hosting** — self-hosting needs an embedding endpoint;
+  Vercel serverless cannot run these models. Smallest viable: one
+  container (TEI) on Azure Container Apps / a small VM, private to
+  the indexer.
 - **The worker constraint** — the event-driven indexer needs a
   long-running worker runtime; the repo doesn't have one yet (same
   documented constraint as the 4c.5 pg-boss snapshot jobs — admin HTTP
   triggers until the worker ships).
 
-Until the provider decision is made, retrieval is **BM25-style
+Until the inference endpoint is provisioned, retrieval is **BM25-style
 lexical + graph traversal** (Postgres full-text search is available
-today, no new vendor, no PII egress). Vector search slots in as an
-additive rank-fusion stage later — the service interface below is
-designed so no caller changes.
+today, no new infra). Vector search slots in as an additive
+rank-fusion stage — the service interface below is designed so no
+caller changes.
 
 ## Phased path
 
@@ -118,15 +143,17 @@ queryBrain(orgId, actor, {
 - First consumers: litigation record pull (replaces the bespoke
   lookup), similar-matters affordance, "Ask Aurora" panel.
 
-### C2 — Embeddings + hybrid rank fusion (behind the provider decision)
+### C2 — Embeddings + hybrid rank fusion (model decided: BGE-M3)
 
-- Pick the embedding provider (recommendation: Voyage AI; decide DPA +
-  region posture first).
-- `pgvector` column on a new `SearchChunk` table owned by
+- Provision the self-hosted embedding endpoint (TEI container serving
+  `BAAI/bge-m3`; Azure Container Apps or a small VM, private network).
+- `pgvector` column (1024-dim) on a new `SearchChunk` table owned by
   `packages/search`; indexer ships as admin HTTP trigger first
   (pg-boss-ready service shape, worker swap later — the 4c.5 pattern).
-- `queryBrain` gains rank fusion (FTS + vector) *inside* the
-  permission-filtered subgraph — interface unchanged.
+- `queryBrain` gains rank fusion (FTS + BGE-M3 dense/sparse) *inside*
+  the permission-filtered subgraph — interface unchanged.
+- Later: benchmark Harrier-OSS-v1-0.6b on our own retrieval set; swap
+  = re-embed + config change.
 
 ### C3 — Natural-language brain surface
 
