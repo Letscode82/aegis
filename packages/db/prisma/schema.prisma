@@ -1677,6 +1677,11 @@ model AgentRecommendation {
   reasoning       String // why the agent recommends this
   concerns        Json                      @default("[]") // string[]
   citations       Json                      @default("[]") // [{id, title}]
+  /// GC Suite agent contract — approver-facing "risks to weigh before
+  /// approving" checklist (string[]) and the playbook/standard stamp
+  /// ({id, version}) the agent applied.
+  risksJson       Json                      @default("[]")
+  playbookJson    Json?
   shortFormReply  String? // optional one-liner
   status          AgentRecommendationStatus @default(PENDING)
   reviewedBy      String? // User id

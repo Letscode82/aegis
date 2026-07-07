@@ -120,6 +120,9 @@ type V8Ticket = {
     reasoning?: string;
     concerns?: unknown;
     precedentLinks?: unknown;
+    /** GC Suite contract — approver risk checklist + playbook stamp. */
+    risks?: unknown;
+    playbook?: unknown;
     alternativeTone?: string | null;
   } | null;
   conversation?: Array<{
@@ -222,6 +225,8 @@ async function loadTicketsV8(orgId: string): Promise<V8Ticket[]> {
             reasoning: rec.reasoning,
             concerns: rec.concerns as unknown,
             precedentLinks: rec.citations as unknown,
+            risks: rec.risksJson as unknown,
+            playbook: rec.playbookJson as unknown,
             alternativeTone: rec.shortFormReply,
           }
         : null,
@@ -827,6 +832,8 @@ async function saveTicketsV8(
           reasoning: r.reasoning ?? "",
           concerns: (r.concerns ?? []) as never,
           citations: (r.precedentLinks ?? []) as never,
+          risksJson: (r.risks ?? []) as never,
+          playbookJson: (r.playbook ?? null) as never,
           shortFormReply: r.alternativeTone ?? null,
           status: recStatus,
           reviewedBy: recStatus === AgentRecommendationStatus.PENDING ? null : actor,

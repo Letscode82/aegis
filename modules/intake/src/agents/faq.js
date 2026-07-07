@@ -12,9 +12,13 @@ export const FAQAgent={
 
   canHandle(ticket){
     if(!matchAgentKB(ticket.desc)) return false;
-    // Don't handle if another specialist agent should take it (NDA request with counterparty specified, etc.)
     const d=(ticket.desc||"").toLowerCase();
+    // Don't handle if another specialist agent should take it (NDA request with counterparty specified, etc.)
     if(/draft|prepare|create|need.{0,10}nda.{0,10}for|with.{1,30}(inc|corp|ltd|llc|gmbh)/.test(d)) return false;
+    // Hard handoff triggers (doc): any mention of a dispute, regulator,
+    // or deadline routes to the human queue — a routine-looking question
+    // with these words can hide non-standard circumstances.
+    if(/dispute|lawsuit|litigation|sue(d|ing)?\b|regulator|sebi|sec\b|subpoena|deadline|urgent.{0,10}(court|filing)|breach of/.test(d)) return false;
     return true;
   },
 
@@ -45,6 +49,7 @@ Draft a warm, professional response that:
 3. Cites the source (${kb.source})
 4. Offers follow-up if they have a specific situation
 5. Under 120 words
+6. End with exactly this line: "This is general guidance, not advice for your specific facts — reply with details if your situation differs." 
 
 Respond with ONLY this JSON:
 {"draftedResponse":"full response with \\n line breaks","alternativeTone":"one-line TL;DR version","confidence":0.95,"reasoning":"why this answer is correct","concerns":[]}`;

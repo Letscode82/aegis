@@ -46,6 +46,8 @@ export const ContractReviewAgent={
 
 ${CONTRACT_PLAYBOOK}
 
+For EVERY issue you flag, assign a severity band: ACCEPT (within playbook), NEGOTIATE (deviation with a standard fallback), or REJECT (outside acceptable bands — do not sign as-is). Order the issue list by severity, worst first.
+
 TICKET:
 - Requester: ${ticket.from} (${ticket.dept})
 - Description: "${ticket.desc}"
