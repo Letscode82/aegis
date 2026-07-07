@@ -26,10 +26,10 @@ const { AGENT_PROFILES } = await import("../src/agents/agent-profiles");
 const {
   NDAAgent, FAQAgent, VendorIntakeAgent, ContractReviewAgent,
   TrademarkAgent, LitigationAgent, PolicyQAAgent, NoticeMgmtAgent,
-  ContractSpecialistAgent,
+  ContractSpecialistAgent, PrivacyAssessmentAgent, MarketingReviewAgent,
 } = await import("../src/agents/index");
 
-const AGENTS = [NDAAgent, FAQAgent, VendorIntakeAgent, ContractReviewAgent, TrademarkAgent, LitigationAgent, PolicyQAAgent, NoticeMgmtAgent, ContractSpecialistAgent];
+const AGENTS = [NDAAgent, FAQAgent, VendorIntakeAgent, ContractReviewAgent, TrademarkAgent, LitigationAgent, PolicyQAAgent, NoticeMgmtAgent, ContractSpecialistAgent, PrivacyAssessmentAgent, MarketingReviewAgent];
 
 const TICKETS: Record<string, object> = {
   "nda-agent": { id: "t1", from: "Dana Lee", dept: "Sales", type: "NDA Request", desc: "Need a mutual NDA with Acme Robotics for the pilot" },
@@ -41,6 +41,8 @@ const TICKETS: Record<string, object> = {
   "policy-qa-agent": { id: "t7", from: "Dana Lee", dept: "Finance", type: "Legal Question — General", desc: "What does our travel policy say about business class?" },
   "notice-mgmt-agent": { id: "t8", from: "Mail Room", dept: "Legal", type: "Legal Notice", desc: "Notice of breach received — cure within 30 days of receipt.", submittedTs: Date.UTC(2026, 6, 1) },
   "contract-specialist-agent": { id: "t9", from: "Dana Lee", dept: "R&D", type: "Contract Review", desc: "Please review the software licensing agreement from Vertex Labs — royalty of 4% on net sales" },
+  "privacy-assessment-agent": { id: "t10", from: "Dana Lee", dept: "Product", type: "Privacy Review", desc: "Need a DPIA for the new analytics tool processing customer data" },
+  "marketing-review-agent": { id: "t11", from: "Dana Lee", dept: "Marketing", type: "Marketing Review", desc: "Please review the promotional material for the spring campaign" },
 };
 
 beforeEach(() => {

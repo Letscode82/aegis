@@ -79,6 +79,24 @@ export const AGENT_PROFILES={
       "Hybrid documents: real contracts mix types (supply + quality + IP); a single playbook may under-review secondary aspects — flag hybrids for combined review.",
     ],
   },
+  "privacy-assessment-agent":{
+    playbook:{id:"PRIVACY-TRIAGE",version:"v1"},
+    risks:[
+      "Descriptions, not data flows: the assessment is only as accurate as the requester's account — high-impact processing needs verification against the actual system.",
+      "Regime volatility: privacy rules and enforcement evolve; playbook thresholds need scheduled legal review.",
+      "Category misclassification: indirect identifiers and inferred sensitive status are easy to miss — second-look anything adjacent to health or minors.",
+      "Purpose creep: approval covers the stated purpose only; downstream reuse is a new assessment — approvers should say so explicitly.",
+    ],
+  },
+  "marketing-review-agent":{
+    playbook:{id:"CLAIMS-LIBRARY",version:"seed-v1"},
+    risks:[
+      "Implied and visual claims: imagery, testimonials, and juxtaposition create claims the text doesn't — the agent under-weights what it cannot parse.",
+      "Audience/placement exposure: accurate content reaching the wrong audience (e.g. unapproved-indication adjacency) is a risk the agent cannot see — consider placement.",
+      "Market-rule divergence: a claim cleared in one market is not cleared in another — verify the market tag on every fast-track.",
+      "Library integrity: fast-track is only as safe as the library — expired substantiation must purge entries promptly.",
+    ],
+  },
   "litigation-agent":{
     playbook:{id:"CASE-BRIEF",version:"non-court-facing-v1"},
     risks:[
