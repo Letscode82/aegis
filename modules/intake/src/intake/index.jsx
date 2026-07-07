@@ -322,16 +322,6 @@ function CopilotChat({initialType,onFiled,onSwitchToForm,store,settings}){
 // runs alone. On splice, this replaces the existing NewRequestTab — the legacy form body moves
 // from v7 (lines 1512–1712) into <LegacyFormInner/> verbatim.
 function NewRequestV8({store,goToInbox,goToCockpit,goToMyRequests,settings,prefillDesc}){
-  const phone=useIsNarrow(640); // W4-3 — single-column form on phones
-  // W4-6 — upload path capability: "direct" (Vercel Blob connected,
-  // 25 MB, original bytes retained) or "inline" (base64 JSON, 3 MB).
-  const[uploadMode,setUploadMode]=useState({mode:"inline",maxBytes:MAX_UPLOAD_BYTES});
-  useEffect(()=>{
-    let on=true;
-    fetch("/api/intake/documents/upload-mode").then(r=>r.ok?r.json():null)
-      .then(d=>{ if(on&&d?.ok&&d.mode) setUploadMode({mode:d.mode,maxBytes:d.maxBytes}); }).catch(()=>{});
-    return()=>{ on=false; };
-  },[]);
   // If we arrive with a pre-filled description (from "File a ticket" in
   // Ask Aurora), skip the picker and go straight to the legacy form so
   // the user sees their question already in the description box.
@@ -385,6 +375,16 @@ function fileToBase64(file){
 }
 
 function LegacyFormInner({store,initialType,initialDesc,goToInbox,goToMyRequests,settings}){
+  const phone=useIsNarrow(640); // W4-3 — single-column form on phones
+  // W4-6 — upload path capability: "direct" (Vercel Blob connected,
+  // 25 MB, original bytes retained) or "inline" (base64 JSON, 3 MB).
+  const[uploadMode,setUploadMode]=useState({mode:"inline",maxBytes:MAX_UPLOAD_BYTES});
+  useEffect(()=>{
+    let on=true;
+    fetch("/api/intake/documents/upload-mode").then(r=>r.ok?r.json():null)
+      .then(d=>{ if(on&&d?.ok&&d.mode) setUploadMode({mode:d.mode,maxBytes:d.maxBytes}); }).catch(()=>{});
+    return()=>{ on=false; };
+  },[]);
   // Session-resolved default for the requester `from` field. Same
   // pattern as CopilotChat: pre-fill, leave editable. Phase 1a.
   const{user:sessionUser}=useCurrentUser();
