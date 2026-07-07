@@ -354,6 +354,17 @@ export function ragFor(instance: InstanceWithGraph, now?: Date): RagEntry[] {
   });
 }
 
+export async function listWorkflowDefinitions(
+  organizationId: string,
+  opts: { includeInactive?: boolean } = {},
+) {
+  return prisma.workflowDefinition.findMany({
+    where: { organizationId, ...(opts.includeInactive ? {} : { isActive: true }) },
+    include: { steps: { orderBy: { stepOrder: "asc" } } },
+    orderBy: { name: "asc" },
+  });
+}
+
 export async function listInstancesForEntity(
   organizationId: string,
   entityType: string,

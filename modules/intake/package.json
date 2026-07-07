@@ -34,7 +34,8 @@
     "./pool-ops": "./src/pool-ops/server.ts",
     "./teams-channel": "./src/teams-channel/server.ts",
     "./notifications": "./src/notifications/server.ts",
-    "./conflict": "./src/conflict/server.ts"
+    "./conflict": "./src/conflict/server.ts",
+    "./agents": "./src/agents/index.js"
   },
   "files": ["src"],
   "scripts": {
