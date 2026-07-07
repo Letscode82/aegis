@@ -41,6 +41,9 @@ interface AgentRecShape {
   reasoning?: string;
   concerns?: unknown;
   precedentLinks?: unknown;
+  /** GC Suite contract — approver risk checklist + playbook stamp. */
+  risks?: unknown;
+  playbook?: unknown;
   alternativeTone?: string | null;
   mock?: boolean;
 }
@@ -152,6 +155,8 @@ export async function runAgentForTicketServer(
         reasoning: rec.reasoning ?? "",
         concerns: (rec.concerns ?? []) as never,
         citations: (rec.precedentLinks ?? []) as never,
+        risksJson: (rec.risks ?? []) as never,
+        playbookJson: (rec.playbook ?? null) as never,
         shortFormReply: rec.alternativeTone ?? null,
         status: AgentRecommendationStatus.PENDING,
         reviewedBy: null,

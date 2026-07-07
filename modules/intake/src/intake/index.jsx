@@ -657,6 +657,12 @@ function AgentRecommendationPanel({ticket,rec,agent,editing,draftEdit,onDraftEdi
     </div>
 
     {/* Concerns */}
+    {/* GC Suite contract — the standard/version this agent applied */}
+    {rec.playbook&&rec.playbook.id&&<div style={{marginTop:8,display:"inline-flex",alignItems:"center",gap:6,padding:"3px 9px",background:C.s1,border:`1px solid ${C.br}`,borderRadius:3}}>
+      <span style={{fontSize:8.5,fontFamily:M,color:C.t4,letterSpacing:1,textTransform:"uppercase"}}>Playbook</span>
+      <span style={{fontSize:10,fontFamily:M,color:C.tl}}>{rec.playbook.id}{rec.playbook.version?` · ${rec.playbook.version}`:""}</span>
+    </div>}
+
     {rec.concerns&&rec.concerns.length>0&&<div style={{marginTop:10,padding:10,background:C.amG,borderLeft:`2px solid ${C.am}`,borderRadius:3}}>
       <div style={{fontSize:9,fontFamily:M,color:C.am,letterSpacing:1.5,textTransform:"uppercase",fontWeight:600,marginBottom:5}}>⚠ CONCERNS ({rec.concerns.length})</div>
       {rec.concerns.map((c,i)=><div key={i} style={{fontSize:11,color:C.t2,lineHeight:1.5,marginBottom:i<rec.concerns.length-1?4:0}}>• {c}</div>)}
@@ -674,6 +680,16 @@ function AgentRecommendationPanel({ticket,rec,agent,editing,draftEdit,onDraftEdi
         </div>)}
       </div>
     </div>}
+
+    {/* GC Suite contract — approver checklist from the agent's profile.
+        These are the standing limits of this agent class (what it
+        cannot see), distinct from per-ticket concerns above. */}
+    {rec.risks&&rec.risks.length>0&&<details style={{marginTop:10}}>
+      <summary style={{cursor:"pointer",fontSize:9,fontFamily:M,color:C.tl,letterSpacing:1.5,textTransform:"uppercase",fontWeight:600,padding:"6px 0"}}>⚖ Risks to weigh before approving ({rec.risks.length})</summary>
+      <div style={{padding:10,background:C.s1,borderLeft:`2px solid ${C.tl}`,borderRadius:3,marginTop:4}}>
+        {rec.risks.map((r,i)=><div key={i} style={{fontSize:10.5,color:C.t2,lineHeight:1.55,marginBottom:i<rec.risks.length-1?6:0}}>{i+1}. {r}</div>)}
+      </div>
+    </details>}
 
     {/* Alternative tone */}
     {rec.alternativeTone&&<div style={{marginTop:10,padding:9,background:C.s2,borderLeft:`2px solid ${C.t3}`,borderRadius:3}}>

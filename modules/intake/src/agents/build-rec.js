@@ -1,8 +1,20 @@
-// Helper for building recommendations uniformly
-export function buildRec(agentId,{confidence,suggestedAction,draftedResponse,reasoning,concerns=[],precedentLinks=[],alternativeTone=null,mock=false}){
+import { profileFor } from "./agent-profiles";
+
+// Helper for building recommendations uniformly.
+//
+// GC Suite agent contract (Working Architecture doc): every
+// recommendation carries, alongside the draft/reasoning/concerns, the
+// approver-facing `risks` checklist ("Risks to weigh before
+// approving") and the `playbook` stamp naming the standard + version
+// the agent applied. Defaults come from the agent's profile so no
+// call site can forget them; explicit fields override.
+export function buildRec(agentId,{confidence,suggestedAction,draftedResponse,reasoning,concerns=[],precedentLinks=[],alternativeTone=null,mock=false,risks,playbook}){
+  const profile=profileFor(agentId);
   return {
     agentId,confidence,suggestedAction,draftedResponse,reasoning,
     concerns,precedentLinks,alternativeTone,
+    risks:risks!==undefined?risks:(profile?.risks||[]),
+    playbook:playbook!==undefined?playbook:(profile?.playbook||null),
     generatedAt:Date.now(),mock,
   };
 }

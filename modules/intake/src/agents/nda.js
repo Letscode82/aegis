@@ -18,6 +18,17 @@ export const NDAAgent={
   },
 
   async process(ticket){
+    // Playbook deviation detection (Working Architecture doc): terms
+    // that take an NDA outside MNDA-v4.2's standard bands force
+    // flag-for-review — material deviations are senior-counsel calls.
+    const dLower=(ticket.desc||"").toLowerCase();
+    const deviations=[];
+    if(/non.{0,3}solicit/.test(dLower)&&/(remove|strike|no non.?solicit|without)/.test(dLower)) deviations.push("non-solicit modification requested");
+    if(/ip.{0,3}assign|assign.{0,10}(ip|intellectual property)/.test(dLower)) deviations.push("IP-assignment language — outside NDA scope");
+    if(/residual/.test(dLower)) deviations.push("residuals clause requested");
+    if(/indefinite|perpetual|no.{0,5}expir/.test(dLower)) deviations.push("indefinite/perpetual confidentiality requested");
+    if(/source.{0,3}code/.test(dLower)) deviations.push("source-code disclosure — heightened sensitivity");
+    if(/today|by end of day|eod|asap.{0,15}sign|sign.{0,15}today/.test(dLower)) deviations.push("same-day signature pressure");
     // Extract counterparty heuristically
     const descMatch=(ticket.desc||"").match(/(?:with|for)\s+([A-Z][A-Za-z0-9& ]{2,40}?)(?:\s+(?:re\.|regarding|for|by|$|,|\.|\n))/);
     const counterparty=descMatch?descMatch[1].trim():null;
@@ -52,10 +63,14 @@ Respond with ONLY this JSON:
       draftedResponse=result.draftedResponse;
       confidence=result.confidence||0.92;
       reasoning=result.reasoning;
+      // Decision tree (doc): valid NDA covers purpose → reuse; standard
+      // → template; material deviation → escalate to human review.
+      const action=deviations.length>0?"flag-for-review":"approve-and-send";
       return buildRec(this.id,{
-        confidence,suggestedAction:"approve-and-send",
+        confidence:deviations.length>0?Math.min(confidence,0.6):confidence,
+        suggestedAction:action,
         draftedResponse,reasoning:reasoning||`Template-fit match (MNDA-v4.2). Counterparty check: ${priorNDA.found?"existing relationship — verify NDA reuse":"new counterparty"}.`,
-        concerns:result.concerns||[],
+        concerns:[...(deviations.length?deviations.map(x=>`Playbook deviation: ${x} — senior-counsel review per NDA playbook.`):[]),...(result.concerns||[])],
         precedentLinks:[
           {id:"NDA-TEMPLATE-v4.2",title:"Standard Mutual NDA Template"},
           ...(priorNDA.priorNda?[{id:priorNDA.priorNda.documentId,title:`↩ Prior NDA on file: ${priorNDA.priorNda.name}`}]:[]),
