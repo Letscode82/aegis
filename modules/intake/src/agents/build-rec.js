@@ -8,13 +8,16 @@ import { profileFor } from "./agent-profiles";
 // approving") and the `playbook` stamp naming the standard + version
 // the agent applied. Defaults come from the agent's profile so no
 // call site can forget them; explicit fields override.
-export function buildRec(agentId,{confidence,suggestedAction,draftedResponse,reasoning,concerns=[],precedentLinks=[],alternativeTone=null,mock=false,risks,playbook}){
+export function buildRec(agentId,{confidence,suggestedAction,draftedResponse,reasoning,concerns=[],precedentLinks=[],alternativeTone=null,mock=false,risks,playbook,proposedSlaHours=null}){
   const profile=profileFor(agentId);
   return {
     agentId,confidence,suggestedAction,draftedResponse,reasoning,
     concerns,precedentLinks,alternativeTone,
     risks:risks!==undefined?risks:(profile?.risks||[]),
     playbook:playbook!==undefined?playbook:(profile?.playbook||null),
+    // Agent 9 — SLA sized to the shortest extracted deadline. Applied
+    // by the ticket pipeline ONLY when tighter than the current SLA.
+    proposedSlaHours,
     generatedAt:Date.now(),mock,
   };
 }

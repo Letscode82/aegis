@@ -61,6 +61,15 @@ export const AGENT_PROFILES={
       "Cross-policy conflicts: overlapping policies can contradict — the agent flags, but resolution is a policy-owner decision.",
     ],
   },
+  "notice-mgmt-agent":{
+    playbook:{id:"NOTICE-TAXONOMY",version:"v1"},
+    risks:[
+      "A missed or mis-computed deadline is the platform's highest-severity failure: OCR and computed-period errors happen — verify EVERY extracted deadline against the cited source text.",
+      "Misclassification downgrades urgency: a demand letter styled as correspondence can be under-rated — anything from a regulator or counsel gets a human look regardless.",
+      "Acknowledgment language: even a receipt confirmation can waive rights if worded loosely — the draft is deliberately minimal; don't let requesters 'improve' it.",
+      "Cure-period interaction: contractual and statutory windows can conflict — the computed set is an input to counsel's own computation, not a substitute.",
+    ],
+  },
   "litigation-agent":{
     playbook:{id:"CASE-BRIEF",version:"non-court-facing-v1"},
     risks:[

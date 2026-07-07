@@ -44,6 +44,8 @@ interface AgentRecShape {
   /** GC Suite contract — approver risk checklist + playbook stamp. */
   risks?: unknown;
   playbook?: unknown;
+  /** Agent 9 — SLA sized to the shortest extracted deadline. */
+  proposedSlaHours?: number | null;
   alternativeTone?: string | null;
   mock?: boolean;
 }
@@ -82,6 +84,11 @@ export interface ServerAgentTicket {
   type?: string | null;
   priority?: string | null;
   desc?: string | null;
+  /** Current SLA window (hours) — Agent 9's deadline-derived SLA is
+   *  applied only when tighter than this. */
+  slaHours?: number | null;
+  /** Receipt epoch ms — computed notice periods anchor to this. */
+  submittedTs?: number | null;
 }
 
 export interface ServerAgentResult {
@@ -180,10 +187,36 @@ export async function runAgentForTicketServer(
       action: null,
     });
 
+    // Agent 9 (Notice Management) — apply the deadline-derived SLA when
+    // TIGHTER than the current one (an agent can accelerate a clock,
+    // never relax it). Chain-sealed audit row records the tightening.
+    const proposed = rec.proposedSlaHours;
+    const currentSla =
+      typeof ticket.slaHours === "number" ? ticket.slaHours : 24;
+    const tightenedSla =
+      typeof proposed === "number" && proposed > 0 && proposed < currentSla
+        ? Math.round(proposed)
+        : null;
     await prisma.intakeTicket.update({
       where: { id: ticket.id },
-      data: { agentProcessedAt: now },
+      data: {
+        agentProcessedAt: now,
+        ...(tightenedSla ? { slaHours: tightenedSla } : {}),
+      },
     });
+    if (tightenedSla) {
+      await logAudit({
+        organizationId,
+        actorId: null,
+        actorType: "AGENT",
+        action: "intake.ticket.sla_tightened",
+        resourceType: "IntakeTicket",
+        resourceId: ticket.id,
+        beforeJson: { slaHours: currentSla },
+        afterJson: { slaHours: tightenedSla, source: "deadline-extraction" },
+        metadata: { agentId },
+      });
+    }
 
     await logAudit({
       organizationId,
@@ -222,6 +255,8 @@ export function serverTriageRunner(input: {
   type?: string | null;
   priority?: string | null;
   desc?: string | null;
+  slaHours?: number | null;
+  submittedTs?: number | null;
 }): Promise<ServerAgentResult> {
   return runAgentForTicketServer(input.organizationId, {
     id: input.ticketId,
@@ -230,5 +265,7 @@ export function serverTriageRunner(input: {
     type: input.type,
     priority: input.priority,
     desc: input.desc,
+    slaHours: input.slaHours ?? null,
+    submittedTs: input.submittedTs ?? null,
   });
 }

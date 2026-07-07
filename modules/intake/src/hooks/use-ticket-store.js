@@ -99,11 +99,19 @@ export function useTicketStore(agentSettings){
       done:i<2,
       active:i===2,
     }));
+    // Agent 9 (Notice Management) — SLA sized to the shortest extracted
+    // deadline. Applied only when TIGHTER than the current SLA; an agent
+    // can accelerate a clock, never relax one.
+    const tightenedSla=recommendation&&typeof recommendation.proposedSlaHours==="number"
+      &&recommendation.proposedSlaHours>0
+      &&recommendation.proposedSlaHours<(created.slaHours||24)
+      ?recommendation.proposedSlaHours:null;
     const patch={
       stage:"assigned",
       status:"Assigned",
       workflow:nextWorkflow,
       agentRecommendation:recommendation,
+      ...(tightenedSla?{slaHours:tightenedSla,sla:`${tightenedSla} hrs`}:{}),
       agentProcessedAt:Date.now(),
       // P2b — explicit outcome so the server can record an
       // `intake.ticket.agent_no_match` audit row when no agent claimed

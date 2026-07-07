@@ -25,10 +25,10 @@ vi.mock("../src/storage/agent-log", () => ({ appendAgentLog: vi.fn() }));
 const { AGENT_PROFILES } = await import("../src/agents/agent-profiles");
 const {
   NDAAgent, FAQAgent, VendorIntakeAgent, ContractReviewAgent,
-  TrademarkAgent, LitigationAgent, PolicyQAAgent,
+  TrademarkAgent, LitigationAgent, PolicyQAAgent, NoticeMgmtAgent,
 } = await import("../src/agents/index");
 
-const AGENTS = [NDAAgent, FAQAgent, VendorIntakeAgent, ContractReviewAgent, TrademarkAgent, LitigationAgent, PolicyQAAgent];
+const AGENTS = [NDAAgent, FAQAgent, VendorIntakeAgent, ContractReviewAgent, TrademarkAgent, LitigationAgent, PolicyQAAgent, NoticeMgmtAgent];
 
 const TICKETS: Record<string, object> = {
   "nda-agent": { id: "t1", from: "Dana Lee", dept: "Sales", type: "NDA Request", desc: "Need a mutual NDA with Acme Robotics for the pilot" },
@@ -38,6 +38,7 @@ const TICKETS: Record<string, object> = {
   "trademark-agent": { id: "t5", from: "Dana Lee", dept: "Marketing", type: "Trademark Check", desc: 'Trademark clearance for "Zephyrion" in US and EU' },
   "litigation-agent": { id: "t6", from: "Dana Lee", dept: "Legal", type: "Litigation Notice", desc: "We received a demand letter from Meridian Corp" },
   "policy-qa-agent": { id: "t7", from: "Dana Lee", dept: "Finance", type: "Legal Question — General", desc: "What does our travel policy say about business class?" },
+  "notice-mgmt-agent": { id: "t8", from: "Mail Room", dept: "Legal", type: "Legal Notice", desc: "Notice of breach received — cure within 30 days of receipt.", submittedTs: Date.UTC(2026, 6, 1) },
 };
 
 beforeEach(() => {
