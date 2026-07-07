@@ -20,6 +20,7 @@ import { HandoffDialog } from "./handoff-dialog";
 import { WorkPanel } from "./work-panel";
 import { PartiesPanel } from "./parties-panel";
 import { LitigationSummaryCard } from "./litigation-view";
+import { WorkflowLadderCard } from "./workflow-ladder";
 import { RequestTypesTab } from "./request-types-admin";
 import { MyWorkTab } from "./my-work";
 import { MyRequestsTab } from "./my-requests";
@@ -1185,6 +1186,7 @@ function CockpitTab({store,cockpit}){
           <span>{selected.includes(current.id)?"selected for bulk":"press space to select"}</span>
         </div>}
         <LitigationSummaryCard ticket={current}/>
+        <WorkflowLadderCard ticket={current}/>
         <TicketDetailPanel ticket={current}/>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:12}}>

@@ -95,6 +95,21 @@ describe("request types", () => {
     expect(typeCreate.mock.calls[0][0].data.fields.create[0].key).toBe("adverse_party");
   });
 
+  it("round-trips workflowKey on create (W-C ladder binding)", async () => {
+    typeCreate.mockResolvedValue({ ...ROW(), workflowKey: "clm_contract_approval" } as never);
+    const dto = await createRequestType(
+      "org1",
+      { key: "contracts", name: "Contracts", workflowKey: "clm_contract_approval" },
+      {},
+    );
+    expect(dto.workflowKey).toBe("clm_contract_approval");
+    expect(typeCreate.mock.calls[0][0].data.workflowKey).toBe("clm_contract_approval");
+    // empty string normalises to null
+    typeCreate.mockResolvedValue(ROW());
+    await createRequestType("org1", { key: "plain", name: "Plain", workflowKey: "  " }, {});
+    expect(typeCreate.mock.calls[1][0].data.workflowKey).toBeNull();
+  });
+
   it("rejects an invalid key", async () => {
     await expect(
       createRequestType("org1", { key: "Bad Key!", name: "x" }),

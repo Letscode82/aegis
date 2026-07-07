@@ -34,6 +34,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           description: typeof body.description === "string" ? body.description : null,
           active: typeof body.active === "boolean" ? body.active : undefined,
           stages: Array.isArray(body.stages) ? (body.stages as string[]) : undefined,
+          workflowKey:
+            body.workflowKey === null
+              ? null
+              : typeof body.workflowKey === "string"
+                ? body.workflowKey
+                : undefined,
           sortOrder: typeof body.sortOrder === "number" ? body.sortOrder : undefined,
           fields: Array.isArray(body.fields) ? (body.fields as never[]) : undefined,
         },

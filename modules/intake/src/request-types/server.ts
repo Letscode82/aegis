@@ -29,6 +29,8 @@ export interface RequestTypeDTO {
   description: string | null;
   active: boolean;
   stages: string[];
+  /// WorkflowDefinition.key bound to this type (W-C) — null = no ladder.
+  workflowKey: string | null;
   sortOrder: number;
   fields: RequestFieldDTO[];
 }
@@ -62,6 +64,7 @@ type TypeRow = {
   description: string | null;
   active: boolean;
   stagesJson: unknown;
+  workflowKey: string | null;
   sortOrder: number;
   fields: Array<{
     id: string;
@@ -83,6 +86,7 @@ function toDTO(r: TypeRow): RequestTypeDTO {
     description: r.description,
     active: r.active,
     stages: Array.isArray(r.stagesJson) ? (r.stagesJson as string[]) : [],
+    workflowKey: r.workflowKey ?? null,
     sortOrder: r.sortOrder,
     fields: r.fields
       .slice()
@@ -133,6 +137,7 @@ export interface RequestTypeInput {
   description?: string | null;
   active?: boolean;
   stages?: string[];
+  workflowKey?: string | null;
   sortOrder?: number;
   fields?: Array<Omit<RequestFieldDTO, "id">>;
 }
@@ -187,6 +192,7 @@ export async function createRequestType(
       description: input.description?.trim() || null,
       active: input.active ?? true,
       stagesJson: (input.stages ?? []) as never,
+      workflowKey: input.workflowKey?.trim() || null,
       sortOrder: input.sortOrder ?? 100,
       fields: { create: fieldCreateData(input.fields) },
     },
@@ -234,6 +240,7 @@ export async function updateRequestType(
         description: input.description !== undefined ? input.description?.trim() || null : before.description,
         active: input.active ?? before.active,
         stagesJson: (input.stages ?? (before.stagesJson as never)) as never,
+        workflowKey: input.workflowKey !== undefined ? input.workflowKey?.trim() || null : before.workflowKey,
         sortOrder: input.sortOrder ?? before.sortOrder,
         ...(input.fields ? { fields: { create: fieldCreateData(input.fields) } } : {}),
       },
