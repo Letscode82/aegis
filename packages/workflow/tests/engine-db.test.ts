@@ -16,6 +16,8 @@ import {
   startWorkflow,
   WorkflowError,
   WorkflowVersionConflictError,
+  runAgentTask,
+  listAgentTasks,
 } from "../src/index";
 
 let orgId = "";
@@ -245,5 +247,77 @@ describe("ladder semantics", () => {
     });
     expect(audit?.actorType).toBe("AGENT");
     expect(audit?.actorId).toBeNull();
+  });
+});
+
+describe("agent-task lifecycle (W-B) — findings only, never advances", () => {
+  async function taskAtAgentStep(entityId: string) {
+    const inst = await startWorkflow({
+      organizationId: orgId,
+      definitionKey: "agent_ladder",
+      entityType: "intake_ticket",
+      entityId,
+      startedById: userId,
+      context: { ticket: { id: entityId, desc: "MSA review" } },
+    });
+    await actOnWorkflow({ instanceId: inst.id, action: "approve", actor: userId });
+    const task = await prisma.workflowAgentTask.findFirstOrThrow({
+      where: { instanceId: inst.id, stepOrder: 2 },
+    });
+    return { inst, task };
+  }
+
+  it("high confidence → DONE with findings; the ladder does NOT move", async () => {
+    const { inst, task } = await taskAtAgentStep("t-agent-done");
+    const updated = await runAgentTask(task.id, async () => ({
+      confidence: 0.95,
+      suggestedAction: "approve-and-send",
+      summary: "within playbook",
+    }));
+    expect(updated.status).toBe("DONE");
+    const after = await getWorkflowInstance(inst.id);
+    expect(after!.currentStepOrder).toBe(2); // human still owns the step
+    expect((updated.outputJson as { confidence: number }).confidence).toBe(0.95);
+  });
+
+  it("below minConfidence → ESCALATED; handler crash → FAILED; re-run refused", async () => {
+    const { task } = await taskAtAgentStep("t-agent-esc");
+    const updated = await runAgentTask(task.id, async () => ({
+      confidence: 0.4,
+      suggestedAction: "flag-for-review",
+      summary: "degraded",
+    }));
+    expect(updated.status).toBe("ESCALATED");
+    await expect(
+      runAgentTask(task.id, async () => ({ confidence: 1, suggestedAction: "x", summary: "" })),
+    ).rejects.toThrow(/not pending/);
+
+    const { task: task2 } = await taskAtAgentStep("t-agent-fail");
+    const failed = await runAgentTask(task2.id, async () => {
+      throw new Error("boom");
+    });
+    expect(failed.status).toBe("FAILED");
+  });
+
+  it("writes an AGENT-attributed audit row for every run", async () => {
+    const { task } = await taskAtAgentStep("t-agent-audit");
+    await runAgentTask(task.id, async () => ({
+      confidence: 0.9,
+      suggestedAction: "approve-and-send",
+      summary: "ok",
+    }));
+    const audit = await prisma.auditLog.findFirst({
+      where: { resourceType: "WorkflowAgentTask", resourceId: task.id },
+    });
+    expect(audit?.action).toBe("workflow.agent_task.done");
+    expect(audit?.actorType).toBe("AGENT");
+    expect(audit?.contentHash).toBeTruthy();
+  });
+
+  it("listAgentTasks filters by org and status", async () => {
+    const pending = await listAgentTasks(orgId, "PENDING");
+    for (const t of pending) expect(t.status).toBe("PENDING");
+    const all = await listAgentTasks(orgId);
+    expect(all.length).toBeGreaterThan(0);
   });
 });

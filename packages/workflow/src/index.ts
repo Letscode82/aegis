@@ -14,12 +14,21 @@ export {
   actOnWorkflow,
   getWorkflowInstance,
   listInstancesForEntity,
+  listWorkflowDefinitions,
   ragFor,
   WorkflowError,
   WorkflowVersionConflictError,
   type DefineWorkflowInput,
   type WorkflowActionInput,
 } from "./engine";
+export {
+  runAgentTask,
+  listAgentTasks,
+  DEFAULT_MIN_CONFIDENCE,
+  type AgentTaskHandler,
+  type AgentTaskFindings,
+  type AgentTaskInput,
+} from "./agent-tasks";
 export {
   MAX_STEPS,
   shouldSkip,
