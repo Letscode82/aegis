@@ -56,7 +56,7 @@ describe("all six agents are production-ready and visible by default", () => {
   });
 
   it("ALL_AGENTS contains all six in production mode (none hidden)", () => {
-    expect(ALL_AGENTS.length).toBe(8);
+    expect(ALL_AGENTS.length).toBe(9);
   });
 });
 
@@ -71,7 +71,7 @@ describe("the formerly-mock agents are now real (no mock markers)", () => {
 
 describe("AGENTS_BY_ID is complete", () => {
   it("resolves every agent for the UI", () => {
-    expect(Object.keys(AGENTS_BY_ID)).toHaveLength(8);
+    expect(Object.keys(AGENTS_BY_ID)).toHaveLength(9);
     expect(AGENTS_BY_ID[NDAAgent.id]).toBeDefined();
   });
 });

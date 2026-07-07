@@ -6,11 +6,12 @@ import { TrademarkAgent } from "./trademark";
 import { LitigationAgent } from "./litigation";
 import { PolicyQAAgent } from "./policy-qa";
 import { NoticeMgmtAgent } from "./notice-mgmt";
+import { ContractSpecialistAgent } from "./contract-specialist";
 import { buildRec } from "./build-rec";
 import { friendlyAIError } from "@aegis/ai";
 import { appendAgentLog } from "../storage/agent-log";
 
-export { NDAAgent, FAQAgent, VendorIntakeAgent, ContractReviewAgent, TrademarkAgent, LitigationAgent, PolicyQAAgent, NoticeMgmtAgent };
+export { NDAAgent, FAQAgent, VendorIntakeAgent, ContractReviewAgent, TrademarkAgent, LitigationAgent, PolicyQAAgent, NoticeMgmtAgent, ContractSpecialistAgent };
 export { buildRec } from "./build-rec";
 
 // ══════════════════════════════════════════════════
@@ -26,7 +27,7 @@ export { buildRec } from "./build-rec";
 // sales demos.
 
 // Full registry — every agent that exists, in display order.
-const REGISTERED=[NDAAgent,FAQAgent,VendorIntakeAgent,ContractReviewAgent,TrademarkAgent,LitigationAgent,NoticeMgmtAgent,PolicyQAAgent];
+const REGISTERED=[NDAAgent,FAQAgent,VendorIntakeAgent,ContractSpecialistAgent,ContractReviewAgent,TrademarkAgent,LitigationAgent,NoticeMgmtAgent,PolicyQAAgent];
 
 // Build-time flag (NEXT_PUBLIC_ so it reaches the client bundle).
 export function demoAgentsEnabled(){
@@ -55,7 +56,10 @@ export const ALL_AGENTS=filterActiveAgents(REGISTERED,demoAgentsEnabled());
 // agents first. Hidden (non-active) agents are skipped, so a production
 // ticket of a mock-agent type returns null → honest manual triage.
 export function routeToAgent(ticket,enabledSettings){
-  const order=[NDAAgent,VendorIntakeAgent,TrademarkAgent,LitigationAgent,NoticeMgmtAgent,ContractReviewAgent,FAQAgent,PolicyQAAgent];
+  // ContractSpecialist runs immediately before the generalist
+  // ContractReview so unmatched contract types FALL THROUGH to Agent 4
+  // (doc Agent 11 fallthrough contract).
+  const order=[NDAAgent,VendorIntakeAgent,TrademarkAgent,LitigationAgent,NoticeMgmtAgent,ContractSpecialistAgent,ContractReviewAgent,FAQAgent,PolicyQAAgent];
   const active=new Set(ALL_AGENTS);
   for(const a of order){
     if(!active.has(a)) continue; // hidden in production (productionReady:false)
