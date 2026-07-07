@@ -18,6 +18,7 @@ import {
   WorkflowVersionConflictError,
   runAgentTask,
   listAgentTasks,
+  seedWorkflowLibrary,
 } from "../src/index";
 
 let orgId = "";
@@ -319,5 +320,21 @@ describe("agent-task lifecycle (W-B) — findings only, never advances", () => {
     for (const t of pending) expect(t.status).toBe("PENDING");
     const all = await listAgentTasks(orgId);
     expect(all.length).toBeGreaterThan(0);
+  });
+});
+
+describe("governance library seeding (W-D)", () => {
+  it("seeds all 10 ladders idempotently", async () => {
+    const first = await seedWorkflowLibrary(orgId);
+    expect(first).toHaveLength(10);
+    const again = await seedWorkflowLibrary(orgId);
+    expect(again).toEqual(first);
+    const defs = await prisma.workflowDefinition.findMany({
+      where: { organizationId: orgId, key: { in: first } },
+      include: { steps: true },
+    });
+    expect(defs).toHaveLength(10);
+    const litigation = defs.find((d) => d.key === "patent_litigation")!;
+    expect(litigation.steps).toHaveLength(7);
   });
 });

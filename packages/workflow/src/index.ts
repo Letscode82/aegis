@@ -29,6 +29,7 @@ export {
   type AgentTaskFindings,
   type AgentTaskInput,
 } from "./agent-tasks";
+export { GOVERNANCE_LIBRARY, seedWorkflowLibrary } from "./library";
 export {
   MAX_STEPS,
   shouldSkip,

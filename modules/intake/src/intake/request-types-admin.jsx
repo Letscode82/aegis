@@ -12,6 +12,12 @@ const labelS = { fontSize: 9.5, fontFamily: M, color: C.t3, letterSpacing: 1, te
 const btn = (bg) => ({ padding: "5px 11px", background: bg, color: C.bg, fontSize: 9.5, fontFamily: M, letterSpacing: 1.2, cursor: "pointer", textTransform: "uppercase", fontWeight: 700, borderRadius: 3, border: "none" });
 
 function TypeForm({ onCancel, onSaved }) {
+  const [ladderKeys, setLadderKeys] = useState([]);
+  useEffect(() => {
+    fetch("/api/workflows/definitions").then((r) => r.json()).then((d) => {
+      if (d?.ok) setLadderKeys((d.definitions || []).map((x) => x.key));
+    }).catch(() => {});
+  }, []);
   const [name, setName] = useState("");
   const [key, setKey] = useState("");
   const [workstream, setWorkstream] = useState("");
@@ -42,8 +48,9 @@ function TypeForm({ onCancel, onSaved }) {
         <div><div style={labelS}>Key (auto if blank)</div><input value={key} onChange={(e) => setKey(e.target.value)} style={inputStyle} placeholder="trademark-clearance" /></div>
         <div><div style={labelS}>Workstream</div><input value={workstream} onChange={(e) => setWorkstream(e.target.value)} style={inputStyle} placeholder="Trademarks" /></div>
         <div><div style={labelS}>Stages (comma-separated)</div><input value={stages} onChange={(e) => setStages(e.target.value)} style={inputStyle} placeholder="Intake, Search, Opinion, Filed" /></div>
-        <div><div style={labelS}>Workflow ladder key (optional)</div><input value={workflowKey} onChange={(e) => setWorkflowKey(e.target.value)} style={inputStyle} placeholder="clm_contract_approval" /></div>
+        <div><div style={labelS}>Workflow ladder key (optional)</div><input value={workflowKey} onChange={(e) => setWorkflowKey(e.target.value)} style={inputStyle} placeholder="clm_contract_approval" list="workflow-ladder-keys" /></div>
       </div>
+      <datalist id="workflow-ladder-keys">{ladderKeys.map((k) => <option key={k} value={k} />)}</datalist>
       {err && <div style={{ marginTop: 10, padding: "7px 11px", background: C.rdG, borderLeft: `3px solid ${C.rd}`, borderRadius: 4, fontSize: 11, color: C.t1, fontFamily: M }}>{err}</div>}
       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
         <button onClick={save} disabled={busy} style={{ ...btn(C.cy), opacity: busy ? .6 : 1 }}>{busy ? "Saving…" : "Create type"}</button>
@@ -124,6 +131,56 @@ function FieldsEditor({ type, onCancel, onSaved }) {
   );
 }
 
+// W-D — governance workflow ladders (packages/workflow). Lists the
+// org's ladder definitions so admins can copy a key into a request
+// type's "Workflow ladder key", and seeds the 10-ladder pharma-GC
+// library idempotently.
+function GovernanceLaddersCard({ canManage, onDefinitions }) {
+  const [defs, setDefs] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const load = useCallback(async () => {
+    try {
+      const r = await fetch("/api/workflows/definitions");
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.ok) { setDefs(d.definitions || []); onDefinitions?.(d.definitions || []); }
+    } catch { /* card is best-effort */ }
+  }, [onDefinitions]);
+  useEffect(() => { load(); }, [load]);
+  const seed = async () => {
+    setBusy(true); setMsg(null);
+    try {
+      const r = await fetch("/api/admin/workflows/seed-library", { method: "POST" });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) throw new Error(d.error || `Seed failed (HTTP ${r.status})`);
+      setMsg(`Seeded ${d.keys.length} governance ladders.`);
+      load();
+    } catch (e) { setMsg(String(e.message || e)); } finally { setBusy(false); }
+  };
+  return (
+    <Card style={{ marginBottom: 14, borderLeft: `3px solid ${C.pp}` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: C.pp, letterSpacing: 1.2, fontFamily: M, textTransform: "uppercase" }}>Governance ladders</div>
+          <div style={{ fontSize: 10.5, color: C.t3, fontFamily: M, marginTop: 2 }}>Bind a ladder to a request type via its key — tickets of that type then run the approval workflow (RAG strip on the Cockpit).</div>
+        </div>
+        {canManage && <button onClick={seed} disabled={busy} style={{ ...btn(C.pp), opacity: busy ? .6 : 1 }}>{busy ? "Seeding…" : "Seed 10-ladder library"}</button>}
+      </div>
+      {msg && <div style={{ marginTop: 8, fontSize: 10.5, fontFamily: M, color: C.t2 }}>{msg}</div>}
+      {defs && defs.length > 0 && (
+        <div style={{ marginTop: 10, display: "flex", flexWrap: "wrap", gap: 6 }}>
+          {defs.map((d) => (
+            <span key={d.key} title={`${d.name} · ${d.steps?.length ?? 0} steps${d.description ? ` — ${d.description}` : ""}`} style={{ padding: "3px 8px", border: `1px solid ${C.br}`, borderRadius: 3, fontSize: 9.5, fontFamily: M, color: C.t2 }}>
+              {d.key} <span style={{ color: C.t4 }}>· {d.steps?.length ?? 0} steps</span>
+            </span>
+          ))}
+        </div>
+      )}
+      {defs && defs.length === 0 && <div style={{ marginTop: 8, fontSize: 10.5, fontFamily: M, color: C.t4 }}>No ladders defined yet{canManage ? " — seed the library to start." : "."}</div>}
+    </Card>
+  );
+}
+
 export function RequestTypesTab({ canManage }) {
   const toast = useToast();
   const [types, setTypes] = useState(null);
@@ -171,6 +228,8 @@ export function RequestTypesTab({ canManage }) {
         </div>
         {canManage && !creating && <button onClick={() => setCreating(true)} style={btn(C.cy)}>+ New type</button>}
       </div>
+
+      <GovernanceLaddersCard canManage={canManage} />
 
       {creating && <TypeForm onCancel={() => setCreating(false)} onSaved={() => { setCreating(false); reload(); }} />}
 
