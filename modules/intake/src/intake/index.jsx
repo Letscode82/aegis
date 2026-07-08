@@ -476,7 +476,21 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,goToMyRequests
   const missingFields=selectedReqType?missingRequiredFields(selectedReqType.fields,fieldValues):[];
   const canSubmit=!!form.from&&(form.desc.length>=10||docs.length>0)&&missingFields.length===0&&!busy&&!docBusy;
 
-  const regexTriage=useMemo(()=>classifyIntakeRegex(effectiveDesc,form.dept),[effectiveDesc,form.dept]);
+  // Triage classification reads the ticket TYPE + the human-authored
+  // description + only the TITLE/preamble of each attached document —
+  // never the deep document body, whose incidental keywords ("breach"
+  // in a clause, "trademark" in a definitions list) misroute the
+  // ticket (e.g. a CDA classified as IP/Trademark). The agent still
+  // receives the full text: effectiveDesc → ticket.desc.
+  const classifyText=useMemo(()=>[
+    form.type,
+    descWithFields.trim(),
+    // The document TITLE only (first non-empty line) — the
+    // classification-relevant part. Deep clauses ("breach",
+    // "trademark") are for the agent to read, not the triage router.
+    ...docs.map(d=>(String(d.text||"").split(/\r?\n/).map(l=>l.trim()).find(Boolean)||"").slice(0,160)),
+  ].filter(Boolean).join("\n"),[form.type,descWithFields,docs]);
+  const regexTriage=useMemo(()=>classifyIntakeRegex(classifyText,form.dept),[classifyText,form.dept]);
 
   const submit=async()=>{
     if(!canSubmit) return;

@@ -5,7 +5,7 @@ export function classifyIntakeRegex(text,dept){
     return{cat:"Employment — Sensitive",priority:"Critical",team:"Employment Team + GC",sla:"4 hrs",slaHours:4,rule:"RULE-1",conf:98,risk:"Critical",note:"Auto-escalated to GC per policy",hrs:20,source:"regex"};
   if(/lawsuit|subpoena|summons|deposition|demand letter|cease.{0,3}and.{0,3}desist|served with|notice of (claim|dispute)|\blitigation\b/.test(t))
     return{cat:"Litigation — Non-Court",priority:"High",team:"Litigation Team",sla:"8 hrs",slaHours:8,rule:"RULE-9",conf:90,risk:"High",note:"Litigation intake — attorney review; confirm deadline + preservation",hrs:12,source:"regex"};
-  if(/\bnda\b|non.{0,3}disclosure|confidentiality/.test(t)&&!/breach|violated/.test(t))
+  if(/\bnda\b|\bcda\b|non.{0,3}disclosure|confidential.{0,3}disclosure|confidentiality/.test(t)&&!/breach|violated/.test(t))
     return{cat:"NDA — Standard",priority:"Low",team:"AI Auto-Draft",sla:"2 hrs",slaHours:2,rule:"RULE-0",conf:96,risk:"None",note:"Auto-draft from playbook template",hrs:0,source:"regex"};
   if(/(loan|debt|covenant|facility|credit agreement).*(m|b)(illion)?/i.test(t)||(/€\d+|\$\d+m|\$\d+b/i.test(t)&&/(loan|covenant|debt|financing)/.test(t)))
     return{cat:"Finance — Debt / Covenant",priority:"High",team:"Finance Legal + GC",sla:"8 hrs",slaHours:8,rule:"RULE-2",conf:93,risk:"High",note:"Board-level exposure — GC review required",hrs:10,source:"regex"};
