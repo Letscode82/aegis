@@ -1,23 +1,31 @@
+import { descriptionLead } from "../intake/ticket-desc";
+
 export function tokenize(t){
   return (t||"").toLowerCase().replace(/[^a-z0-9\s]/g," ").split(/\s+/).filter(w=>w.length>3&&!["with","that","from","this","need","have","the","and","for","are","was","will","our"].includes(w));
 }
 
 export function findSimilarMatters(ticket,allTickets,limit=3){
-  const myWords=new Set(tokenize(ticket.desc));
+  // Tokenize the human-authored LEAD only — never the appended
+  // document body, whose 10k+ chars of boilerplate create spurious
+  // overlap with unrelated tickets (a CDA surfacing as a "match" for
+  // an employment-retaliation request).
+  const myWords=new Set(tokenize(descriptionLead(ticket.desc)));
   const myCat=ticket.aiTriage?.category||"";
   const myType=ticket.type||"";
   const scored=allTickets
     .filter(t=>t.id!==ticket.id&&(t.stage==="complete"||t.status==="Auto-Completed"||t.status==="Completed"||t.triagedAction==="approved"))
     .map(t=>{
-      const otherWords=tokenize(t.desc);
+      const otherWords=tokenize(descriptionLead(t.desc));
       const overlap=otherWords.filter(w=>myWords.has(w)).length;
       let score=0;
-      if((t.aiTriage?.category||"")===myCat) score+=3;
-      if((t.type||"")===myType) score+=2;
+      if((t.aiTriage?.category||"")===myCat&&myCat) score+=3;
+      if((t.type||"")===myType&&myType) score+=2;
       score+=Math.min(overlap,5);
       return {t,score,overlap};
     })
-    .filter(x=>x.score>=2)
+    // A real match shares the category/type OR has meaningful lead
+    // overlap (>=2 words). A single incidental word is not a match.
+    .filter(x=>x.score>=3||(x.overlap>=2&&x.score>=2))
     .sort((a,b)=>b.score-a.score)
     .slice(0,limit);
 

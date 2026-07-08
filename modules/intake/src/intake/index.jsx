@@ -15,6 +15,7 @@ import { useAgentLog } from "../hooks/use-agent-log";
 import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
 import { TicketSummaryButton, AskAuroraChat } from "../ai-features";
 import { isAwaitingTriage } from "./triage-filter";
+import { splitTicketDescription } from "./ticket-desc";
 import { TeamsTab } from "./teams-admin";
 import { HandoffDialog } from "./handoff-dialog";
 import { WorkPanel } from "./work-panel";
@@ -723,26 +724,9 @@ function AgentRecommendationPanel({ticket,rec,agent,editing,draftEdit,onDraftEdi
   </Card>;
 }
 
-// Split a ticket description into the human-authored lead and any
-// attached-document text blocks. The New Request form appends the full
-// extracted text of every uploaded document to `desc` (marker
-// "--- Attached document: NAME ---") so the classifier + agent can read
-// it — but the reviewer should see the typed request, not a wall of
-// contract text. This parses the stored desc back into its parts for
-// display; it does not change what the agent receives.
-export function splitTicketDescription(desc){
-  const s=String(desc||"");
-  const marker=/\n*--- Attached document: (.+?) ---\n/g;
-  const matches=[...s.matchAll(marker)];
-  if(matches.length===0) return {lead:s.trim(),docs:[]};
-  const lead=s.slice(0,matches[0].index).trim();
-  const docs=matches.map((m,i)=>{
-    const start=m.index+m[0].length;
-    const end=i+1<matches.length?matches[i+1].index:s.length;
-    return {name:m[1],text:s.slice(start,end).trim()};
-  });
-  return {lead,docs};
-}
+// Re-exported (imported at top) so existing importers + the
+// ticket-description test keep resolving it from index.jsx.
+export { splitTicketDescription };
 
 // Renders the typed request in full and collapses each attached document
 // behind a click-to-expand, scrollable block (keeps the Cockpit clean

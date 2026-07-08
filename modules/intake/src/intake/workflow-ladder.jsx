@@ -10,13 +10,18 @@ import { C, M } from "@aegis/ui";
 // actions POST to /act with the optimistic version so stale
 // double-approvals 409 (surfaced inline, refresh re-syncs).
 //
-// Tickets without a ladder render nothing — zero footprint on the
-// existing demo flows.
+// A ticket whose type binds a ladder shows its running instance. A
+// ticket without one shows a compact "Start a governance ladder"
+// control (pick a definition + start it on this ticket) so any ticket
+// can be put on a workflow on the spot — no seed→bind→new-ticket dance
+// required. When the library is empty the card renders nothing.
 
 const RAG_COLORS={green:C.gn,amber:C.am,red:C.rd,grey:C.br,skipped:C.t3};
 
 export function WorkflowLadderCard({ticket}){
   const[instance,setInstance]=useState(null);
+  const[definitions,setDefinitions]=useState([]);
+  const[pickKey,setPickKey]=useState("");
   const[busy,setBusy]=useState(false);
   const[error,setError]=useState(null);
   const[sendBackTo,setSendBackTo]=useState("");
@@ -24,16 +29,53 @@ export function WorkflowLadderCard({ticket}){
   const load=useCallback(async()=>{
     if(!ticket?.id) return;
     try{
-      const resp=await fetch(`/api/workflows/instances?entityType=intake_ticket&entityId=${encodeURIComponent(ticket.id)}`);
-      if(!resp.ok) return;
-      const data=await resp.json();
-      setInstance((data.instances&&data.instances[0])||null);
+      const [instResp,defResp]=await Promise.all([
+        fetch(`/api/workflows/instances?entityType=intake_ticket&entityId=${encodeURIComponent(ticket.id)}`),
+        fetch(`/api/workflows/definitions`),
+      ]);
+      if(instResp.ok){
+        const data=await instResp.json();
+        setInstance((data.instances&&data.instances[0])||null);
+      }
+      if(defResp.ok){
+        const d=await defResp.json();
+        setDefinitions(d.definitions||[]);
+      }
     }catch{/* card is best-effort — no ladder, no noise */}
   },[ticket?.id]);
 
-  useEffect(()=>{setInstance(null);setError(null);setSendBackTo("");load();},[load]);
+  useEffect(()=>{setInstance(null);setError(null);setSendBackTo("");setPickKey("");load();},[load]);
 
-  if(!instance) return null;
+  const startLadder=async()=>{
+    if(!pickKey) return;
+    setBusy(true);setError(null);
+    try{
+      const resp=await fetch(`/api/workflows/instances`,{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({definitionKey:pickKey,entityType:"intake_ticket",entityId:ticket.id}),
+      });
+      const data=await resp.json();
+      if(!resp.ok) setError(data.error||`${resp.status}`);
+      await load();
+    }catch(e){setError(String(e));}
+    finally{setBusy(false);}
+  };
+
+  // No running ladder — offer to start one (when the library exists).
+  if(!instance){
+    if(definitions.length===0) return null;
+    return <div style={{padding:"11px 14px",marginBottom:10,background:C.s1,border:`1px dashed ${C.br}`,borderRadius:4}}>
+      <div style={{fontSize:9,fontFamily:M,color:C.t3,letterSpacing:1.5,textTransform:"uppercase",fontWeight:600,marginBottom:7}}>Governance ladder · none running</div>
+      <div style={{display:"flex",gap:7,alignItems:"center",flexWrap:"wrap"}}>
+        <select value={pickKey} onChange={e=>setPickKey(e.target.value)} style={{background:C.s1,border:`1px solid ${C.br}`,color:C.t2,fontSize:10.5,fontFamily:M,padding:"4px 6px",borderRadius:3,maxWidth:260}}>
+          <option value="">Put this ticket on a ladder…</option>
+          {definitions.map(d=><option key={d.key} value={d.key}>{d.name} ({d.steps?.length??0} steps)</option>)}
+        </select>
+        <div onClick={pickKey&&!busy?startLadder:undefined} style={{padding:"4px 11px",border:`1px solid ${C.pp}`,color:pickKey&&!busy?C.pp:C.t3,borderRadius:3,cursor:pickKey&&!busy?"pointer":"default",fontSize:9,fontFamily:M,letterSpacing:1,textTransform:"uppercase",fontWeight:700,opacity:pickKey&&!busy?1:.5}}>{busy?"Starting…":"▸ Start ladder"}</div>
+      </div>
+      {error&&<div style={{marginTop:7,fontSize:10,fontFamily:M,color:C.rd}}>⚠ {error}</div>}
+    </div>;
+  }
   const rag=instance.rag||[];
   const currentStep=rag.find(r=>r.stepOrder===instance.currentStepOrder);
   const stepMeta=(instance.definition?.steps||[]).find(s=>s.stepOrder===instance.currentStepOrder);
