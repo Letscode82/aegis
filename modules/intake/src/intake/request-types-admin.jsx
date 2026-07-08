@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { C, F, M, SR, Card, inputStyle, useToast } from "@aegis/ui";
+import { ALL_AGENTS, routeToAgent } from "../agents";
 
 // ── Track 1 · Activity 7 — request-types admin surface ───────────────
 //
@@ -23,6 +24,7 @@ function TypeForm({ onCancel, onSaved }) {
   const [workstream, setWorkstream] = useState("");
   const [stages, setStages] = useState("");
   const [workflowKey, setWorkflowKey] = useState("");
+  const [preferredAgentId, setPreferredAgentId] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const save = async () => {
@@ -33,6 +35,7 @@ function TypeForm({ onCancel, onSaved }) {
         name, key: key || undefined, workstream: workstream || null,
         stages: stages.split(",").map((s) => s.trim()).filter(Boolean),
         workflowKey: workflowKey.trim() || null,
+        preferredAgentId: preferredAgentId || null,
       };
       const r = await fetch("/api/admin/intake/request-types", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json().catch(() => ({}));
@@ -49,6 +52,7 @@ function TypeForm({ onCancel, onSaved }) {
         <div><div style={labelS}>Workstream</div><input value={workstream} onChange={(e) => setWorkstream(e.target.value)} style={inputStyle} placeholder="Trademarks" /></div>
         <div><div style={labelS}>Stages (comma-separated)</div><input value={stages} onChange={(e) => setStages(e.target.value)} style={inputStyle} placeholder="Intake, Search, Opinion, Filed" /></div>
         <div><div style={labelS}>Workflow ladder key (optional)</div><input value={workflowKey} onChange={(e) => setWorkflowKey(e.target.value)} style={inputStyle} placeholder="clm_contract_approval" list="workflow-ladder-keys" /></div>
+        <div><div style={labelS}>Handled by agent</div><select value={preferredAgentId} onChange={(e) => setPreferredAgentId(e.target.value)} style={inputStyle}><option value="">Auto — router decides by content</option>{ALL_AGENTS.map((a) => <option key={a.id} value={a.id}>{a.shortName || a.name}</option>)}</select></div>
       </div>
       <datalist id="workflow-ladder-keys">{ladderKeys.map((k) => <option key={k} value={k} />)}</datalist>
       {err && <div style={{ marginTop: 10, padding: "7px 11px", background: C.rdG, borderLeft: `3px solid ${C.rd}`, borderRadius: 4, fontSize: 11, color: C.t1, fontFamily: M }}>{err}</div>}
@@ -66,6 +70,23 @@ const FIELD_KINDS = ["text", "textarea", "select", "date", "number", "boolean"];
 
 function keyFromLabel(label) {
   return String(label || "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+}
+
+// "Handled by" chip — which agent picks up this type. Shows the bound
+// agent when preferredAgentId is set (program #5), else previews the
+// agent the deterministic router would choose from the type name.
+function HandledByChip({ type }) {
+  const bound = type.preferredAgentId ? ALL_AGENTS.find((a) => a.id === type.preferredAgentId) : null;
+  const auto = !bound ? routeToAgent({ type: type.name, aiTriage: { category: type.name }, desc: "" }, undefined) : null;
+  const agent = bound || auto;
+  return (
+    <div style={{ fontSize: 9, fontFamily: M, marginTop: 3, display: "flex", alignItems: "center", gap: 4 }}>
+      <span style={{ color: C.t4 }}>handled by</span>
+      {agent
+        ? <span style={{ color: bound ? C.pp : C.tl, padding: "1px 6px", border: `1px solid ${bound ? C.pp + "66" : C.br}`, borderRadius: 3 }}>{agent.icon || ""} {agent.shortName || agent.name}{bound ? " · bound" : " · auto"}</span>
+        : <span style={{ color: C.t4 }}>manual triage (no agent match)</span>}
+    </div>
+  );
 }
 
 function FieldsEditor({ type, onCancel, onSaved }) {
@@ -242,6 +263,7 @@ export function RequestTypesTab({ canManage }) {
               <div>
                 <div style={{ fontSize: 13, color: C.t1, fontWeight: 600 }}>{t.name}</div>
                 <div style={{ fontSize: 9.5, fontFamily: M, color: C.t3, marginTop: 2 }}>{t.key}{t.workstream ? ` · ${t.workstream}` : ""}</div>
+                <HandledByChip type={t} />
               </div>
               {canManage && <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                 <div onClick={() => toggleActive(t)} title={t.active ? "Deactivate" : "Activate"} style={{ width: 30, height: 16, borderRadius: 9, background: t.active ? C.gn : C.br, position: "relative", cursor: "pointer", flexShrink: 0 }}>

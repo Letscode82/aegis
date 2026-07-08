@@ -65,6 +65,17 @@ describe("production routing (mock agents hidden)", () => {
     // With NDA off, an NDA-only description falls through to no match.
     expect(disabled?.id ?? null).not.toBe("nda-agent");
   });
+
+  it("a per-request-type binding (program #5) overrides canHandle routing", () => {
+    // A ticket the router would send to NDA, bound instead to Vendor.
+    const ticket = t({ type: "NDA Request", desc: "Mutual NDA with Acme" });
+    expect(prod.routeToAgent(ticket, {})?.id).toBe("nda-agent");
+    expect(prod.routeToAgent(ticket, {}, "vendor-intake-agent")?.id).toBe("vendor-intake-agent");
+    // A binding to a disabled agent falls back to the router.
+    expect(prod.routeToAgent(ticket, { "vendor-intake-agent": { enabled: false } }, "vendor-intake-agent")?.id).toBe("nda-agent");
+    // An unknown binding id falls back to the router.
+    expect(prod.routeToAgent(ticket, {}, "nope-agent")?.id).toBe("nda-agent");
+  });
 });
 
 // All six agents are productionReady now, so the demo flag changes

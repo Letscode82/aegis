@@ -45,6 +45,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
               : typeof body.workflowKey === "string"
                 ? body.workflowKey
                 : undefined,
+          preferredAgentId:
+            body.preferredAgentId === null
+              ? null
+              : typeof body.preferredAgentId === "string"
+                ? body.preferredAgentId
+                : undefined,
           sortOrder: typeof body.sortOrder === "number" ? body.sortOrder : undefined,
           fields: Array.isArray(body.fields) ? (body.fields as never[]) : undefined,
         },
