@@ -121,11 +121,47 @@ const DEMO_USER_EMAIL =
  * (c) caller didn't already redirect — middleware should normally
  * have handled the no-session case.
  */
+/** Cookie the dev-mode "View as role" switcher sets (program #4). */
+export const DEV_VIEW_AS_COOKIE = "aegis_dev_view_as";
+
+/**
+ * Pure: extract the "view as" email from a raw Cookie header. Exported
+ * for testing. Returns null when the cookie is absent or empty.
+ */
+export function parseDevViewAsCookie(cookieHeader: string | undefined | null): string | null {
+  if (!cookieHeader) return null;
+  const match = cookieHeader.split(/;\s*/).find((c) => c.startsWith(`${DEV_VIEW_AS_COOKIE}=`));
+  if (!match) return null;
+  const val = decodeURIComponent(match.slice(DEV_VIEW_AS_COOKIE.length + 1)).trim();
+  return val || null;
+}
+
+/**
+ * Dev-mode only: read the "view as" email the switcher stored in a
+ * cookie. Lets a demo operator preview the app as any seeded role user
+ * without restarting with a different DEV_USER_EMAIL. Never consulted
+ * when Auth0 is configured (production), so it cannot weaken real auth.
+ */
+function devViewAsEmail(
+  req: NextApiRequest | { headers: Record<string, string | string[] | undefined> },
+): string | null {
+  const raw = req.headers?.cookie;
+  const cookie = Array.isArray(raw) ? raw.join(";") : raw;
+  return parseDevViewAsCookie(cookie);
+}
+
 export async function getResolvedUser(
   req: NextApiRequest | { headers: Record<string, string | string[] | undefined> },
   res?: NextApiResponse,
 ): Promise<AuthUser | null> {
   if (!isAuth0Configured()) {
+    // Honour the dev-mode "View as role" cookie when it resolves to a
+    // seeded user; otherwise fall back to the default demo admin.
+    const viewAs = devViewAsEmail(req);
+    if (viewAs) {
+      const asUser = await resolveByEmail(viewAs);
+      if (asUser) return asUser;
+    }
     return resolveByEmail(DEMO_USER_EMAIL);
   }
 
