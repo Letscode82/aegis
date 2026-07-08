@@ -1,0 +1,24 @@
+SOFTWARE LICENSING AGREEMENT
+
+This Software Licensing Agreement is entered into between Vertex Labs Inc.
+("Licensor") and Dr. Reddy's Laboratories Ltd. ("Licensee").
+
+1. GRANT. Licensor grants Licensee an EXCLUSIVE, perpetual license to use the
+   Vertex analytics platform in the European Union territory.
+
+2. FIELD OF USE. Pharmaceutical R&D data analytics only.
+
+3. ROYALTY. Licensee shall pay a royalty of four percent (4%) on net sales of
+   any product derived using the platform, with minimum annual guarantees of
+   USD 250,000.
+
+4. TERM. Five (5) years, automatically renewing.
+
+5. AUDIT. Licensor may audit Licensee's royalty records annually on 30 days'
+   notice.
+
+6. IMPROVEMENTS. All improvements to the platform made by Licensee shall be
+   owned by Licensor.
+
+7. SUBLICENSING. Licensee may not sublicense without Licensor's prior written
+   consent.
