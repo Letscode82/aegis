@@ -2234,9 +2234,38 @@ model WorkflowDefinition {
   organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   steps        WorkflowStep[]
   instances    WorkflowInstance[]
+  versions     WorkflowDefinitionVersion[]
 
   @@unique([organizationId, key])
   @@index([organizationId, isActive])
+}
+
+/// Immutable snapshot of a definition at each Designer save. The live
+/// WorkflowDefinition + WorkflowStep rows are the current version;
+/// these rows are the history the Designer lists and can revert to (a
+/// revert is a new save whose steps match an old snapshot, so the
+/// version keeps moving forward). Mirrors HoldNoticeTemplateVersion.
+model WorkflowDefinitionVersion {
+  id           String   @id @default(cuid())
+  definitionId String
+  /// The WorkflowDefinition.version this snapshot captured.
+  version      Int
+  name         String
+  description  String?
+  /// Full ordered steps as JSON (name, screenKey, approverRole, kind,
+  /// agentConfigJson, slaHours, metadataJson) — the editor rehydrates
+  /// from this on revert.
+  stepsJson    Json
+  /// User.id that saved this version (app-level ref, AuditLog pattern).
+  savedById    String
+  /// Optional change note captured at save time.
+  changeLog    String?
+  createdAt    DateTime @default(now())
+
+  definition WorkflowDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+
+  @@unique([definitionId, version])
+  @@index([definitionId, createdAt])
 }
 
 /// Ordered steps of a definition. Max 15 per definition — enforced in

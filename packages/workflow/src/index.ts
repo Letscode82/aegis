@@ -15,6 +15,8 @@ export {
   getWorkflowInstance,
   listInstancesForEntity,
   listWorkflowDefinitions,
+  listWorkflowVersions,
+  revertWorkflowToVersion,
   ragFor,
   WorkflowError,
   WorkflowVersionConflictError,

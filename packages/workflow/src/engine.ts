@@ -52,6 +52,10 @@ export interface DefineWorkflowInput {
   key: string;
   name: string;
   description?: string | null;
+  /** User.id saving this edit — recorded on the version snapshot. */
+  savedById?: string | null;
+  /** Optional change note captured on the version snapshot. */
+  changeLog?: string | null;
   steps: Array<{
     stepOrder: number;
     name: string;
@@ -142,10 +146,67 @@ export async function defineWorkflow(input: DefineWorkflowInput) {
         metadataJson: (s.metadataJson ?? {}) as object,
       })),
     });
+    // Immutable snapshot of this save — the version history.
+    await tx.workflowDefinitionVersion.create({
+      data: {
+        definitionId: def.id,
+        version: def.version,
+        name: def.name,
+        description: def.description,
+        stepsJson: input.steps as never,
+        savedById: input.savedById ?? "system",
+        changeLog: input.changeLog ?? null,
+      },
+    });
     return tx.workflowDefinition.findUniqueOrThrow({
       where: { id: def.id },
       include: { steps: { orderBy: { stepOrder: "asc" } } },
     });
+  });
+}
+
+/** History snapshots for a definition, newest first. */
+export async function listWorkflowVersions(organizationId: string, key: string) {
+  const def = await prisma.workflowDefinition.findUnique({
+    where: { organizationId_key: { organizationId, key } },
+    select: { id: true },
+  });
+  if (!def) return [];
+  return prisma.workflowDefinitionVersion.findMany({
+    where: { definitionId: def.id },
+    orderBy: { version: "desc" },
+  });
+}
+
+/**
+ * Revert a definition to a prior snapshot's steps. A revert is a new
+ * save (version keeps moving forward) so history is never rewritten —
+ * running instances are untouched; new tickets use the reverted steps.
+ */
+export async function revertWorkflowToVersion(input: {
+  organizationId: string;
+  key: string;
+  version: number;
+  savedById?: string | null;
+}) {
+  const def = await prisma.workflowDefinition.findUnique({
+    where: { organizationId_key: { organizationId: input.organizationId, key: input.key } },
+    select: { id: true, name: true, description: true },
+  });
+  if (!def) throw new WorkflowError(`No workflow definition '${input.key}'`, 404);
+  const snap = await prisma.workflowDefinitionVersion.findUnique({
+    where: { definitionId_version: { definitionId: def.id, version: input.version } },
+  });
+  if (!snap) throw new WorkflowError(`Version ${input.version} not found`, 404);
+  const steps = Array.isArray(snap.stepsJson) ? (snap.stepsJson as DefineWorkflowInput["steps"]) : [];
+  return defineWorkflow({
+    organizationId: input.organizationId,
+    key: input.key,
+    name: snap.name,
+    description: snap.description,
+    steps,
+    savedById: input.savedById ?? null,
+    changeLog: `Reverted to v${input.version}`,
   });
 }
 

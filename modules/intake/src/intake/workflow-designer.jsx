@@ -139,6 +139,60 @@ function StepRow({ row, index, total, onChange, onMove, onDelete }) {
   );
 }
 
+// Snapshot steps (from a version row) → editor rows.
+function snapshotToRows(steps) {
+  return (steps || []).map((s, i) => {
+    const cfg = s.agentConfigJson || {};
+    const skip = (s.metadataJson || {}).skip_if || {};
+    return {
+      stepOrder: i + 1, name: s.name, screenKey: s.screenKey, approverRole: s.approverRole || "",
+      kind: s.kind || "HUMAN", slaHours: s.slaHours ?? "", agentKey: cfg.agentKey || "",
+      minConfidence: typeof cfg.minConfidence === "number" ? cfg.minConfidence : 0.8,
+      skipField: skip.field || "", skipOp: skip.op || "lt", skipValue: skip.value !== undefined ? String(skip.value) : "",
+    };
+  });
+}
+
+function VersionHistory({ defKey, onRevertLoad }) {
+  const toast = useToast();
+  const [versions, setVersions] = useState(null);
+  const load = useCallback(async () => {
+    try {
+      const r = await fetch(`/api/workflows/definitions/${encodeURIComponent(defKey)}/versions`);
+      const d = await r.json().catch(() => ({}));
+      if (r.ok && d.ok) setVersions(d.versions || []);
+    } catch { setVersions([]); }
+  }, [defKey]);
+  useEffect(() => { load(); }, [load]);
+  const revert = async (version) => {
+    try {
+      const r = await fetch(`/api/workflows/definitions/${encodeURIComponent(defKey)}/revert`, {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ version }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) throw new Error(d.error || `Revert failed (HTTP ${r.status})`);
+      toast.success(`Reverted to v${version} (saved as v${d.definition.version}).`);
+      onRevertLoad?.();
+    } catch (e) { toast.error(String(e.message || e)); }
+  };
+  if (!versions || versions.length <= 1) return null;
+  return (
+    <details style={{ marginTop: 14, borderTop: `1px solid ${C.br}`, paddingTop: 10 }}>
+      <summary style={{ fontSize: 10, fontFamily: M, color: C.t2, letterSpacing: 1, textTransform: "uppercase", cursor: "pointer" }}>Version history ({versions.length})</summary>
+      <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+        {versions.map((v) => (
+          <div key={v.id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 10.5, fontFamily: M, color: C.t2, padding: "3px 0" }}>
+            <span style={{ color: C.pp, minWidth: 34 }}>v{v.version}</span>
+            <span style={{ color: C.t3, flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{v.changeLog || `${(v.stepsJson || []).length} steps`}</span>
+            <span onClick={() => onRevertLoad?.(snapshotToRows(v.stepsJson))} title="Load this version into the editor (doesn't save)" style={{ ...ghostBtn, fontSize: 9 }}>Load</span>
+            <span onClick={() => revert(v.version)} title="Save this version as the new current version" style={{ ...ghostBtn, fontSize: 9, color: C.am, borderColor: C.am + "66" }}>Revert</span>
+          </div>
+        ))}
+      </div>
+    </details>
+  );
+}
+
 function DefinitionEditor({ def, onCancel, onSaved }) {
   const toast = useToast();
   const isNew = !def;
@@ -192,6 +246,11 @@ function DefinitionEditor({ def, onCancel, onSaved }) {
         <button onClick={save} disabled={busy} style={{ ...btn(C.pp), opacity: busy ? 0.6 : 1 }}>{busy ? "Saving…" : isNew ? "Create workflow" : "Save changes"}</button>
         <button onClick={onCancel} style={{ ...btn(C.s1), color: C.t2 }}>Cancel</button>
       </div>
+
+      {!isNew && <VersionHistory defKey={def.key} onRevertLoad={(loadedRows) => {
+        if (loadedRows) { setRows(loadedRows); toast.success("Loaded into editor — Save to keep."); }
+        else onSaved();
+      }} />}
     </Card>
   );
 }
