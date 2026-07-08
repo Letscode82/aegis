@@ -20,8 +20,9 @@ vi.mock("@aegis/auth/react", () => ({
   }),
 }));
 
-const { NewRequestV8 } = (await import("../src/intake/index.jsx" as never)) as {
+const { NewRequestV8, TicketDetailPanel } = (await import("../src/intake/index.jsx" as never)) as {
   NewRequestV8: React.ComponentType<Record<string, unknown>>;
+  TicketDetailPanel: React.ComponentType<Record<string, unknown>>;
 };
 const { AgentsConsoleTab } = (await import("../src/intake/agents-console.jsx" as never)) as {
   AgentsConsoleTab: React.ComponentType<Record<string, unknown>>;
@@ -88,5 +89,18 @@ describe("admin console render paths (program #6/#1)", () => {
       React.createElement(ToastProvider, null, React.createElement(WorkflowDesignerTab, { canManage: true })),
     );
     expect(html.length).toBeGreaterThan(50);
+  });
+
+  it("Cockpit ticket detail renders in both Full and Focus modes (program #7)", () => {
+    const ticket = {
+      id: "REQ-1", type: "NDA Request", priority: "Medium", _source: "form", from: "Dana", dept: "Ops",
+      submitted: "2026-07-08 10:00", desc: "Need a mutual NDA", slaStatus: "On Track", sla: "24 hrs", slaPct: 20,
+      aiTriage: { source: "regex", category: "NDA — Standard", riskFlag: "Low", suggestedAssignee: "AI", confidence: 96, similarMatters: 3, routingRule: "RULE-0" },
+    };
+    for (const compact of [false, true]) {
+      const html = renderToString(React.createElement(TicketDetailPanel, { ticket, compact }));
+      expect(html).toContain("Need a mutual NDA"); // description always leads
+      expect(html.length).toBeGreaterThan(100);
+    }
   });
 });
