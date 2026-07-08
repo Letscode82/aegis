@@ -2224,7 +2224,12 @@ model WorkflowDefinition {
   name           String
   description    String?
   isActive       Boolean  @default(true)
+  /// Monotonic save counter — bumped each time the Designer saves an
+  /// edit. Running instances keep their own step rows; the version is
+  /// the definition's edit generation, surfaced in the Designer.
+  version        Int      @default(1)
   createdAt      DateTime @default(now())
+  updatedAt      DateTime @default(now()) @updatedAt
 
   organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   steps        WorkflowStep[]

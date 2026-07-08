@@ -121,7 +121,12 @@ export async function defineWorkflow(input: DefineWorkflowInput) {
         name: input.name,
         description: input.description ?? null,
       },
-      update: { name: input.name, description: input.description ?? null, isActive: true },
+      update: {
+        name: input.name,
+        description: input.description ?? null,
+        isActive: true,
+        version: { increment: 1 },
+      },
     });
     await tx.workflowStep.deleteMany({ where: { definitionId: def.id } });
     await tx.workflowStep.createMany({

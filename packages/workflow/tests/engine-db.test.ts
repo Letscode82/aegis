@@ -338,3 +338,23 @@ describe("governance library seeding (W-D)", () => {
     expect(litigation.steps).toHaveLength(7);
   });
 });
+
+describe("Workflow Designer — version bump on edit", () => {
+  it("defineWorkflow starts at v1 and increments the version on each re-save", async () => {
+    const spec = {
+      organizationId: orgId,
+      key: "designer_edit_test",
+      name: "Designer Edit Test",
+      steps: [{ stepOrder: 1, name: "Submit", screenKey: "intake" }],
+    };
+    const v1 = await defineWorkflow(spec);
+    expect(v1.version).toBe(1);
+    const v2 = await defineWorkflow({ ...spec, name: "Renamed", steps: [
+      { stepOrder: 1, name: "Submit", screenKey: "intake" },
+      { stepOrder: 2, name: "Legal Review", screenKey: "legal_review", approverRole: "attorney", slaHours: 48 },
+    ] });
+    expect(v2.version).toBe(2);
+    expect(v2.name).toBe("Renamed");
+    expect(v2.steps).toHaveLength(2);
+  });
+});
