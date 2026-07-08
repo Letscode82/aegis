@@ -33,6 +33,12 @@ export {
 } from "./agent-tasks";
 export { GOVERNANCE_LIBRARY, seedWorkflowLibrary } from "./library";
 export {
+  getWorkflowSlaOverview,
+  type WorkflowSlaOverview,
+  type StuckInstance,
+  type StageDelay,
+} from "./analytics";
+export {
   MAX_STEPS,
   shouldSkip,
   nextActionable,

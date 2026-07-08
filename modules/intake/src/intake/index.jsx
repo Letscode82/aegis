@@ -17,6 +17,7 @@ import { TicketSummaryButton, AskAuroraChat } from "../ai-features";
 import { isAwaitingTriage } from "./triage-filter";
 import { splitTicketDescription } from "./ticket-desc";
 import { WorkflowDesignerTab } from "./workflow-designer";
+import { WorkflowSlaPanel } from "./workflow-sla";
 import { TeamsTab } from "./teams-admin";
 import { HandoffDialog } from "./handoff-dialog";
 import { WorkPanel } from "./work-panel";
@@ -1958,6 +1959,9 @@ function SLATab({store}){
         <div style={{fontSize:9.5,color:C.t4,marginTop:4,fontFamily:M}}>Assigned: {r.assigned} · From: {r.from} ({r.dept})</div>
       </div>)}
     </Card>}
+
+    {/* Program #3 — governance-workflow SLA: where each matter is stopped */}
+    <WorkflowSlaPanel/>
   </div>;
 }
 
