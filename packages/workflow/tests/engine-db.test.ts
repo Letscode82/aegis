@@ -21,6 +21,7 @@ import {
   seedWorkflowLibrary,
   listWorkflowVersions,
   revertWorkflowToVersion,
+  getWorkflowSlaOverview,
 } from "../src/index";
 
 let orgId = "";
@@ -392,5 +393,40 @@ describe("Workflow version history + revert (program #2)", () => {
     await expect(
       revertWorkflowToVersion({ organizationId: orgId, key, version: 99, savedById: userId }),
     ).rejects.toThrow(/not found/);
+  });
+});
+
+describe("Workflow SLA analytics (program #3)", () => {
+  it("reports where each in-flight instance is stopped + delay per stage", async () => {
+    await defineWorkflow({
+      organizationId: orgId, key: "sla_overview_test", name: "SLA Overview Test",
+      steps: [
+        { stepOrder: 1, name: "Intake", screenKey: "intake", slaHours: 4 },
+        { stepOrder: 2, name: "Legal Review", screenKey: "legal", approverRole: "attorney", slaHours: 1 },
+      ],
+    });
+    const inst = await startWorkflow({
+      organizationId: orgId, definitionKey: "sla_overview_test",
+      entityType: "intake_ticket", entityId: "SLA-1", startedById: userId,
+    });
+    // Advance to step 2 so step 1 has a completed duration and step 2 is current.
+    await actOnWorkflow({ instanceId: inst.id, action: "approve", actor: userId });
+
+    // Force the current step to look overdue: backdate stepEnteredAt.
+    await prisma.workflowInstance.update({
+      where: { id: inst.id },
+      data: { stepEnteredAt: new Date(Date.now() - 5 * 3_600_000) },
+    });
+
+    const ov = await getWorkflowSlaOverview(orgId);
+    const mine = ov.instances.find((i) => i.entityId === "SLA-1");
+    expect(mine).toBeTruthy();
+    expect(mine!.currentStepName).toBe("Legal Review");
+    expect(mine!.currentStepOrder).toBe(2);
+    expect(mine!.breached).toBe(true); // 5h on a 1h-SLA step
+    expect(mine!.hoursOnStep).toBeGreaterThanOrEqual(4);
+    expect(ov.summary.breached).toBeGreaterThanOrEqual(1);
+    // Step 1 (Intake) produced a completed-stage duration sample.
+    expect(ov.stageDelays.some((s) => s.stepName === "Intake")).toBe(true);
   });
 });
