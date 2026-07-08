@@ -19,6 +19,8 @@ import {
   runAgentTask,
   listAgentTasks,
   seedWorkflowLibrary,
+  listWorkflowVersions,
+  revertWorkflowToVersion,
 } from "../src/index";
 
 let orgId = "";
@@ -356,5 +358,39 @@ describe("Workflow Designer — version bump on edit", () => {
     expect(v2.version).toBe(2);
     expect(v2.name).toBe("Renamed");
     expect(v2.steps).toHaveLength(2);
+  });
+});
+
+describe("Workflow version history + revert (program #2)", () => {
+  const key = "history_test";
+  const v1steps = [{ stepOrder: 1, name: "Submit", screenKey: "intake" }];
+  const v2steps = [
+    { stepOrder: 1, name: "Submit", screenKey: "intake" },
+    { stepOrder: 2, name: "Legal", screenKey: "legal", approverRole: "attorney", slaHours: 24 },
+  ];
+
+  it("snapshots every save and reverts to a prior version as a forward save", async () => {
+    await defineWorkflow({ organizationId: orgId, key, name: "History A", steps: v1steps, savedById: userId });
+    await defineWorkflow({ organizationId: orgId, key, name: "History B", steps: v2steps, savedById: userId, changeLog: "added legal" });
+
+    const versions = await listWorkflowVersions(orgId, key);
+    expect(versions.map((v) => v.version)).toEqual([2, 1]); // newest first
+    expect(versions[0]!.changeLog).toBe("added legal");
+    expect((versions[1]!.stepsJson as unknown[]).length).toBe(1);
+    expect(versions[0]!.savedById).toBe(userId);
+
+    // Revert to v1 → a NEW v3 whose steps match v1 (history not rewritten).
+    const reverted = await revertWorkflowToVersion({ organizationId: orgId, key, version: 1, savedById: userId });
+    expect(reverted.version).toBe(3);
+    expect(reverted.steps).toHaveLength(1);
+    const after = await listWorkflowVersions(orgId, key);
+    expect(after[0]!.version).toBe(3);
+    expect(after[0]!.changeLog).toBe("Reverted to v1");
+  });
+
+  it("reverting to a missing version throws", async () => {
+    await expect(
+      revertWorkflowToVersion({ organizationId: orgId, key, version: 99, savedById: userId }),
+    ).rejects.toThrow(/not found/);
   });
 });
