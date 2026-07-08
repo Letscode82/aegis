@@ -18,6 +18,7 @@ import { isAwaitingTriage } from "./triage-filter";
 import { splitTicketDescription } from "./ticket-desc";
 import { WorkflowDesignerTab } from "./workflow-designer";
 import { WorkflowSlaPanel } from "./workflow-sla";
+import { ViewAsSwitcher } from "./view-as-switcher";
 import { TeamsTab } from "./teams-admin";
 import { HandoffDialog } from "./handoff-dialog";
 import { WorkPanel } from "./work-panel";
@@ -2568,6 +2569,7 @@ export function IntakeView(){
       </div>
       <div style={{display:"flex",gap:8,alignItems:"center",flexShrink:0}}>
         {awaiting>0&&<Pill t={`${awaiting} AWAITING TRIAGE`} c={C.am}/>}
+        <ViewAsSwitcher/>
         <div style={{fontSize:9.5,fontFamily:M,color:C.gn,letterSpacing:1,textTransform:"uppercase",display:"flex",alignItems:"center",gap:5}}><Dot c={C.gn} p/>Storage · Synced</div>
         <div onClick={()=>setShowSettings(true)} title="Agent settings" style={{padding:"5px 10px",border:`1px solid ${C.br}`,color:C.t2,fontSize:9,fontFamily:M,letterSpacing:1,cursor:"pointer",textTransform:"uppercase",display:"flex",alignItems:"center",gap:5,transition:"all .12s"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.pp;e.currentTarget.style.color=C.pp}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.br;e.currentTarget.style.color=C.t2}}>⚙ Agents</div>
         <div onClick={()=>{if(window.confirm("Reset all intake data (tickets, agent log, cockpit state, Copilot transcripts)?"))store.resetToSeed()}} style={{padding:"5px 10px",border:`1px solid ${C.br}`,color:C.t3,fontSize:9,fontFamily:M,letterSpacing:1,cursor:"pointer",textTransform:"uppercase"}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.am;e.currentTarget.style.color=C.am}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.br;e.currentTarget.style.color=C.t3}}>↻ Reset Demo</div>
