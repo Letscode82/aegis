@@ -1529,6 +1529,10 @@ model IntakeRequestType {
   /// @aegis/workflow (entityType "intake_ticket"). Null = no ladder;
   /// the plain stagesJson flow is unchanged.
   workflowKey    String?
+  /// Optional agent id (program #5): when set, tickets of this type are
+  /// handled by this specific registered agent, overriding the router's
+  /// canHandle match. Null = auto (the deterministic router decides).
+  preferredAgentId String?
   /// Display order in pickers.
   sortOrder      Int     @default(100)
 

@@ -89,6 +89,8 @@ export interface ServerAgentTicket {
   slaHours?: number | null;
   /** Receipt epoch ms — computed notice periods anchor to this. */
   submittedTs?: number | null;
+  /** Configured request type of this ticket, if any (program #5). */
+  requestTypeId?: string | null;
 }
 
 export interface ServerAgentResult {
@@ -119,9 +121,19 @@ export async function runAgentForTicketServer(
       desc: ticket.desc ?? "",
     };
 
+    // Program #5 — honour a per-request-type agent binding when set.
+    let preferredAgentId: string | undefined;
+    if (ticket.requestTypeId) {
+      const rt = await prisma.intakeRequestType.findFirst({
+        where: { id: ticket.requestTypeId, organizationId },
+        select: { preferredAgentId: true },
+      });
+      preferredAgentId = rt?.preferredAgentId ?? undefined;
+    }
+
     // processTicketWithAgent comes from the JS agent registry; the
     // recommendation shape is JS-defined, so assert it to a typed view.
-    const outcome = (await processTicketWithAgent(t, undefined)) as unknown as {
+    const outcome = (await processTicketWithAgent(t, undefined, preferredAgentId)) as unknown as {
       agent: { id: string } | null;
       recommendation: AgentRecShape | null;
     };
@@ -257,6 +269,7 @@ export function serverTriageRunner(input: {
   desc?: string | null;
   slaHours?: number | null;
   submittedTs?: number | null;
+  requestTypeId?: string | null;
 }): Promise<ServerAgentResult> {
   return runAgentForTicketServer(input.organizationId, {
     id: input.ticketId,
@@ -267,5 +280,6 @@ export function serverTriageRunner(input: {
     desc: input.desc,
     slaHours: input.slaHours ?? null,
     submittedTs: input.submittedTs ?? null,
+    requestTypeId: input.requestTypeId ?? null,
   });
 }

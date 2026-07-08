@@ -31,6 +31,8 @@ export interface RequestTypeDTO {
   stages: string[];
   /// WorkflowDefinition.key bound to this type (W-C) — null = no ladder.
   workflowKey: string | null;
+  /// Agent id handling this type (program #5) — null = auto/router.
+  preferredAgentId: string | null;
   sortOrder: number;
   fields: RequestFieldDTO[];
 }
@@ -65,6 +67,7 @@ type TypeRow = {
   active: boolean;
   stagesJson: unknown;
   workflowKey: string | null;
+  preferredAgentId: string | null;
   sortOrder: number;
   fields: Array<{
     id: string;
@@ -87,6 +90,7 @@ function toDTO(r: TypeRow): RequestTypeDTO {
     active: r.active,
     stages: Array.isArray(r.stagesJson) ? (r.stagesJson as string[]) : [],
     workflowKey: r.workflowKey ?? null,
+    preferredAgentId: r.preferredAgentId ?? null,
     sortOrder: r.sortOrder,
     fields: r.fields
       .slice()
@@ -138,6 +142,7 @@ export interface RequestTypeInput {
   active?: boolean;
   stages?: string[];
   workflowKey?: string | null;
+  preferredAgentId?: string | null;
   sortOrder?: number;
   fields?: Array<Omit<RequestFieldDTO, "id">>;
 }
@@ -193,6 +198,7 @@ export async function createRequestType(
       active: input.active ?? true,
       stagesJson: (input.stages ?? []) as never,
       workflowKey: input.workflowKey?.trim() || null,
+      preferredAgentId: input.preferredAgentId?.trim() || null,
       sortOrder: input.sortOrder ?? 100,
       fields: { create: fieldCreateData(input.fields) },
     },
@@ -241,6 +247,7 @@ export async function updateRequestType(
         active: input.active ?? before.active,
         stagesJson: (input.stages ?? (before.stagesJson as never)) as never,
         workflowKey: input.workflowKey !== undefined ? input.workflowKey?.trim() || null : before.workflowKey,
+        preferredAgentId: input.preferredAgentId !== undefined ? input.preferredAgentId?.trim() || null : before.preferredAgentId,
         sortOrder: input.sortOrder ?? before.sortOrder,
         ...(input.fields ? { fields: { create: fieldCreateData(input.fields) } } : {}),
       },

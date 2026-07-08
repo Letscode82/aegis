@@ -57,7 +57,16 @@ export const ALL_AGENTS=filterActiveAgents(REGISTERED,demoAgentsEnabled());
 // Route a ticket to the best-fit agent. Order matters: more specific
 // agents first. Hidden (non-active) agents are skipped, so a production
 // ticket of a mock-agent type returns null → honest manual triage.
-export function routeToAgent(ticket,enabledSettings){
+export function routeToAgent(ticket,enabledSettings,preferredAgentId){
+  const active=new Set(ALL_AGENTS);
+  // Program #5 — an explicit per-request-type binding wins over the
+  // canHandle router, as long as that agent is registered, active, and
+  // not toggled off. Otherwise fall through to deterministic routing.
+  if(preferredAgentId){
+    const bound=AGENTS_BY_ID[preferredAgentId];
+    const settingOff=enabledSettings&&enabledSettings[preferredAgentId]&&enabledSettings[preferredAgentId].enabled===false;
+    if(bound&&active.has(bound)&&!settingOff) return bound;
+  }
   // ContractSpecialist runs immediately before the generalist
   // ContractReview so unmatched contract types FALL THROUGH to Agent 4
   // (doc Agent 11 fallthrough contract).
@@ -65,7 +74,6 @@ export function routeToAgent(ticket,enabledSettings){
   // generalist Q&A agents, so an assessment/review request never
   // degrades into a KB answer.
   const order=[NDAAgent,VendorIntakeAgent,TrademarkAgent,LitigationAgent,NoticeMgmtAgent,ContractSpecialistAgent,ContractReviewAgent,PrivacyAssessmentAgent,MarketingReviewAgent,FAQAgent,PolicyQAAgent];
-  const active=new Set(ALL_AGENTS);
   for(const a of order){
     if(!active.has(a)) continue; // hidden in production (productionReady:false)
     if(enabledSettings&&enabledSettings[a.id]&&enabledSettings[a.id].enabled===false) continue;
@@ -75,8 +83,8 @@ export function routeToAgent(ticket,enabledSettings){
 }
 
 // Run the router against a ticket and log the result
-export async function processTicketWithAgent(ticket,settings){
-  const agent=routeToAgent(ticket,settings);
+export async function processTicketWithAgent(ticket,settings,preferredAgentId){
+  const agent=routeToAgent(ticket,settings,preferredAgentId);
   if(!agent){
     await appendAgentLog({type:"no-agent-match",ticketId:ticket.id,desc:(ticket.desc||"").slice(0,80)});
     return {agent:null,recommendation:null};

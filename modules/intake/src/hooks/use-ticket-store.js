@@ -78,14 +78,15 @@ export function useTicketStore(agentSettings){
   // mapping the Kanban's drag-drop handler uses for stage→status
   // (`statusMap` in `KanbanTab`) is mirrored here so both code paths
   // produce identical state.
-  const addTicketAndRunAgent=useCallback(async(ticket)=>{
+  const addTicketAndRunAgent=useCallback(async(ticket,preferredAgentId)=>{
     const created=await addTicket(ticket);
     // Step 2 — optimistic "triage" flash. Functional setState avoids
     // a stale-closure miss on the just-added ticket.
     setTickets(prev=>prev.map(t=>t.id===created.id?{...t,stage:"triage"}:t));
     // Step 3 — real agent call (1–3s for Claude; instant for the
-    // fallback templates).
-    const {agent,recommendation}=await processTicketWithAgent(created,agentSettings);
+    // fallback templates). Program #5 — a per-request-type binding, when
+    // set, picks the agent directly (overriding canHandle routing).
+    const {agent,recommendation}=await processTicketWithAgent(created,agentSettings,preferredAgentId);
     // Workflow strip: Submitted ✓ → Agent Analysis ✓ → Attorney Review
     // (active) → Close. Index 2 is "Attorney Review" in the canonical
     // 4-step shape produced by NewRequestV8.submit + the copilot path.
