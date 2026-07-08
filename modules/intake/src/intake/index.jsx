@@ -709,6 +709,46 @@ function AgentRecommendationPanel({ticket,rec,agent,editing,draftEdit,onDraftEdi
   </Card>;
 }
 
+// Split a ticket description into the human-authored lead and any
+// attached-document text blocks. The New Request form appends the full
+// extracted text of every uploaded document to `desc` (marker
+// "--- Attached document: NAME ---") so the classifier + agent can read
+// it — but the reviewer should see the typed request, not a wall of
+// contract text. This parses the stored desc back into its parts for
+// display; it does not change what the agent receives.
+export function splitTicketDescription(desc){
+  const s=String(desc||"");
+  const marker=/\n*--- Attached document: (.+?) ---\n/g;
+  const matches=[...s.matchAll(marker)];
+  if(matches.length===0) return {lead:s.trim(),docs:[]};
+  const lead=s.slice(0,matches[0].index).trim();
+  const docs=matches.map((m,i)=>{
+    const start=m.index+m[0].length;
+    const end=i+1<matches.length?matches[i+1].index:s.length;
+    return {name:m[1],text:s.slice(start,end).trim()};
+  });
+  return {lead,docs};
+}
+
+// Renders the typed request in full and collapses each attached document
+// behind a click-to-expand, scrollable block (keeps the Cockpit clean
+// even for a 20-page MSA).
+function TicketDescription({ticket}){
+  const {lead,docs}=useMemo(()=>splitTicketDescription(ticket?.desc),[ticket?.desc]);
+  return <div style={{marginBottom:8}}>
+    <div style={{fontSize:16,fontFamily:SR,color:C.t1,lineHeight:1.35,marginBottom:docs.length?10:0}}>{lead||"(no description provided)"}</div>
+    {docs.map((d,i)=><details key={i} style={{marginBottom:7,border:`1px solid ${C.br}`,borderRadius:4,background:C.s1,overflow:"hidden"}}>
+      <summary style={{cursor:"pointer",padding:"7px 10px",fontSize:11,fontFamily:M,color:C.t2,display:"flex",alignItems:"center",gap:7,listStyle:"none"}}>
+        <span>📄</span>
+        <span style={{color:C.t1}}>{d.name}</span>
+        <span style={{color:C.t4}}>· {d.text.length.toLocaleString()} chars extracted</span>
+        <span style={{marginLeft:"auto",color:C.t3,fontSize:9,letterSpacing:1,textTransform:"uppercase"}}>▸ view text</span>
+      </summary>
+      <div style={{maxHeight:300,overflowY:"auto",padding:"10px 12px",borderTop:`1px solid ${C.br}`,fontSize:11.5,lineHeight:1.6,color:C.t2,fontFamily:F,whiteSpace:"pre-wrap"}}>{d.text}</div>
+    </details>)}
+  </div>;
+}
+
 // Ticket detail panel — the left side
 function TicketDetailPanel({ticket}){
   const[convExpanded,setConvExpanded]=useState(false);
@@ -728,7 +768,7 @@ function TicketDetailPanel({ticket}){
             {ticket.triagedBy&&<Pill t={`TRIAGED → ${ticket.triagedAction?.toUpperCase()}`} c={C.gn}/>}
             {ticket.matterId&&<a href={`/matter/${ticket.matterId}`} style={{textDecoration:"none"}}><Pill t="↗ MATTER LINKED" c={C.cy}/></a>}
           </div>
-          <div style={{fontSize:16,fontFamily:SR,color:C.t1,lineHeight:1.35,marginBottom:8}}>{ticket.desc}</div>
+          <TicketDescription ticket={ticket}/>
         </div>
       </div>
 
@@ -1587,7 +1627,7 @@ function IntakeDetail({req,store,onBack}){
             {req.approvalGateUserId&&<span title={`Only ${req.approvalGateUserName||"the designated approver"} can approve agent recommendations on this ticket (routing-rule approval gate).`}><Pill t={`🔒 APPROVAL: ${(req.approvalGateUserName||"designated approver").toUpperCase()}`} c={C.am}/></span>}
             {!req.seeded&&<Pill t="YOU CREATED" c={C.pp}/>}
           </div>
-          <div style={{fontSize:16,fontWeight:400,color:C.t1,fontFamily:SR,lineHeight:1.35,marginBottom:8}}>{req.desc}</div>
+          <TicketDescription ticket={req}/>
           <div style={{fontSize:11,color:C.t3,fontFamily:M}}>From <span style={{color:C.t1}}>{req.from}</span> · {req.dept} · Submitted {req.submitted} · Assigned to <span style={{color:C.tl}}>{req.assigned}</span></div>
           {/* W3-3 — structured answers captured by the type's configured fields */}
           <RequestFieldValues values={req.requestFieldValues}/>

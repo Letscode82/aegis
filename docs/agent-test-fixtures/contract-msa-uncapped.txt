@@ -1,0 +1,28 @@
+MASTER SERVICES AGREEMENT
+
+This Master Services Agreement is between Dr. Reddy's Laboratories Ltd.
+("Client") and Nimbus Cloud Services Inc. ("Vendor").
+
+1. SERVICES. Vendor will provide cloud hosting and managed services per the
+   applicable Statement of Work.
+
+2. LIMITATION OF LIABILITY. Vendor's liability under this Agreement shall be
+   UNLIMITED and uncapped for all claims of any kind.
+
+3. INDEMNIFICATION. Client shall indemnify Vendor against any and all claims,
+   including first-party claims, without limitation.
+
+4. TERM AND RENEWAL. This Agreement renews automatically for successive
+   twelve (12) month terms unless either party gives ninety (90) days'
+   written notice. Fees may increase by up to fifteen percent (15%) at each
+   renewal.
+
+5. GOVERNING LAW. This Agreement is governed by the laws of the State of
+   California.
+
+6. PAYMENT. Net 30 days from invoice date.
+
+7. WARRANTY. Services are provided AS-IS with no warranty of any kind.
+
+8. TERMINATION. Neither party may terminate for convenience during the
+   initial 36-month lock-in period.
