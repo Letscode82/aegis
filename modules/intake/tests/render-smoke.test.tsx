@@ -8,6 +8,7 @@
 import React from "react";
 import { renderToString } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
+import { ToastProvider } from "@aegis/ui";
 
 vi.mock("@aegis/auth/react", () => ({
   useCurrentUser: () => ({
@@ -21,6 +22,12 @@ vi.mock("@aegis/auth/react", () => ({
 
 const { NewRequestV8 } = (await import("../src/intake/index.jsx" as never)) as {
   NewRequestV8: React.ComponentType<Record<string, unknown>>;
+};
+const { AgentsConsoleTab } = (await import("../src/intake/agents-console.jsx" as never)) as {
+  AgentsConsoleTab: React.ComponentType<Record<string, unknown>>;
+};
+const { WorkflowDesignerTab } = (await import("../src/intake/workflow-designer.jsx" as never)) as {
+  WorkflowDesignerTab: React.ComponentType<Record<string, unknown>>;
 };
 
 const store = {
@@ -64,5 +71,22 @@ describe("New Request render path", () => {
       }),
     );
     expect(html.length).toBeGreaterThan(100);
+  });
+});
+
+describe("admin console render paths (program #6/#1)", () => {
+  it("Agents console renders every agent card without errors", () => {
+    const html = renderToString(
+      React.createElement(AgentsConsoleTab, { canManage: true, settings: {}, toggle: () => {} }),
+    );
+    expect(html).toContain("Agents");
+    expect(html).toContain("NDA"); // at least one agent card
+  });
+
+  it("Workflow Designer renders without errors", () => {
+    const html = renderToString(
+      React.createElement(ToastProvider, null, React.createElement(WorkflowDesignerTab, { canManage: true })),
+    );
+    expect(html.length).toBeGreaterThan(50);
   });
 });

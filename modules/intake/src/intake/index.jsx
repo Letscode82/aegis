@@ -19,6 +19,7 @@ import { splitTicketDescription } from "./ticket-desc";
 import { WorkflowDesignerTab } from "./workflow-designer";
 import { WorkflowSlaPanel } from "./workflow-sla";
 import { ViewAsSwitcher } from "./view-as-switcher";
+import { AgentsConsoleTab } from "./agents-console";
 import { TeamsTab } from "./teams-admin";
 import { HandoffDialog } from "./handoff-dialog";
 import { WorkPanel } from "./work-panel";
@@ -2544,6 +2545,7 @@ export function IntakeView(){
       {id:"teams",label:"Teams",icon:"◪"},
       {id:"request-types",label:"Request Types",icon:"❏"},
       {id:"workflow-designer",label:"Workflow Designer",icon:"⛓"},
+      {id:"agents-console",label:"Agents",icon:"◉"},
     ]:[]),
   ]:[
     {id:"new",label:"New Request",icon:"＋",v8:true},
@@ -2609,6 +2611,7 @@ export function IntakeView(){
     {tab==="teams"&&<TeamsTab canManage={canManageRouting}/>}
     {tab==="request-types"&&<RequestTypesTab canManage={canManageRouting}/>}
     {tab==="workflow-designer"&&<WorkflowDesignerTab canManage={canManageRouting}/>}
+    {tab==="agents-console"&&<AgentsConsoleTab canManage={canManageRouting} settings={agentSettingsHook.settings} toggle={agentSettingsHook.toggle}/>}
     {tab==="selfserve"&&<SelfServeTab onFileTicket={(draft)=>{setPrefillDesc(draft||"");setTab("new");}}/>}
     </PanelBoundary>
   </div>;
