@@ -752,7 +752,7 @@ function TicketDescription({ticket}){
 }
 
 // Ticket detail panel — the left side
-function TicketDetailPanel({ticket}){
+export function TicketDetailPanel({ticket,compact}){
   const[convExpanded,setConvExpanded]=useState(false);
   if(!ticket) return null;
   const conv=ticket.conversation;
@@ -780,25 +780,31 @@ function TicketDetailPanel({ticket}){
         <div><div style={{fontSize:9,fontFamily:M,color:C.t3,letterSpacing:1.2,textTransform:"uppercase",fontWeight:600,marginBottom:2}}>SLA</div><div style={{fontSize:11,color:ticket.slaStatus==="Overdue"?C.rd:ticket.slaStatus==="At Risk"?C.am:C.gn,fontFamily:M,fontWeight:600}}>{ticket.slaStatus} · {ticket.sla}</div><Bar pct={ticket.slaPct||0} c={ticket.slaStatus==="Overdue"?C.rd:ticket.slaStatus==="At Risk"?C.am:C.gn} h={3}/></div>
       </div>
 
-      {ticket.aiTriage&&<div style={{padding:10,background:C.s1,borderRadius:4,borderLeft:`2px solid ${C.cy}`,marginBottom:10}}>
-        <div style={{fontSize:9,fontFamily:M,color:C.cy,letterSpacing:1.5,textTransform:"uppercase",fontWeight:600,marginBottom:4}}>TRIAGE · {ticket.aiTriage.source?.toUpperCase()}</div>
-        <div style={{fontSize:11,color:C.t1,lineHeight:1.5}}><span style={{color:C.t3}}>Category:</span> {ticket.aiTriage.category}</div>
-        <div style={{fontSize:11,color:C.t1,lineHeight:1.5}}><span style={{color:C.t3}}>Risk:</span> {ticket.aiTriage.riskFlag}</div>
-        <div style={{fontSize:11,color:C.t1,lineHeight:1.5}}><span style={{color:C.t3}}>Suggested:</span> {ticket.aiTriage.suggestedAssignee}</div>
-        <div style={{fontSize:10,color:C.t3,fontFamily:M,marginTop:3}}>Confidence {ticket.aiTriage.confidence}% · {ticket.aiTriage.similarMatters} similar matters · {ticket.aiTriage.routingRule}</div>
-      </div>}
-
-      {/* P2a — which routing rules fired on this ticket (server-computed) */}
-      {ticket.firedRules?.summaries?.length>0&&<div style={{padding:10,background:C.s1,borderRadius:4,borderLeft:`2px solid ${C.am}`,marginBottom:10}}>
-        <div style={{fontSize:9,fontFamily:M,color:C.am,letterSpacing:1.5,textTransform:"uppercase",fontWeight:600,marginBottom:4}}>⚡ ROUTED BY {ticket.firedRules.summaries.length} RULE{ticket.firedRules.summaries.length===1?"":"S"}</div>
-        {ticket.firedRules.summaries.map(s=><div key={s.id} style={{fontSize:11,color:C.t1,lineHeight:1.6}}>
-          <span style={{fontWeight:600}}>{s.name}</span>
-          <span style={{color:C.t3,fontFamily:M,fontSize:10}}> — {(s.actions||[]).join(" · ")}</span>
-        </div>)}
-        <div style={{fontSize:9.5,color:C.t4,fontFamily:M,marginTop:3}}>Server-side · each firing is a chain-sealed audit row</div>
-      </div>}
-
-      {ticket.workflow&&<WorkflowSteps steps={ticket.workflow}/>}
+      {/* Triage + routing + stages. In Focus mode these collapse behind
+          one accordion so the description leads (UX review U1). */}
+      {(() => {
+        const detail = <>
+          {ticket.aiTriage&&<div style={{padding:10,background:C.s1,borderRadius:4,borderLeft:`2px solid ${C.cy}`,marginBottom:10}}>
+            <div style={{fontSize:9,fontFamily:M,color:C.cy,letterSpacing:1.5,textTransform:"uppercase",fontWeight:600,marginBottom:4}}>TRIAGE · {ticket.aiTriage.source?.toUpperCase()}</div>
+            <div style={{fontSize:11,color:C.t1,lineHeight:1.5}}><span style={{color:C.t3}}>Category:</span> {ticket.aiTriage.category}</div>
+            <div style={{fontSize:11,color:C.t1,lineHeight:1.5}}><span style={{color:C.t3}}>Risk:</span> {ticket.aiTriage.riskFlag}</div>
+            <div style={{fontSize:11,color:C.t1,lineHeight:1.5}}><span style={{color:C.t3}}>Suggested:</span> {ticket.aiTriage.suggestedAssignee}</div>
+            <div style={{fontSize:10,color:C.t3,fontFamily:M,marginTop:3}}>Confidence {ticket.aiTriage.confidence}% · {ticket.aiTriage.similarMatters} similar matters · {ticket.aiTriage.routingRule}</div>
+          </div>}
+          {ticket.firedRules?.summaries?.length>0&&<div style={{padding:10,background:C.s1,borderRadius:4,borderLeft:`2px solid ${C.am}`,marginBottom:10}}>
+            <div style={{fontSize:9,fontFamily:M,color:C.am,letterSpacing:1.5,textTransform:"uppercase",fontWeight:600,marginBottom:4}}>⚡ ROUTED BY {ticket.firedRules.summaries.length} RULE{ticket.firedRules.summaries.length===1?"":"S"}</div>
+            {ticket.firedRules.summaries.map(s=><div key={s.id} style={{fontSize:11,color:C.t1,lineHeight:1.6}}>
+              <span style={{fontWeight:600}}>{s.name}</span>
+              <span style={{color:C.t3,fontFamily:M,fontSize:10}}> — {(s.actions||[]).join(" · ")}</span>
+            </div>)}
+            <div style={{fontSize:9.5,color:C.t4,fontFamily:M,marginTop:3}}>Server-side · each firing is a chain-sealed audit row</div>
+          </div>}
+          {ticket.workflow&&<WorkflowSteps steps={ticket.workflow}/>}
+        </>;
+        return compact
+          ? <details style={{marginBottom:10}}><summary style={{fontSize:9.5,fontFamily:M,color:C.t3,letterSpacing:1,textTransform:"uppercase",cursor:"pointer",padding:"2px 0"}}>▸ Triage · routing · stages</summary><div style={{marginTop:8}}>{detail}</div></details>
+          : detail;
+      })()}
 
       {/* Copilot conversation — collapsible */}
       {fromCopilot&&conv&&conv.length>0&&<div style={{marginTop:14,borderTop:`1px solid ${C.br}`,paddingTop:12}}>
@@ -1011,6 +1017,13 @@ function CockpitTab({store,cockpit}){
   const[editing,setEditing]=useState(false);
   const[draftEdit,setDraftEdit]=useState("");
   const[showCheatsheet,setShowCheatsheet]=useState(false);
+  // Program #7 — Focus mode (UX review U1+U2): collapse the secondary
+  // panels to on-demand drill-ins so the request + the agent's
+  // recommendation + the action bar dominate. Persisted so a reviewer's
+  // preference sticks; defaults OFF so the demo looks unchanged until
+  // toggled.
+  const[compact,setCompact]=useState(()=>{try{return typeof window!=="undefined"&&window.localStorage.getItem("aegis:cockpit:focus")==="1";}catch{return false;}});
+  const toggleCompact=useCallback(()=>setCompact(c=>{const n=!c;try{window.localStorage.setItem("aegis:cockpit:focus",n?"1":"0");}catch{/* ignore */}return n;}),[]);
   const[bulkMode,setBulkMode]=useState(false);
   const[selected,setSelected]=useState([]);
   const[showBulkConfirm,setShowBulkConfirm]=useState(false);
@@ -1216,6 +1229,7 @@ function CockpitTab({store,cockpit}){
           {selected.length>0&&<div onClick={bulkApprove} style={{padding:"5px 10px",background:C.gn,color:C.bg,fontSize:9.5,fontFamily:M,letterSpacing:1.2,cursor:"pointer",textTransform:"uppercase",fontWeight:700}}>→ Approve {selected.length}</div>}
         </div>}
         {showSearch&&<input ref={searchRef} value={search} onChange={e=>setSearch(e.target.value)} placeholder="search id / requester / text" style={{...inputStyle,width:260,fontSize:10.5}}/>}
+        <div onClick={toggleCompact} title="Focus mode — collapse secondary panels so the request + recommendation lead" style={{padding:"4px 8px",border:`1px solid ${compact?C.pp:C.br}`,background:compact?C.pp+"18":"transparent",borderRadius:3,cursor:"pointer",fontSize:10,fontFamily:M,color:compact?C.pp:C.t3,letterSpacing:.5,display:"flex",alignItems:"center",gap:5}}>{compact?"⊟ Focus on":"⊞ Focus"}</div>
         <div onClick={()=>setShowCheatsheet(true)} style={{padding:"4px 8px",border:`1px solid ${C.br}`,borderRadius:3,cursor:"pointer",fontSize:10,fontFamily:M,color:C.t3,letterSpacing:.5,display:"flex",alignItems:"center",gap:5}}>{bulkMode?<Kbd k="a"/>:<Kbd k="?"/>} {bulkMode?"bulk approve":"help"}</div>
       </div>
     </div>
@@ -1229,7 +1243,7 @@ function CockpitTab({store,cockpit}){
         </div>}
         <LitigationSummaryCard ticket={current}/>
         <WorkflowLadderCard ticket={current}/>
-        <TicketDetailPanel ticket={current}/>
+        <TicketDetailPanel ticket={current} compact={compact}/>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:12}}>
         <AgentRecommendationPanel
@@ -1246,10 +1260,22 @@ function CockpitTab({store,cockpit}){
           onSaveEdit={saveEdit}
           onCancelEdit={cancelEdit}
         />
-        <SimilarMattersPanel currentTicket={current} allTickets={allTickets}/>
-        <PanelBoundary label="Work panel" compact><WorkPanel ticket={current}/></PanelBoundary>
-        <PanelBoundary label="Parties panel" compact><PartiesPanel ticket={current}/></PanelBoundary>
-        <CapacityPanel allTickets={allTickets} attorney={attorney}/>
+        {compact?(
+          <details style={{background:C.s1,border:`1px solid ${C.br}`,borderRadius:4,padding:"8px 12px"}}>
+            <summary style={{fontSize:10,fontFamily:M,color:C.t2,letterSpacing:1,textTransform:"uppercase",cursor:"pointer"}}>▸ More context — similar matters · work · parties · capacity</summary>
+            <div style={{display:"flex",flexDirection:"column",gap:12,marginTop:10}}>
+              <SimilarMattersPanel currentTicket={current} allTickets={allTickets}/>
+              <PanelBoundary label="Work panel" compact><WorkPanel ticket={current}/></PanelBoundary>
+              <PanelBoundary label="Parties panel" compact><PartiesPanel ticket={current}/></PanelBoundary>
+              <CapacityPanel allTickets={allTickets} attorney={attorney}/>
+            </div>
+          </details>
+        ):(<>
+          <SimilarMattersPanel currentTicket={current} allTickets={allTickets}/>
+          <PanelBoundary label="Work panel" compact><WorkPanel ticket={current}/></PanelBoundary>
+          <PanelBoundary label="Parties panel" compact><PartiesPanel ticket={current}/></PanelBoundary>
+          <CapacityPanel allTickets={allTickets} attorney={attorney}/>
+        </>)}
 
         {/* Secondary actions */}
         <Card style={{background:C.s1}}>
