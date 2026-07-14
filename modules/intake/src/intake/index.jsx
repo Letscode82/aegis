@@ -724,6 +724,9 @@ function AgentRecommendationPanel({ticket,rec,agent,editing,draftEdit,onDraftEdi
       {action==="escalate"&&<div onClick={onEscalate} style={{padding:"9px 14px",background:C.rd,color:C.bone,fontSize:10,fontFamily:M,letterSpacing:1.5,cursor:"pointer",textTransform:"uppercase",fontWeight:700,display:"flex",alignItems:"center",gap:7}}><Kbd k="a" active/> Escalate</div>}
       {rec.draftedResponse&&<div onClick={onEdit} style={{padding:"9px 14px",border:`1px solid ${C.cy}`,color:C.cy,fontSize:10,fontFamily:M,letterSpacing:1.5,cursor:"pointer",textTransform:"uppercase",fontWeight:600,display:"flex",alignItems:"center",gap:7}}><Kbd k="e"/> Edit Draft</div>}
       <div onClick={onReject} style={{padding:"9px 14px",border:`1px solid ${C.rd}`,color:C.rd,fontSize:10,fontFamily:M,letterSpacing:1.5,cursor:"pointer",textTransform:"uppercase",fontWeight:600,display:"flex",alignItems:"center",gap:7}}><Kbd k="x"/> Reject</div>
+      {/* Word deliverable — the agent's work packaged as a .docx to
+          download and (after approval) share with the client. */}
+      <a href={`/api/intake/tickets/${encodeURIComponent(ticket.id)}/deliverable`} title="Download this agent's work as a Word (.docx) deliverable" style={{textDecoration:"none",padding:"9px 14px",border:`1px solid ${C.pp}`,color:C.pp,fontSize:10,fontFamily:M,letterSpacing:1.5,textTransform:"uppercase",fontWeight:600,display:"flex",alignItems:"center",gap:7}}>⬇ Deliverable (.docx)</a>
     </div>}
   </Card>;
 }

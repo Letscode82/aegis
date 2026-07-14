@@ -1,18 +1,31 @@
 {
   "name": "@aegis/documents",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
-  "description": "Shared document storage (stub — see README)",
+  "description": "Shared document capabilities \u2014 agent deliverable rendering (.docx)",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts"
   },
-  "files": ["src"],
+  "files": [
+    "src"
+  ],
   "scripts": {
-    "lint": "echo 'stub package'",
-    "typecheck": "echo 'stub package'",
-    "test": "echo 'stub package'"
+    "lint": "eslint src tests",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "docx": "^9.5.1"
+  },
+  "devDependencies": {
+    "@aegis/eslint-config": "workspace:*",
+    "@types/node": "^20.17.9",
+    "eslint": "^8.57.1",
+    "jszip": "^3.10.1",
+    "typescript": "5.6.3",
+    "vitest": "1.6.1"
   }
 }

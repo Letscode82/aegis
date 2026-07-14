@@ -1,6 +1,13 @@
 /**
- * @aegis/documents — shared document storage.
+ * @aegis/documents — shared document capabilities.
  *
- * STUB. Empty in Step 1. See README.md for planned scope.
+ * Agent deliverable rendering: turn an agent's structured
+ * recommendation into a professional Word (.docx) document the
+ * reviewer downloads and (after human approval) shares with the
+ * client / counterparty. One renderer serves every agent.
  */
-export {};
+export {
+  renderAgentDeliverableDocx,
+  deliverableFilename,
+  type DeliverableInput,
+} from "./deliverable";
