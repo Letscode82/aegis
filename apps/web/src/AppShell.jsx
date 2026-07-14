@@ -4,8 +4,9 @@ import { AICopilot, IntakeView } from "@aegis/intake";
 import { useCurrentUser } from "@aegis/auth/react";
 import { NAV, navForProfile, resolveProfile, INTAKE_PROFILE_VIEWS } from "./data/nav";
 import { ALL_APPROVALS, ALL_ALERTS } from "./data/aggregate";
-import { DailyView, AlertsView, ApprovalsView, ContractsView, RegulatoryView, LitigationView as _LitigationView, ComplianceView as _ComplianceView, SpendView, GovernanceView } from "./views/v72";
-import { MissionControlView, BoardReportView, BrainView, OCMView, CyberView, WorkflowBuilderView, ArchitectureView, RiskGraphView, ScenariosView } from "./views/v8";
+import { DailyView, AlertsView, ApprovalsView, ContractsView, LitigationView as _LitigationView, ComplianceView as _ComplianceView, SpendView, GovernanceView } from "./views/v72";
+import { MissionControlView, BoardReportView, OCMView, CyberView, WorkflowBuilderView, ArchitectureView, RiskGraphView, ScenariosView } from "./views/v8";
+import { BrainDemoView, RegulatoryDemoView } from "./views/gc-suite-demos.jsx";
 import { MatterManagementShell, AuditLogShell } from "./views/matter-shell.jsx";
 import { AdminUsersShell, AdminRolesShell } from "./views/admin-shell.jsx";
 import { UserBadge } from "./views/user-badge.jsx";
@@ -36,9 +37,9 @@ export default function App(){
 
   const V={mission:MissionControlView,today:DailyView,alerts:AlertsView,approvals:ApprovalsView,
     intake:IntakeView,matters:MatterManagementShell,contracts:ContractsView,
-    regulatory:RegulatoryView,graph:RiskGraphView,scenarios:ScenariosView,
+    regulatory:RegulatoryDemoView,graph:RiskGraphView,scenarios:ScenariosView,
     ocm:OCMView,spend:SpendView,governance:GovernanceView,
-    cyber:CyberView,brain:BrainView,board:BoardReportView,workflows:WorkflowBuilderView,
+    cyber:CyberView,brain:BrainDemoView,board:BoardReportView,workflows:WorkflowBuilderView,
     architecture:ArchitectureView,
     users:AdminUsersShell,roles:AdminRolesShell,audit:AuditLogShell};
   // In the intake-only profile, any view outside the allowed set (e.g. a

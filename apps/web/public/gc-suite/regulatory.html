@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AEGIS — Regulatory Nervous System</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bone:#F5F6F2; --panel:#FFFFFF; --ink:#15201C; --ink-soft:#4A564F; --ink-faint:#8B948D;
+  --verdigris:#2E7D6B; --verdigris-soft:#E3F0EC;
+  --amber:#C98A04; --amber-soft:#FBF1DC;
+  --oxide:#B23A26; --oxide-soft:#F8E7E2;
+  --statute:#3F5E8C; --statute-soft:#E8EEF6;
+  --risk:#8A4B9E; --risk-soft:#F1E8F6;
+  --hair:#DFE3DC; --hair-soft:#ECEFE9; --r:10px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:'IBM Plex Sans',sans-serif;background:var(--bone);color:var(--ink);font-size:14px;line-height:1.5;overflow:hidden}
+.mono{font-family:'IBM Plex Mono',monospace}
+.app{display:grid;grid-template-columns:218px 1fr;grid-template-rows:56px 1fr;height:100vh}
+.topbar{grid-column:1/3;display:flex;align-items:center;gap:16px;padding:0 20px;background:var(--panel);border-bottom:1px solid var(--hair)}
+.brand{display:flex;align-items:center;gap:10px;font-family:'Sora',sans-serif;font-weight:700;font-size:16px;min-width:198px}
+.brand small{font-family:'IBM Plex Mono',monospace;font-weight:400;font-size:10px;color:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase}
+.askbrain{flex:1;max-width:620px;display:flex;align-items:center;gap:10px;background:var(--bone);border:1px solid var(--hair);border-radius:999px;padding:8px 16px;color:var(--ink-faint);cursor:text;font-size:13px}
+.askbrain:hover{border-color:var(--verdigris)}
+.askbrain .kbd{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;border:1px solid var(--hair);border-radius:5px;padding:1px 6px;background:var(--panel)}
+.topbar .right{margin-left:auto;display:flex;align-items:center;gap:14px}
+.agent-pill{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-soft);background:var(--verdigris-soft);border:1px solid #CDE4DD;border-radius:999px;padding:5px 12px}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--verdigris);animation:pulse 2.2s infinite}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(46,125,107,.35)}50%{box-shadow:0 0 0 5px rgba(46,125,107,0)}}
+.avatar{width:30px;height:30px;border-radius:50%;background:var(--statute);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600}
+.rail{background:var(--panel);border-right:1px solid var(--hair);padding:12px 10px;display:flex;flex-direction:column;gap:1px;overflow-y:auto}
+.rail .sec{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);padding:12px 10px 5px}
+.navbtn{display:flex;align-items:center;gap:9px;width:100%;border:0;background:none;font:inherit;font-size:13.5px;color:var(--ink-soft);padding:7px 10px;border-radius:8px;cursor:pointer;text-align:left}
+.navbtn:hover{background:var(--bone)}
+.navbtn.active{background:var(--ink);color:#fff}
+.navbtn .badge{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;background:var(--oxide-soft);color:var(--oxide);border-radius:999px;padding:1px 7px;font-weight:500}
+.navbtn .badge.g{background:var(--verdigris-soft);color:var(--verdigris)}
+.navbtn.active .badge{background:rgba(255,255,255,.18);color:#fff}
+.rail .health{margin-top:auto;background:var(--bone);border:1px solid var(--hair);border-radius:var(--r);padding:11px}
+.rail .health h4{font-size:10.5px;color:var(--ink-faint);font-weight:500;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em}
+.rail .health .num{font-family:'Sora',sans-serif;font-size:22px;font-weight:700;color:var(--verdigris)}
+.meter{height:5px;border-radius:3px;background:var(--hair-soft);margin-top:7px;overflow:hidden}
+.meter i{display:block;height:100%;width:91%;background:linear-gradient(90deg,var(--verdigris),#5BA391);border-radius:3px}
+.main{overflow-y:auto;padding:22px 28px}
+.view{display:none;animation:fadein .25s ease}
+.view.active{display:block}
+@keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+h1.pagetitle{font-family:'Sora',sans-serif;font-size:21px;font-weight:700;letter-spacing:-.02em}
+.pagehead{display:flex;align-items:baseline;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+.pagehead .sub{color:var(--ink-faint);font-size:13px}
+.tag{font-family:'IBM Plex Mono',monospace;font-size:10.5px;border-radius:5px;padding:2px 7px;font-weight:500}
+.tag.crit{background:var(--oxide-soft);color:var(--oxide)}
+.tag.warn{background:var(--amber-soft);color:var(--amber)}
+.tag.info{background:var(--statute-soft);color:var(--statute)}
+.tag.ok{background:var(--verdigris-soft);color:var(--verdigris)}
+.tag.risk{background:var(--risk-soft);color:var(--risk)}
+.tag.dim{background:var(--hair-soft);color:var(--ink-soft)}
+button.primary{font:inherit;font-weight:600;background:var(--ink);color:#fff;border:0;border-radius:8px;padding:8px 16px;cursor:pointer}
+button.primary:hover{background:#243730}
+button.ghost{font:inherit;background:var(--panel);border:1px solid var(--hair);border-radius:8px;padding:7px 13px;cursor:pointer;color:var(--ink-soft)}
+button.ghost:hover{border-color:var(--ink-faint)}
+.card{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r)}
+table.tbl{width:100%;background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);border-collapse:separate;border-spacing:0;overflow:hidden}
+.tbl th{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);text-align:left;padding:10px 13px;border-bottom:1px solid var(--hair);font-weight:500}
+.tbl td{padding:10px 13px;border-bottom:1px solid var(--hair-soft);font-size:12.5px;vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl tr:hover td{background:#FAFBF8}
+.ctrlid{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--statute)}
+:focus-visible{outline:2px solid var(--statute);outline-offset:2px}
+
+/* ===== v5: demo layer ===== */
+.overlay{position:fixed;inset:0;background:rgba(16,24,21,.82);backdrop-filter:blur(4px);z-index:60;display:flex;align-items:center;justify-content:center;animation:fadein .3s ease}
+.welcome{background:var(--bone);border-radius:16px;padding:38px 44px;max-width:560px;text-align:center}
+.welcome h2{font-family:'Sora',sans-serif;font-size:24px;font-weight:800;letter-spacing:-.02em;margin:14px 0 8px}
+.welcome p{font-size:14px;color:var(--ink-soft);margin-bottom:22px}
+.welcome .row{display:flex;gap:10px;justify-content:center}
+.tourbox{position:fixed;bottom:24px;right:24px;width:340px;background:var(--ink);color:#fff;border-radius:14px;padding:16px 18px;z-index:55;box-shadow:0 12px 40px rgba(0,0,0,.35);display:none;animation:fadein .25s ease}
+.tourbox h5{font-family:'Sora',sans-serif;font-size:13.5px;margin-bottom:5px;display:flex;justify-content:space-between}
+.tourbox h5 .stepn{font-family:'IBM Plex Mono',monospace;font-size:10px;opacity:.6;font-weight:400}
+.tourbox p{font-size:12.5px;opacity:.88;line-height:1.55;margin-bottom:12px}
+.tourbox .row{display:flex;gap:8px}
+.tourbox button{font:inherit;font-size:12px;font-weight:600;border-radius:7px;padding:6px 14px;cursor:pointer;border:0}
+.tourbox .nextb{background:var(--verdigris);color:#fff}
+.tourbox .endb{background:rgba(255,255,255,.12);color:#fff}
+.brainmodal{position:fixed;inset:0;background:rgba(16,24,21,.6);z-index:70;display:none;align-items:flex-start;justify-content:center;padding-top:9vh}
+.brainmodal.open{display:flex;animation:fadein .2s ease}
+.braincard{background:var(--bone);border-radius:14px;width:min(720px,94vw);max-height:78vh;overflow-y:auto;padding:20px 24px}
+.braincard .inrow{display:flex;gap:8px}
+.braincard input{flex:1;font:inherit;font-size:14px;border:1px solid var(--hair);border-radius:10px;padding:11px 15px;background:#fff}
+.braincard input:focus{outline:2px solid var(--verdigris)}
+.sugg{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
+.sugg button{font:inherit;font-size:11.5px;border:1px solid var(--hair);background:#fff;border-radius:999px;padding:5px 12px;cursor:pointer;color:var(--ink-soft)}
+.sugg button:hover{border-color:var(--verdigris)}
+.brainans{margin-top:16px;font-size:13.5px;line-height:1.7;white-space:pre-wrap}
+.brainans .cursor{display:inline-block;width:7px;height:14px;background:var(--verdigris);animation:blink 1s infinite;vertical-align:-2px}
+@keyframes blink{50%{opacity:0}}
+.nodechips{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;border-top:1px dashed var(--hair);padding-top:11px}
+.nodechip{font-size:11px;background:#fff;border:1px solid var(--hair);border-radius:8px;padding:4px 10px}
+.nodechip b{font-family:'IBM Plex Mono',monospace;color:var(--verdigris);font-weight:600}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;border-radius:10px;padding:11px 18px;font-size:12.5px;z-index:80;opacity:0;transition:all .3s ease;pointer-events:none;display:flex;gap:9px;align-items:center}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast .tick{color:#7BC4B0;font-weight:700}
+.tickertxt{display:inline-block;min-width:170px;transition:opacity .3s}
+.roigrid{display:grid;grid-template-columns:380px 1fr;gap:18px;align-items:start}
+.roiform label{display:block;font-size:11px;font-family:'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin:13px 0 4px}
+.roiform input[type=range]{width:100%;accent-color:var(--verdigris)}
+.roiform .val{font-family:'Sora',sans-serif;font-weight:700;font-size:15px}
+.roiout{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.roiout .o{background:var(--ink);color:#fff;border-radius:12px;padding:16px 18px}
+.roiout .o b{font-family:'Sora',sans-serif;font-size:26px;font-weight:800;color:#7BC4B0;display:block}
+.roiout .o span{font-size:11.5px;opacity:.8}
+.roiout .o.wide{grid-column:1/3;background:var(--verdigris-soft);color:var(--ink-soft);border:1px solid #CDE4DD}
+.roiout .o.wide b{color:var(--verdigris);font-size:20px}
+
+/* ===== v6: simplicity layer ===== */
+.modetoggle{display:flex;gap:0;margin:2px 0 6px;border:1px solid var(--hair);border-radius:8px;overflow:hidden}
+.modetoggle button{flex:1;font:inherit;font-size:10.5px;font-weight:600;padding:6px 4px;border:0;background:#fff;color:var(--ink-faint);cursor:pointer}
+.modetoggle button.on{background:var(--ink);color:#fff}
+body.simple .navbtn:not([data-ess]){display:none}
+body.simple .rail .sec:not([data-ess]){display:none}
+.persona{display:flex;gap:6px;margin-bottom:16px}
+.persona button{font:inherit;font-size:12px;border:1px solid var(--hair);background:#fff;border-radius:999px;padding:6px 14px;cursor:pointer;color:var(--ink-soft)}
+.persona button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.todaywrap{max-width:820px}
+.todaycard{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:16px 19px;margin-bottom:12px;display:flex;gap:14px;align-items:flex-start}
+.todaycard .ic{flex:none;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px}
+.todaycard h4{font-family:'Sora',sans-serif;font-size:14px;font-weight:600}
+.todaycard p{font-size:12.5px;color:var(--ink-soft);margin:3px 0 0}
+.todaycard .plain{font-size:11.5px;color:var(--statute);margin-top:5px;font-style:italic}
+.todaycard .act{margin-left:auto;flex:none;align-self:center}
+.todayhead{display:flex;align-items:baseline;gap:12px;margin:4px 0 14px}
+.todayhead b{font-family:'Sora',sans-serif;font-size:19px}
+.todayhead span{font-size:12.5px;color:var(--ink-faint)}
+.tpersona{display:none}.tpersona.on{display:block}
+.clockgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:16px 0}
+.clock{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:16px;text-align:center}
+.clock.hot{border-color:var(--oxide);background:#FFF8F6}
+.clock h5{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint)}
+.clock .t{font-family:'IBM Plex Mono',monospace;font-size:30px;font-weight:600;margin:6px 0 2px}
+.clock.hot .t{color:var(--oxide)}
+.clock .d{font-size:11px;color:var(--ink-soft)}
+.incstep{display:flex;gap:11px;align-items:flex-start;background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:11px 14px;margin-bottom:8px;font-size:12.5px}
+.incstep .st2{flex:none;width:18px;color:var(--verdigris);font-weight:700}
+.timemachine{background:linear-gradient(135deg,#1B2620,#15201C);color:#fff;border-radius:var(--r);padding:15px 18px;margin-top:14px}
+.timemachine h4{font-family:'Sora',sans-serif;font-size:13px;display:flex;align-items:center;gap:8px}
+.timemachine input[type=range]{width:100%;accent-color:#7BC4B0;margin:10px 0 4px}
+.timemachine .lbls{display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:9.5px;opacity:.6}
+.timemachine .snap{font-size:12px;opacity:.92;margin-top:9px;line-height:1.6;min-height:38px}
+.inttbl .pos{font-size:11.5px;color:var(--ink-soft);max-width:44ch}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><circle cx="13" cy="5" r="2.6" fill="#15201C"/><circle cx="5" cy="14" r="2.6" fill="#2E7D6B"/><circle cx="21" cy="14" r="2.6" fill="#3F5E8C"/><circle cx="13" cy="22" r="2.6" fill="#C98A04"/><path d="M13 5L5 14M13 5l8 9M5 14l8 8m8-8l-8 8" stroke="#15201C" stroke-width="1.1" opacity=".45"/></svg>
+      <span>AEGIS <small>reg · nervous · system</small></span>
+    </div>
+    <div class="askbrain" role="button" tabindex="0" onclick="askBrain()">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="#8B948D" stroke-width="1.4"/><path d="M9.5 9.5L13 13" stroke="#8B948D" stroke-width="1.4" stroke-linecap="round"/></svg>
+      Ask the brain — “show risks above appetite touched by DPDP changes”
+      <span class="kbd">⌘K</span>
+    </div>
+    <div class="right">
+      <div class="agent-pill"><span class="dot"></span><span class="tickertxt" id="ticker">4 agents on watch</span></div>
+      <div class="avatar">PR</div>
+    </div>
+  </header>
+
+  <nav class="rail">
+    <div class="modetoggle"><button class="on" onclick="setMode(this,'simple')">Essentials</button><button onclick="setMode(this,'all')">Expert</button></div>
+    <div class="sec" data-ess>Home</div>
+    <button class="navbtn active" data-ess data-view="today" onclick="go('today')">☀ Today</button>
+    <div class="sec">Sense</div>
+    <button class="navbtn" data-ess data-view="radar" onclick="go('radar')">⊚ Radar <span class="badge">3</span></button>
+    <button class="navbtn" data-view="obligations" onclick="go('obligations')">𝄜 Obligations &amp; filings</button>
+    <button class="navbtn" data-view="sources" onclick="go('sources')">≋ Sources &amp; freshness</button>
+    <div class="sec">Decide</div>
+    <button class="navbtn" data-view="cascade" onclick="go('cascade')">⇶ Impact cascade</button>
+    <button class="navbtn" data-ess data-view="workflow" onclick="go('workflow')">⊞ Workflow <span class="badge">12</span></button>
+    <button class="navbtn" data-view="incident" onclick="go('incident')" style="color:var(--oxide)">⚠ Incident mode</button>
+    <button class="navbtn" data-view="scenarios" onclick="go('scenarios')">⌬ Scenarios</button>
+    <button class="navbtn" data-view="gates" onclick="go('gates')">⛩ Launch &amp; change gates</button>
+    <div class="sec">Report</div>
+    <button class="navbtn" data-ess data-view="board" onclick="go('board')">▣ Boardroom</button>
+    <div class="sec">Know</div>
+    <button class="navbtn" data-view="brain" onclick="go('brain')">◍ Company brain</button>
+    <button class="navbtn" data-view="scope" onclick="go('scope')">⊕ Scope &amp; conflicts <span class="badge">2</span></button>
+    <button class="navbtn" data-view="crosswalk" onclick="go('crosswalk')">⊟ Crosswalk</button>
+    <button class="navbtn" data-view="soa" onclick="go('soa')">§ Statement of Applicability</button>
+    <div class="sec">Operate</div>
+    <button class="navbtn" data-view="agents" onclick="go('agents')">✦ Agents</button>
+    <button class="navbtn" data-view="governance" onclick="go('governance')">⚖ Agent governance</button>
+    <button class="navbtn" data-view="composer" onclick="go('composer')">◫ Composer · packs</button>
+    <div class="sec">Value</div>
+    <button class="navbtn" data-view="roi" onclick="go('roi')">₹ ROI calculator</button>
+    <button class="navbtn" data-ess onclick="startTour()">▶ Guided demo</button>
+    <button class="navbtn" data-view="setup" onclick="go('setup')">⌂ Build the brain <span class="badge g">82%</span></button>
+    <div class="health">
+      <h4>Compliance posture</h4>
+      <div class="num">91%</div>
+      <div style="font-size:11px;color:var(--ink-faint)">controls evidenced &amp; current</div>
+      <div class="meter"><i></i></div>
+    </div>
+  </nav>
+
+  <main class="main" id="main">
+
+  <!-- ============ RADAR ============ -->
+  
+  <!-- ============ TODAY (role-based home) ============ -->
+  <section class="view active" id="view-today">
+    <div class="pagehead"><h1 class="pagetitle">Today</h1><span class="sub">The only screen most people ever need. Pick a persona to see how each role lands.</span></div>
+    <div class="persona">
+      <button class="on" onclick="setPersona(this,'owner')">Control owner (R. Iyer)</button>
+      <button onclick="setPersona(this,'cco')">CCO</button>
+      <button onclick="setPersona(this,'aud')">External auditor</button>
+    </div>
+    <div class="todaywrap">
+      <div class="tpersona on" id="p-owner">
+        <div class="todayhead"><b>Good morning, Ritu — about 9 minutes today.</b><span>2 attestations · 1 task check-in · 1 redline</span></div>
+        <div class="todaycard"><div class="ic" style="background:var(--verdigris-soft)">✓</div><div><h4>Attest: CTRL-203 consent withdrawal SLA</h4><p>Telemetry shows 99.2% within 24h this month. Confirm or flag.</p><div class="plain">Plain language: your withdrawal pipeline is healthy — just confirm nothing changed off-system.</div></div><button class="primary act" onclick="this.textContent='Attested ✓';this.disabled=true;toast('Attestation signed · evidence node EVD-2291 created')">Attest (10s)</button></div>
+        <div class="todaycard"><div class="ic" style="background:var(--amber-soft)">⚒</div><div><h4>Task: CTRL-201 — DEPA interoperability spec</h4><p>Due 16 Jun · synced to Jira PRIV-882 · blocks commitment CMT-01 to MeitY.</p><div class="plain">Plain language: the consent API must speak DEPA before 28 July or our undertaking to MeitY slips.</div></div><button class="ghost act" onclick="toast('Opening PRIV-882 in Jira · compliance thread attached')">Open in Jira</button></div>
+        <div class="todaycard"><div class="ic" style="background:var(--statute-soft)">¶</div><div><h4>Review: Privacy &amp; Consent Policy §2–3 redline</h4><p>Draftsman's changes cite Rule 6(4). Your review, then legal sign-off.</p><div class="plain">Plain language: two paragraphs change; the only substantive edit is the DEPA reference.</div></div><button class="ghost act" onclick="toast('Redline opened · accept/edit per hunk · maker-checker applies')">Review (3 min)</button></div>
+        <div style="font-size:11.5px;color:var(--ink-faint);margin-top:6px">That's all. AEGIS won't interrupt you again until Thursday's digest unless something becomes urgent. <span class="mono" style="font-size:10px">INTERRUPTION BUDGET: 2/3 USED THIS WEEK</span></div>
+      </div>
+      <div class="tpersona" id="p-cco">
+        <div class="todayhead"><b>One decision needs you. Everything else is moving.</b><span>posture 91% · exposure ₹54 Cr ▼ · 0 missed</span></div>
+        <div class="todaycard"><div class="ic" style="background:var(--oxide-soft)">⚑</div><div><h4>Decide: DPDP amendment — approve the treatment plan</h4><p>3 redlines, 4 control tasks, attestation sweep. 47 days to effective date. Full cascade one click away.</p></div><button class="primary act" onclick="go('cascade')">Open cascade →</button></div>
+        <div class="todaycard"><div class="ic" style="background:var(--amber-soft)">◷</div><div><h4>Watch: CMT-01 MeitY undertaking — AT RISK</h4><p>Depends on CTRL-201 (R. Iyer). Steward escalates Monday if no progress; you can escalate now.</p></div><button class="ghost act" onclick="toast('Escalation sent to Privacy Eng lead · logged')">Escalate now</button></div>
+        <div class="todaycard"><div class="ic" style="background:var(--verdigris-soft)">▣</div><div><h4>FYI: Board pack for the 24 Jun ARC meeting is assembling</h4><p>Exposure trend, 3 risks above appetite, outlook. Ready Friday for your sign-off.</p></div><button class="ghost act" onclick="go('board')">Preview</button></div>
+      </div>
+      <div class="tpersona" id="p-aud">
+        <div class="todayhead"><b>Evidence room — read-only, privilege-screened.</b><span>engagement: ISO 27001 surveillance · scope agreed 02 Jun</span></div>
+        <div class="todaycard"><div class="ic" style="background:var(--statute-soft)">§</div><div><h4>Statement of Applicability v18</h4><p>Auto-generated, with change log since v17 (4 justifications updated by G.S.R. 312(E)).</p></div><button class="ghost act" onclick="go('soa')">Open</button></div>
+        <div class="todaycard"><div class="ic" style="background:var(--statute-soft)">⧖</div><div><h4>As-of snapshot: 31 March 2026</h4><p>Complete graph state at your audit reference date — controls, owners, evidence, versions.</p></div><button class="ghost act" onclick="go('brain');toast('Time machine set to 31 Mar 2026 — see bottom of Company brain')">Open snapshot</button></div>
+        <div class="todaycard"><div class="ic" style="background:var(--verdigris-soft)">⬇</div><div><h4>Sampled evidence requests (12)</h4><p>Your request list mapped to evidence nodes; 11 released, 1 pending privilege review by GC.</p></div><button class="ghost act" onclick="toast('Export prepared · hash manifest included')">Download set</button></div>
+      </div>
+    </div>
+  </section>
+  <section class="view" id="view-radar">
+    <div class="pagehead"><h1 class="pagetitle">Regulatory radar</h1><span class="sub">Scout watching 214 sources · 6 jurisdictions · last sweep 4 min ago</span></div>
+    <style>
+      .change-card{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:18px 20px;margin-bottom:14px;cursor:pointer;position:relative;transition:border-color .15s}
+      .change-card:hover{border-color:var(--ink-faint);box-shadow:0 4px 18px rgba(21,32,28,.06)}
+      .change-card .toprow{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+      .change-card h3{font-family:'Sora',sans-serif;font-size:15.5px;font-weight:600;margin-bottom:4px}
+      .change-card .src{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--statute)}
+      .change-card p.summary{color:var(--ink-soft);font-size:13px;margin:8px 0 12px;max-width:64ch}
+      .blast{display:flex;gap:18px;border-top:1px dashed var(--hair);padding-top:10px;flex-wrap:wrap}
+      .blast .b b{font-family:'Sora',sans-serif;font-size:17px;font-weight:700;display:block}
+      .blast .b span{font-size:11px;color:var(--ink-faint)}
+      .blast .cta{margin-left:auto;align-self:center}
+      .deadline{position:absolute;top:18px;right:20px;text-align:right}
+      .deadline b{font-family:'Sora',sans-serif;font-size:15px}
+      .deadline span{display:block;font-size:10.5px;color:var(--ink-faint)}
+    </style>
+    <article class="change-card" onclick="go('cascade')">
+      <div class="deadline"><b>₹48 Cr</b><span>exposure · 47 days to comply</span></div>
+      <div class="toprow"><span class="tag crit">HIGH IMPACT</span><span class="tag info">INDIA · MEITY</span><span class="tag warn">DECISION NEEDED</span></div>
+      <h3>DPDP Rules 2026 — consent manager &amp; breach notification amendments</h3>
+      <div class="src">G.S.R. 312(E) · amends Rules 6, 9 · published 09 Jun 2026</div>
+      <p class="summary">Cartographer mapped 3 obligations → 3 risks rise above appetite → 3 policies, 5 controls, 4 owners affected. Draftsman has redlines ready. Exposure is penalty-weighted, not guesswork.</p>
+      <div class="blast">
+        <div class="b"><b>3</b><span>obligations</span></div>
+        <div class="b"><b>3</b><span>risks ↑</span></div>
+        <div class="b"><b>3</b><span>policies</span></div>
+        <div class="b"><b>5</b><span>controls</span></div>
+        <div class="b"><b>4</b><span>owners</span></div>
+        <button class="primary cta" onclick="event.stopPropagation();go('cascade')">Open impact cascade →</button>
+      </div>
+    </article>
+    <article class="change-card">
+      <div class="deadline"><b>₹6 Cr</b><span>exposure · 112 days</span></div>
+      <div class="toprow"><span class="tag warn">MEDIUM</span><span class="tag info">INDIA · RBI</span><span class="tag ok">AGENT DRAFTING</span></div>
+      <h3>RBI Master Direction — IT governance: third-party concentration limits</h3>
+      <div class="src">RBI/2026-27/41 · new ¶ 5.3.2 · published 02 Jun 2026</div>
+      <p class="summary">Steward notified Vendor Risk; Draftsman preparing Third-Party Risk Policy update for review by Friday. Crosswalk shows 70% already covered via ISO A.5.19–22.</p>
+    </article>
+    <article class="change-card">
+      <div class="deadline"><b>Consultation</b><span>closes 30 Jun · lead time</span></div>
+      <div class="toprow"><span class="tag risk">HORIZON</span><span class="tag info">INDIA · SEBI</span><span class="tag dim">DRAFT STAGE</span></div>
+      <h3>SEBI consultation — algorithmic accountability for market intermediaries</h3>
+      <div class="src">Consultation paper · not yet law · est. effective Q1 2027</div>
+      <p class="summary">Early-warning item. If enacted as drafted: 2 new obligations, est. 6 control gaps. You have ~7 months of lead time — Scout will track every revision of the draft.</p>
+    </article>
+  </section>
+
+  <!-- ============ SOURCES & FRESHNESS ============ -->
+  <section class="view" id="view-sources">
+    <div class="pagehead"><h1 class="pagetitle">Sources &amp; freshness</h1><span class="sub">How regulations and obligations stay current — the update pipeline, with SLAs you can audit</span></div>
+    <style>
+      .pipeline{display:flex;gap:0;align-items:stretch;margin-bottom:18px}
+      .pstage{flex:1;background:var(--panel);border:1px solid var(--hair);padding:13px 14px;position:relative}
+      .pstage:first-child{border-radius:var(--r) 0 0 var(--r)}
+      .pstage:last-child{border-radius:0 var(--r) var(--r) 0}
+      .pstage+.pstage{border-left:0}
+      .pstage h5{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px}
+      .pstage b{font-family:'Sora',sans-serif;font-size:18px}
+      .pstage span{display:block;font-size:11px;color:var(--ink-soft)}
+      .pstage::after{content:"→";position:absolute;right:-7px;top:42%;color:var(--ink-faint);z-index:2;background:var(--bone);border-radius:50%;font-size:12px}
+      .pstage:last-child::after{content:""}
+      .sla{display:flex;gap:14px;margin:0 0 18px}
+      .sla .s{background:var(--verdigris-soft);border:1px solid #CDE4DD;border-radius:var(--r);padding:10px 16px;font-size:12px;color:var(--ink-soft)}
+      .sla .s b{font-family:'Sora',sans-serif;color:var(--verdigris)}
+    </style>
+    <div class="pipeline">
+      <div class="pstage"><h5>1 · Detect</h5><b>214</b><span>sources swept — gazettes, regulator APIs, RSS, consultation portals</span></div>
+      <div class="pstage"><h5>2 · Diff</h5><b>clause-level</b><span>only what changed, against last verified text</span></div>
+      <div class="pstage"><h5>3 · Extract</h5><b>obligations</b><span>“who must do what by when” — versioned, citable</span></div>
+      <div class="pstage"><h5>4 · Map</h5><b>graph</b><span>linked to risks, policies, controls, owners</span></div>
+      <div class="pstage"><h5>5 · Supersede</h5><b>lineage</b><span>old obligation versions retired, audit trail kept</span></div>
+    </div>
+    <div class="sla">
+      <div class="s">Detection SLA <b>&lt; 4 hrs</b> from publication</div>
+      <div class="s">Mapping SLA <b>&lt; 24 hrs</b> to full cascade</div>
+      <div class="s">Missed changes (90 days) <b>0</b> — verified vs. 2 external feeds</div>
+      <div class="s">Obligation versions maintained <b>1,968</b></div>
+    </div>
+    <table class="tbl">
+      <thead><tr><th>Source</th><th>Method</th><th>Cadence</th><th>Last sweep</th><th>Items YTD</th><th>Health</th></tr></thead>
+      <tbody>
+        <tr><td>MeitY · eGazette (DPDP)</td><td class="mono" style="font-size:11px">portal scrape + OCR</td><td>every 2 hrs</td><td class="mono" style="font-size:11px">17:04 IST</td><td>14</td><td><span class="tag ok">LIVE</span></td></tr>
+        <tr><td>RBI · Notifications &amp; Master Directions</td><td class="mono" style="font-size:11px">RSS + API</td><td>hourly</td><td class="mono" style="font-size:11px">17:21 IST</td><td>61</td><td><span class="tag ok">LIVE</span></td></tr>
+        <tr><td>SEBI · Circulars + consultation papers</td><td class="mono" style="font-size:11px">portal scrape</td><td>every 2 hrs</td><td class="mono" style="font-size:11px">16:40 IST</td><td>38</td><td><span class="tag ok">LIVE</span></td></tr>
+        <tr><td>CERT-In · Advisories &amp; directions</td><td class="mono" style="font-size:11px">RSS</td><td>hourly</td><td class="mono" style="font-size:11px">17:15 IST</td><td>22</td><td><span class="tag ok">LIVE</span></td></tr>
+        <tr><td>EUR-Lex · GDPR / AI Act instruments</td><td class="mono" style="font-size:11px">official API</td><td>daily</td><td class="mono" style="font-size:11px">09:00 CET</td><td>29</td><td><span class="tag ok">LIVE</span></td></tr>
+        <tr><td>IRDAI · Circulars</td><td class="mono" style="font-size:11px">portal scrape</td><td>every 4 hrs</td><td class="mono" style="font-size:11px">14:02 IST</td><td>9</td><td><span class="tag warn">LAYOUT CHANGED · agent adapting</span></td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:14px;font-size:12.5px;color:var(--ink-soft);max-width:78ch">Quarterly, Cartographer re-certifies every obligation→control mapping; mappings untouched by humans for 12 months are flagged for owner review. Ingestion is multilingual — obligations are extracted in source language (EN · HI · 中文 · 日本語 ready via jurisdiction packs) and stored bilingually with the original clause always authoritative.</div>
+    <div style="margin-top:16px" class="card">
+      <div style="padding:13px 16px;border-bottom:1px solid var(--hair);display:flex;align-items:baseline;gap:10px"><b style="font-family:'Sora',sans-serif;font-size:13.5px">Enforcement intelligence</b><span style="font-size:11.5px;color:var(--ink-faint)">penalties &amp; orders against peers — this is what calibrates your exposure model</span></div>
+      <table class="tbl" style="border:0">
+        <thead><tr><th>Action</th><th>Regulator</th><th>Peer / sector</th><th>Penalty</th><th>Signal extracted</th><th>Your exposure impact</th></tr></thead>
+        <tbody>
+          <tr><td>Breach notification delay order</td><td>DPB (India)</td><td>payments fintech</td><td class="mono" style="font-size:11px">₹12 Cr</td><td class="just" style="font-size:11.5px">Board treats &gt;24h delay as aggravating — first DPDP precedent</td><td><span class="tag crit">RSK-31 likelihood ↑</span></td></tr>
+          <tr><td>Consent-bundling penalty</td><td>CNIL (EU)</td><td>adtech platform</td><td class="mono" style="font-size:11px">€40 M</td><td class="just" style="font-size:11.5px">Granular-purpose consent enforced strictly; UX dark patterns cited</td><td><span class="tag warn">RSK-44 watch</span></td></tr>
+          <tr><td>Warning letter — data integrity</td><td>USFDA</td><td>generics manufacturer</td><td class="mono" style="font-size:11px">483 → WL</td><td class="just" style="font-size:11.5px">Audit-trail review focus at API sites (Pharma pack feed)</td><td><span class="tag dim">N/A · pack not active</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ CASCADE (ISO-aligned, with RISK node) ============ -->
+  <section class="view" id="view-cascade">
+    <div class="pagehead"><h1 class="pagetitle">Impact cascade</h1><span class="sub">DPDP Rules 2026 · G.S.R. 312(E) — now risk-driven, the ISO 27001 way: change → obligation → risk → treatment</span></div>
+    <style>
+      .cascade-grid{display:grid;grid-template-columns:1fr 330px;gap:18px;align-items:start}
+      .canvas{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:14px 10px 6px;overflow-x:auto}
+      .canvas .legend{display:flex;gap:13px;padding:4px 14px 10px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;color:var(--ink-faint);text-transform:uppercase;flex-wrap:wrap;align-items:center}
+      .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
+      svg .colhead{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;fill:var(--ink-faint)}
+      svg .node rect{rx:8;stroke-width:1.2;fill:#fff}
+      svg .node .lbl{font-size:11px;font-weight:600;fill:var(--ink);font-family:'IBM Plex Sans',sans-serif}
+      svg .node .sub{font-family:'IBM Plex Mono',monospace;font-size:8.5px;fill:var(--ink-faint)}
+      svg .edge{fill:none;stroke-width:1.5;opacity:.85;stroke-dasharray:600;stroke-dashoffset:600}
+      .ripple svg .edge{animation:draw 1s ease forwards}
+      .ripple svg .node{opacity:0;animation:nodein .4s ease forwards}
+      @keyframes draw{to{stroke-dashoffset:0}}
+      @keyframes nodein{to{opacity:1}}
+      .l1{animation-delay:.05s!important}.l2{animation-delay:.4s!important}.l3{animation-delay:.75s!important}.l4{animation-delay:1.1s!important}.l5{animation-delay:1.45s!important}.l6{animation-delay:1.8s!important}
+      .dossier{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:16px}
+      .dossier h4{font-family:'Sora',sans-serif;font-size:13px;font-weight:600;margin-bottom:4px}
+      .dossier .by{font-size:11px;color:var(--ink-faint);margin-bottom:12px}
+      .action{border:1px solid var(--hair);border-radius:8px;padding:11px 12px;margin-bottom:9px}
+      .action h5{font-size:12.5px;font-weight:600;margin-bottom:3px}
+      .action p{font-size:11.5px;color:var(--ink-soft);margin-bottom:8px}
+      .action .row{display:flex;gap:8px}
+      .action button{font:inherit;font-size:12px;border-radius:7px;padding:5px 11px;cursor:pointer}
+      .approve{background:var(--verdigris);color:#fff;border:0;font-weight:600}
+      .approve.done{background:var(--verdigris-soft);color:var(--verdigris);cursor:default}
+      .edit{background:#fff;border:1px solid var(--hair);color:var(--ink-soft)}
+      .diff{background:#FBFBF8;border:1px solid var(--hair);border-radius:8px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;padding:9px 11px;margin-bottom:12px;line-height:1.7}
+      .diff del{background:var(--oxide-soft);color:var(--oxide);padding:0 3px;border-radius:3px}
+      .diff ins{background:var(--verdigris-soft);color:var(--verdigris);text-decoration:none;padding:0 3px;border-radius:3px}
+    </style>
+    <div class="cascade-grid">
+      <div class="canvas ripple" id="canvas">
+        <div class="legend">
+          <span><i style="background:var(--statute)"></i>Regulation</span>
+          <span><i style="background:#7A8FB0"></i>Obligation</span>
+          <span><i style="background:var(--risk)"></i>Risk (ISO 6.1.2)</span>
+          <span><i style="background:var(--amber)"></i>Policy</span>
+          <span><i style="background:var(--verdigris)"></i>Control (Annex A)</span>
+          <span><i style="background:var(--ink)"></i>Owner</span>
+          <button class="ghost" style="margin-left:auto;padding:3px 10px;font-size:11px" onclick="replay()">↻ Replay ripple</button>
+        </div>
+        <svg viewBox="0 0 1160 510" width="100%" role="img" aria-label="Impact graph: regulation, obligations, risks, policies, controls, owners">
+          <text class="colhead" x="32" y="22">REGULATION</text>
+          <text class="colhead" x="218" y="22">OBLIGATIONS</text>
+          <text class="colhead" x="408" y="22">RISKS</text>
+          <text class="colhead" x="606" y="22">POLICIES</text>
+          <text class="colhead" x="796" y="22">CONTROLS</text>
+          <text class="colhead" x="988" y="22">OWNERS</text>
+
+          <!-- reg -> obligations -->
+          <path class="edge l2" d="M175 260 C 200 260, 192 112, 215 112" stroke="#7A8FB0"/>
+          <path class="edge l2" d="M175 260 C 198 260, 195 262, 215 262" stroke="#7A8FB0"/>
+          <path class="edge l2" d="M175 260 C 200 260, 192 412, 215 412" stroke="#7A8FB0"/>
+          <!-- obligations -> risks -->
+          <path class="edge l3" d="M365 112 C 388 112, 383 111, 405 111" stroke="#8A4B9E"/>
+          <path class="edge l3" d="M365 262 C 388 262, 383 261, 405 261" stroke="#8A4B9E"/>
+          <path class="edge l3" d="M365 412 C 388 412, 383 411, 405 411" stroke="#8A4B9E"/>
+          <!-- risks -> policies -->
+          <path class="edge l4" d="M563 111 C 586 111, 581 112, 603 112" stroke="#C98A04"/>
+          <path class="edge l4" d="M563 261 C 586 261, 581 262, 603 262" stroke="#C98A04"/>
+          <path class="edge l4" d="M563 411 C 586 411, 581 412, 603 412" stroke="#C98A04"/>
+          <!-- policies -> controls -->
+          <path class="edge l5" d="M753 112 C 776 112, 770 77, 793 77" stroke="#2E7D6B"/>
+          <path class="edge l5" d="M753 112 C 776 112, 770 167, 793 167" stroke="#2E7D6B"/>
+          <path class="edge l5" d="M753 262 C 776 262, 770 257, 793 257" stroke="#2E7D6B"/>
+          <path class="edge l5" d="M753 262 C 776 262, 770 347, 793 347" stroke="#2E7D6B"/>
+          <path class="edge l5" d="M753 412 C 776 412, 770 437, 793 437" stroke="#2E7D6B"/>
+          <!-- controls -> owners -->
+          <path class="edge l6" d="M945 77  C 966 77,  962 118, 985 118" stroke="#15201C"/>
+          <path class="edge l6" d="M945 167 C 966 167, 962 120, 985 120" stroke="#15201C"/>
+          <path class="edge l6" d="M945 257 C 966 257, 962 218, 985 218" stroke="#15201C"/>
+          <path class="edge l6" d="M945 347 C 966 347, 962 220, 985 220" stroke="#15201C"/>
+          <path class="edge l6" d="M945 437 C 966 437, 962 318, 985 318" stroke="#15201C"/>
+          <path class="edge l6" d="M945 85 C 975 95, 958 418, 985 418" stroke="#15201C" stroke-dasharray="4 4" opacity=".5"/>
+
+          <!-- regulation -->
+          <g class="node l1"><rect x="30" y="226" width="145" height="68" stroke="var(--statute)" fill="var(--statute-soft)"/>
+            <text class="lbl" x="42" y="250">DPDP Rules 2026</text><text class="sub" x="42" y="266">G.S.R. 312(E) · Rules 6, 9</text><text class="sub" x="42" y="280">effective 28 Jul 2026</text></g>
+          <!-- obligations -->
+          <g class="node l2"><rect x="215" y="88" width="150" height="48" stroke="#7A8FB0"/><text class="lbl" x="226" y="107">24h breach notify</text><text class="sub" x="226" y="123">OBL-211 v3 · was 72h</text></g>
+          <g class="node l2"><rect x="215" y="238" width="150" height="48" stroke="#7A8FB0"/><text class="lbl" x="226" y="257">Consent interop</text><text class="sub" x="226" y="273">OBL-212 v1 · DEPA</text></g>
+          <g class="node l2"><rect x="215" y="388" width="150" height="48" stroke="#7A8FB0"/><text class="lbl" x="226" y="407">RoPA expansion</text><text class="sub" x="226" y="423">OBL-213 v2</text></g>
+          <!-- risks -->
+          <g class="node l3"><rect x="405" y="84" width="158" height="54" stroke="var(--risk)" fill="var(--risk-soft)"/><text class="lbl" x="416" y="103">Late breach report</text><text class="sub" x="416" y="118">RSK-31 · CRITICAL ↑ · ₹48Cr</text><text class="sub" x="416" y="131">risk owner: CISO</text></g>
+          <g class="node l3"><rect x="405" y="234" width="158" height="54" stroke="var(--risk)" fill="var(--risk-soft)"/><text class="lbl" x="416" y="253">Unlawful processing</text><text class="sub" x="416" y="268">RSK-44 · HIGH ↑ above appetite</text><text class="sub" x="416" y="281">risk owner: DPO</text></g>
+          <g class="node l3"><rect x="405" y="384" width="158" height="54" stroke="var(--risk)" fill="var(--risk-soft)"/><text class="lbl" x="416" y="403">Audit nonconformity</text><text class="sub" x="416" y="418">RSK-19 · MEDIUM → treat</text><text class="sub" x="416" y="431">risk owner: K. Rao</text></g>
+          <!-- policies -->
+          <g class="node l4"><rect x="603" y="88" width="150" height="48" stroke="var(--amber)" fill="var(--amber-soft)"/><text class="lbl" x="614" y="107">Incident Response</text><text class="sub" x="614" y="123">POL-07 · redline ready</text></g>
+          <g class="node l4"><rect x="603" y="238" width="150" height="48" stroke="var(--amber)" fill="var(--amber-soft)"/><text class="lbl" x="614" y="257">Privacy &amp; Consent</text><text class="sub" x="614" y="273">POL-03 · redline ready</text></g>
+          <g class="node l4"><rect x="603" y="388" width="150" height="48" stroke="var(--amber)" fill="var(--amber-soft)"/><text class="lbl" x="614" y="407">Data Governance</text><text class="sub" x="614" y="423">POL-11 · redline ready</text></g>
+          <!-- controls -->
+          <g class="node l5"><rect x="793" y="56" width="152" height="42" stroke="var(--verdigris)"/><text class="lbl" x="804" y="73">Breach runbook</text><text class="sub" x="804" y="89">CTRL-042 · A.5.26 · gap</text></g>
+          <g class="node l5"><rect x="793" y="146" width="152" height="42" stroke="var(--verdigris)"/><text class="lbl" x="804" y="163">Severity matrix</text><text class="sub" x="804" y="179">CTRL-118 · A.5.24 · update</text></g>
+          <g class="node l5"><rect x="793" y="236" width="152" height="42" stroke="var(--verdigris)"/><text class="lbl" x="804" y="253">Consent API</text><text class="sub" x="804" y="269">CTRL-201 · A.5.34 · gap</text></g>
+          <g class="node l5"><rect x="793" y="326" width="152" height="42" stroke="var(--verdigris)"/><text class="lbl" x="804" y="343">Withdrawal SLA</text><text class="sub" x="804" y="359">CTRL-203 · A.5.34 · ok</text></g>
+          <g class="node l5"><rect x="793" y="416" width="152" height="42" stroke="var(--verdigris)"/><text class="lbl" x="804" y="433">RoPA register</text><text class="sub" x="804" y="449">CTRL-150 · A.5.31 · expand</text></g>
+          <!-- owners -->
+          <g class="node l6"><rect x="985" y="96" width="112" height="44" stroke="var(--ink)"/><text class="lbl" x="996" y="114">A. Sharma</text><text class="sub" x="996" y="130">Security · 2 tasks</text></g>
+          <g class="node l6"><rect x="985" y="196" width="112" height="44" stroke="var(--ink)"/><text class="lbl" x="996" y="214">R. Iyer</text><text class="sub" x="996" y="230">Privacy Eng · 2</text></g>
+          <g class="node l6"><rect x="985" y="296" width="112" height="44" stroke="var(--ink)"/><text class="lbl" x="996" y="314">K. Rao</text><text class="sub" x="996" y="330">Data Gov · 1</text></g>
+          <g class="node l6"><rect x="985" y="396" width="112" height="44" stroke="var(--ink)"/><text class="lbl" x="996" y="414">M. Das</text><text class="sub" x="996" y="430">Legal · sign-off</text></g>
+        </svg>
+      </div>
+      <aside class="dossier">
+        <h4>Agent dossier — risk-treatment plan</h4>
+        <div class="by">Cartographer + Draftsman · every step cites Rule + ISO clause · note: risk owner ≠ control owner, both tracked</div>
+        <div class="diff">
+          <div style="color:var(--ink-faint);margin-bottom:3px">POL-07 §4.2 · breach notification</div>
+          …notify the Board within <del>72 hours</del> <ins>24 hours</ins> per <ins>Rule 9(2), G.S.R. 312(E)</ins>…
+        </div>
+        <div class="action"><h5>1 · Update risk register (3 risks)</h5><p>RSK-31 likelihood ↑ Critical; RSK-44 above appetite. Risk owners (CISO, DPO) asked to accept revised ratings — ISO clause 6.1.2.</p><div class="row"><button class="approve" onclick="approveBtn(this)">Send for acceptance</button></div></div>
+        <div class="action"><h5>2 · Approve policy redlines (3)</h5><p>Routed to M. Das (Legal) after your approval — clause 5.3 ownership preserved.</p><div class="row"><button class="approve" onclick="approveBtn(this)">Approve all</button><button class="edit">Edit</button></div></div>
+        <div class="action"><h5>3 · Dispatch control tasks (4 gaps)</h5><p>CTRL-042, 118, 201, 150 — deadlines back-planned from 28 Jul, lands in Workflow board.</p><div class="row"><button class="approve" onclick="approveBtn(this)">Dispatch</button><button class="edit">Adjust</button></div></div>
+        <div class="action"><h5>4 · Refresh SoA + evidence sweep</h5><p>SoA rows A.5.24/.26/.31/.34 get updated justifications; Steward schedules attestations by 21 Jul.</p><div class="row"><button class="approve" onclick="approveBtn(this)">Schedule</button></div></div>
+        <div style="font-size:11px;color:var(--ink-faint)">Nothing executes without approval at current autonomy. Full audit trail kept.</div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============ WORKFLOW ============ -->
+  <section class="view" id="view-workflow">
+    <div class="pagehead"><h1 class="pagetitle">Workflow</h1><span class="sub">Every regulatory change becomes tracked work. Agents move cards; humans hold the gates.</span></div>
+    <style>
+      .board{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;align-items:start}
+      .col{background:var(--hair-soft);border-radius:var(--r);padding:10px}
+      .col h5{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);padding:2px 4px 8px;display:flex;justify-content:space-between}
+      .col h5 .n{color:var(--ink-faint)}
+      .tcard{background:var(--panel);border:1px solid var(--hair);border-radius:8px;padding:10px 11px;margin-bottom:9px;font-size:12px;cursor:grab}
+      .tcard:hover{border-color:var(--ink-faint)}
+      .tcard .t{font-weight:600;font-size:12.5px;margin-bottom:3px}
+      .tcard .meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px;align-items:center}
+      .tcard .who{margin-left:auto;width:20px;height:20px;border-radius:50%;color:#fff;font-size:8.5px;font-weight:600;display:flex;align-items:center;justify-content:center}
+      .agentchip{font-family:'IBM Plex Mono',monospace;font-size:9.5px;background:var(--verdigris-soft);color:var(--verdigris);border-radius:4px;padding:1px 6px}
+      .humanchip{font-family:'IBM Plex Mono',monospace;font-size:9.5px;background:var(--statute-soft);color:var(--statute);border-radius:4px;padding:1px 6px}
+      .sla-ok{font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--ink-faint)}
+      .sla-hot{font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--oxide);font-weight:600}
+      .gate{border-top:2px solid var(--amber);background:#FFFDF6}
+    </style>
+    <div class="board">
+      <div class="col"><h5>Triage <span class="n">2</span></h5>
+        <div class="tcard"><div class="t">Map SEBI algo consultation</div>RC-2026-038 · horizon item<div class="meta"><span class="agentchip">CARTOGRAPHER</span><span class="sla-ok">due 14 Jun</span></div></div>
+        <div class="tcard"><div class="t">Re-verify IRDAI source scraper</div>layout drift detected<div class="meta"><span class="agentchip">SCOUT</span><span class="sla-ok">auto</span></div></div>
+      </div>
+      <div class="col"><h5>Drafting <span class="n">3</span></h5>
+        <div class="tcard"><div class="t">Third-Party Risk Policy update</div>RBI/2026-27/41 · ¶5.3.2<div class="meta"><span class="agentchip">DRAFTSMAN</span><span class="sla-ok">ready Fri</span></div></div>
+        <div class="tcard"><div class="t">CTRL-201 DEPA interop spec</div>OBL-212 · consent manager<div class="meta"><span class="agentchip">DRAFTSMAN</span><span class="sla-ok">due 16 Jun</span><span class="who" style="background:var(--verdigris)">RI</span></div></div>
+        <div class="tcard"><div class="t">RoPA scope expansion plan</div>CTRL-150 · OBL-213<div class="meta"><span class="humanchip">HUMAN</span><span class="sla-ok">due 19 Jun</span><span class="who" style="background:var(--amber)">KR</span></div></div>
+      </div>
+      <div class="col gate" style="border-radius:var(--r)"><h5>⚑ Approval gate <span class="n">3</span></h5>
+        <div class="tcard"><div class="t">IRP §4 redline — 24h notify</div>cites Rule 9(2) · risk RSK-31<div class="meta"><span class="humanchip">YOU</span><span class="sla-hot">due today</span></div></div>
+        <div class="tcard"><div class="t">Risk rating change RSK-44</div>needs DPO acceptance<div class="meta"><span class="humanchip">DPO</span><span class="sla-ok">due 13 Jun</span></div></div>
+        <div class="tcard"><div class="t">Privacy Policy §2–3 redline</div>legal sign-off<div class="meta"><span class="humanchip">LEGAL</span><span class="sla-ok">due 15 Jun</span><span class="who" style="background:var(--oxide)">MD</span></div></div>
+      </div>
+      <div class="col"><h5>Implementing <span class="n">2</span></h5>
+        <div class="tcard"><div class="t">Breach runbook timing rework</div>CTRL-042 · Jira SEC-1142 linked<div class="meta"><span class="humanchip">HUMAN</span><span class="sla-ok">due 30 Jun</span><span class="who" style="background:var(--statute)">AS</span></div></div>
+        <div class="tcard"><div class="t">Severity matrix v4 rollout</div>CTRL-118 · training included<div class="meta"><span class="humanchip">HUMAN</span><span class="sla-ok">due 05 Jul</span><span class="who" style="background:var(--statute)">AS</span></div></div>
+      </div>
+      <div class="col"><h5>Evidence &amp; close <span class="n">2</span></h5>
+        <div class="tcard"><div class="t">Attestation sweep · DPDP pack</div>5 controls · auto-assembled<div class="meta"><span class="agentchip">STEWARD</span><span class="sla-ok">by 21 Jul</span></div></div>
+        <div class="tcard"><div class="t">CTRL-203 SLA telemetry</div>99.2% · evidence streaming<div class="meta"><span class="agentchip">STEWARD</span><span class="tag ok" style="font-size:9px">CONTINUOUS</span></div></div>
+      </div>
+    </div>
+    <div style="margin-top:14px;font-size:12.5px;color:var(--ink-soft)">Tasks sync two-way with Jira / Asana / ServiceNow — owners work where they already work; AEGIS keeps the compliance thread, deadlines back-planned from the legal effective date, and escalates stalls to the risk owner automatically.</div>
+  </section>
+
+  <!-- ============ BRAIN ============ -->
+  <section class="view" id="view-brain">
+    <div class="pagehead"><h1 class="pagetitle">Company brain</h1><span class="sub">The living graph: regulations → obligations → risks → policies → controls → owners → evidence</span></div>
+    <style>
+      .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+      .stat{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:12px 14px}
+      .stat b{font-family:'Sora',sans-serif;font-size:22px;font-weight:700;display:block}
+      .stat span{font-size:11.5px;color:var(--ink-faint)}
+      .stat .delta{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--verdigris)}
+      .ownercell{display:flex;align-items:center;gap:7px}
+      .mini{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:#fff;flex:none}
+    </style>
+    <div class="stats">
+      <div class="stat"><b>38</b><span>regulations in scope</span><div class="delta">+2 this quarter</div></div>
+      <div class="stat"><b>312</b><span>obligations · versioned</span><div class="delta">9 changed in 30d</div></div>
+      <div class="stat"><b>74</b><span>risks · owners named</span><div class="delta">3 above appetite</div></div>
+      <div class="stat"><b>247</b><span>controls · 96% owned</span><div class="delta">61 with live telemetry</div></div>
+      <div class="stat"><b>2,140</b><span>graph edges</span><div class="delta">re-verified nightly</div></div>
+    </div>
+    <table class="tbl">
+      <thead><tr><th>Control</th><th>ISO 27002 attrs</th><th>Owner</th><th>Treats risks</th><th>Frameworks</th><th>Evidence</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td><span class="ctrlid">CTRL-042</span> Breach comms runbook</td><td class="mono" style="font-size:10.5px">corrective · respond</td><td><div class="ownercell"><span class="mini" style="background:var(--statute)">AS</span>A. Sharma</div></td><td><span class="tag risk">RSK-31</span></td><td><span class="tag dim">×4</span></td><td class="mono" style="font-size:10.5px">tested 12 May</td><td><span class="tag warn">GAP</span></td></tr>
+        <tr><td><span class="ctrlid">CTRL-201</span> Consent capture API</td><td class="mono" style="font-size:10.5px">preventive · protect</td><td><div class="ownercell"><span class="mini" style="background:var(--verdigris)">RI</span>R. Iyer</div></td><td><span class="tag risk">RSK-44</span></td><td><span class="tag dim">×3</span></td><td class="mono" style="font-size:10.5px">auto · telemetry</td><td><span class="tag warn">GAP · DEPA</span></td></tr>
+        <tr><td><span class="ctrlid">CTRL-203</span> Consent withdrawal SLA</td><td class="mono" style="font-size:10.5px">preventive · protect</td><td><div class="ownercell"><span class="mini" style="background:var(--verdigris)">RI</span>R. Iyer</div></td><td><span class="tag risk">RSK-44</span></td><td><span class="tag dim">×3</span></td><td class="mono" style="font-size:10.5px">auto · 99.2%</td><td><span class="tag ok">HEALTHY</span></td></tr>
+        <tr><td><span class="ctrlid">CTRL-118</span> Incident severity matrix</td><td class="mono" style="font-size:10.5px">detective · detect</td><td><div class="ownercell"><span class="mini" style="background:var(--statute)">AS</span>A. Sharma</div></td><td><span class="tag risk">RSK-31</span></td><td><span class="tag dim">×5</span></td><td class="mono" style="font-size:10.5px">attested 30 Apr</td><td><span class="tag warn">UPDATE</span></td></tr>
+        <tr><td><span class="ctrlid">CTRL-150</span> RoPA register</td><td class="mono" style="font-size:10.5px">preventive · identify</td><td><div class="ownercell"><span class="mini" style="background:var(--amber)">KR</span>K. Rao</div></td><td><span class="tag risk">RSK-19</span></td><td><span class="tag dim">×3</span></td><td class="mono" style="font-size:10.5px">attested 02 Jun</td><td><span class="tag ok">HEALTHY</span></td></tr>
+        <tr><td><span class="ctrlid">CTRL-310</span> Vendor concentration dash</td><td class="mono" style="font-size:10.5px">detective · identify</td><td><div class="ownercell"><span class="mini" style="background:var(--oxide)">MD</span>M. Das</div></td><td><span class="tag risk">RSK-58</span></td><td><span class="tag dim">×2</span></td><td class="mono" style="font-size:10.5px">auto · monthly</td><td><span class="tag crit">EXCEPTION exp. 30 Sep</span></td></tr>
+      </tbody>
+    </table>
+    <div class="card" style="margin-top:16px">
+      <div style="padding:13px 16px;border-bottom:1px solid var(--hair);display:flex;align-items:baseline;gap:10px"><b style="font-family:'Sora',sans-serif;font-size:13.5px">Interpretations — the firm's positions on ambiguous law</b><span style="font-size:11.5px;color:var(--ink-faint)">the layer regulators actually examine; counsel-backed, review-triggered</span></div>
+      <table class="tbl inttbl" style="border:0">
+        <thead><tr><th>ID</th><th>Term / question</th><th>Our position</th><th>Basis</th><th>Approved</th><th>Review trigger</th></tr></thead>
+        <tbody>
+          <tr><td><span class="ctrlid">INT-09</span> v2</td><td>"Significant" breach (DPDP R.9)</td><td class="pos">&gt;10k principals OR any sensitive category OR likely harm — below all three: voluntary DPB notice only if media risk</td><td><span class="tag info">COUNSEL OPINION ⚖</span></td><td class="mono" style="font-size:10.5px">GC · 12 Apr 26</td><td class="mono" style="font-size:10.5px">DPB guidance / first enforcement</td></tr>
+          <tr><td><span class="ctrlid">INT-12</span> v1</td><td>Are we a "consent manager" (R.6)?</td><td class="pos">No — we capture consent for our own processing; we do not intermediate third-party consents. DEPA interop still required for portability.</td><td><span class="tag dim">INTERNAL · counsel review queued</span></td><td class="mono" style="font-size:10.5px">DPO · 28 May 26</td><td class="mono" style="font-size:10.5px">DEPA circular / product change</td></tr>
+          <tr><td><span class="ctrlid">INT-15</span> v1</td><td>RBI vendor "group level" aggregation (¶5.3.2)</td><td class="pos">Aggregate by ultimate beneficial owner, per RBI FAQ analogy; method documented in CTRL-310 spec</td><td><span class="tag info">COUNSEL OPINION ⚖</span></td><td class="mono" style="font-size:10.5px">CCO · 09 Jun 26</td><td class="mono" style="font-size:10.5px">RBI clarification</td></tr>
+        </tbody>
+      </table>
+      <div style="padding:10px 16px;font-size:11.5px;color:var(--ink-soft);border-top:1px dashed var(--hair)">When a regulation, guidance note or enforcement action touches a term with an interpretation, the interpretation enters its own review queue <i>before</i> downstream controls are judged — positions first, plumbing second. Contested positions escalate to partner counsel in-product; the opinion returns as a privileged node.</div>
+    </div>
+    <div class="timemachine">
+      <h4>⧖ Time machine — the graph as of any date <span class="tag" style="background:rgba(255,255,255,.12);color:#7BC4B0">AUDIT SUPERPOWER</span></h4>
+      <input type="range" min="0" max="3" value="3" id="tmr" oninput="timeMachine(this.value)">
+      <div class="lbls"><span>01 JAN 26</span><span>31 MAR 26</span><span>01 MAY 26</span><span>TODAY</span></div>
+      <div class="snap" id="tmsnap">Viewing: <b>today</b> — posture 91% · 312 obligations · 3 risks above appetite · CTRL-042 GAP (introduced by G.S.R. 312(E), 09 Jun) · SoA v18.</div>
+    </div>
+  </section>
+
+  <!-- ============ CROSSWALK ============ -->
+  <section class="view" id="view-crosswalk">
+    <div class="pagehead"><h1 class="pagetitle">Control crosswalk</h1><span class="sub">Map once, comply many — one internal control satisfies multiple frameworks simultaneously</span></div>
+    <style>
+      .sim{display:flex;align-items:center;gap:12px;background:var(--risk-soft);border:1px solid #E2D2EC;border-radius:var(--r);padding:13px 16px;margin-bottom:16px;flex-wrap:wrap}
+      .sim b{font-family:'Sora',sans-serif}
+      .sim select{font:inherit;border:1px solid var(--hair);border-radius:7px;padding:6px 10px;background:#fff}
+      .simres{font-size:12.5px;color:var(--ink-soft)}
+      .simres b{color:var(--risk)}
+      .xw td.c{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:10.5px}
+      .hit{background:var(--verdigris-soft);color:var(--verdigris);border-radius:4px;padding:2px 6px;display:inline-block}
+      .miss{color:var(--hair)}
+      .gapcell{background:var(--oxide-soft);color:var(--oxide);border-radius:4px;padding:2px 6px;display:inline-block;font-weight:600}
+      .cov{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+      .cov .f{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:11px 13px}
+      .cov .f h6{font-size:11.5px;font-weight:600}
+      .cov .f b{font-family:'Sora',sans-serif;font-size:19px;color:var(--verdigris)}
+      .cov .f span{font-size:10.5px;color:var(--ink-faint);display:block}
+    </style>
+    <div class="sim">
+      <b>New framework simulator</b>
+      <select onchange="simFw(this)"><option>EU DORA</option><option>SOC 2 Type II</option><option>NIST CSF 2.0</option><option>ISO 42001 (AI)</option></select>
+      <span class="simres" id="simres">If adopted today: <b>82% already covered</b> by existing controls via crosswalk · <b>11 true gaps</b> · est. 6 weeks to readiness. No duplicate work created.</span>
+    </div>
+    <div class="cov">
+      <div class="f"><h6>ISO 27001:2022</h6><b>94%</b><span>87 / 93 Annex A applicable, evidenced</span></div>
+      <div class="f"><h6>DPDP Act + Rules</h6><b>88%</b><span>5 gaps from G.S.R. 312(E)</span></div>
+      <div class="f"><h6>GDPR</h6><b>92%</b><span>shares 71 controls with DPDP</span></div>
+      <div class="f"><h6>RBI IT Direction</h6><b>90%</b><span>4 gaps · vendor concentration</span></div>
+      <div class="f"><h6>SOC 2</h6><b>96%</b><span>audit pack auto-assembled</span></div>
+    </div>
+    <table class="tbl xw">
+      <thead><tr><th>Internal control</th><th>ISO 27001</th><th>DPDP</th><th>GDPR</th><th>RBI IT</th><th>SOC 2</th><th>NIST CSF</th></tr></thead>
+      <tbody>
+        <tr><td><span class="ctrlid">CTRL-042</span> Breach comms runbook</td><td class="c"><span class="hit">A.5.26</span></td><td class="c"><span class="gapcell">R.9 GAP</span></td><td class="c"><span class="hit">Art.33</span></td><td class="c"><span class="hit">¶7.2</span></td><td class="c"><span class="hit">CC7.4</span></td><td class="c"><span class="hit">RS.CO</span></td></tr>
+        <tr><td><span class="ctrlid">CTRL-201</span> Consent capture API</td><td class="c"><span class="hit">A.5.34</span></td><td class="c"><span class="gapcell">R.6 GAP</span></td><td class="c"><span class="hit">Art.7</span></td><td class="c"><span class="miss">—</span></td><td class="c"><span class="hit">P3.1</span></td><td class="c"><span class="miss">—</span></td></tr>
+        <tr><td><span class="ctrlid">CTRL-203</span> Withdrawal SLA</td><td class="c"><span class="hit">A.5.34</span></td><td class="c"><span class="hit">R.6(3)</span></td><td class="c"><span class="hit">Art.7(3)</span></td><td class="c"><span class="miss">—</span></td><td class="c"><span class="hit">P3.2</span></td><td class="c"><span class="miss">—</span></td></tr>
+        <tr><td><span class="ctrlid">CTRL-118</span> Severity matrix</td><td class="c"><span class="hit">A.5.24</span></td><td class="c"><span class="hit">R.9</span></td><td class="c"><span class="hit">Art.33</span></td><td class="c"><span class="hit">¶7.1</span></td><td class="c"><span class="hit">CC7.3</span></td><td class="c"><span class="hit">DE.AE</span></td></tr>
+        <tr><td><span class="ctrlid">CTRL-150</span> RoPA register</td><td class="c"><span class="hit">A.5.31</span></td><td class="c"><span class="hit">R.4</span></td><td class="c"><span class="hit">Art.30</span></td><td class="c"><span class="miss">—</span></td><td class="c"><span class="hit">P1.1</span></td><td class="c"><span class="hit">ID.GV</span></td></tr>
+        <tr><td><span class="ctrlid">CTRL-310</span> Vendor concentration</td><td class="c"><span class="hit">A.5.19</span></td><td class="c"><span class="miss">—</span></td><td class="c"><span class="hit">Art.28</span></td><td class="c"><span class="gapcell">¶5.3.2 GAP</span></td><td class="c"><span class="hit">CC9.2</span></td><td class="c"><span class="hit">ID.SC</span></td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:12px;font-size:12.5px;color:var(--ink-soft)">A regulatory change marks gaps in <b>one column</b>; fixing the control clears it everywhere. Closing CTRL-042's DPDP timing gap automatically strengthens the GDPR Art.33 and RBI ¶7.2 positions too.</div>
+  </section>
+
+  <!-- ============ SoA ============ -->
+  <section class="view" id="view-soa">
+    <div class="pagehead"><h1 class="pagetitle">Statement of Applicability</h1><span class="sub">ISO 27001 clause 6.1.3(d) · auto-generated from the graph, always current, exportable for your auditor</span></div>
+    <style>
+      .soastats{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
+      .soastats .s{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:10px 16px;font-size:12.5px}
+      .soastats .s b{font-family:'Sora',sans-serif;font-size:18px;display:block}
+      .just{font-size:11.5px;color:var(--ink-soft);max-width:46ch}
+    </style>
+    <div class="soastats">
+      <div class="s"><b>93</b>Annex A controls</div>
+      <div class="s"><b style="color:var(--verdigris)">87</b>applicable · justified</div>
+      <div class="s"><b style="color:var(--ink-faint)">6</b>excluded · justified</div>
+      <div class="s"><b style="color:var(--amber)">4</b>justifications updated by G.S.R. 312(E)</div>
+      <div class="s" style="margin-left:auto"><button class="primary" onclick="alert('Exports versioned SoA (PDF/XLSX) with change log since last audit — the document your ISO auditor asks for first.')">Export for auditor ↓</button></div>
+    </div>
+    <table class="tbl">
+      <thead><tr><th>Annex A</th><th>Control</th><th>Theme</th><th>Applicable</th><th>Justification (auto-cited)</th><th>Implemented via</th><th>Last reviewed</th></tr></thead>
+      <tbody>
+        <tr><td class="mono" style="font-size:11px">A.5.24</td><td>Incident mgmt planning</td><td>Organizational</td><td><span class="tag ok">YES</span></td><td class="just">Legal: DPDP R.9, CERT-In dir. 2022 · Risk: RSK-31</td><td class="mono" style="font-size:10.5px">CTRL-118</td><td class="mono" style="font-size:10.5px">today · auto</td></tr>
+        <tr><td class="mono" style="font-size:11px">A.5.26</td><td>Response to incidents</td><td>Organizational</td><td><span class="tag ok">YES</span></td><td class="just">DPDP R.9(2) 24h window (updated 09 Jun) · GDPR Art.33</td><td class="mono" style="font-size:10.5px">CTRL-042</td><td class="mono" style="font-size:10.5px">today · auto</td></tr>
+        <tr><td class="mono" style="font-size:11px">A.5.31</td><td>Legal &amp; regulatory requirements</td><td>Organizational</td><td><span class="tag ok">YES</span></td><td class="just">Core obligation register · DPDP R.4, GDPR Art.30</td><td class="mono" style="font-size:10.5px">CTRL-150 + AEGIS</td><td class="mono" style="font-size:10.5px">02 Jun</td></tr>
+        <tr><td class="mono" style="font-size:11px">A.5.34</td><td>Privacy &amp; PII protection</td><td>Organizational</td><td><span class="tag ok">YES</span></td><td class="just">DPDP R.6 consent (DEPA interop added) · GDPR Art.7</td><td class="mono" style="font-size:10.5px">CTRL-201, 203</td><td class="mono" style="font-size:10.5px">today · auto</td></tr>
+        <tr><td class="mono" style="font-size:11px">A.7.4</td><td>Physical security monitoring</td><td>Physical</td><td><span class="tag ok">YES</span></td><td class="just">Office + colo facilities in scope · RSK-12</td><td class="mono" style="font-size:10.5px">CTRL-077</td><td class="mono" style="font-size:10.5px">14 Apr</td></tr>
+        <tr><td class="mono" style="font-size:11px">A.7.8</td><td>Equipment siting</td><td>Physical</td><td><span class="tag dim">EXCLUDED</span></td><td class="just">No self-hosted data centre; cloud-only (AWS ap-south-1). Reviewed annually.</td><td class="mono" style="font-size:10.5px">—</td><td class="mono" style="font-size:10.5px">10 Jan</td></tr>
+        <tr><td class="mono" style="font-size:11px">A.8.24</td><td>Use of cryptography</td><td>Technological</td><td><span class="tag ok">YES</span></td><td class="just">DPDP reasonable safeguards · RBI ¶6.4 · RSK-22</td><td class="mono" style="font-size:10.5px">CTRL-090, 091</td><td class="mono" style="font-size:10.5px">22 May</td></tr>
+      </tbody>
+    </table>
+    <div style="margin-top:12px;font-size:12.5px;color:var(--ink-soft)">When a regulation changes, justifications update themselves with the new citation and the SoA version increments — the “is your SoA current?” audit question disappears.</div>
+  </section>
+
+  <!-- ============ BUILD THE BRAIN (guided setup) ============ -->
+  <section class="view" id="view-setup">
+    <div class="pagehead"><h1 class="pagetitle">Build the brain</h1><span class="sub">Guided setup: days, not a six-month GRC project. Agents do the heavy lifting; you confirm.</span></div>
+    <style>
+      .setup-grid{display:grid;grid-template-columns:1fr 330px;gap:18px;align-items:start}
+      .step{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:15px 18px;margin-bottom:11px;display:flex;gap:14px}
+      .step .num{flex:none;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Sora',sans-serif;font-weight:700;font-size:13px}
+      .step.done .num{background:var(--verdigris);color:#fff}
+      .step.now .num{background:var(--amber);color:#fff}
+      .step.todo .num{background:var(--hair-soft);color:var(--ink-faint)}
+      .step.now{border-color:var(--amber)}
+      .step h4{font-family:'Sora',sans-serif;font-size:14px;font-weight:600}
+      .step p{font-size:12.5px;color:var(--ink-soft);margin:3px 0 8px;max-width:62ch}
+      .step .progress{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-faint)}
+      .step .actions{margin-top:8px;display:flex;gap:8px}
+      .keepalive{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:16px}
+      .keepalive h4{font-family:'Sora',sans-serif;font-size:13px;font-weight:600;margin-bottom:10px}
+      .loop{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--hair-soft);font-size:12px;color:var(--ink-soft)}
+      .loop:last-child{border:0}
+      .loop .freq{font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--verdigris);flex:none;width:64px;text-transform:uppercase;padding-top:2px}
+    </style>
+    <div class="setup-grid">
+      <div>
+        <div class="step done"><div class="num">✓</div><div>
+          <h4>Company profile → applicable law, derived not guessed</h4>
+          <p>Industry, entities, jurisdictions, data categories, customer types, licences held. Cartographer derives your regulatory scope: 38 instruments apply, each with a stated reason you can challenge.</p>
+          <div class="progress">DONE · fintech · 2 entities · IN + EU · SDF likely under DPDP</div>
+        </div></div>
+        <div class="step done"><div class="num">✓</div><div>
+          <h4>Ingest what you already have — no blank-page start</h4>
+          <p>Drop in existing policies, control spreadsheets, prior audit reports, ISMS docs, org chart. Draftsman extracts a draft graph: policies, controls, candidate owners, existing framework mappings.</p>
+          <div class="progress">DONE · 61 docs ingested · 247 controls + 61 policies extracted · 84% auto-mapped</div>
+        </div></div>
+        <div class="step now"><div class="num">3</div><div>
+          <h4>Confirm the graph — humans certify, agents propose</h4>
+          <p>Review queue of extracted mappings, lowest-confidence first. Each confirmation trains the brain; each rejection is logged with a reason. This is what makes the graph audit-grade rather than AI guesswork.</p>
+          <div class="progress">IN PROGRESS · 208 / 247 mappings confirmed · est. 2.5 hrs remaining</div>
+          <div class="actions"><button class="primary" onclick="alert('Opens the confirmation queue: side-by-side source text + proposed mapping + confidence score. Keyboard-first: confirm / edit / reject.')">Continue confirming (39)</button></div>
+        </div></div>
+        <div class="step now"><div class="num">4</div><div>
+          <h4>Name every owner — controls and risks separately</h4>
+          <p>Pulled from your org chart / HRIS. Unowned controls are blockers, not warnings. When someone leaves or changes role, their controls enter a re-assignment queue automatically — no orphans.</p>
+          <div class="progress">237 / 247 control owners named · 10 unassigned · 74 risk owners named</div>
+          <div class="actions"><button class="ghost">Assign remaining 10</button></div>
+        </div></div>
+        <div class="step todo"><div class="num">5</div><div>
+          <h4>Connect systems — evidence becomes telemetry</h4>
+          <p>IdP, cloud accounts, HRIS, ticketing, MDM. Each integration converts manual attestations into continuous evidence. Start with 3; add over time — value compounds, nothing blocks go-live.</p>
+          <div class="progress">4 connected (AWS, Okta, Jira, Darwinbox) · 61 controls now self-evidencing</div>
+        </div></div>
+        <div class="step todo"><div class="num">6</div><div>
+          <h4>Baseline: risk assessment + SoA v1 → go live</h4>
+          <p>Agents draft the risk register from obligations + your context; risk owners accept ratings; SoA generates itself. From this moment, Radar is armed and every future change is a diff against a known-good baseline.</p>
+          <div class="progress">UNLOCKS AFTER STEPS 3–5</div>
+        </div></div>
+      </div>
+      <aside class="keepalive">
+        <h4>Keeping it alive — the maintenance loop</h4>
+        <div class="loop"><span class="freq">continuous</span><div>Regulatory sweeps + evidence telemetry stream in; graph edges touched by changes are re-verified</div></div>
+        <div class="loop"><span class="freq">nightly</span><div>Drift detection: org-chart changes → orphaned controls; system config changes → stale evidence flags</div></div>
+        <div class="loop"><span class="freq">weekly</span><div>Steward digest to each owner: your controls, your deadlines, 2-minute attest-or-flag</div></div>
+        <div class="loop"><span class="freq">quarterly</span><div>Mapping re-certification by Cartographer; sample reviewed by humans; precision score published</div></div>
+        <div class="loop"><span class="freq">on trigger</span><div>New product, vendor, geography or M&amp;A → scoped “what does this change?” wizard re-runs steps 1–2 for the delta only</div></div>
+        <div class="loop"><span class="freq">annually</span><div>Full graph attestation + internal audit pack for ISO clause 9.2 — assembled, not compiled</div></div>
+        <div style="margin-top:12px;background:var(--verdigris-soft);border-radius:8px;padding:10px;font-size:11.5px;color:var(--ink-soft)"><b style="color:var(--verdigris)">Why this stays feasible:</b> humans never maintain the graph by hand. They answer small, routed questions; agents do the bookkeeping. ~20 min/week per owner at steady state.</div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============ SCOPE & CONFLICTS ============ -->
+  <section class="view" id="view-scope">
+    <div class="pagehead"><h1 class="pagetitle">Scope &amp; conflicts</h1><span class="sub">Business context layer — regulations apply to entities, products and sites, not to "the company". Conflicts surface here first.</span></div>
+    <style>
+      .scopetbl td.c{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:10.5px}
+      .applies{background:var(--statute-soft);color:var(--statute);border-radius:4px;padding:2px 8px;display:inline-block}
+      .na{color:var(--hair)}
+      .conflict{background:var(--panel);border:1px solid var(--hair);border-left:3px solid var(--oxide);border-radius:var(--r);padding:14px 17px;margin-bottom:11px}
+      .conflict h4{font-family:'Sora',sans-serif;font-size:13.5px;font-weight:600;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+      .conflict p{font-size:12.5px;color:var(--ink-soft);margin:6px 0 8px;max-width:80ch}
+      .resolution{background:var(--verdigris-soft);border-radius:8px;padding:9px 12px;font-size:12px;color:var(--ink-soft)}
+      .resolution b{color:var(--verdigris)}
+    </style>
+    <table class="tbl scopetbl" style="margin-bottom:18px">
+      <thead><tr><th>Entity × Product / Site</th><th>DPDP</th><th>GDPR</th><th>RBI IT</th><th>SEBI</th><th>PIPL</th><th>Obligations in scope</th></tr></thead>
+      <tbody>
+        <tr><td><b>IN-OpCo</b> · Payments app (consumer)</td><td class="c"><span class="applies">SDF</span></td><td class="c"><span class="na">—</span></td><td class="c"><span class="applies">¶ all</span></td><td class="c"><span class="na">—</span></td><td class="c"><span class="na">—</span></td><td class="mono" style="font-size:11px">184</td></tr>
+        <tr><td><b>IN-OpCo</b> · Broking platform</td><td class="c"><span class="applies">SDF</span></td><td class="c"><span class="na">—</span></td><td class="c"><span class="na">—</span></td><td class="c"><span class="applies">full</span></td><td class="c"><span class="na">—</span></td><td class="mono" style="font-size:11px">96</td></tr>
+        <tr><td><b>EU-Branch</b> · Payments app (EU users)</td><td class="c"><span class="na">—</span></td><td class="c"><span class="applies">full</span></td><td class="c"><span class="na">—</span></td><td class="c"><span class="na">—</span></td><td class="c"><span class="na">—</span></td><td class="mono" style="font-size:11px">71</td></tr>
+        <tr><td><b>Hyderabad DC</b> · processing site</td><td class="c"><span class="applies">R.12</span></td><td class="c"><span class="applies">Ch.V</span></td><td class="c"><span class="applies">¶6</span></td><td class="c"><span class="na">—</span></td><td class="c"><span class="na">—</span></td><td class="mono" style="font-size:11px">23</td></tr>
+      </tbody>
+    </table>
+    <h4 style="font-family:'Sora',sans-serif;font-size:14px;margin-bottom:10px">Detected conflicts of law <span class="tag crit" style="margin-left:6px">2 OPEN</span></h4>
+    <div class="conflict">
+      <h4>Breach notification windows collide <span class="tag info">CERT-In 6h</span><span class="tag info">DPDP 24h</span><span class="tag info">GDPR 72h</span></h4>
+      <p>The same incident on the payments app can trigger three clocks. CERT-In's 6-hour reporting (cyber incident) is stricter than DPDP's 24h (personal data breach) and GDPR's 72h — but the report contents and recipients differ, so "comply to strictest" alone is not sufficient.</p>
+      <div class="resolution"><b>Cartographer proposal:</b> harmonize CTRL-042 to a single 6h internal clock with three jurisdiction-specific notification templates branching from one runbook. One control, three obligations satisfied. → Awaiting CISO approval.</div>
+    </div>
+    <div class="conflict">
+      <h4>Localization vs. transfer <span class="tag info">RBI payments data IN-only</span><span class="tag info">GDPR Ch.V transfers</span></h4>
+      <p>RBI requires payments data stored only in India; the EU branch's support tooling replicates ticket payloads (containing payment metadata) to Frankfurt. Genuine collision — no single control satisfies both as architected.</p>
+      <div class="resolution"><b>Cartographer proposal:</b> data-minimised ticket payloads (strip payment fields before replication) + SCCs for the remainder. Flagged to Architecture board — this one needs a human decision, and the graph says exactly why.</div>
+    </div>
+  </section>
+
+  <!-- ============ SCENARIOS ============ -->
+  <section class="view" id="view-scenarios">
+    <div class="pagehead"><h1 class="pagetitle">Scenario war-room</h1><span class="sub">Simulate regulation before it exists. The cascade runs on hypothetical changes — readiness becomes a number, not a feeling.</span></div>
+    <style>
+      .scn{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:16px 18px;margin-bottom:13px}
+      .scn h4{font-family:'Sora',sans-serif;font-size:14.5px;font-weight:600;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+      .scn p{font-size:12.5px;color:var(--ink-soft);margin:6px 0 10px;max-width:78ch}
+      .scnstats{display:flex;gap:20px;border-top:1px dashed var(--hair);padding-top:10px;flex-wrap:wrap;align-items:center}
+      .scnstats .s b{font-family:'Sora',sans-serif;font-size:16px;display:block}
+      .scnstats .s span{font-size:10.5px;color:var(--ink-faint)}
+      .ready{font-family:'Sora',sans-serif;font-weight:700;font-size:16px}
+    </style>
+    <div class="scn">
+      <h4>SEBI algo accountability — enacted as drafted <span class="tag risk">HORIZON · Q1 2027</span><span class="tag ok">SIMULATED 2h AGO</span></h4>
+      <p>Built from the live consultation paper. If enacted without amendment: model registers, kill-switch attestations, audit trails per strategy.</p>
+      <div class="scnstats">
+        <div class="s"><b>11</b><span>new obligations</span></div>
+        <div class="s"><b>6</b><span>control gaps</span></div>
+        <div class="s"><b>₹9 Cr</b><span>est. exposure if unprepared</span></div>
+        <div class="s"><b>14 wks</b><span>remediation runway needed</span></div>
+        <div class="s"><span class="ready" style="color:var(--amber)">71% ready</span><span>via crosswalk today</span></div>
+        <button class="ghost" style="margin-left:auto" onclick="alert('Opens the full hypothetical cascade — same six-layer graph, marked SIMULATION, with a pre-mortem task plan you can stage but not dispatch.')">Open simulated cascade →</button>
+      </div>
+    </div>
+    <div class="scn">
+      <h4>DPDP breach window tightens again: 24h → 12h <span class="tag dim">STRESS TEST</span></h4>
+      <p>Pattern-based stress test (regulators ratchet). Tests whether CTRL-042's redesign has headroom or merely meets today's bar.</p>
+      <div class="scnstats">
+        <div class="s"><b>1</b><span>obligation version bump</span></div>
+        <div class="s"><b>2</b><span>controls stressed</span></div>
+        <div class="s"><span class="ready" style="color:var(--verdigris)">PASSES</span><span>if 6h harmonized clock approved (see Conflicts)</span></div>
+      </div>
+    </div>
+    <div class="scn">
+      <h4>EU adequacy decision for India revoked <span class="tag crit">BLACK SWAN</span></h4>
+      <p>Geopolitical scenario: all IN↔EU transfers need SCCs + TIAs overnight. The graph knows every cross-border flow because processing activities are nodes.</p>
+      <div class="scnstats">
+        <div class="s"><b>17</b><span>transfer flows affected</span></div>
+        <div class="s"><b>9</b><span>vendor contracts to repaper</span></div>
+        <div class="s"><b>6 wks</b><span>est. response time with playbook</span></div>
+        <div class="s"><span class="ready" style="color:var(--oxide)">38% ready</span><span>playbook drafted, not staged</span></div>
+        <button class="ghost" style="margin-left:auto">Stage playbook</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ GATES ============ -->
+  <section class="view" id="view-gates">
+    <div class="pagehead"><h1 class="pagetitle">Launch &amp; change gates</h1><span class="sub">Compliance review inside the pipelines where change is born — product launches, engineering changes, QMS change control</span></div>
+    <style>
+      .gaterow{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:14px 17px;margin-bottom:11px;display:flex;gap:14px;align-items:flex-start}
+      .gaterow .stat{flex:none;width:86px;text-align:center;padding-top:2px}
+      .gaterow .stat b{font-family:'Sora',sans-serif;font-size:13px;display:block}
+      .gaterow h4{font-family:'Sora',sans-serif;font-size:13.5px;font-weight:600}
+      .gaterow p{font-size:12px;color:var(--ink-soft);margin-top:3px;max-width:75ch}
+      .gchecks{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
+      .packnote{background:var(--risk-soft);border:1px solid #E2D2EC;border-radius:var(--r);padding:12px 16px;font-size:12.5px;color:var(--ink-soft);margin-top:14px}
+    </style>
+    <div class="gaterow">
+      <div class="stat"><span class="tag warn">IN REVIEW</span><b style="color:var(--amber)">2 blockers</b></div>
+      <div>
+        <h4>Launch: UPI international remittance (IN-OpCo · payments app)</h4>
+        <p>Auto-scoped from the launch brief in Jira: new data category (beneficiary KYC), new cross-border flow, new RBI obligations. Gate created the moment the epic was tagged for release.</p>
+        <div class="gchecks"><span class="tag crit">RBI remittance obligations: 2 controls missing</span><span class="tag warn">DPIA required (new category)</span><span class="tag ok">Consent flow: covered by CTRL-201 v2</span><span class="tag ok">Localization: compliant</span></div>
+      </div>
+    </div>
+    <div class="gaterow">
+      <div class="stat"><span class="tag ok">CLEARED</span><b style="color:var(--verdigris)">4h review</b></div>
+      <div>
+        <h4>Change: severity matrix v4 rollout (CTRL-118)</h4>
+        <p>Engineering change request linked to its compliance thread automatically; evidence of training completion attached; cleared by maker-checker.</p>
+      </div>
+    </div>
+    <div class="gaterow">
+      <div class="stat"><span class="tag dim">QUEUED</span><b>starts 16 Jun</b></div>
+      <div>
+        <h4>Launch: AI underwriting copilot (broking platform)</h4>
+        <p>Pre-scoped: SEBI algo draft applies if enacted (see Scenarios), ISO 42001 pack recommended, model register entry required. Gate already knows what the launch will owe before a line of code reviews.</p>
+        <div class="gchecks"><span class="tag risk">HORIZON OBLIGATIONS ATTACHED</span><span class="tag warn">AI system register entry pending</span></div>
+      </div>
+    </div>
+    <div class="packnote"><b>QMS change control (Pharma GxP pack — not installed):</b> when active, gates bind to Veeva/TrackWise change controls instead of Jira epics, approvals require 21 CFR Part 11 e-signatures, and site/dossier nodes scope each change to affected market authorizations. Same kernel, different gate skin — this is the pack system working.</div>
+  </section>
+
+  <!-- ============ AGENT GOVERNANCE ============ -->
+  <section class="view" id="view-governance">
+    <div class="pagehead"><h1 class="pagetitle">Agent governance</h1><span class="sub">The agents are models under management — versioned, evaluated, sampled, and challengeable. This page is what you hand to model-risk and to the regulator.</span></div>
+    <style>
+      .govgrid{display:grid;grid-template-columns:1fr 330px;gap:16px;align-items:start}
+      .defens{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:15px}
+      .defens h4{font-family:'Sora',sans-serif;font-size:13px;font-weight:600;margin-bottom:9px}
+      .drow{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--hair-soft);font-size:12px;color:var(--ink-soft)}
+      .drow:last-child{border:0}
+      .drow .ic{flex:none;width:18px;color:var(--verdigris);font-weight:700}
+    </style>
+    <div class="govgrid">
+      <div>
+        <table class="tbl">
+          <thead><tr><th>Agent</th><th>Model version</th><th>Last evaluation</th><th>Precision / recall</th><th>Human sampling</th><th>Regression watch</th></tr></thead>
+          <tbody>
+            <tr><td><b>Scout</b> · detection</td><td class="mono" style="font-size:11px">scout-3.2.1</td><td class="mono" style="font-size:11px">01 Jun · 500-doc golden set</td><td class="mono" style="font-size:11px">99.7 / 99.9</td><td class="mono" style="font-size:11px">5% weekly</td><td><span class="tag ok">STABLE</span></td></tr>
+            <tr><td><b>Cartographer</b> · mapping</td><td class="mono" style="font-size:11px">carto-2.8.0</td><td class="mono" style="font-size:11px">01 Jun · 1,200 mappings</td><td class="mono" style="font-size:11px">98.4 / 96.1</td><td class="mono" style="font-size:11px">10% + all &lt;70% conf.</td><td><span class="tag ok">STABLE</span></td></tr>
+            <tr><td><b>Draftsman</b> · drafting</td><td class="mono" style="font-size:11px">draft-2.5.3</td><td class="mono" style="font-size:11px">28 May · legal panel review</td><td class="mono" style="font-size:11px">100% human-gated</td><td class="mono" style="font-size:11px">every output</td><td><span class="tag ok">GATED</span></td></tr>
+            <tr><td><b>Steward</b> · orchestration</td><td class="mono" style="font-size:11px">stew-3.0.2 → 3.1.0-rc</td><td class="mono" style="font-size:11px">canary running</td><td class="mono" style="font-size:11px">n/a · deterministic core</td><td class="mono" style="font-size:11px">audit log review</td><td><span class="tag warn">CANARY · 7d</span></td></tr>
+          </tbody>
+        </table>
+        <div style="background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:14px 16px;margin-top:13px;font-size:12.5px;color:var(--ink-soft)">
+          <b style="font-family:'Sora',sans-serif;font-size:13px;color:var(--ink)">Model-change protocol.</b> Agent upgrades replay the full golden set + your last 90 days of decisions; any mapping that would flip is queued for human re-certification <i>before</i> the upgrade ships. You are never silently re-mapped. Evaluation methodology and golden sets are exportable — your model-risk team can independently re-run them.
+        </div>
+      </div>
+      <aside class="defens">
+        <h4>Defensibility controls — always on (kernel)</h4>
+        <div class="drow"><span class="ic">✓</span><div><b>Maker-checker everywhere</b> — the human who edits a node cannot certify it; enforced by role, logged by pair</div></div>
+        <div class="drow"><span class="ic">✓</span><div><b>E-signatures on approvals</b> — cryptographically bound to content hash; Part 11 mode available via Pharma pack</div></div>
+        <div class="drow"><span class="ic">✓</span><div><b>Privilege labels</b> — impact analyses can be drafted under counsel; privileged nodes excluded from exports without GC release</div></div>
+        <div class="drow"><span class="ic">✓</span><div><b>Immutable audit log</b> — append-only, hash-chained; includes every agent action, prompt version, and citation</div></div>
+        <div class="drow"><span class="ic">✓</span><div><b>Challenge button</b> — any owner can dispute any agent conclusion; disputes feed the golden set</div></div>
+        <div class="drow"><span class="ic">✓</span><div><b>Full export, no hostage graph</b> — your nodes, edges, provenance leave in open formats any day</div></div>
+      </aside>
+    </div>
+  </section>
+
+  <!-- ============ COMPOSER ============ -->
+  <section class="view" id="view-composer">
+    <div class="pagehead"><h1 class="pagetitle">Composer</h1><span class="sub">One kernel, many skins. Compose your AEGIS from packs — industry, jurisdiction, capability, partner. Each pack declares exactly what it installs.</span></div>
+    <style>
+      .kernelbar{background:var(--ink);color:#fff;border-radius:var(--r);padding:14px 18px;display:flex;gap:22px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
+      .kernelbar b{font-family:'Sora',sans-serif;font-size:14px}
+      .kernelbar span{font-size:11.5px;opacity:.75}
+      .packsec{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);margin:16px 0 8px}
+      .packs{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
+      .pack{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:14px 15px;display:flex;flex-direction:column}
+      .pack.installed{border-color:var(--verdigris)}
+      .pack h4{font-family:'Sora',sans-serif;font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px}
+      .pack .ver{font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--ink-faint)}
+      .pack p{font-size:11.5px;color:var(--ink-soft);margin:6px 0 9px}
+      .installs{font-size:10.5px;color:var(--ink-faint);line-height:1.8;margin-bottom:10px}
+      .installs b{color:var(--ink-soft);font-weight:600}
+      .pack .foot{margin-top:auto;display:flex;align-items:center;gap:8px}
+      .toggle{margin-left:auto;font:inherit;font-size:11.5px;font-weight:600;border-radius:7px;padding:5px 13px;cursor:pointer;border:0}
+      .toggle.on{background:var(--verdigris-soft);color:var(--verdigris)}
+      .toggle.off{background:var(--ink);color:#fff}
+      .signed{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--verdigris)}
+    </style>
+    <div class="kernelbar">
+      <b>◍ AEGIS Kernel — always on, identical for every customer</b>
+      <span>Graph engine with edge provenance · 4 agents · workflow + approval gates · SoA &amp; crosswalk · Boardroom · maker-checker, e-sign, privilege, immutable log · export</span>
+    </div>
+    <div class="packsec">Industry packs — node types, gate skins, agent skills</div>
+    <div class="packs">
+      <div class="pack installed"><h4>India BFSI <span class="ver">v4.2 · by AEGIS</span></h4><p>For banks, NBFCs, fintechs, brokers regulated by RBI / SEBI / IRDAI.</p>
+        <div class="installs"><b>+nodes</b> licence, branch, vendor-group · <b>+sources</b> RBI, SEBI, IRDAI, CERT-In, DPB · <b>+skills</b> inspection-response, concentration math · <b>+gates</b> RBI inspection workflow</div>
+        <div class="foot"><span class="signed">✓ signed · audited</span><button class="toggle on" onclick="togglePack(this)">Installed</button></div></div>
+      <div class="pack"><h4>Pharma GxP <span class="ver">v3.1 · by AEGIS</span></h4><p>USFDA / EMA / CDSCO world. The tool itself switches to validated mode.</p>
+        <div class="installs"><b>+nodes</b> site, dossier, market authorization · <b>+sources</b> FDA WLs/483s, EMA, pharmacopoeias · <b>+mode</b> 21 CFR Part 11 e-sign, CSV docs · <b>+gates</b> QMS (Veeva/TrackWise) binding</div>
+        <div class="foot"><span class="signed">✓ signed · validated</span><button class="toggle off" onclick="togglePack(this)">Install</button></div></div>
+      <div class="pack"><h4>Platform / Big Tech <span class="ver">v2.0 · by AEGIS</span></h4><p>DMA/DSA designated services, multi-entity scoping at scale, launch velocity.</p>
+        <div class="installs"><b>+nodes</b> designated service, processing activity · <b>+sources</b> EC, national DSCs · <b>+gates</b> product launch review · <b>+skills</b> conflict-of-law at scale</div>
+        <div class="foot"><span class="signed">✓ signed</span><button class="toggle off" onclick="togglePack(this)">Install</button></div></div>
+    </div>
+    <div class="packsec">Jurisdiction packs — sources, language, local doctrine</div>
+    <div class="packs">
+      <div class="pack installed"><h4>India <span class="ver">v5.0</span></h4><p>DPDP, IT Act, CERT-In, sectoral. Hindi + English ingestion.</p><div class="foot"><span class="signed">✓ signed</span><button class="toggle on" onclick="togglePack(this)">Installed</button></div></div>
+      <div class="pack installed"><h4>European Union <span class="ver">v6.3</span></h4><p>GDPR, AI Act, DORA, NIS2 + member-state transpositions. 24 languages.</p><div class="foot"><span class="signed">✓ signed</span><button class="toggle on" onclick="togglePack(this)">Installed</button></div></div>
+      <div class="pack"><h4>China <span class="ver">v3.4</span></h4><p>PIPL, CSL, DSL, CAC measures. Mandarin ingestion; region-pinned deployment required.</p><div class="foot"><span class="signed">✓ signed</span><button class="toggle off" onclick="togglePack(this)">Install</button></div></div>
+    </div>
+    <div class="packsec">Capability modules — kernel extensions, toggle per org</div>
+    <div class="packs">
+      <div class="pack installed"><h4>Scenario war-room <span class="ver">v1.2</span></h4><p>Hypothetical cascades, stress tests, black-swan playbooks.</p><div class="foot"><button class="toggle on" onclick="togglePack(this)">Enabled</button></div></div>
+      <div class="pack installed"><h4>Conflict-of-law detector <span class="ver">v1.0</span></h4><p>Collision detection across jurisdictions + harmonization proposals.</p><div class="foot"><button class="toggle on" onclick="togglePack(this)">Enabled</button></div></div>
+      <div class="pack installed"><h4>Enforcement intelligence <span class="ver">v2.1</span></h4><p>Peer penalties calibrate your exposure model.</p><div class="foot"><button class="toggle on" onclick="togglePack(this)">Enabled</button></div></div>
+    </div>
+    <div class="packsec">Partner packs — published by audit &amp; law firms, revenue-shared</div>
+    <div class="packs">
+      <div class="pack"><h4>DPDP Readiness Accelerator <span class="ver">v1.1 · by [Big-4 firm]</span></h4><p>Firm's DPDP control library, gap methodology and audit templates as an installable pack. The firm that audits you ships you content.</p><div class="foot"><span class="signed">✓ signed · partner</span><button class="toggle off" onclick="togglePack(this)">Install</button></div></div>
+      <div class="pack"><h4>RBI Inspection Playbook <span class="ver">v2.0 · by [law firm]</span></h4><p>Inspection-response workflows + correspondence templates from counsel who sit in those rooms.</p><div class="foot"><span class="signed">✓ signed · partner</span><button class="toggle off" onclick="togglePack(this)">Install</button></div></div>
+      <div class="pack" style="border-style:dashed;align-items:center;justify-content:center;text-align:center;color:var(--ink-faint)"><div style="font-size:26px">＋</div><p>Build a pack — SDK for partners.<br>Packs are versioned, signed, sandboxed; installs are reversible.</p></div>
+    </div>
+  </section>
+
+  <!-- ============ BOARDROOM ============ -->
+  <section class="view" id="view-board">
+    <div class="pagehead"><h1 class="pagetitle">Boardroom</h1><span class="sub">The one page the CCO forwards · board-ready, regulator-ready, methodology-backed</span>
+      <span style="margin-left:auto;display:flex;gap:8px"><button class="ghost" onclick="alert('Exports a signed, versioned board pack (PDF): posture, exposure with methodology annex, risks above appetite, commitments status, outlook. E-signature + immutable hash for defensibility.')">Export board pack ↓</button><button class="ghost" onclick="alert('Assembles a regulator response pack for a specific inquiry: relevant obligations, controls, evidence lineage, and correspondence history — privilege-reviewed before release.')">Regulator response pack ↓</button></span>
+    </div>
+    <style>
+      .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
+      .kpi{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:13px 15px}
+      .kpi h6{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px}
+      .kpi b{font-family:'Sora',sans-serif;font-size:24px;font-weight:700}
+      .kpi .trend{font-family:'IBM Plex Mono',monospace;font-size:10px}
+      .up{color:var(--verdigris)} .down{color:var(--oxide)}
+      .boardgrid{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-bottom:16px}
+      .bcard{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:15px 17px}
+      .bcard h4{font-family:'Sora',sans-serif;font-size:13.5px;font-weight:600;margin-bottom:10px}
+      .riskrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--hair-soft);font-size:12.5px}
+      .riskrow:last-child{border:0}
+      .riskrow .exp{margin-left:auto;font-family:'Sora',sans-serif;font-weight:700}
+      .outlook{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--hair-soft);font-size:12.5px}
+      .outlook:last-child{border:0}
+      .outlook .d{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--statute);flex:none;width:70px;padding-top:2px}
+      .method{font-size:11px;color:var(--ink-faint);margin-top:10px;border-top:1px dashed var(--hair);padding-top:8px}
+    </style>
+    <div class="kpis">
+      <div class="kpi"><h6>Compliance posture</h6><b>91%</b><div class="trend up">▲ 3 pts QoQ · controls evidenced</div></div>
+      <div class="kpi"><h6>Penalty-weighted exposure</h6><b>₹54 Cr</b><div class="trend up">▼ from ₹61 Cr · methodology v2.1</div></div>
+      <div class="kpi"><h6>Risks above appetite</h6><b>3</b><div class="trend down">▲ 1 (DPDP amendment) · treatments live</div></div>
+      <div class="kpi"><h6>Changes handled QTD</h6><b>14</b><div class="trend up">12 closed · median 31h gazette→plan</div></div>
+      <div class="kpi"><h6>Missed changes (12 mo)</h6><b>0</b><div class="trend up">verified vs 2 external feeds</div></div>
+    </div>
+    <div class="boardgrid">
+      <div class="bcard">
+        <h4>Exposure trend &amp; drivers (12 months)</h4>
+        <svg viewBox="0 0 520 120" width="100%" aria-label="Exposure trend">
+          <polyline points="10,58 55,62 100,55 145,70 190,66 235,80 280,44 325,50 370,46 415,72 460,60 505,52" fill="none" stroke="var(--statute)" stroke-width="2"/>
+          <polyline points="10,58 55,62 100,55 145,70 190,66 235,80 280,44 325,50 370,46 415,72 460,60 505,52" fill="none" stroke="var(--statute)" stroke-width="8" opacity=".08"/>
+          <circle cx="415" cy="72" r="3.5" fill="var(--oxide)"/><text x="392" y="92" font-size="9" font-family="IBM Plex Mono" fill="var(--oxide)">DPDP amend.</text>
+          <circle cx="505" cy="52" r="3.5" fill="var(--verdigris)"/><text x="446" y="40" font-size="9" font-family="IBM Plex Mono" fill="var(--verdigris)">treatments approved</text>
+          <text x="10" y="112" font-size="9" font-family="IBM Plex Mono" fill="var(--ink-faint)">JUL 25</text><text x="478" y="112" font-size="9" font-family="IBM Plex Mono" fill="var(--ink-faint)">JUN 26</text>
+        </svg>
+        <div class="method">Methodology: max statutory penalty × enforcement likelihood (calibrated on 214 peer enforcement actions ingested) × control-gap factor. Every number traces to its inputs — defensible in front of the board and the regulator.</div>
+      </div>
+      <div class="bcard">
+        <h4>Risks above appetite — owner &amp; trajectory</h4>
+        <div class="riskrow"><span class="tag crit">RSK-31</span> Late breach reporting · CISO V. Nair <span class="tag warn" style="font-size:9px">TREATMENT 60%</span><span class="exp">₹48 Cr</span></div>
+        <div class="riskrow"><span class="tag crit">RSK-44</span> Unlawful processing (consent) · DPO <span class="tag warn" style="font-size:9px">TREATMENT 35%</span><span class="exp">₹4.2 Cr</span></div>
+        <div class="riskrow"><span class="tag warn">RSK-58</span> Vendor concentration · M. Das <span class="tag dim" style="font-size:9px">EXCEPTION exp. 30 SEP</span><span class="exp">₹1.8 Cr</span></div>
+        <h4 style="margin-top:16px">Regulatory outlook — next two quarters</h4>
+        <div class="outlook"><span class="d">28 JUL 26</span><div><b>DPDP Rules 2026 effective</b> — 4 control gaps closing, on track</div></div>
+        <div class="outlook"><span class="d">01 OCT 26</span><div><b>RBI third-party limits</b> — policy redline in legal review</div></div>
+        <div class="outlook"><span class="d">Q1 2027</span><div><b>SEBI algo accountability (draft)</b> — comment letter filed via Govt Affairs; 6 gaps if enacted as drafted</div></div>
+      </div>
+    </div>
+    <div class="bcard">
+      <h4>Commitments &amp; regulator interactions register</h4>
+      <table class="tbl" style="border:0">
+        <thead><tr><th>Commitment</th><th>Regulator</th><th>Origin</th><th>Owner</th><th>Due</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>Quarterly data-localisation attestation</td><td>RBI</td><td class="mono" style="font-size:10.5px">inspection finding 2025-11</td><td>K. Rao</td><td class="mono" style="font-size:10.5px">15 Jul 26</td><td><span class="tag ok">ON TRACK · evidence 80%</span></td></tr>
+          <tr><td>Consent-flow remediation undertaking</td><td>MeitY / DPB</td><td class="mono" style="font-size:10.5px">voluntary undertaking 2026-02</td><td>R. Iyer</td><td class="mono" style="font-size:10.5px">28 Jul 26</td><td><span class="tag warn">AT RISK · depends CTRL-201</span></td></tr>
+          <tr><td>Algo audit trail demonstration</td><td>SEBI</td><td class="mono" style="font-size:10.5px">exam correspondence 2026-04</td><td>A. Sharma</td><td class="mono" style="font-size:10.5px">30 Sep 26</td><td><span class="tag ok">SCHEDULED</span></td></tr>
+        </tbody>
+      </table>
+      <div class="method">Commitments are first-class graph nodes — linked to the controls that fulfil them and escalated like statutory deadlines. Correspondence is privilege-labelled; release requires counsel approval (maker-checker enforced).</div>
+    </div>
+  </section>
+
+  <!-- ============ AGENTS ============ -->
+  <section class="view" id="view-agents">
+    <div class="pagehead"><h1 class="pagetitle">Agent console</h1><span class="sub">Your compliance workforce. You set how far each one goes — every act logged, citable, reversible.</span></div>
+    <style>
+      .agents{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;max-width:1000px}
+      .agentcard{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:17px}
+      .agentcard h3{font-family:'Sora',sans-serif;font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+      .agentcard p{font-size:12.5px;color:var(--ink-soft);margin:6px 0 12px}
+      .auto{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
+      .auto button{font:inherit;font-size:11px;padding:7px 4px;border:1px solid var(--hair);background:#fff;cursor:pointer;color:var(--ink-faint)}
+      .auto button:first-child{border-radius:7px 0 0 7px}.auto button:last-child{border-radius:0 7px 7px 0}
+      .auto button.sel{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:600}
+      .autolbl{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin:12px 0 6px}
+      .agentstat{display:flex;gap:14px;margin-top:11px;font-size:11.5px;color:var(--ink-faint);flex-wrap:wrap}
+      .agentstat b{color:var(--ink);font-weight:600}
+    </style>
+    <div class="agents">
+      <div class="agentcard"><h3><span class="dot"></span>Scout</h3><p>Watches gazettes, regulator portals, consultations, enforcement actions. Files clause-level diffs, not links.</p><div class="autolbl">Autonomy</div><div class="auto"><button onclick="setAuto(this)">Suggest</button><button onclick="setAuto(this)">Draft</button><button class="sel" onclick="setAuto(this)">Act + log</button><button onclick="setAuto(this)">Autonomous</button></div><div class="agentstat"><span><b>214</b> sources</span><span><b>4 min</b> last sweep</span><span><b>0</b> missed (90d)</span></div></div>
+      <div class="agentcard"><h3><span class="dot"></span>Cartographer</h3><p>Maps changes → obligations → risks, traverses the graph to affected policies, controls, owners. Shows reasoning + confidence.</p><div class="autolbl">Autonomy</div><div class="auto"><button onclick="setAuto(this)">Suggest</button><button class="sel" onclick="setAuto(this)">Draft</button><button onclick="setAuto(this)">Act + log</button><button onclick="setAuto(this)">Autonomous</button></div><div class="agentstat"><span><b>2,140</b> edges kept</span><span><b>98.4%</b> mapping precision</span></div></div>
+      <div class="agentcard"><h3><span class="dot"></span>Draftsman</h3><p>Writes policy redlines, control specs, SoA justifications — citing the exact clause forcing each edit. Never publishes alone.</p><div class="autolbl">Autonomy</div><div class="auto"><button onclick="setAuto(this)">Suggest</button><button class="sel" onclick="setAuto(this)">Draft</button><button onclick="setAuto(this)">Act + log</button><button disabled title="Publishing always requires a human">—</button></div><div class="agentstat"><span><b>3</b> redlines awaiting you</span><span><b>41</b> approved YTD</span></div></div>
+      <div class="agentcard"><h3><span class="dot"></span>Steward</h3><p>Routes tasks, chases attestations, streams evidence, escalates stalls to risk owners, assembles audit packs before deadlines.</p><div class="autolbl">Autonomy</div><div class="auto"><button onclick="setAuto(this)">Suggest</button><button onclick="setAuto(this)">Draft</button><button class="sel" onclick="setAuto(this)">Act + log</button><button onclick="setAuto(this)">Autonomous</button></div><div class="agentstat"><span><b>12</b> open tasks</span><span><b>2</b> nudges today</span><span><b>1</b> audit pack building</span></div></div>
+    </div>
+  </section>
+
+
+  <!-- ============ ROI ============ -->
+  <section class="view" id="view-roi">
+    <div class="pagehead"><h1 class="pagetitle">What AEGIS is worth to you</h1><span class="sub">Illustrative model — drag the sliders to your reality. Every assumption is visible and adjustable.</span></div>
+    <div class="roigrid">
+      <div class="card roiform" style="padding:18px 20px">
+        <label>Frameworks managed (ISO, SOC 2, DPDP…) — <span class="val" id="rf_v">5</span></label>
+        <input type="range" id="rf" min="1" max="12" value="5" oninput="roi()">
+        <label>Jurisdictions — <span class="val" id="rj_v">3</span></label>
+        <input type="range" id="rj" min="1" max="15" value="3" oninput="roi()">
+        <label>Regulatory changes handled / year — <span class="val" id="rc_v">60</span></label>
+        <input type="range" id="rc" min="10" max="400" step="10" value="60" oninput="roi()">
+        <label>Compliance & GRC team size (FTE) — <span class="val" id="re_v">8</span></label>
+        <input type="range" id="re" min="1" max="60" value="8" oninput="roi()">
+        <label>Loaded cost per FTE (₹ L / yr) — <span class="val" id="rs_v">28</span></label>
+        <input type="range" id="rs" min="8" max="80" value="28" oninput="roi()">
+        <label>External audits / certifications per year — <span class="val" id="ra_v">3</span></label>
+        <input type="range" id="ra" min="0" max="12" value="3" oninput="roi()">
+        <div style="font-size:11px;color:var(--ink-faint);margin-top:14px">Assumptions shown in output cards: hrs per change today vs with AEGIS (18→2), audit prep (240→40 hrs), cross-framework duplication factor (35% of control work), 1,800 productive hrs/FTE-yr.</div>
+      </div>
+      <div>
+        <div class="roiout">
+          <div class="o"><b id="o_hours">—</b><span>analyst hours returned per year (change handling + audit prep + de-duplicated framework work)</span></div>
+          <div class="o"><b id="o_money">—</b><span>annual capacity value at your loaded cost — before counting a single avoided penalty</span></div>
+          <div class="o"><b id="o_fte">—</b><span>full-time-equivalents freed for judgment work instead of spreadsheet archaeology</span></div>
+          <div class="o"><b id="o_speed">31 hrs</b><span>median gazette → approved plan, vs industry weeks — lead time is the unpriceable part</span></div>
+          <div class="o wide"><b id="o_summary">—</b><span id="o_note"></span></div>
+        </div>
+        <div style="margin-top:14px;font-size:12.5px;color:var(--ink-soft)" class="card"><div style="padding:13px 16px">The number this model deliberately excludes: avoided penalties. One prevented DPDP significant-breach finding (up to ₹250 Cr per category) pays for decades of AEGIS — we'd rather you treat that as upside than have us sell you fear.</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ OBLIGATIONS & FILINGS ============ -->
+  <section class="view" id="view-obligations">
+    <div class="pagehead"><h1 class="pagetitle">Obligations &amp; filings</h1><span class="sub">Not every obligation is a control. Four species, each with its own engine — plus the filing calendar your team lives in weekly.</span></div>
+    <div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap">
+      <span class="tag ok">ONGOING → treated by controls</span><span class="tag info">PERIODIC → filing calendar</span><span class="tag warn">ONE-TIME → action tracker</span><span class="tag crit">PROHIBITION → monitored, never performed</span>
+    </div>
+    <table class="tbl" style="margin-bottom:18px">
+      <thead><tr><th>Obligation</th><th>Type</th><th>Clause</th><th>Engine</th><th>Owner</th><th>Interpretation</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td><span class="ctrlid">OBL-211</span> Notify breach within 24h</td><td><span class="tag ok">ONGOING</span></td><td class="mono" style="font-size:10.5px">DPDP R.9(2)</td><td>CTRL-042, 118</td><td>A. Sharma</td><td><span class="tag risk">INT-09 v2</span></td><td><span class="tag warn">GAP</span></td></tr>
+        <tr><td><span class="ctrlid">OBL-215</span> Quarterly return to DPB (SDF)</td><td><span class="tag info">PERIODIC</span></td><td class="mono" style="font-size:10.5px">DPDP R.13</td><td>Filing calendar</td><td>K. Rao</td><td>—</td><td><span class="tag ok">NEXT: 15 JUL</span></td></tr>
+        <tr><td><span class="ctrlid">OBL-216</span> Appoint &amp; register DPO</td><td><span class="tag warn">ONE-TIME</span></td><td class="mono" style="font-size:10.5px">DPDP §10</td><td>Action tracker</td><td>Legal</td><td>—</td><td><span class="tag ok">DONE 02 FEB · evidence EVD-1804</span></td></tr>
+        <tr><td><span class="ctrlid">OBL-218</span> No processing of children's data for ads</td><td><span class="tag crit">PROHIBITION</span></td><td class="mono" style="font-size:10.5px">DPDP §9(3)</td><td>Monitor: ad-targeting config scan</td><td>R. Iyer</td><td><span class="tag risk">INT-12 v1</span></td><td><span class="tag ok">CLEAN · scanned nightly</span></td></tr>
+        <tr><td><span class="ctrlid">OBL-310</span> Vendor concentration ≤ threshold</td><td><span class="tag ok">ONGOING</span></td><td class="mono" style="font-size:10.5px">RBI ¶5.3.2</td><td>CTRL-310</td><td>M. Das</td><td><span class="tag risk">INT-15 v1</span></td><td><span class="tag crit">EXCEPTION</span></td></tr>
+      </tbody>
+    </table>
+    <div class="card">
+      <div style="padding:13px 16px;border-bottom:1px solid var(--hair);display:flex;align-items:baseline;gap:10px"><b style="font-family:'Sora',sans-serif;font-size:13.5px">Filing calendar — next 90 days</b><span style="font-size:11.5px;color:var(--ink-faint)">recurring returns with preparer → reviewer → submit chain; evidence attached on submission</span></div>
+      <table class="tbl" style="border:0">
+        <thead><tr><th>Filing</th><th>Regulator</th><th>Period</th><th>Due</th><th>Preparer → Reviewer</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>Data-localisation attestation</td><td>RBI</td><td class="mono" style="font-size:10.5px">Q1 FY27</td><td class="mono" style="font-size:10.5px">15 Jul</td><td>K. Rao → CISO</td><td><span class="tag warn">PREPARING · 80%</span></td></tr>
+          <tr><td>SDF quarterly return</td><td>DPB</td><td class="mono" style="font-size:10.5px">Q1 FY27</td><td class="mono" style="font-size:10.5px">15 Jul</td><td>R. Iyer → DPO</td><td><span class="tag dim">OPENS 01 JUL</span></td></tr>
+          <tr><td>Cyber incident summary (nil return)</td><td>CERT-In</td><td class="mono" style="font-size:10.5px">Jun</td><td class="mono" style="font-size:10.5px">05 Jul</td><td>A. Sharma → CISO</td><td><span class="tag dim">OPENS 01 JUL</span></td></tr>
+          <tr><td>Broking systems audit report</td><td>SEBI</td><td class="mono" style="font-size:10.5px">H1 2026</td><td class="mono" style="font-size:10.5px">30 Sep</td><td>A. Sharma → CCO</td><td><span class="tag ok">SCHEDULED</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ INCIDENT MODE ============ -->
+  <section class="view" id="view-incident">
+    <div class="pagehead"><h1 class="pagetitle" style="color:var(--oxide)">⚠ Incident mode — DRILL</h1><span class="sub">Simulated breach declared 47 minutes ago for demo. In a real event this is the war-room screen: every clock, duty and draft, instantly.</span></div>
+    <div class="clockgrid">
+      <div class="clock hot"><h5>CERT-In · cyber incident report</h5><div class="t" id="clk1">--:--:--</div><div class="d">6h window · CERT-In dir. Apr 2022 · <b>draft ready, awaiting CISO e-sign</b></div></div>
+      <div class="clock"><h5>DPB · personal data breach (DPDP R.9)</h5><div class="t" id="clk2">--:--:--</div><div class="d">24h window per OBL-211 v3 · applies only if "significant" — see INT-09</div></div>
+      <div class="clock"><h5>GDPR Art.33 (if EU users affected)</h5><div class="t" id="clk3">--:--:--</div><div class="d">72h window · triggers only if EU-Branch data in scope — scoping check running</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1.2fr .8fr;gap:16px">
+      <div>
+        <div class="incstep"><span class="st2">✓</span><div><b>Severity assessed</b> via CTRL-118 matrix → SEV-2 · 47 min ago · by A. Sharma</div></div>
+        <div class="incstep"><span class="st2">✓</span><div><b>Significance determination</b> — per interpretation <b>INT-09 v2</b> ("significant" = &gt;10k principals or sensitive categories): current estimate 3.2k principals, non-sensitive → <b>DPB clock provisionally not triggered</b>; re-evaluates automatically as scope updates</div></div>
+        <div class="incstep"><span class="st2">◷</span><div><b>CERT-In draft notification</b> assembled from runbook CTRL-042 template — awaiting CISO e-sign</div></div>
+        <div class="incstep"><span class="st2">◷</span><div><b>EU scope check</b> — querying processing-activity nodes for affected systems × EU-Branch flows</div></div>
+        <div class="incstep"><span class="st2">·</span><div><b>Board + commitment check</b> — CMT-01 (MeitY) unaffected; ARC chair notification per POL-07 §5 queued behind CISO sign-off</div></div>
+      </div>
+      <div class="card" style="padding:15px 17px">
+        <b style="font-family:'Sora',sans-serif;font-size:13px">Privileged decision log</b>
+        <p style="font-size:11.5px;color:var(--ink-soft);margin:6px 0 10px">Every determination is counsel-labelled; release outside the response team requires GC approval. This log is what protects the company in the litigation that follows a breach.</p>
+        <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-soft);line-height:2">
+          09:12 severity SEV-2 · A.Sharma<br>09:18 INT-09 applied · provisional non-significant · M.Das ⚖<br>09:25 CERT-In draft v1 · agent, cites dir. ¶12<br>09:31 EU scope query started · auto
+        </div>
+        <button class="ghost" style="width:100%;margin-top:12px" onclick="toast('Drill ended · timeline archived · gaps found: 0 · mean step latency 6.2 min')">End drill &amp; archive</button>
+      </div>
+    </div>
+  </section>
+  </main>
+</div>
+<script>
+function go(v){
+  document.querySelectorAll('.view').forEach(s=>s.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active', b.dataset.view===v));
+  document.getElementById('main').scrollTop=0;
+  if(v==='cascade') replay();
+}
+function replay(){const c=document.getElementById('canvas');c.classList.remove('ripple');void c.offsetWidth;c.classList.add('ripple');}
+function approveBtn(b){b.classList.add('done');b.textContent='Approved ✓';b.onclick=null;}
+function setAuto(b){[...b.parentElement.children].forEach(x=>x.classList.remove('sel'));b.classList.add('sel');}
+function simFw(s){
+  const m={'EU DORA':'<b>82% already covered</b> · <b>11 true gaps</b> · est. 6 weeks to readiness.',
+  'SOC 2 Type II':'<b>96% covered</b> · <b>3 gaps</b> · audit pack can assemble today.',
+  'NIST CSF 2.0':'<b>89% covered</b> · <b>9 gaps</b>, mostly GV (govern) function.',
+  'ISO 42001 (AI)':'<b>64% covered</b> · <b>27 gaps</b> · AI system register required first.'};
+  document.getElementById('simres').innerHTML='If adopted today: '+m[s.value]+' No duplicate work created.';
+}
+function togglePack(b){const on=b.classList.contains('on');b.classList.toggle('on',!on);b.classList.toggle('off',on);b.textContent=on?'Install':'Installed';if(!on)alert('Pack install preview: shows exactly what will be added (node types, sources, gates, agent skills), runs the crosswalk simulator for new framework coverage, and stages a confirmation queue. Reversible — uninstall archives, never deletes.');}
+function askBrain(){alert('Conversational queries over the graph — “show risks above appetite touched by DPDP changes” returns RSK-31 and RSK-44 with their owners, treating controls, and the exact clauses, all citable.');}
+</script>
+
+<!-- v5 demo layer -->
+<div class="overlay" id="welcome">
+  <div class="welcome">
+    <svg width="44" height="44" viewBox="0 0 26 26" fill="none"><circle cx="13" cy="5" r="2.6" fill="#15201C"/><circle cx="5" cy="14" r="2.6" fill="#2E7D6B"/><circle cx="21" cy="14" r="2.6" fill="#3F5E8C"/><circle cx="13" cy="22" r="2.6" fill="#C98A04"/><path d="M13 5L5 14M13 5l8 9M5 14l8 8m8-8l-8 8" stroke="#15201C" stroke-width="1.1" opacity=".45"/></svg>
+    <h2>Your company's regulatory nervous system</h2>
+    <p>A regulation changed in Delhi this morning. Watch what happens to your policies, controls, owners and board pack — in 90 seconds.</p>
+    <div class="row">
+      <button class="primary" onclick="closeWelcome();startTour()">▶ Start the 90-second tour</button>
+      <button class="ghost" onclick="closeWelcome()">Explore on my own</button>
+    </div>
+    <div style="margin-top:14px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-faint)">TIP: PRESS ⌘K ANYTIME TO ASK THE BRAIN A QUESTION</div>
+  </div>
+</div>
+
+<div class="tourbox" id="tourbox">
+  <h5><span id="tour_t"></span><span class="stepn" id="tour_n"></span></h5>
+  <p id="tour_p"></p>
+  <div class="row"><button class="nextb" id="tour_next" onclick="tourNext()">Next →</button><button class="endb" onclick="endTour()">End tour</button></div>
+</div>
+
+<div class="brainmodal" id="brainmodal" onclick="if(event.target===this)closeBrain()">
+  <div class="braincard">
+    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:var(--verdigris);text-transform:uppercase;margin-bottom:10px">◍ Ask the brain — answers cite graph nodes</div>
+    <div class="inrow">
+      <input id="brainq" placeholder="e.g. which controls break if DPDP consent rules change?" onkeydown="if(event.key==='Enter')brainAsk(this.value)">
+      <button class="primary" onclick="brainAsk(document.getElementById('brainq').value)">Ask</button>
+    </div>
+    <div class="sugg">
+      <button onclick="brainAsk(this.textContent)">Which controls break if DPDP consent rules change?</button>
+      <button onclick="brainAsk(this.textContent)">What is due before 28 July and what's at risk?</button>
+      <button onclick="brainAsk(this.textContent)">If we fix CTRL-042, what improves?</button>
+      <button onclick="brainAsk(this.textContent)">Show risks above appetite and their owners</button>
+    </div>
+    <div class="brainans" id="brainans"></div>
+    <div class="nodechips" id="brainchips" style="display:none"></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"><span class="tick">✓</span><span id="toastmsg"></span></div>
+
+<script>
+/* ───── welcome ───── */
+function closeWelcome(){document.getElementById('welcome').style.display='none'}
+
+/* ───── toast ───── */
+let toastT;
+function toast(msg){const t=document.getElementById('toast');document.getElementById('toastmsg').textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3400)}
+
+/* ───── override approve with toast + log feel ───── */
+function approveBtn(b){b.classList.add('done');b.textContent='Approved ✓';b.onclick=null;toast('E-signed · routed for checker countersign · audit log #'+(4500+Math.floor(Math.random()*99)))}
+function setAuto(b){[...b.parentElement.children].forEach(x=>x.classList.remove('sel'));b.classList.add('sel');toast('Autonomy updated · takes effect next event · logged')}
+function togglePack(b){const on=b.classList.contains('on');b.classList.toggle('on',!on);b.classList.toggle('off',on);b.textContent=on?'Install':'Installed';toast(on?'Pack uninstalled · content archived, never deleted':'Dry-run passed · pack proposals queued for certification')}
+
+/* ───── animated counters ───── */
+function animateCounters(){
+  document.querySelectorAll('.view.active .kpi b, .view.active .stat b, .view.active .blast .b b, .rail .health .num').forEach(el=>{
+    if(el.dataset.done)return;const t=el.textContent.trim();
+    const m=t.match(/^(₹?\s?)([\d,]+(?:\.\d+)?)(.*)$/);if(!m)return;
+    const num=parseFloat(m[2].replace(/,/g,''));if(isNaN(num))return;el.dataset.done=1;
+    const dur=850,st=performance.now();
+    (function f(now){const p=Math.min(1,(now-st)/dur),e=p*(2-p),v=num*e;
+      el.textContent=m[1]+(m[2].includes('.')?v.toFixed(1):Math.round(v).toLocaleString('en-IN'))+m[3];
+      if(p<1)requestAnimationFrame(f)})(st);
+  });
+}
+function go(v){
+  document.querySelectorAll('.view').forEach(s=>s.classList.remove('active'));
+  document.getElementById('view-'+v).classList.add('active');
+  document.querySelectorAll('.navbtn').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
+  document.getElementById('main').scrollTop=0;
+  if(v==='cascade')replay();
+  requestAnimationFrame(animateCounters);
+}
+
+/* ───── live ticker ───── */
+const TICKS=['4 agents on watch','Scout: 214 sources swept · 4 min ago','Cartographer: 7 controls re-mapped','Draftsman: redline v2 ready for review','Steward: nudged R. Iyer · CTRL-118','0 changes missed · 12 months'];
+let ti=0;setInterval(()=>{const el=document.getElementById('ticker');el.style.opacity=0;setTimeout(()=>{ti=(ti+1)%TICKS.length;el.textContent=TICKS[ti];el.style.opacity=1},300)},3800);
+
+/* ───── guided tour ───── */
+const TOUR=[
+ {v:'radar',t:'It starts overnight',p:'Scout swept 214 sources while you slept. The DPDP amendment isn\u2019t a link — it\u2019s a decision card: blast radius, rupee exposure, days to comply. Note the third card: a non-impact, auto-closed with a logged rationale.'},
+ {v:'cascade',t:'One change, fully traced',p:'Watch the ripple: regulation → obligation → risk → policy → control → owner. Six layers, every arrow citing its clause. This is the ISO 27001-aligned cascade your auditor dreams about.'},
+ {v:'cascade',t:'Agents drafted. You decide.',p:'Right panel: the risk-treatment plan is already written — redlines with clause citations, tasks back-planned from the deadline. Click an Approve button. Nothing executes without that click.'},
+ {v:'workflow',t:'Approval becomes work',p:'Approved plans land here as owned, deadlined tasks — synced two-way with Jira. The amber column is the human gate: agents can never cross it alone.'},
+ {v:'crosswalk',t:'Fix once, comply everywhere',p:'One control maps to ISO, DPDP, GDPR, RBI, SOC 2 simultaneously. Try the simulator: adopting EU DORA today? 82% covered before you start.'},
+ {v:'scope',t:'It knows your business, not just the law',p:'Regulations apply per entity, product and site — and when two laws collide (three breach clocks!), AEGIS detects it and proposes the harmonization.'},
+ {v:'board',t:'The page your board actually reads',p:'Posture, exposure with a defensible methodology, commitments to regulators, two-quarter outlook. Exportable, signed, versioned.'},
+ {v:'roi',t:'And what it\u2019s worth',p:'Drag the sliders to your numbers. We deliberately exclude avoided penalties — one prevented finding pays for decades. Press ⌘K anytime to interrogate the brain yourself.'}
+];
+let ts=-1;
+function startTour(){closeWelcome();ts=-1;document.getElementById('tourbox').style.display='block';tourNext()}
+function tourNext(){ts++;if(ts>=TOUR.length){endTour();return}const s=TOUR[ts];go(s.v);
+ document.getElementById('tour_t').textContent=s.t;document.getElementById('tour_p').textContent=s.p;
+ document.getElementById('tour_n').textContent=(ts+1)+' / '+TOUR.length;
+ document.getElementById('tour_next').textContent=ts===TOUR.length-1?'Finish ✓':'Next →'}
+function endTour(){document.getElementById('tourbox').style.display='none';toast('Tour complete · explore freely, or press ⌘K')}
+
+/* ───── ask the brain ───── */
+function askBrain(){document.getElementById('brainmodal').classList.add('open');setTimeout(()=>document.getElementById('brainq').focus(),50)}
+function closeBrain(){document.getElementById('brainmodal').classList.remove('open')}
+document.addEventListener('keydown',e=>{if((e.metaKey||e.ctrlKey)&&e.key.toLowerCase()==='k'){e.preventDefault();askBrain()}if(e.key==='Escape')closeBrain()});
+
+const GRAPH_CTX='Regs: DPDP Rules 2026 (G.S.R.312E, eff 28 Jul 26), RBI IT Direction (eff 1 Oct), GDPR. Obligations: OBL-211 24h breach notify Rule 9(2); OBL-212 DEPA consent interop Rule 6(4); OBL-213 RoPA expansion; OBL-310 vendor concentration. Risks: RSK-31 late breach reporting Critical ₹48Cr owner CISO V.Nair; RSK-44 unlawful processing High owner DPO; RSK-19 RoPA Medium K.Rao; RSK-58 vendor High M.Das. Policies: POL-07 Incident Response (redline pending), POL-03 Privacy&Consent, POL-11 Data Gov, POL-15 Third-Party. Controls: CTRL-042 breach runbook A.5.26 owner A.Sharma GAP timing maps DPDP/GDPR Art33/RBI; CTRL-118 severity matrix A.Sharma update due; CTRL-201 consent API R.Iyer GAP DEPA; CTRL-203 withdrawal SLA R.Iyer healthy telemetry 99.2%; CTRL-150 RoPA K.Rao expand; CTRL-310 vendor dash M.Das exception to 30 Sep. Commitments: CMT-01 MeitY consent undertaking due 28 Jul AT RISK depends CTRL-201; CMT-02 RBI localisation attestation due 15 Jul on track.';
+
+const CANNED=[
+ {k:/consent|dpdp.*chang|201|depa/i,a:'If the DPDP consent rules change (Rule 6 [OBL-212]), two controls are in the blast radius:\n\n1. [CTRL-201] Consent capture API — owner R. Iyer (Privacy Eng) — currently GAP: DEPA interoperability missing. This is the binding constraint.\n2. [CTRL-203] Consent withdrawal SLA — also R. Iyer — currently healthy (99.2% telemetry), unaffected by the interop change.\n\nUpstream: risk [RSK-44] "unlawful processing" (High, above appetite, owner: DPO) and policy [POL-03] Privacy & Consent, which has a redline pending approval. Note: commitment [CMT-01] to MeitY depends on CTRL-201 closing — it is currently AT RISK.',ids:[['OBL-212','Rule 6(4) DEPA interop'],['CTRL-201','Consent capture API · R. Iyer'],['CTRL-203','Withdrawal SLA · healthy'],['RSK-44','Unlawful processing · DPO'],['POL-03','Privacy & Consent Policy'],['CMT-01','MeitY undertaking · AT RISK']]},
+ {k:/due|july|deadline|risk.*28|before 28/i,a:'Before 28 July 2026 (DPDP effective date), the graph shows:\n\n• [CMT-02] RBI data-localisation attestation — due 15 Jul — ON TRACK (evidence 80%, owner K. Rao)\n• Attestation sweep for the DPDP pack — Steward target 21 Jul\n• [CMT-01] MeitY consent-flow undertaking — due 28 Jul — AT RISK because it depends on [CTRL-201] closing its DEPA gap (owner R. Iyer)\n• Policy redlines [POL-07] §4.2 and [POL-03] need approval now to leave implementation runway for [CTRL-042] and [CTRL-118] (owner A. Sharma)\n\nThe critical path is CTRL-201 → CMT-01. Recommend escalating per the SLA ladder.',ids:[['CMT-01','MeitY undertaking · 28 Jul'],['CMT-02','RBI attestation · 15 Jul'],['CTRL-201','Critical path'],['POL-07','Redline pending'],['CTRL-042','A. Sharma · gap']]},
+ {k:/fix|042|improve|runbook/i,a:'Fixing [CTRL-042] (breach communications runbook, owner A. Sharma) clears positions in three frameworks at once via the crosswalk:\n\n• DPDP Rule 9 — closes the 24h-timing GAP [OBL-211]\n• GDPR Art. 33 — strengthens the existing position\n• RBI ¶7.2 — incident comms requirement reinforced\n\nIt also moves risk [RSK-31] (late breach reporting, Critical, ₹48 Cr, owner CISO V. Nair) back toward appetite, and updates the SoA justification for A.5.26 automatically. One fix, three columns cleared — this is "map once, comply many" working.',ids:[['CTRL-042','Breach runbook · A. Sharma'],['OBL-211','24h notify · Rule 9(2)'],['RSK-31','₹48 Cr · CISO'],['SoA A.5.26','justification auto-updates']]},
+ {k:/appetite|above|exposure|owner/i,a:'Three risks sit above appetite right now:\n\n1. [RSK-31] Late breach reporting — CRITICAL, ₹48 Cr — risk owner CISO V. Nair — treated by [CTRL-042] + [CTRL-118] (both gapped, owner A. Sharma), treatment 60%\n2. [RSK-44] Unlawful processing (consent) — HIGH, ₹4.2 Cr — risk owner DPO — treated by [CTRL-201] (DEPA gap, R. Iyer), treatment 35%\n3. [RSK-58] Vendor concentration — HIGH, ₹1.8 Cr — risk owner M. Das — running on an approved exception expiring 30 Sep\n\nNote the model distinguishes risk owners (who accept) from control owners (who fix) — the ISO 6.1.2 separation.',ids:[['RSK-31','Critical · ₹48 Cr'],['RSK-44','High · DPO'],['RSK-58','Exception to 30 Sep'],['CTRL-042','treatment'],['CTRL-201','treatment']]}
+];
+const FALLBACK={a:'From the graph: the dominant thread right now is the DPDP Rules 2026 amendment (effective 28 Jul). It raised [RSK-31] to Critical (₹48 Cr, CISO V. Nair) and put [RSK-44] above appetite. Four controls carry gaps — [CTRL-042], [CTRL-118], [CTRL-201], [CTRL-150] — across owners A. Sharma, R. Iyer and K. Rao, and commitment [CMT-01] to MeitY is AT RISK on the same dependency.\n\nAsk me about a specific control, owner, deadline or risk and I\u2019ll traverse from there.',ids:[['RSK-31','Critical'],['CTRL-201','critical path'],['CMT-01','AT RISK']]};
+
+let typing=null;
+function typeOut(text,ids){
+  const out=document.getElementById('brainans'),chips=document.getElementById('brainchips');
+  clearInterval(typing);out.innerHTML='';chips.style.display='none';chips.innerHTML='';
+  let i=0;const cur=document.createElement('span');cur.className='cursor';out.appendChild(cur);
+  typing=setInterval(()=>{
+    i+=3;out.firstChild&&out.removeChild(cur);
+    out.textContent=text.slice(0,i);out.appendChild(cur);
+    if(i>=text.length){clearInterval(typing);cur.remove();
+      if(ids&&ids.length){chips.style.display='flex';
+        ids.forEach(([id,d])=>{const s=document.createElement('span');s.className='nodechip';s.innerHTML='<b>'+id+'</b> · '+d;chips.appendChild(s)})}}
+  },12);
+}
+async function brainAsk(q){
+  if(!q||!q.trim())return;document.getElementById('brainq').value=q;
+  const out=document.getElementById('brainans');out.textContent='Traversing graph — regulation → obligation → risk → control → owner…';
+  document.getElementById('brainchips').style.display='none';
+  // try live LLM (works when rendered in claude.ai); graceful canned fallback otherwise
+  try{
+    const ctrl=new AbortController();const tm=setTimeout(()=>ctrl.abort(),8000);
+    const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},signal:ctrl.signal,
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:600,messages:[{role:'user',content:'Answer ONLY from this compliance graph, cite node IDs in [brackets], name owners, be concise (<150 words). GRAPH: '+GRAPH_CTX+' QUESTION: '+q}]})});
+    clearTimeout(tm);const d=await r.json();
+    const txt=(d.content||[]).filter(b=>b.type==='text').map(b=>b.text).join('\n');
+    if(txt){typeOut(txt,null);return}
+    throw 0;
+  }catch(e){
+    const hit=CANNED.find(c=>c.k.test(q))||FALLBACK;
+    typeOut(hit.a,hit.ids);
+  }
+}
+/* counters on first load */
+function roi(){
+  const g=id=>+document.getElementById(id).value;
+  const f=g('rf'),j=g('rj'),ch=g('rc'),e=g('re'),s=g('rs'),a=g('ra');
+  ['rf','rj','rc','re','rs','ra'].forEach(id=>document.getElementById(id+'_v').textContent=g(id));
+  const changeHrs=ch*16;                       // 18h manual -> 2h with AEGIS
+  const auditHrs=a*200;                        // 240 -> 40 per audit
+  const dedupeHrs=Math.round(e*1800*0.35*Math.min(1,(f-1)/6)); // duplicated framework work removed
+  const hrs=changeHrs+auditHrs+dedupeHrs;
+  const rate=(s*100000)/1800;                  // ₹/hr
+  const money=hrs*rate;
+  const fte=hrs/1800;
+  document.getElementById('o_hours').textContent=hrs.toLocaleString('en-IN')+' hrs';
+  document.getElementById('o_money').textContent='₹'+(money/10000000).toFixed(2)+' Cr';
+  document.getElementById('o_fte').textContent=fte.toFixed(1)+' FTE';
+  document.getElementById('o_summary').textContent='₹'+(money/10000000).toFixed(2)+' Cr/yr capacity + '+j+'-jurisdiction watch with 0-missed SLA';
+  document.getElementById('o_note').textContent='Sources of the hours: '+changeHrs.toLocaleString('en-IN')+' from change handling ('+ch+' changes × 16h saved), '+auditHrs.toLocaleString('en-IN')+' from audit prep ('+a+' audits), '+dedupeHrs.toLocaleString('en-IN')+' from de-duplicated multi-framework work.';
+}
+roi();
+requestAnimationFrame(animateCounters);
+</script>
+
+<script>
+/* v6: modes, personas, incident clocks, time machine, command palette */
+function setMode(b,m){[...b.parentElement.children].forEach(x=>x.classList.remove('on'));b.classList.add('on');document.body.classList.toggle('simple',m==='simple');toast(m==='simple'?'Essentials mode — 5 places, that\u2019s it':'Expert mode — full workshop unlocked')}
+document.body.classList.add('simple');
+function setPersona(b,p){[...b.parentElement.children].forEach(x=>x.classList.remove('on'));b.classList.add('on');document.querySelectorAll('.tpersona').forEach(x=>x.classList.remove('on'));document.getElementById('p-'+p).classList.add('on')}
+const INC_START=Date.now()-47*60*1000;
+function fmtT(ms){if(ms<0)return 'BREACHED';const s=Math.floor(ms/1000),h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0')+':'+String(x).padStart(2,'0')}
+setInterval(()=>{const c1=document.getElementById('clk1');if(!c1)return;const el=Date.now()-INC_START;
+ c1.textContent=fmtT(6*3600000-el);document.getElementById('clk2').textContent=fmtT(24*3600000-el);document.getElementById('clk3').textContent=fmtT(72*3600000-el)},1000);
+const SNAPS=[
+ 'Viewing: <b>01 Jan 2026</b> — posture 84% · 289 obligations · 2 risks above appetite · CTRL-042 HEALTHY (the 24h duty did not exist yet) · SoA v14.',
+ 'Viewing: <b>31 Mar 2026</b> — posture 87% · 301 obligations · 2 risks above appetite · CMT-01 undertaking newly signed · SoA v16. ← typical audit reference date.',
+ 'Viewing: <b>01 May 2026</b> — posture 89% · 305 obligations · RSK-31 still HIGH (pre-amendment) · SoA v17.',
+ 'Viewing: <b>today</b> — posture 91% · 312 obligations · 3 risks above appetite · CTRL-042 GAP (introduced by G.S.R. 312(E), 09 Jun) · SoA v18.'];
+function timeMachine(v){document.getElementById('tmsnap').innerHTML=SNAPS[v];if(v<3)toast('Read-only historical view · every node and edge shown at its '+['01 Jan','31 Mar','01 May'][v]+' version')}
+const NAVMAP={radar:'radar',cascade:'cascade',impact:'cascade',workflow:'workflow',board:'board',brain:'brain',crosswalk:'crosswalk',soa:'soa',scope:'scope',conflict:'scope',scenario:'scenarios',gate:'gates',agent:'agents',composer:'composer',pack:'composer',roi:'roi',value:'roi',incident:'incident',filing:'obligations',obligation:'obligations',today:'today',home:'today'};
+const _brainAskQA = brainAsk;
+brainAsk = async function(q){
+  if(!q||!q.trim())return;document.getElementById('brainq').value=q;const ql=q.toLowerCase();
+  if(/^(go to|open|take me|show me the)\s/.test(ql)){
+    for(const k in NAVMAP){if(ql.includes(k)){closeBrain();go(NAVMAP[k]);toast('Took you there — you can always just ask');return}}
+  }
+  if(/^approve\b/.test(ql)){
+    typeOut('Done — here is what just happened:\n\n✓ Redline package e-signed by you (maker) — content hash bound\n→ Routed to M. Das for checker countersign (maker ≠ checker enforced)\n→ On countersign: [POL-07] publishes v9, 4 control tasks dispatch to A. Sharma & R. Iyer, SoA justifications A.5.24/.26 update\n\nAudit log entry #'+(4500+Math.floor(Math.random()*99))+' written. You can revert until countersign.',[['POL-07','Incident Response v9 pending'],['gate-svc','maker-checker enforced']]);
+    toast('Approved via assistant · awaiting checker');return;
+  }
+  if(/^attest\b/.test(ql)){typeOut('Attestation for [CTRL-203] recorded — signed statement bound to this month\u2019s telemetry snapshot (99.2% SLA). Evidence node EVD-2291 created. Next attestation due: 11 Jul.',[['CTRL-203','Withdrawal SLA'],['EVD-2291','evidence · hashed']]);toast('Attested · 10 seconds, as promised');return}
+  if(/interpret|significant|position|consent manager/i.test(q)){
+    typeOut('Interpretations on file relevant to your question:\n\n• [INT-09] v2 — "significant breach" (DPDP R.9): our position is >10k principals OR sensitive category OR likely harm. Counsel-backed (GC, 12 Apr). Review trigger: first DPB guidance or enforcement.\n• [INT-12] v1 — we are NOT a "consent manager" under R.6: we capture consent for our own processing only. Internal position; counsel review queued.\n\nNote: yesterday\u2019s amendment touches R.6 — [INT-12] entered its review queue automatically, before any control was judged. Positions first, plumbing second.',[['INT-09','significant breach · counsel ⚖'],['INT-12','consent manager scope · review queued'],['OBL-212','Rule 6(4)']]);return;
+  }
+  return _brainAskQA(q);
+}
+go('today');
+</script>
+</body>
+</html>

@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AEGIS Legal Brain</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0D1220; --panel:#171F30; --panel2:#1E2840; --line:#2A3652;
+  --paper:#EDE8DA; --paper2:#E3DCC9; --paperink:#26221A; --papermut:#6B6353;
+  --hot:#E2497E; --hot2:#8C4DDB; --brass:#E8A33D; --txt:#D8DEE9; --mut:#8A94A8;
+  --ic:#6E8BFF; --rl:#E2497E; --sl:#3FBF8F; --ev:#E06666; --bf:#B07CE8;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--ink);color:var(--txt);font:15px/1.55 "Inter",sans-serif;min-height:100vh}
+.mono{font-family:"IBM Plex Mono",monospace}
+header{display:flex;align-items:baseline;justify-content:space-between;padding:22px 30px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap;gap:8px}
+.brand{font-family:"Newsreader",serif;font-size:26px;font-weight:600;color:#F2EFE6;letter-spacing:.2px}
+.brand em{font-style:italic;background:linear-gradient(90deg,var(--hot),var(--hot2));-webkit-background-clip:text;background-clip:text;color:transparent}
+.brand .rule{color:var(--mut);font-family:"Inter";font-size:12px;font-weight:400;margin-left:14px;letter-spacing:.4px}
+.perm{font-size:12px;color:var(--mut)}
+.perm b{color:var(--brass);font-weight:600}
+.wrap{display:grid;grid-template-columns:302px 1fr 312px;min-height:60vh}
+@media(max-width:1100px){.wrap{grid-template-columns:1fr}.rail,.graphcol{border:none!important;border-bottom:1px solid var(--line)!important}}
+.rail{border-right:1px solid var(--line);padding:20px 18px}
+.railhead{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--mut);margin-bottom:14px}
+.src{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 13px;margin-bottom:10px;position:relative;transition:border-color .25s, box-shadow .25s}
+.src.lit{border-color:var(--dot);box-shadow:0 0 0 1px var(--dot)}
+.src .dot{position:absolute;top:14px;right:12px;width:8px;height:8px;border-radius:50%;background:var(--dot)}
+.src h3{font-size:14px;font-weight:600;color:#EAEFF7}
+.src .cat2{font-size:11px;color:var(--mut);margin:1px 0 7px}
+.src .stat{font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--txt)}
+.src .stat span{color:var(--mut)}
+.sync{font-size:10.5px;color:var(--mut);margin-top:6px}
+.sync i{font-style:normal;color:#5FB98A}
+.er{background:linear-gradient(180deg,var(--panel2),var(--panel));border:1px solid var(--line);border-radius:10px;padding:13px;margin-top:16px}
+.er h4{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--brass);margin-bottom:8px}
+.er .big{font-family:"IBM Plex Mono",monospace;font-size:18px;color:#F2EFE6}
+.er p{font-size:11px;color:var(--mut);margin-top:5px;line-height:1.5}
+.center{padding:24px 30px;overflow:hidden}
+.askrow{display:flex;gap:10px;align-items:center;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:13px 16px}
+.askrow .q{color:var(--mut);font-size:15px;flex:1}
+.askrow .q.filled{color:#F2EFE6}
+.cursor{display:inline-block;width:8px;height:17px;background:var(--hot);vertical-align:-3px;animation:blink 1s step-end infinite}
+@keyframes blink{50%{opacity:0}}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 4px}
+.chip{background:transparent;border:1px solid var(--line);color:var(--txt);border-radius:999px;padding:7px 14px;font-size:12.5px;cursor:pointer;transition:.2s;font-family:"Inter"}
+.chip:hover{border-color:var(--hot);color:var(--hot)}
+.chip.on{background:linear-gradient(90deg,var(--hot),var(--hot2));border-color:transparent;color:#fff;font-weight:600}
+.thinking{margin:18px 2px;font-family:"IBM Plex Mono",monospace;font-size:12px;color:var(--mut);min-height:18px}
+.thinking b{color:var(--brass);font-weight:500}
+.memo{background:var(--paper);color:var(--paperink);border-radius:4px;margin-top:14px;box-shadow:0 18px 50px rgba(0,0,0,.5), 0 2px 0 var(--paper2) inset;opacity:0;transform:translateY(14px);transition:opacity .5s,transform .5s;overflow:hidden}
+.memo.show{opacity:1;transform:none}
+.memo .mh{display:flex;justify-content:space-between;align-items:baseline;padding:18px 26px 12px;border-bottom:2px solid var(--paperink);flex-wrap:wrap;gap:6px}
+.memo .mh h2{font-family:"Newsreader",serif;font-size:21px;font-weight:600}
+.memo .mh .tag{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--papermut)}
+.memo .body{padding:16px 26px 20px}
+.memo h5{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--papermut);margin:15px 0 6px}
+.memo h5:first-child{margin-top:0}
+.memo p,.memo li{font-size:14.5px;line-height:1.6}
+.memo ul{list-style:none}
+.memo li{padding:5px 0 5px 16px;position:relative}
+.memo li:before{content:"";position:absolute;left:0;top:14px;width:7px;height:2px;background:var(--paperink)}
+.memo .risk{border-left:3px solid #A33;padding-left:12px;margin:12px 0;font-size:14px}
+.memo .gap{background:var(--paper2);border-radius:4px;padding:11px 14px;margin-top:14px;font-size:13.5px}
+.memo .gap b{color:#7A4A00}
+.pathline{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--papermut);margin-top:14px;padding-top:10px;border-top:1px dashed #C9C0AC}
+.sc{display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;letter-spacing:.04em;border-radius:3px;padding:1.5px 6px;color:#fff;vertical-align:2px;margin-left:5px;cursor:default}
+.sc.ic{background:var(--ic)}.sc.rl{background:var(--rl)}.sc.sl{background:var(--sl)}.sc.ev{background:var(--ev)}.sc.bf{background:var(--bf)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:10px;font-size:11px;color:var(--mut)}
+.legend span i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.graphcol{border-left:1px solid var(--line);padding:20px 18px}
+svg text{font-family:"IBM Plex Mono",monospace;font-size:9.5px;fill:var(--mut)}
+svg .nl{fill:#EAEFF7;font-size:10px;font-family:"Inter";font-weight:600}
+.edge{stroke:var(--line);stroke-width:1.2}
+.edge.hot{stroke:var(--brass);stroke-width:2}
+.node circle{fill:var(--panel2);stroke:var(--line);stroke-width:1.5;transition:.3s}
+.node.hot circle{stroke:var(--brass);fill:#2E2417}
+.gnote{font-size:11px;color:var(--mut);line-height:1.6;margin-top:10px}
+.gnote b{color:var(--brass)}
+.catsec{padding:26px 30px 34px;border-top:1px solid var(--line)}
+.catsec h2{font-family:"Newsreader",serif;font-size:22px;color:#F2EFE6;margin-bottom:4px}
+.catsec .sub{font-size:12.5px;color:var(--mut);margin-bottom:18px}
+.valuesec{padding:30px 30px 8px;border-top:1px solid var(--line);background:linear-gradient(180deg,rgba(226,73,126,.05),transparent)}
+.valuesec h2{font-family:"Newsreader",serif;font-size:23px;color:#F2EFE6;margin-bottom:4px}
+.valuesec .sub{font-size:12.5px;color:var(--mut);margin-bottom:18px;max-width:760px;line-height:1.6}
+.valuegrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.vcard{background:var(--panel);border:1px solid var(--line);border-left:3px solid var(--vc);border-radius:8px;padding:15px 17px}
+.vn{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--vc);margin-bottom:5px;font-weight:700}
+.vcard h4{font-size:14px;color:#EAEFF7;margin-bottom:6px;font-weight:600}
+.vcard p{font-size:12px;color:var(--mut);line-height:1.55}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(255px,1fr));gap:12px}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px 14px;transition:.2s;cursor:pointer;position:relative}
+.card:hover{border-color:var(--hot);transform:translateY(-2px)}
+.card.on{border-color:var(--brass);box-shadow:0 0 0 1px var(--brass)}
+.card .n{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--brass)}
+.card h4{font-size:13.5px;color:#EAEFF7;margin:3px 0 5px;font-weight:600}
+.card p{font-size:11.5px;color:var(--mut);line-height:1.5;margin-bottom:8px}
+.card .foot{display:flex;justify-content:space-between;align-items:center}
+.card .tags i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:4px}
+.card .open{font-size:10.5px;color:var(--hot);font-weight:600;opacity:0;transition:.2s}
+.card:hover .open,.card.on .open{opacity:1}
+.card .saved{position:absolute;top:10px;right:12px;font-size:9px;font-weight:700;letter-spacing:.05em;color:#7FD9B8;background:rgba(63,191,154,.14);border:1px solid rgba(63,191,154,.4);border-radius:4px;padding:2px 6px}
+
+/* ---- cost / provenance strip (PromptQL-inspired: cost + reuse governance visible) ---- */
+.coststrip{display:flex;flex-wrap:wrap;gap:0;margin-top:2px;border-top:1px dashed #C9C0AC;padding-top:10px}
+.coststrip .cs{flex:1;min-width:120px;padding:2px 14px 2px 0}
+.coststrip .cs b{display:block;font-family:"IBM Plex Mono",monospace;font-size:13px;color:var(--paperink)}
+.coststrip .cs span{font-size:10.5px;color:var(--papermut)}
+.coststrip .cs.cached b{color:#2E7D5B}
+.coststrip .cs.fresh b{color:#8A5A00}
+
+/* ---- teach-the-brain correction UX ---- */
+.teach{margin-top:14px;border-top:1px solid #C9C0AC;padding-top:12px}
+.teach .prompt{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--papermut)}
+.teach .prompt b{color:var(--paperink)}
+.teach-btn{margin-left:auto;background:var(--paperink);color:var(--paper);border:none;border-radius:5px;padding:6px 12px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:"Inter";transition:.15s}
+.teach-btn:hover{background:#3a3424}
+.teach-form{display:none;margin-top:10px;background:#fff;border:1px solid #C9C0AC;border-radius:6px;padding:12px 14px}
+.teach-form.open{display:block}
+.teach-form textarea{width:100%;min-height:52px;border:1px solid #C9C0AC;border-radius:4px;padding:8px 10px;font-family:"Inter";font-size:12.5px;color:var(--paperink);resize:vertical;background:#FBF9F3}
+.teach-form .row{display:flex;justify-content:space-between;align-items:center;margin-top:9px}
+.teach-form .hint{font-size:10.5px;color:var(--papermut)}
+.teach-save{background:#2E7D5B;color:#fff;border:none;border-radius:5px;padding:7px 14px;font-size:11.5px;font-weight:600;cursor:pointer;font-family:"Inter"}
+.teach-save:hover{background:#256a4c}
+.teach-confirm{display:none;margin-top:10px;background:rgba(46,125,91,.09);border:1px solid rgba(46,125,91,.35);border-radius:6px;padding:11px 14px;font-size:12px;color:#215940;line-height:1.6}
+.teach-confirm.show{display:block}
+.teach-confirm .k{font-family:"IBM Plex Mono",monospace;font-size:10.5px;background:#fff;border:1px solid #C9C0AC;border-radius:4px;padding:1px 6px;color:#26221A}
+.teach-confirm b{color:#173e2c}
+
+footer{padding:14px 30px;border-top:1px solid var(--line);font-size:11px;color:var(--mut);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px}
+@media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">Legal <em>Brain</em><span class="rule">prepared for Group Legal · Head Office · five systems, one memory</span></div>
+  <div class="perm">Role: <b>Deputy General Counsel — Brands & Commercial</b> · every claim cited · privilege respected</div>
+</header>
+
+<div class="wrap">
+  <aside class="rail">
+    <div class="railhead">Connected systems — systems of record stay in place</div>
+    <div class="src" id="src-ic" style="--dot:var(--ic)"><span class="dot"></span><h3>CLM <span style="color:var(--mut);font-weight:400">— Icertis <i style="font-style:normal;color:var(--mut)">or</i> Ironclad <i style="font-style:normal;color:var(--mut)">or</i> Sirion</span></h3><div class="cat2">Contracts — supply, distributor, licensing, media, franchise</div>
+      <div class="stat mono"><span>contracts</span> <b data-count="94600">0</b> · <span>obligations</span> <b data-count="211400">0</b></div>
+      <div class="sync">API sync <i>● live</i> · last delta 44s ago</div></div>
+    <div class="src" id="src-rl" style="--dot:var(--rl)"><span class="dot"></span><h3>Brand &amp; TM <span style="color:var(--mut);font-weight:400">— Anaqua <i style="font-style:normal;color:var(--mut)">or</i> Clarivate <i style="font-style:normal;color:var(--mut)">or</i> Corsearch</span></h3><div class="cat2">Trademark portfolio, watch &amp; brand-protection</div>
+      <div class="stat mono"><span>marks</span> <b data-count="128300">0</b> · <span>territories</span> <b data-count="190">0</b></div>
+      <div class="sync">API sync <i>● live</i> · watch alerts hourly</div></div>
+    <div class="src" id="src-sl" style="--dot:var(--sl)"><span class="dot"></span><h3>Intake <span style="color:var(--mut);font-weight:400">— Streamline AI <i style="font-style:normal;color:var(--mut)">or</i> LawVu <i style="font-style:normal;color:var(--mut)">or</i> Onit</span></h3><div class="cat2">Legal intake — claims, marketing, procurement review</div>
+      <div class="stat mono"><span>requests</span> <b data-count="38900">0</b> · <span>open</span> <b data-count="341">0</b></div>
+      <div class="sync">Webhook <i>● live</i> · last event 4s ago</div></div>
+    <div class="src" id="src-ev" style="--dot:var(--ev)"><span class="dot"></span><h3>Litigation <span style="color:var(--mut);font-weight:400">— Everlaw <i style="font-style:normal;color:var(--mut)">or</i> Relativity <i style="font-style:normal;color:var(--mut)">or</i> Reveal</span></h3><div class="cat2">Disputes, regulatory actions, ASA/ASCI notices</div>
+      <div class="stat mono"><span>active matters</span> <b data-count="112">0</b> · <span>docs</span> <b data-count="3680000">0</b></div>
+      <div class="sync">API sync <i>● live</i> · privilege tags mapped</div></div>
+    <div class="src" id="src-bf" style="--dot:var(--bf)"><span class="dot"></span><h3>Spend <span style="color:var(--mut);font-weight:400">— Brightflag <i style="font-style:normal;color:var(--mut)">or</i> SimpleLegal <i style="font-style:normal;color:var(--mut)">or</i> Legal Tracker</span></h3><div class="cat2">Matter management &amp; outside-counsel spend</div>
+      <div class="stat mono"><span>matters</span> <b data-count="740">0</b> · <span>spend YTD</span> €<b data-count="41">0</b> M</div>
+      <div class="sync">Nightly export <i>● healthy</i></div></div>
+    <div class="er"><h4>Entity resolution</h4>
+      <div class="big mono"><b data-count="184200">0</b> → <b data-count="52700">0</b></div>
+      <p>brands, distributors, suppliers, licensees &amp; regulators resolved to canonical entities across 190 markets · 94.1% deterministic (LEI, VAT/GSTIN, domain) · every merge a <span class="mono">SAME_AS</span> edge</p></div>
+  </aside>
+
+  <main class="center" id="console">
+    <div class="askrow"><div class="q" id="askq">Ask what no single system can answer…<span class="cursor" id="cur" style="display:none"></span></div></div>
+    <div class="chips" id="chips">
+      <button class="chip" data-k="s360">Brand 360 — licensing renewal</button>
+      <button class="chip" data-k="window">Claims substantiation gap</button>
+      <button class="chip" data-k="rmg">Distributor exclusivity sweep</button>
+      <button class="chip" data-k="piracy">Global TM opposition pack</button>
+      <button class="chip" data-k="dpdp">Green-claim compliance triage</button>
+    </div>
+    <div class="legend">
+      <span><i style="background:var(--ic)"></i>CLM</span><span><i style="background:var(--rl)"></i>Brand &amp; TM</span>
+      <span><i style="background:var(--sl)"></i>Intake</span><span><i style="background:var(--ev)"></i>Litigation</span>
+      <span><i style="background:var(--bf)"></i>Spend</span>
+    </div>
+    <div class="thinking mono" id="think"></div>
+    <div class="memo" id="memo"></div>
+  </main>
+
+  <aside class="graphcol">
+    <div class="railhead">Ontology — the correlation layer</div>
+    <svg viewBox="0 0 280 330" width="100%" id="g">
+      <line class="edge" data-e="cp-ct" x1="140" y1="60"  x2="60"  y2="140"/>
+      <line class="edge" data-e="cp-mt" x1="140" y1="60"  x2="220" y2="140"/>
+      <line class="edge" data-e="cp-rq" x1="140" y1="60"  x2="140" y2="170"/>
+      <line class="edge" data-e="ct-rw" x1="60"  y1="140" x2="60"  y2="235"/>
+      <line class="edge" data-e="ct-ob" x1="60"  y1="140" x2="140" y2="265"/>
+      <line class="edge" data-e="mt-sp" x1="220" y1="140" x2="220" y2="235"/>
+      <line class="edge" data-e="ct-mt" x1="60"  y1="140" x2="220" y2="140"/>
+      <g class="node" data-n="cp"><circle cx="140" cy="60"  r="24"/><text class="nl" x="140" y="63" text-anchor="middle">Brand</text><text x="140" y="28" text-anchor="middle">Counterparty</text></g>
+      <g class="node" data-n="ct"><circle cx="60"  cy="140" r="20"/><text class="nl" x="60"  y="143" text-anchor="middle">Ctr</text><text x="60" y="112" text-anchor="middle">Contract</text></g>
+      <g class="node" data-n="mt"><circle cx="220" cy="140" r="20"/><text class="nl" x="220" y="143" text-anchor="middle">Mtr</text><text x="220" y="112" text-anchor="middle">Matter</text></g>
+      <g class="node" data-n="rq"><circle cx="140" cy="170" r="17"/><text class="nl" x="140" y="173" text-anchor="middle">Req</text><text x="140" y="200" text-anchor="middle">Request</text></g>
+      <g class="node" data-n="rw"><circle cx="60"  cy="235" r="17"/><text class="nl" x="60"  y="238" text-anchor="middle">TM</text><text x="60" y="265" text-anchor="middle">Trademark</text></g>
+      <g class="node" data-n="sp"><circle cx="220" cy="235" r="17"/><text class="nl" x="220" y="238" text-anchor="middle">€</text><text x="220" y="265" text-anchor="middle">Spend</text></g>
+      <g class="node" data-n="ob"><circle cx="140" cy="265" r="17"/><text class="nl" x="140" y="268" text-anchor="middle">Obl</text><text x="140" y="295" text-anchor="middle">Obligation</text></g>
+    </svg>
+    <div class="gnote">Trademarks, obligations and disputes become <b>graph objects</b> — so "what's our brand exposure here?" is a traversal across 190 markets, not a week of email. Every answer is permission-filtered and <b>cited</b>.</div>
+  </aside>
+</div>
+
+<section class="valuesec">
+  <h2>What you can only see when these five systems combine</h2>
+  <div class="sub">Each of these is invisible to any single tool. This is the actual value of one brain across your legal stack — not faster search, new sight.</div>
+  <div class="valuegrid">
+    <div class="vcard" style="--vc:var(--rl)"><div class="vn">01</div><h4>Portfolio-wide brand exposure, on demand</h4><p>Trademark status, licensing terms, disputes and spend for any brand — assembled and cited in seconds, not built by a paralegal over days.</p></div>
+    <div class="vcard" style="--vc:var(--ic)"><div class="vn">02</div><h4>Contract terms that quietly contradict a live dispute</h4><p>Renewal clauses signed without knowledge of a claim already running on the same subject — caught before signature, not after.</p></div>
+    <div class="vcard" style="--vc:var(--sl)"><div class="vn">03</div><h4>Entity resolution as a compliance control</h4><p>The same counterparty hiding behind five spellings across five systems is exactly where undisclosed risk hides — one canonical identity closes that gap.</p></div>
+    <div class="vcard" style="--vc:var(--ev)"><div class="vn">04</div><h4>Litigation outcomes feeding back into contract playbooks</h4><p>Which clause versions keep causing disputes — a feedback loop that requires correlating two systems no one currently looks at together.</p></div>
+    <div class="vcard" style="--vc:var(--bf)"><div class="vn">05</div><h4>The true cost of a deal, not just its headline fee</h4><p>Fees plus the disputes and unused commitments a deal generated — the number that should actually anchor the next negotiation.</p></div>
+    <div class="vcard" style="--vc:var(--hot)"><div class="vn">06</div><h4>Regulatory and audit response in minutes, not weeks</h4><p>Any regulator or diligence question answered from the full portfolio, cited to source, with an honest account of what the record doesn't contain.</p></div>
+  </div>
+</section>
+
+<section class="catsec">
+  <h2>The wider catalogue — 15 more case studies on the same brain</h2>
+  <div class="sub">Every card is live — click to run the case in the console above. Tags show the systems joined.</div>
+  <div class="grid" id="grid"></div>
+</section>
+
+  <span>Demonstration with fictional data · brands, counterparties &amp; figures are illustrative · prepared for Group Legal</span>
+  <span class="mono">graph + pgvector · one Postgres · client cloud &amp; client LLM key · human-gated actions</span>
+</footer>
+
+<script>
+document.querySelectorAll("[data-count]").forEach(el=>{
+  const target=+el.dataset.count, t0=performance.now(), dur=1200;
+  function step(t){const p=Math.min(1,(t-t0)/dur);el.textContent=Math.round(target*(0.2+0.8*p*p)).toLocaleString();if(p<1)requestAnimationFrame(step);else el.textContent=target.toLocaleString();}
+  requestAnimationFrame(step);
+});
+const SC={ic:'<span class="sc ic">CLM</span>',rl:'<span class="sc rl">TM</span>',sl:'<span class="sc sl">INT</span>',ev:'<span class="sc ev">LIT</span>',bf:'<span class="sc bf">SPD</span>'};
+const DEMOS={
+s360:{q:"Full exposure on the Verde master licence before Thursday's renewal call?",
+ steps:["entity-link → <b>Solari Foods Distribution BV</b> (5 source records incl. \u2018Solari Consumer Goods NV\u2019)","traversing PARTY_TO · LICENSED_UNDER · DISPUTED_UNDER (permission-filtered)","hybrid search within subgraph → 19 cited facts"],
+ srcs:["ic","rl","sl","ev","bf"],nodes:["cp","ct","mt","rq","rw","sp","ob"],edges:["cp-ct","cp-mt","cp-rq","ct-rw","ct-ob","mt-sp","ct-mt"],
+ title:"Brand 360 — Solari Foods Distribution (Verde licence)",tag:"7.1s · 19 citations · 5 systems",
+ body:`<h5>Relationship</h5><p>Regional distribution licensee since 2018. <b>9 licence agreements</b>${SC.ic} covering the Verde trademark family across 3 territories${SC.rl}.</p>
+ <h5>What no single tool shows</h5><ul>
+ <li><b>Trademark renewal for 2 territories falls due in 60 days</b>${SC.rl} — while the master licence renewal is being negotiated in parallel.</li>
+ <li>A <b>packaging-claims dispute is live</b>${SC.ev} — the licensee's local "no artificial preservatives" claim isn't covered by our approved-claims library; renewal draft §6.2 (quality-standards clause)${SC.ic} would <b>bind us to defend a claim we never approved</b> if signed as-is.</li>
+ <li>Dispute spend: <b>€1.4M and rising</b>${SC.bf}; <b>4 open marketing-review requests</b>${SC.sl} from the licensee assume the renewal terms are already settled.</li></ul>
+ <div class="risk"><b>Recommendation:</b> amend §6.2 to require pre-clearance of all claims through the central library before renewal signs; align the 2 trademark renewals to close before the licence renewal, not after.</div>
+ <div class="gap"><b>What the record does not contain:</b> the licensee's 2023 local regulatory correspondence on the claim is in no connected system. Request before Thursday.</div>
+ <div class="pathline">Brand ⇒ PARTY_TO ⇒ Contract(§6.2) ⇒ GRANTS ⇒ Trademark · Contract ⇒ DISPUTED_UNDER ⇒ Matter ⇒ BILLED_TO ⇒ Spend</div>`},
+window:{q:"Can Marketing run the \u2018Aurora Real Beauty\u2019 refresh claim pan-EU without re-substantiation?",
+ steps:["entity-link → campaign claim <b>\u2018visibly firmer skin in 2 weeks\u2019</b> (3 records resolved)","checking substantiation file: claim × market × expiry","gap found → tracing the underlying test data"],
+ srcs:["rl","ic","sl"],nodes:["ct","rw","rq","ob"],edges:["ct-rw","ct-ob","cp-rq"],
+ title:"Claims substantiation gap — Aurora campaign refresh",tag:"a week of email, answered in seconds · reused plan",
+ body:`<h5>Substantiation check</h5><ul>
+ <li>The claim's <b>clinical substantiation file expires in 11 markets</b>${SC.rl} — 4 of them EU member states where the refresh is scheduled to run.</li>
+ <li><b>Collision:</b> a 2024 reformulation${SC.ic} changed the actual product tested — the existing substantiation technically covers a <b>different formulation</b> than what ships today.</li>
+ <li><b>New clinical study intake request pending</b> — request #R-11284${SC.sl}, lab unresponsive 9 days.</li></ul>
+ <div class="risk"><b>Recommendation:</b> run the refresh only in the 7 markets with valid, formulation-matched substantiation; hold the EU-4 launch pending the new study or a formulation disclosure review.</div>
+ <div class="gap"><b>Gap:</b> the reformulation's ingredient-level delta versus the original tested formula is not fully captured in the CLM — verify with R&D before relying on "materially unchanged."</div>
+ <div class="pathline">Claim ⇒ SUBSTANTIATED_BY(expiry) vs Product(reformulated) ⇒ HOLDBACK(EU-4) + Request(study, open)</div>`},
+rmg:{q:"Which distributors carry overlapping exclusivity territory grants across our portfolio?",
+ steps:["resolving distributor entities to corporate parents (LEI/VAT)","joining exclusivity clauses × territory × brand category","6 distributors flagged · 2 direct overlaps"],
+ srcs:["ic","sl","ev","bf"],nodes:["cp","ct","rq","mt"],edges:["cp-ct","cp-rq","cp-mt"],
+ title:"Distributor exclusivity sweep — Home Care portfolio",tag:"entity resolution is the control here · reused plan",
+ body:`<h5>Findings</h5><ul>
+ <li><b>6 distributor contracts</b>${SC.ic} resolve — via corporate-parent edges — to <b>2 groups that hold overlapping exclusive territory grants</b> across neighbouring markets, undetectable when each contract is read in isolation.</li>
+ <li>One of the two groups has a <b>pending contract-breach claim</b>${SC.ev} over a related exclusivity dispute in an adjacent category — <b>the same fact pattern is about to repeat</b>.</li>
+ <li><b>3 pending distributor-onboarding requests</b>${SC.sl} would add a third overlapping grant if approved as drafted.</li></ul>
+ <div class="risk"><b>Recommendation:</b> pause the 3 pending onboardings pending a territory-map review; renegotiate the overlap before the next renewal cycle rather than litigating it later.</div>
+ <div class="gap"><b>Gap:</b> sub-distributor arrangements below the primary contract layer are not systematically captured — the true overlap may be larger.</div>
+ <div class="pathline">Distributor ⇒ SAME_AS/PARENT_OF ⇒ Group ⇒ PARTY_TO ⇒ Contract(exclusivity) + Request(pending) + Matter(breach)</div>`},
+piracy:{q:"Assemble the opposition evidence pack for the Surf Excel mark in the APAC filing.",
+ steps:["building the ownership chain: first-use → registration → assignment history","pulling prior opposition/cancellation outcomes across the mark family","per-market filing cost & outcome joined"],
+ srcs:["rl","ic","ev","bf"],nodes:["ct","rw","mt","sp"],edges:["ct-rw","ct-mt","mt-sp"],
+ title:"Global TM opposition pack — Surf Excel (APAC)",tag:"days of assembly → minutes, fully cited",
+ body:`<h5>Pack contents</h5><ul>
+ <li><b>Ownership chain:</b> first use, registration, and 2 historical assignments — assembled with document citations${SC.rl}${SC.ic}; the exact evidentiary set the tribunal expects.</li>
+ <li><b>Precedent set:</b> all prior oppositions and cancellations on this mark family, with outcomes${SC.ev} — <b>14 proceedings</b> across 9 markets, deduplicated and outcome-tagged.</li>
+ <li><b>Filing economics:</b> per-firm spend vs opposition outcomes across the mark family${SC.bf} — this filing's counsel-allocation scorecard. Draft evidence bundle auto-assembled; nothing files until counsel approves.</li></ul>
+ <div class="gap"><b>Gap:</b> the original 1990s assignment deed exists only as a physical archive copy — not yet digitised; flagged for retrieval before the filing deadline.</div>
+ <div class="pathline">Mark ⇒ Trademark ⇐ GRANTS ⇐ Contract(chain) · Matter(prior oppositions) ⇒ OUTCOME(×14) · Matter ⇒ BILLED_TO ⇒ Spend</div>`},
+dpdp:{q:"Rate the compliance risk of the new \u2018ocean-bound plastic\u2019 packaging claim before launch.",
+ steps:["pulling claim wording + substantiation + green-claims rule set","joining pending marketing-review request + prior notice history","risk computed: claim type × market × novelty"],
+ srcs:["rl","sl","ic","ev"],nodes:["rq","ob","ct","mt"],edges:["cp-rq","ct-ob","ct-mt"],
+ title:"Green-claim compliance triage — packaging refresh",tag:"environmental claims = default-high scrutiny",
+ body:`<h5>Assessment</h5><ul>
+ <li>The claim touches <b>evolving green-claims rules</b> across the launch markets — "ocean-bound plastic" has <b>specific substantiation and verification requirements</b> in 6 of 9 target markets${SC.rl}.</li>
+ <li>Current substantiation traces to a <b>single supplier attestation, not independent verification</b> — the register shows the verification-standard obligation is not yet met${SC.ic}.</li>
+ <li>Marketing-review request #R-11390${SC.sl} open 6 days; <b>one prior greenwashing notice</b> exists in the record for an unrelated brand's similar claim${SC.ev}.</li></ul>
+ <div class="risk"><b>Rating: HIGH → legal + sustainability sign-off path, launch gate applied.</b> Claim ships only with independent verification in the 6 flagged markets; the other 3 may proceed on current substantiation.</div>
+ <div class="gap"><b>Gap:</b> the supplier's chain-of-custody documentation is not in any connected system — request directly before relying on the attestation.</div>
+ <div class="pathline">Claim ⇒ SUBSTANTIATED_BY(supplier attestation) · Obligation(independent verification) · Request(review, open) · Notice(prior greenwash)</div>`},
+c06:{q:"Which major trademark renewals lapse in the next 12 months — and where are we exposed?",
+ steps:["scanning Trademark(renewal < 12 mo, tier = core-brand)","joining opposition history + licensing dependencies","3 marks · 1 negotiation-poisoning opposition found"],
+ srcs:["rl","ic","ev"],nodes:["rw","ct","cp","mt"],edges:["ct-rw","cp-ct","ct-mt"],
+ title:"Core-brand renewal radar",tag:"the calendar with teeth",
+ body:`<h5>Lapsing within 12 months</h5><ul>
+ <li><b>A core household-care mark</b> — renewal due in 2 key markets${SC.rl}; <b>11 downstream licence agreements</b> reference this mark family${SC.ic}.</li>
+ <li>A <b>third-party opposition is open</b>${SC.ev} in one of the two renewal markets — unresolved, it complicates the renewal filing strategy.</li>
+ <li>Two secondary marks lapse with <b>no active-use evidence on file</b>${SC.ic} — renewal without updated use evidence risks a future non-use cancellation.</li></ul>
+ <div class="risk"><b>Recommendation:</b> file the core renewal on schedule regardless of the opposition; commission fresh use-evidence collection for the 2 secondary marks before their renewal window closes.</div>
+ <div class="gap"><b>Gap:</b> competitor filing-intelligence is not connected — pair this radar with the brand team's market-watch input.</div>
+ <div class="pathline">Trademark(renewal<12mo) ⇐ GRANTS ⇐ Contract ⇒ PARTY_TO ⇒ Licensee · Trademark ⇒ OPPOSED_BY ⇒ Matter</div>`},
+c07:{q:"What is our unresolved packaging-claims exposure across the portfolio?",
+ steps:["joining SKU claim tags → substantiation files","matching regulator notices & complaints to claims","quantifying exposure per claim category"],
+ srcs:["rl","ic","ev","bf"],nodes:["ct","rw","mt","sp"],edges:["ct-rw","ct-mt","mt-sp"],
+ title:"Claims-substantiation exposure map",tag:"the portfolio's hidden compliance debt, quantified",
+ body:`<h5>Exposure</h5><ul>
+ <li><b>2,140 SKUs carry a health, environmental or performance claim with a substantiation gap</b>${SC.rl} — concentrated in recently reformulated or re-launched lines.</li>
+ <li><b>4 regulator notices</b> (advertising standards + consumer protection) currently cover <b>68 SKUs</b>${SC.ev}; claims-dispute spend since last year: <b>€3.1M</b>${SC.bf}.</li>
+ <li>Two <b>category-wide substantiation studies expire in 4 months</b>${SC.ic} — expiry mid-notice would remove the evidentiary basis mid-response.</li></ul>
+ <div class="risk"><b>Recommendation:</b> renew the two expiring studies before the notices resolve; prioritise a substantiation remediation sprint on the 68 noticed SKUs, then the wider 2,140.</div>
+ <div class="gap"><b>Gap:</b> substantiation for claims older than 5 years was never digitised across all markets — exposure there is estimated, not measured.</div>
+ <div class="pathline">SKU ⇒ CARRIES ⇒ Claim ⇐ SUBSTANTIATED_BY ⇐ Study(expiry) · Claim ⇒ NOTICED_IN ⇒ Matter ⇒ Spend</div>`},
+c08:{q:"An ingredient in one hero product is trending negatively — what's our position across the portfolio?",
+ steps:["entity-link → ingredient (supplier + formulation records resolved)","pulling contracts and SKUs containing the ingredient","joining regulatory filings, promo windows, live requests"],
+ srcs:["ic","rl","sl","ev"],nodes:["cp","ct","rw","rq"],edges:["cp-ct","ct-rw","cp-rq"],
+ title:"Ingredient-controversy exposure monitor",tag:"portfolio position in minutes, not a scramble",
+ body:`<h5>Position</h5><ul>
+ <li>The ingredient appears in <b>23 SKUs</b>${SC.rl} across 4 brands, sourced from <b>3 supplier contracts</b>${SC.ic} — 1 with an indemnity clause covering regulatory reformulation costs, 2 without.</li>
+ <li><b>2 markets have pending regulatory reviews</b> of the ingredient category${SC.ev}; <b>1 upcoming promotional campaign</b> features a hero SKU containing it${SC.sl}.</li>
+ <li>A prior matter's outcome on a similar ingredient controversy is on file${SC.ev} — informs response strategy, not a direct precedent.</li></ul>
+ <div class="risk"><b>Recommendation:</b> pause the promotional campaign pending the 2 regulatory reviews; invoke the indemnity clause with the covered supplier now; brief the other 2 suppliers on reformulation contingency.</div>
+ <div class="gap"><b>Gap:</b> real-time consumer-sentiment feeds are not connected — monitoring here is regulatory and contractual position, not public sentiment.</div>
+ <div class="pathline">Ingredient ⇒ CONTAINED_IN ⇒ SKU ⇐ SUPPLIED_UNDER ⇐ Contract(indemnity?) · Ingredient ⇒ REVIEWED_IN ⇒ Matter</div>`},
+c09:{q:"What did the regional co-packer agreement really cost per SKU delivered?",
+ steps:["allocating contract fees per SKU line","adding the agreement's dispute spend","dividing by SKUs actually shipped under it"],
+ srcs:["ic","bf","rl"],nodes:["ct","sp","rw"],edges:["mt-sp","ct-rw","ct-mt"],
+ title:"Co-packer agreement true cost",tag:"the number the renewal should be priced on",
+ body:`<h5>True cost</h5><ul>
+ <li>Headline fee: <b>€34M over 3 years</b>${SC.ic} for a committed volume across 40 SKUs.</li>
+ <li>Only <b>68% of committed volume was ever ordered</b>${SC.rl} — 32% of the fee bought unused capacity commitment.</li>
+ <li>One quality-deviation dispute arising from the agreement added <b>€1.6M</b>${SC.bf} → effective cost per <i>delivered</i> unit is <b>1.6× the headline</b> per-unit figure.</li></ul>
+ <div class="risk"><b>Recommendation:</b> renegotiate to volume-tiered pricing with a lower committed floor; add a quality-deviation cap tied to measured performance, not the current open-ended clause.</div>
+ <div class="gap"><b>Gap:</b> production-line efficiency data sits in the manufacturing systems (not connected) — this is the legal/commercial cost side; pair with ops data before the renewal meeting.</div>
+ <div class="pathline">Agreement ⇒ FEES ⇒ SKU ⇒ WINDOW(ordered?) · Agreement ⇒ DISPUTED_UNDER ⇒ Matter ⇒ Spend</div>`},
+c10:{q:"Are we inside the advertising self-regulatory clocks on every open complaint?",
+ steps:["pulling the complaint queue with regulatory-body clocks","attaching campaign, contract and matter context","flagging at-risk and breached items"],
+ srcs:["sl","ev","ic"],nodes:["rq","ob","mt"],edges:["cp-rq","ct-ob","ct-mt"],
+ title:"Advertising-standards complaint command view",tag:"every market's clock, on one screen",
+ body:`<h5>Status</h5><ul>
+ <li><b>61 open complaints</b>${SC.sl} across markets: 54 in response window · <b>5 at risk (&lt;48h)</b> · <b>2 breached</b> — auto-escalated with the full campaign context brief.</li>
+ <li>One campaign has a <b>second-tier appeal pending</b>${SC.ev} — its 3 related open complaints are tagged to hold a consistent response position.</li>
+ <li>Agency and media-buy obligations for rapid takedown are mapped from the contract register${SC.ic}.</li></ul>
+ <div class="risk"><b>Recommendation:</b> respond to the 2 breached items today with a root-cause note; the 5 at-risk items are pre-drafted for legal review.</div>
+ <div class="gap"><b>Gap:</b> social-platform-native complaint channels are not integrated — those enter this queue only when manually forwarded by the agency.</div>
+ <div class="pathline">Complaint ⇒ CLOCK(self-reg body) ⇒ Obligation · Complaint ⇒ CONCERNS ⇒ Campaign ⇒ APPEALED_IN ⇒ Matter</div>`},
+c11:{q:"Which registered trademarks are we not commercially using — and what are they worth?",
+ steps:["diffing registered marks vs active SKU/brand usage","clustering by category × territory","valuing at registration + renewal cost avoided"],
+ srcs:["rl","ic"],nodes:["rw","ct"],edges:["ct-rw"],
+ title:"Dormant trademark whitespace",tag:"portfolio value legal already owns",
+ body:`<h5>Whitespace</h5><ul>
+ <li><b>640 registered marks show no linked active SKU or licence</b>${SC.rl} — clustered in discontinued sub-brands and defensive filings.</li>
+ <li><b>90 of them have renewals due within 6 months</b> — real fees about to be spent maintaining unused registrations.</li>
+ <li><b>Licensing-out is contractually unrestricted for 71%</b>${SC.ic} — a packageable licensing opportunity, not pure cost.</li></ul>
+ <div class="risk"><b>Recommendation:</b> let the clearly dead 29% lapse at next renewal; route the 71% to the brand-licensing team as a packaged opportunity list this quarter.</div>
+ <div class="gap"><b>Gap:</b> brand-value estimates use registration-cost proxy only — no external valuation feed is connected.</div>
+ <div class="pathline">Trademark(registered, ¬active-SKU) ⇐ GRANTS ⇐ Contract(licensing restricted?)</div>`},
+c12:{q:"Can we sign the wellness-app co-brand partner for the skincare line?",
+ steps:["pulling the exclusivity web: category, retailer, ingredient-supplier","checking category & term collisions","one collision traced to its clause"],
+ srcs:["ic","rl","sl"],nodes:["cp","ct","rq"],edges:["cp-ct","cp-rq"],
+ title:"Co-brand partnership conflict checker",tag:"collisions surface before ink, not after",
+ body:`<h5>Check</h5><ul>
+ <li>A key retailer's private-label agreement grants <b>category exclusivity for co-branded wellness positioning</b>${SC.ic} — and the proposed partnership's category overlaps that definition.</li>
+ <li>Our ingredient-supplier agreement's <b>marketing-collaboration clause (§8) is ambiguous</b> on third-party app co-branding${SC.ic}.</li>
+ <li>The brand team's request${SC.sl} commits creative production in 14 days.</li></ul>
+ <div class="risk"><b>Recommendation:</b> do not sign without a retailer consent check or re-scoped category definition; confirm §8 permits the app co-brand before creative production starts.</div>
+ <div class="gap"><b>Gap:</b> the retailer's current private-label category map is not in any connected system — confirm the exclusivity is still live before relying on it.</div>
+ <div class="pathline">Partner ⇒ CATEGORY ⇒ Exclusivity(retailer) vs Contract(§8 ambiguous) + Request(14-day clock)</div>`},
+c13:{q:"Clear the reformulated hero SKU for the 12 markets in the relaunch wave — what's missing?",
+ steps:["decomposing the relaunch into required clearances","checking held clearances per market","opening gaps as intake requests automatically"],
+ srcs:["rl","ic","sl"],nodes:["rw","ct","rq"],edges:["ct-rw","cp-rq"],
+ title:"Reformulation relaunch clearance",tag:"one query instead of a 12-market clearance committee",
+ body:`<h5>Clearance decomposition</h5><ul>
+ <li><b>Held:</b> trademark rights in all 12 markets${SC.rl}; base formulation regulatory approval in 10${SC.ic}.</li>
+ <li><b>Not held:</b> updated ingredient-disclosure approval in 2 markets with stricter labeling regimes — the compliance obligation is unmet${SC.ic}.</li>
+ <li><b>Auto-opened:</b> 2 intake requests${SC.sl} — local regulatory filing, updated label artwork legal review — with the source obligations attached.</li></ul>
+ <div class="risk"><b>Recommendation:</b> do not ship to the 2 gap markets until filings clear; the packaging-obligation flow to production is flagged now, not at the printer.</div>
+ <div class="gap"><b>Gap:</b> one market's local regulatory portal status is unavailable via API — status confirmed manually, noted as such in the clearance record.</div>
+ <div class="pathline">Relaunch ⇒ REQUIRES ⇒ {Trademark ✓, BaseApproval ✓, DisclosureApproval(2 markets) ✗} ⇒ Requests(auto)</div>`},
+c14:{q:"A regulator has asked about our claims on a flagged SKU — assemble our response.",
+ steps:["SKU-anchored traversal across all systems","pulling substantiation, complaints, actions, contracts","gap analysis appended"],
+ srcs:["ic","rl","ev","sl"],nodes:["ct","rw","mt","rq"],edges:["ct-rw","ct-mt","cp-rq"],
+ title:"Regulator response pack — flagged SKU",tag:"cited, consistent, and honest about gaps",
+ body:`<h5>Pack contents</h5><ul>
+ <li><b>Compliance record:</b> the claim's substantiation file with test methodology and the recorded approval rationale${SC.rl}.</li>
+ <li><b>Complaint history:</b> 6 complaints on the claim, all resolved within self-regulatory SLA${SC.sl}; one referral to the regulator directly, position summarised${SC.ev}.</li>
+ <li><b>Contract layer:</b> the co-packer's quality warranties and indemnity${SC.ic} — relevant if the response strategy shifts liability upstream.</li></ul>
+ <div class="risk"><b>Recommendation:</b> respond on the substantiation record as filed; align wording with the pending referral position — the brain flagged one phrase in the draft that diverges from it.</div>
+ <div class="gap"><b>Gap:</b> the original test lab's raw data sits with the external lab — requested; note its absence in the response rather than asserting from the summary alone.</div>
+ <div class="pathline">SKU ⇒ CLAIMS ⇒ Substantiation · ⇐ COMPLAINT(6, resolved) · ⇒ REFERRED_IN ⇒ Matter · ⇐ WARRANTED_BY ⇐ CoPackerAgreement</div>`},
+c15:{q:"Which outside firm should carry this year's global opposition and enforcement mandate?",
+ steps:["joining proceedings won × marks defended × turnaround per firm","dividing outcomes by spend","3-firm comparison assembled"],
+ srcs:["ev","bf"],nodes:["mt","sp"],edges:["mt-sp"],
+ title:"IP enforcement firm scorecard",tag:"panel allocation with evidence",
+ body:`<h5>Scorecard (last 2 years)</h5><ul>
+ <li><b>Firm A:</b> 88% favourable opposition outcomes, median <b>4-month</b> proceeding turnaround — premium rates${SC.ev}${SC.bf}.</li>
+ <li><b>Firm B:</b> ~40% cheaper per proceeding, but median 9-month turnaround — acceptable for routine renewals, weak for contested oppositions.</li>
+ <li><b>Firm C:</b> strongest on emerging-market filings and anti-counterfeiting actions; core-market turnaround mid-pack.</li></ul>
+ <div class="risk"><b>Recommendation:</b> split the mandate — Firm A for contested oppositions on core brands, Firm C for emerging markets and anti-counterfeiting, Firm B for routine renewal volume. Rate talks anchored on these measured outcomes.</div>
+ <div class="gap"><b>Gap:</b> 2 older proceedings have incomplete outcome data — those turnaround figures are lower-bound estimates.</div>
+ <div class="pathline">Firm ⇐ HANDLED ⇐ Matter(proceeding) ⇒ OUTCOME · Matter ⇒ BILLED_TO ⇒ Spend</div>`},
+c16:{q:"Does the new loyalty-app sign-up flow clear dark-pattern guidelines?",
+ steps:["mapping flow steps against the specified patterns","joining consent-complaint history","2 flags raised"],
+ srcs:["sl","ev","ic"],nodes:["rq","mt","ob"],edges:["cp-rq","ct-ob","ct-mt"],
+ title:"Consumer-consent dark-pattern sweep",tag:"pre-release, not post-notice",
+ body:`<h5>Findings</h5><ul>
+ <li><b>2 pattern flags:</b> a pre-ticked marketing-consent box and a <b>confirm-shaming unsubscribe screen</b> — both named pattern types under applicable consumer-protection guidance.</li>
+ <li><b>38 consent-related complaints last quarter cluster on the loyalty programme</b>${SC.sl}${SC.ev} — the exact journey this flow modifies; regulator attention risk is already warm.</li>
+ <li>The privacy notice itself is compliant${SC.ic} — the risk is in the flow, not the notice text.</li></ul>
+ <div class="risk"><b>Recommendation:</b> fix both flags before release; document this review as the compliance record; re-run the sweep on every flow change — it's a saved query, not a project.</div>
+ <div class="gap"><b>Gap:</b> A/B variants live in the product experimentation tool (not connected) — this review covers the primary flow only.</div>
+ <div class="pathline">Flow ⇒ STEP ⇒ Pattern(guideline §) · Complaint(cluster: loyalty) · Notice ⇒ Obligation(consent, ✓)</div>`},
+c17:{q:"The category-carve-out data room needs our full brand and contract posture — produce it.",
+ steps:["assembling trademarks, contracts, obligations, disputes by brand","citing every figure to its source object","permission-scoping to the deal team"],
+ srcs:["ic","rl","ev","bf"],nodes:["ct","rw","mt","sp","ob"],edges:["ct-rw","ct-mt","mt-sp","ct-ob"],
+ title:"M&A / divestiture data room — category carve-out",tag:"diligence fire drill → a query",
+ body:`<h5>Package</h5><ul>
+ <li><b>340 contracts</b> tagged to the category${SC.ic}, trademark schedule across all territories${SC.rl}, <b>7 open matters</b>${SC.ev}, and dispute + enforcement spend${SC.bf} — every figure cited to its source object.</li>
+ <li>Access is scoped to the named deal team — the litigation detail visible here respects the litigation tool's privilege tags.</li>
+ <li><b>Reconciliation flag:</b> two supply obligations show divergent volume figures between finance's carve-out model and the contract schedule — surfaced, not smoothed.</li></ul>
+ <div class="risk"><b>Recommendation:</b> reconcile the two divergent obligations with finance before the data room opens; the brain's citations make the reconciliation a same-day task, not a week-long hunt.</div>
+ <div class="gap"><b>Gap:</b> one legacy regional agreement exists only as an unsigned counterpart copy — noted in the package; original requested from the counterparty.</div>
+ <div class="pathline">Category ⇒ TAGGED ⇒ Contract ⇒ {Obligation(vol), Trademark, Matter(open), Spend}</div>`},
+c18:{q:"Rank new co-packer commitments by counterparty credit and dispute risk.",
+ steps:["resolving co-packer groups (parent edges)","joining payment disputes + credit events + contract terms","risk-ranked commitment list"],
+ srcs:["ic","bf","ev"],nodes:["cp","ct","mt","sp"],edges:["cp-ct","cp-mt","mt-sp"],
+ title:"Co-packer credit × dispute risk",tag:"before commitments sign, not after",
+ body:`<h5>Ranked exposure</h5><ul>
+ <li><b>2 prospective co-packers carry open payment disputes</b>${SC.bf}${SC.ev} with other divisions — resolved to the same entity via LEI despite a different trading name in this negotiation.</li>
+ <li>For both, the draft agreements <b>lack a volume-guarantee performance bond</b>${SC.ic}.</li>
+ <li>Committed capacity currently under negotiation with the two: <b>\u2014 units/year equivalent</b> (figure scoped to procurement's view).</li></ul>
+ <div class="risk"><b>Recommendation:</b> require a performance bond or milestone-based payment for both; flag the cross-division dispute history to the negotiating team before terms finalise.</div>
+ <div class="gap"><b>Gap:</b> external credit-bureau feeds are not connected — this view is internal disputes + public filings only.</div>
+ <div class="pathline">CoPacker ⇒ SAME_AS ⇒ Group(dispute) ⇒ PARTY_TO ⇒ Contract(¬bond) + Matter(payment)</div>`},
+c19:{q:"If we had a consumer-data breach tonight, are we ready for the notification clock?",
+ steps:["mapping processors × data categories × notify clauses","checking the escalation tree + prior-incident actions","readiness scored, gaps listed"],
+ srcs:["ic","sl","ev"],nodes:["ct","ob","rq","mt"],edges:["ct-ob","cp-rq","ct-mt"],
+ title:"Data-breach notification readiness",tag:"the clock starts with a plan, not a scramble",
+ body:`<h5>Readiness</h5><ul>
+ <li><b>210 processor contracts mapped</b> (loyalty app, e-commerce, CRM vendors) with breach-notification clauses — <b>18 are missing the clause entirely</b>${SC.ic}; notification obligations and the DPO contact tree are current in the register.</li>
+ <li>Prior incident's postmortem actions are <b>75% closed</b>${SC.sl}${SC.ev} — the open items are vendor-side.</li>
+ <li>Pre-drafted notification templates attach to each data-category branch of the tree, per-market variant.</li></ul>
+ <div class="risk"><b>Recommendation:</b> amend the 18 processor DPAs this quarter; chase the vendor-side postmortem actions; readiness re-scores automatically as items close.</div>
+ <div class="gap"><b>Gap:</b> the marketing-tech asset inventory (which vendors hold which data) lives outside connected systems — connector queued; until then this map is legal's copy, not live.</div>
+ <div class="pathline">Processor ⇒ DPA(notify clause?) ⇒ Obligation(clock) · Incident(prior) ⇒ Actions(75%) · Template ⇒ DataCategory</div>`},
+c20:{q:"Clear the \u2018Refill & Win\u2019 sustainability promotion for all markets before launch.",
+ steps:["classifying promotion mechanics against prize/promotion rules per market","joining past notices on prior promotions","market flags raised"],
+ srcs:["sl","ic","ev"],nodes:["rq","ct","mt","ob"],edges:["cp-rq","ct-ob","ct-mt"],
+ title:"Promotion compliance — \u2018Refill & Win\u2019",tag:"geo-check before launch, not after a notice",
+ body:`<h5>Clearance</h5><ul>
+ <li>The mechanic scores as a <b>permitted prize promotion</b> in most markets; <b>3 markets flag restrictive</b> rules on environmental-claim-linked promotions specifically.</li>
+ <li><b>One market authority issued a notice on our 2023 promotion</b>${SC.ev} — same mechanic family; that history raises the bar for this launch there.</li>
+ <li>The T&amp;Cs template already carries a <b>market-exclusion clause</b>${SC.ic}; the prize-partner agreement is still unsigned in intake${SC.sl}.</li></ul>
+ <div class="risk"><b>Recommendation:</b> geo-exclude the 3 flagged markets, obtain a short local-counsel opinion for the noticed market, and hold marketing until the partner agreement signs.</div>
+ <div class="gap"><b>Gap:</b> market-rule updates are tracked manually — a regulatory-feed connector would make this sweep continuous rather than per-launch.</div>
+ <div class="pathline">Promotion ⇒ MECHANIC vs MarketRule(×3 flags) · PriorNotice(2023) · T&amp;Cs ⇒ Obligation(exclusion) + Request(partner, unsigned)</div>`}
+};
+// tag each demo with an id (for the teach-the-brain widget) and mark repeat-run scenarios as cached
+Object.keys(DEMOS).forEach(k=>DEMOS[k]._id=k);
+["window","rmg","c06","c11","c15"].forEach(k=>{ if(DEMOS[k]){ DEMOS[k].cached=true; DEMOS[k].latency="1.1s"; DEMOS[k].tokens="~0.6k"; }});
+
+const CARDS=[
+ ["c06","06","Core-brand renewal radar","Major trademark windows approaching × open oppositions × licensing dependencies.",["rl","ic","ev"],true],
+ ["c07","07","Claims-substantiation exposure map","SKU claim gaps vs regulator notices — the portfolio's compliance debt, quantified.",["rl","ic","ev","bf"],false],
+ ["c08","08","Ingredient-controversy monitor","A trending ingredient resolved to contracts, SKUs, filings and campaigns.",["ic","rl","sl","ev"],false],
+ ["c09","09","Co-packer agreement true cost","Fees + disputes ÷ units actually delivered = the renewal's real anchor price.",["ic","bf","rl"],false],
+ ["c10","10","Ad-standards complaint command view","Every complaint on its regulatory clock, with campaign and appeal context attached.",["sl","ev","ic"],false],
+ ["c11","11","Dormant trademark whitespace","Registered but commercially unused marks — portfolio value legal already owns.",["rl","ic"],true],
+ ["c12","12","Co-brand conflict checker","Retailer, category and supplier exclusivities collide on screen before signature.",["ic","rl","sl"],false],
+ ["c13","13","Reformulation relaunch clearance","One query decomposes a multi-market relaunch into held, missing and auto-requested clearances.",["rl","ic","sl"],false],
+ ["c14","14","Regulator response pack","A regulator query on any SKU assembles the cited record — and its honest gaps.",["ic","rl","ev","sl"],false],
+ ["c15","15","IP enforcement firm scorecard","Opposition and enforcement outcomes per firm vs spend — evidence for the mandate.",["ev","bf"],true],
+ ["c16","16","Consumer-consent dark-pattern sweep","Sign-up and loyalty flow changes checked against guidance and complaint history.",["sl","ev","ic"],false],
+ ["c17","17","M&A / divestiture data room","Diligence asks answered from the portfolio on demand — cited, permission-scoped.",["ic","rl","ev","bf"],false],
+ ["c18","18","Co-packer credit × dispute risk","New capacity commitments ranked by group-level credit events and disputes.",["ic","bf","ev"],false],
+ ["c19","19","Data-breach notification readiness","Processors, clauses and contacts pre-mapped so the notification clock starts with a plan.",["ic","sl","ev"],false],
+ ["c20","20","Promotion compliance","Prize-promotion mechanics vs market rules and past notices — geo-checked before launch.",["sl","ic","ev"],false],
+];
+const COLORS={ic:"var(--ic)",rl:"var(--rl)",sl:"var(--sl)",ev:"var(--ev)",bf:"var(--bf)"};
+document.getElementById("grid").innerHTML=CARDS.map(c=>
+ `<div class="card" data-k="${c[0]}">${c[5]?'<span class="saved">\u267B SAVED QUERY</span>':''}<div class="n">${c[1]}</div><h4>${c[2]}</h4><p>${c[3]}</p><div class="foot"><span class="tags">${c[4].map(s=>`<i style="background:${COLORS[s]}" title="${s}"></i>`).join("")}</span><span class="open">run case ▸</span></div></div>`).join("");
+
+const ask=document.getElementById("askq"),cur=document.getElementById("cur"),think=document.getElementById("think"),memo=document.getElementById("memo");
+let busy=false;
+function select(el){
+  document.querySelectorAll(".chip,.card").forEach(c=>c.classList.remove("on"));
+  el.classList.add("on");
+}
+document.getElementById("chips").addEventListener("click",e=>{
+  const b=e.target.closest(".chip"); if(!b||busy) return;
+  select(b); run(DEMOS[b.dataset.k]);
+});
+document.getElementById("grid").addEventListener("click",e=>{
+  const c=e.target.closest(".card"); if(!c||busy) return;
+  select(c);
+  document.getElementById("console").scrollIntoView({behavior:matchMedia("(prefers-reduced-motion: reduce)").matches?"auto":"smooth"});
+  run(DEMOS[c.dataset.k]);
+});
+function light(d){
+  document.querySelectorAll(".src").forEach(s=>s.classList.remove("lit"));
+  d.srcs.forEach(k=>document.getElementById("src-"+k).classList.add("lit"));
+  document.querySelectorAll(".node").forEach(n=>n.classList.toggle("hot",d.nodes.includes(n.dataset.n)));
+  document.querySelectorAll(".edge").forEach(l=>l.classList.toggle("hot",d.edges.includes(l.dataset.e)));
+}
+function costStrip(d){
+  const cached=!!d.cached;
+  return `<div class="coststrip">
+    <div class="cs ${cached?'cached':'fresh'}"><b>${cached?'\u267B Reused':'\u2726 Fresh run'}</b><span>${cached?'saved plan, no re-planning cost':'new traversal + retrieval plan'}</span></div>
+    <div class="cs"><b>${d.nodes.length} objects · ${d.edges.length} hops</b><span>graph subgraph touched</span></div>
+    <div class="cs"><b>${d.tokens||'~4.1k'} tok</b><span>${cached?'~70% below a fresh run':'context assembled this run'}</span></div>
+    <div class="cs"><b>${d.latency||'6.2s'}</b><span>end to end, this run</span></div>
+  </div>`;
+}
+function teachBlock(id){
+  return `<div class="teach">
+    <div class="prompt"><b>Was this right?</b>&nbsp;Correct it once — it sticks for everyone, everywhere.
+      <button class="teach-btn" data-teach="${id}">Teach the Brain</button></div>
+    <div class="teach-form" id="tf-${id}">
+      <textarea placeholder="e.g. 'Always flag renewals inside an active dispute as HIGH, even if the clause isn't the one in dispute.'"></textarea>
+      <div class="row"><span class="hint">This becomes a proposed ontology / playbook rule — reviewed, not auto-applied.</span>
+      <button class="teach-save" data-save="${id}">Save correction</button></div>
+    </div>
+    <div class="teach-confirm" id="tc-${id}">
+      <b>\u2713 Added to the Brain's playbook.</b> Rule <span class="k">R-${id}-${Math.floor(Math.random()*90+10)}</span> now runs on every future case in this scenario family — for every user, not just you. Versioned, attributed, reviewable in the ontology change-log.
+    </div>
+  </div>`;
+}
+async function run(d){
+  busy=true; memo.classList.remove("show"); think.innerHTML="";
+  ask.classList.add("filled"); ask.textContent=""; ask.appendChild(cur); cur.style.display="inline-block";
+  const reduce=matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if(reduce){ask.textContent=d.q;}
+  else{for(const ch of d.q){ask.insertBefore(document.createTextNode(ch),cur);await new Promise(r=>setTimeout(r,13));}}
+  cur.style.display="none";
+  light(d);
+  const steps=d.cached?["\u267B reusing saved plan for this query shape — skipping re-exploration","permission check re-verified for this session (never cached)","hybrid search within subgraph → cited facts"]:d.steps;
+  for(const s of steps){think.innerHTML+="▸ "+s+"<br>";await new Promise(r=>setTimeout(r,reduce?0:420));}
+  memo.innerHTML=`<div class="mh"><h2>${d.title}</h2><span class="tag">${d.tag}</span></div><div class="body">${d.body}${costStrip(d)}${teachBlock(d._id)}</div>`;
+  requestAnimationFrame(()=>memo.classList.add("show"));
+  busy=false;
+}
+document.addEventListener("click",e=>{
+  const tb=e.target.closest("[data-teach]");
+  if(tb){const id=tb.dataset.teach;document.getElementById("tf-"+id).classList.toggle("open");return;}
+  const sv=e.target.closest("[data-save]");
+  if(sv){const id=sv.dataset.save;document.getElementById("tf-"+id).classList.remove("open");document.getElementById("tc-"+id).classList.add("show");return;}
+});
+setTimeout(()=>{const b=document.querySelector('.chip[data-k="s360"]');b.classList.add("on");run(DEMOS.s360);},900);
+</script>
+</body>
+</html>
