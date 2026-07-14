@@ -104,3 +104,6 @@ export async function processTicketWithAgent(ticket,settings,preferredAgentId){
     })};
   }
 }
+
+// Auto-run handler for workflow AGENT steps (exposed via @aegis/intake/agents).
+export { intakeWorkflowAgentHandler } from "./workflow-handler.js";

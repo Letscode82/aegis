@@ -7,7 +7,7 @@
  * optimistic version lock, agent-task queueing on AGENT steps, and the
  * chain-sealed audit twin on every transition.
  */
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { prisma } from "@aegis/db";
 import {
   actOnWorkflow,
@@ -22,6 +22,7 @@ import {
   listWorkflowVersions,
   revertWorkflowToVersion,
   getWorkflowSlaOverview,
+  autoRunCurrentAgentStep,
 } from "../src/index";
 
 let orgId = "";
@@ -428,5 +429,39 @@ describe("Workflow SLA analytics (program #3)", () => {
     expect(ov.summary.breached).toBeGreaterThanOrEqual(1);
     // Step 1 (Intake) produced a completed-stage duration sample.
     expect(ov.stageDelays.some((s) => s.stepName === "Intake")).toBe(true);
+  });
+});
+
+describe("autoRunCurrentAgentStep (deliverables #2)", () => {
+  it("runs the agent when the current step is an AGENT step; no-op otherwise", async () => {
+    await defineWorkflow({
+      organizationId: orgId, key: "autorun_test", name: "Autorun Test",
+      steps: [
+        { stepOrder: 1, name: "Submit", screenKey: "submit" },
+        { stepOrder: 2, name: "AI Review", screenKey: "agent_review", kind: "AGENT",
+          agentConfigJson: { agentKey: "nda-agent", minConfidence: 0.8 } },
+      ],
+    });
+    const inst = await startWorkflow({
+      organizationId: orgId, definitionKey: "autorun_test",
+      entityType: "intake_ticket", entityId: "AR-1", startedById: userId,
+      context: { ticket: { id: "AR-1", desc: "review" } },
+    });
+
+    // Step 1 is HUMAN → auto-run is a no-op.
+    expect(await autoRunCurrentAgentStep(inst.id, async () => ({ confidence: 1, suggestedAction: "x", summary: "" }))).toBeNull();
+
+    // Advance to the AGENT step, then auto-run executes it.
+    await actOnWorkflow({ instanceId: inst.id, action: "approve", actor: userId });
+    const handler = vi.fn(async () => ({ confidence: 0.9, suggestedAction: "approve-and-send", summary: "clean" }));
+    const task = await autoRunCurrentAgentStep(inst.id, handler);
+    expect(handler).toHaveBeenCalledTimes(1);
+    expect(task?.status).toBe("DONE");
+
+    // Second call is a no-op (task no longer PENDING) and the ladder
+    // did not advance (governance: a human still approves).
+    expect(await autoRunCurrentAgentStep(inst.id, handler)).toBeNull();
+    const after = await getWorkflowInstance(inst.id);
+    expect(after!.currentStepOrder).toBe(2);
   });
 });

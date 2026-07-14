@@ -18,7 +18,35 @@
  * client-authored intake fields directly.
  */
 import { prisma, logAudit } from "@aegis/db";
-import { startWorkflow } from "@aegis/workflow";
+import { startWorkflow, autoRunCurrentAgentStep } from "@aegis/workflow";
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- JS agents module
+import { intakeWorkflowAgentHandler } from "../agents/index.js";
+
+// Default ladder per intake request type — so EVERY inbound ticket
+// gets a governance ladder automatically, not only types an admin
+// pre-bound. Matched on the ticket's type (case-insensitive substring)
+// against the seeded pharma-GC library keys. Only assigned when a
+// definition with that key actually exists for the org (library
+// seeded); otherwise the ticket runs laddered-off, unchanged.
+const DEFAULT_LADDER_RULES: Array<[RegExp, string]> = [
+  [/nda|non.?disclosure|confidential/i, "nda_fasttrack"],
+  [/data.?breach|dpdp|privacy incident|personal data breach/i, "data_breach"],
+  [/privacy|dpia/i, "data_breach"],
+  [/litigation|dispute|lawsuit|subpoena|para.?iv|patent/i, "patent_litigation"],
+  [/notice/i, "legal_notice"],
+  [/regulator|usfda|\bfda\b|nppa|483|warning letter/i, "regulatory_response"],
+  [/vendor|supplier|due diligence|onboarding/i, "vendor_onboarding"],
+  [/investigation|whistleblow|ucpmp|bribery|compliance/i, "compliance_investigation"],
+  [/employment|posh|harassment|termination|disciplinary/i, "employment_matter"],
+  [/board|secretarial|resolution|power of attorney/i, "board_approval"],
+  [/contract|\bmsa\b|\bsow\b|agreement|licens|supply/i, "clm_contract_approval"],
+];
+
+export function defaultLadderKeyForType(type: string | null | undefined): string | null {
+  const t = String(type || "");
+  for (const [re, key] of DEFAULT_LADDER_RULES) if (re.test(t)) return key;
+  return null;
+}
 
 export interface WorkflowBridgeTicket {
   id: string;
@@ -50,7 +78,21 @@ export async function maybeStartWorkflowForTicket(
             select: { workflowKey: true, key: true },
           })
         : null;
-    if (!requestType?.workflowKey) return null;
+
+    // Resolve which ladder to run: an explicit binding on the request
+    // type wins; otherwise fall back to the default-by-type map so
+    // every ticket is auto-assigned a ladder when the library exists.
+    let definitionKey = requestType?.workflowKey || defaultLadderKeyForType(ticket.type);
+    if (!definitionKey) return null;
+
+    // Only start if a definition with that key actually exists for the
+    // org (graceful when the library isn't seeded / no match).
+    const def = await prisma.workflowDefinition.findUnique({
+      where: { organizationId_key: { organizationId, key: definitionKey } },
+      select: { key: true, isActive: true },
+    });
+    if (!def || !def.isActive) return null;
+    definitionKey = def.key;
 
     // Idempotence: one ladder per ticket.
     const existing = await prisma.workflowInstance.findFirst({
@@ -67,7 +109,7 @@ export async function maybeStartWorkflowForTicket(
 
     const instance = await startWorkflow({
       organizationId,
-      definitionKey: requestType.workflowKey,
+      definitionKey,
       entityType: "intake_ticket",
       entityId: ticket.id,
       startedById,
@@ -85,6 +127,10 @@ export async function maybeStartWorkflowForTicket(
         },
       },
     });
+
+    // If the ladder starts on an AGENT step, run it now so the agent's
+    // work happens automatically. Best-effort; never blocks ingest.
+    await autoRunCurrentAgentStep(instance.id, intakeWorkflowAgentHandler).catch(() => {});
     return instance.id;
   } catch (err) {
     console.error("[intake:workflow-bridge] start failed:", err);

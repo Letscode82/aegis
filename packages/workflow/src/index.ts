@@ -25,6 +25,7 @@ export {
 } from "./engine";
 export {
   runAgentTask,
+  autoRunCurrentAgentStep,
   listAgentTasks,
   DEFAULT_MIN_CONFIDENCE,
   type AgentTaskHandler,
