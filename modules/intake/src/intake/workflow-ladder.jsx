@@ -25,6 +25,8 @@ export function WorkflowLadderCard({ticket}){
   const[busy,setBusy]=useState(false);
   const[error,setError]=useState(null);
   const[sendBackTo,setSendBackTo]=useState("");
+  const[changing,setChanging]=useState(false);
+  const[changeKey,setChangeKey]=useState("");
 
   const load=useCallback(async()=>{
     if(!ticket?.id) return;
@@ -96,6 +98,28 @@ export function WorkflowLadderCard({ticket}){
     finally{setBusy(false);}
   };
 
+  // Change the ladder on this ticket: cancel the current instance and
+  // start the chosen one. History (the cancelled instance) is kept.
+  const changeLadder=async()=>{
+    if(!changeKey) return;
+    setBusy(true);setError(null);
+    try{
+      await fetch(`/api/workflows/instances/${instance.id}/act`,{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({action:"cancel",expectedVersion:instance.version,comment:"Ladder changed"}),
+      });
+      const resp=await fetch(`/api/workflows/instances`,{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({definitionKey:changeKey,entityType:"intake_ticket",entityId:ticket.id}),
+      });
+      const data=await resp.json();
+      if(!resp.ok) setError(data.error||`${resp.status}`);
+      setChanging(false);setChangeKey("");
+      await load();
+    }catch(e){setError(String(e));}
+    finally{setBusy(false);}
+  };
+
   const btn=(label,color,onClick,disabled)=><div onClick={disabled?undefined:onClick} style={{padding:"4px 9px",border:`1px solid ${color}`,color:disabled?C.t3:color,borderRadius:3,cursor:disabled?"default":"pointer",fontSize:9,fontFamily:M,letterSpacing:1,textTransform:"uppercase",fontWeight:700,opacity:disabled?.5:1}}>{label}</div>;
 
   return <div style={{padding:"12px 14px",marginBottom:10,background:C.s1,border:`1px solid ${C.br}`,borderRadius:4}}>
@@ -103,10 +127,22 @@ export function WorkflowLadderCard({ticket}){
       <div style={{fontSize:9,fontFamily:M,color:C.t3,letterSpacing:1.5,textTransform:"uppercase",fontWeight:600}}>
         Governance ladder · {instance.definition?.name||instance.definitionId}
       </div>
-      <div style={{fontSize:9,fontFamily:M,letterSpacing:1,textTransform:"uppercase",color:done?(instance.status==="COMPLETED"?C.gn:C.t3):C.am}}>
-        {done?instance.status:`Step ${instance.currentStepOrder} · ${currentStep?.name||""}`}
+      <div style={{display:"flex",alignItems:"center",gap:8}}>
+        <div style={{fontSize:9,fontFamily:M,letterSpacing:1,textTransform:"uppercase",color:done?(instance.status==="COMPLETED"?C.gn:C.t3):C.am}}>
+          {done?instance.status:`Step ${instance.currentStepOrder} · ${currentStep?.name||""}`}
+        </div>
+        {definitions.length>0&&<span onClick={()=>setChanging(c=>!c)} title="Change the ladder assigned to this ticket" style={{fontSize:9,fontFamily:M,color:C.t3,letterSpacing:.5,cursor:"pointer",textTransform:"uppercase"}}>⟳ change</span>}
       </div>
     </div>
+
+    {changing&&<div style={{display:"flex",gap:7,alignItems:"center",flexWrap:"wrap",marginBottom:10,padding:"7px 8px",background:C.s2,borderRadius:3}}>
+      <select value={changeKey} onChange={e=>setChangeKey(e.target.value)} style={{background:C.s1,border:`1px solid ${C.br}`,color:C.t2,fontSize:9.5,fontFamily:M,padding:"3px 5px",borderRadius:3,maxWidth:220}}>
+        <option value="">change to ladder…</option>
+        {definitions.filter(d=>d.key!==instance.definition?.key).map(d=><option key={d.key} value={d.key}>{d.name} ({d.steps?.length??0} steps)</option>)}
+      </select>
+      {btn("Apply change",C.pp,changeLadder,busy||!changeKey)}
+      <span style={{fontSize:9,fontFamily:M,color:C.t4}}>cancels the current ladder and starts the new one</span>
+    </div>}
 
     {/* RAG strip */}
     <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:done?0:10}}>

@@ -11,7 +11,14 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { getResolvedUser } from "@aegis/auth/server";
-import { actOnWorkflow, getWorkflowInstance, ragFor, WorkflowError } from "@aegis/workflow";
+import {
+  actOnWorkflow,
+  autoRunCurrentAgentStep,
+  getWorkflowInstance,
+  ragFor,
+  WorkflowError,
+} from "@aegis/workflow";
+import { intakeWorkflowAgentHandler } from "@aegis/intake/agents";
 
 const ACTIONS = new Set(["approve", "reject", "send_back", "cancel"]);
 
@@ -50,7 +57,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       targetStep: typeof targetStep === "number" ? targetStep : null,
       expectedVersion: typeof expectedVersion === "number" ? expectedVersion : null,
     });
-    return res.status(200).json({ ok: true, instance: { ...after, rag: ragFor(after) } });
+    // If the ladder just advanced onto an AGENT step, run the agent now
+    // so its work is ready when the human returns. Best-effort.
+    await autoRunCurrentAgentStep(after.id, intakeWorkflowAgentHandler).catch(() => {});
+    const refreshed = (await getWorkflowInstance(after.id)) ?? after;
+    return res.status(200).json({ ok: true, instance: { ...refreshed, rag: ragFor(refreshed) } });
   } catch (err) {
     if (err instanceof WorkflowError)
       return res.status(err.status).json({ ok: false, error: err.message });

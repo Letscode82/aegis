@@ -44,6 +44,39 @@ export interface AgentTaskFindings {
 
 export type AgentTaskHandler = (input: AgentTaskInput) => Promise<AgentTaskFindings>;
 
+/**
+ * If the instance's CURRENT step is an AGENT step with a pending task,
+ * run it now with the injected handler — so "the ladder reaches an
+ * agent step → the agent does its work" happens automatically instead
+ * of waiting for a manual trigger. Best-effort and idempotent (only a
+ * PENDING task at the current step runs). Governance is unchanged: the
+ * run stores findings on the task; it never advances the ladder — a
+ * human still approves the step.
+ */
+export async function autoRunCurrentAgentStep(
+  instanceId: string,
+  handler: AgentTaskHandler,
+) {
+  const inst = await prisma.workflowInstance.findUnique({
+    where: { id: instanceId },
+    include: { definition: { include: { steps: true } } },
+  });
+  if (!inst || inst.status !== "IN_PROGRESS") return null;
+  const step = inst.definition.steps.find((s) => s.stepOrder === inst.currentStepOrder);
+  if (!step || step.kind !== "AGENT") return null;
+  const task = await prisma.workflowAgentTask.findFirst({
+    where: { instanceId, stepOrder: step.stepOrder, status: "PENDING" },
+    select: { id: true },
+  });
+  if (!task) return null;
+  try {
+    return await runAgentTask(task.id, handler);
+  } catch {
+    // Another caller may have claimed it (race) — not an error here.
+    return null;
+  }
+}
+
 export async function listAgentTasks(
   organizationId: string,
   status?: "PENDING" | "RUNNING" | "DONE" | "FAILED" | "ESCALATED",
