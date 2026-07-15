@@ -1617,31 +1617,35 @@ function InboxTab({store,sel,setSel}){
 }
 
 // ── Detail view (with working quick-actions) ─────────
+// IntakeDetail — the DISPATCH desk.
+//
+// One job at this stage: give the request direction. A request cannot
+// move to the Cockpit until it has *either* a governance ladder running
+// on it *or* a named owner. Until then it sits here "awaiting dispatch".
+// The actual work (AI triage output, agent deliverables, approvals) all
+// happens in the Cockpit — so this screen deliberately drops the AI
+// Triage card, the hardcoded workflow stepper, and the Quick Actions
+// grid that used to live here. What stays: the request header, the
+// ladder + assignment controls (the dispatch decision), and the audit
+// trail (timeline + SLA custody).
 function IntakeDetail({req,store,onBack}){
   const toast=useToast();
-  const phone=useIsNarrow(760); // W4-3 — panels stack on phones
-  // W1-5 — server-enforced stage advancement (audited + timestamped).
-  // The endpoint owns the transition; the local store syncs from the
-  // response so the polyfill persists the same values (one codepath
-  // for the display-status mapping).
-  const advance=async()=>{
+  const[showAssign,setShowAssign]=useState(false);
+  const[ladderRunning,setLadderRunning]=useState(false);
+
+  const hasOwner=!!req.assignedToUserId;
+  const dispatched=hasOwner||ladderRunning;
+
+  const pickAssignee=async(user)=>{
     try{
-      const r=await fetch(`/api/intake/tickets/${encodeURIComponent(req.id)}/advance-stage`,{method:"POST"});
-      const d=await r.json().catch(()=>({}));
-      if(r.status===409) return; // already at final stage — button is a no-op
-      if(!r.ok||!d.ok) throw new Error(d.error||`Advance failed (HTTP ${r.status})`);
-      store.updateTicket(req.id,{stage:d.stage,...(d.status?{status:d.status}:{}),workflow:d.workflow});
+      await store.recordTriageAction(req.id,"reassigned",{patch:{assigned:user.name,assignedToUserId:user.id,status:"Assigned"}});
+      setShowAssign(false);
+      if(toast.success) toast.success(`Assigned ${req.id} to ${user.name}`);
     }catch(e){ toast.error(String(e.message||e)); }
-  };
-  const escalate=()=>{
-    store.updateTicket(req.id,{status:"Escalated to GC",priority:"Critical",assigned:"Mark Williams, GC + "+req.assigned});
-  };
-  const complete=()=>{
-    const wf=req.workflow.map(s=>({...s,done:true,active:false}));
-    store.updateTicket(req.id,{stage:"complete",status:"Completed",workflow:wf});
   };
 
   return <div>
+    {showAssign&&<ReassignPicker ticket={req} onPick={pickAssignee} onCancel={()=>setShowAssign(false)}/>}
     <div {...pressable(onBack,"Back to inbox")} style={{display:"inline-flex",alignItems:"center",gap:4,cursor:"pointer",fontSize:11,color:C.cy,marginBottom:12,padding:"3px 6px",fontFamily:M,letterSpacing:1}} onMouseEnter={e=>e.currentTarget.style.background=C.cy+"18"} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>← Back to Inbox</div>
 
     <div style={{background:C.cd,border:`1px solid ${C.br}`,borderLeft:`3px solid ${pc(req.priority)}`,padding:18,marginBottom:14}}>
@@ -1652,15 +1656,12 @@ function IntakeDetail({req,store,onBack}){
             <Pill t={req.priority} c={pc(req.priority)}/>
             <Pill t={req.type} c={C.pp}/>
             <Pill t={req.status} c={req.status==="Auto-Completed"||req.status==="Completed"?C.gn:req.status.includes("Escalated")?C.rd:C.tl}/>
-            {/* W2-2 — who holds the baton right now (auto-populated by the agent pipeline) */}
             {req.handoffHolder&&<Pill t={req.handoffHolder==="agent"?"🤖 WITH AGENT":req.handoffHolder==="human"?"HELD · HUMAN":"IN QUEUE"} c={req.handoffHolder==="agent"?C.pp:req.handoffHolder==="human"?C.cy:C.t3}/>}
-            {/* W2-5 — only the named approver can ship agent output on this ticket */}
             {req.approvalGateUserId&&<span title={`Only ${req.approvalGateUserName||"the designated approver"} can approve agent recommendations on this ticket (routing-rule approval gate).`}><Pill t={`🔒 APPROVAL: ${(req.approvalGateUserName||"designated approver").toUpperCase()}`} c={C.am}/></span>}
             {!req.seeded&&<Pill t="YOU CREATED" c={C.pp}/>}
           </div>
           <TicketDescription ticket={req}/>
-          <div style={{fontSize:11,color:C.t3,fontFamily:M}}>From <span style={{color:C.t1}}>{req.from}</span> · {req.dept} · Submitted {req.submitted} · Assigned to <span style={{color:C.tl}}>{req.assigned}</span></div>
-          {/* W3-3 — structured answers captured by the type's configured fields */}
+          <div style={{fontSize:11,color:C.t3,fontFamily:M}}>From <span style={{color:C.t1}}>{req.from}</span> · {req.dept} · Submitted {req.submitted} · Owner <span style={{color:hasOwner?C.tl:C.t4}}>{hasOwner?req.assigned:"— unassigned"}</span></div>
           <RequestFieldValues values={req.requestFieldValues}/>
         </div>
         <div style={{textAlign:"right",minWidth:130}}>
@@ -1673,53 +1674,34 @@ function IntakeDetail({req,store,onBack}){
       </div>
     </div>
 
-    <div style={{fontSize:11,fontWeight:600,color:C.cy,marginBottom:6,letterSpacing:1,textTransform:"uppercase",fontFamily:M}}>Request Workflow</div>
-    <WorkflowSteps steps={req.workflow}/>
-
-    {/* W2-4 — one SLA window, partitioned by custody (issue #111) */}
-    <PanelBoundary label="SLA custody legs" compact><SlaLegsPanel ticketId={req.id}/></PanelBoundary>
-
-    {/* W1-3 — the whole story as one verifiable chain (issue #105) */}
-    <PanelBoundary label="Ticket timeline" compact><TicketTimelinePanel ticketId={req.id}/></PanelBoundary>
-
-    <div style={{display:"grid",gridTemplateColumns:phone?"1fr":"2fr 1fr",gap:14,marginTop:14}}>
-      <Card d={100}>
-        <div style={{fontSize:11,fontWeight:600,color:C.tl,marginBottom:10,letterSpacing:1.2,fontFamily:M,textTransform:"uppercase",display:"flex",justifyContent:"space-between"}}>
-          <span>◎ AI Triage Analysis{req.aiTriage.complexity&&<span style={{marginLeft:8,fontSize:8.5,fontFamily:M,letterSpacing:1,padding:"2px 7px",borderRadius:3,textTransform:"uppercase",color:req.aiTriage.complexity==="complex"?C.rd:req.aiTriage.complexity==="simple"?C.gn:C.am,border:`1px solid ${req.aiTriage.complexity==="complex"?C.rd:req.aiTriage.complexity==="simple"?C.gn:C.am}55`}}>{req.aiTriage.complexity}</span>}</span>
-          <span style={{fontSize:9,color:req.aiTriage.source==="claude"?C.em:C.t4,fontFamily:M,letterSpacing:1}}>{req.aiTriage.source==="claude"?"CLAUDE LLM":req.aiTriage.source==="regex"?"REGEX CLASSIFIER":"FALLBACK"}</span>
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:phone?"repeat(2,1fr)":"1fr 1fr 1fr 1fr",gap:10,marginBottom:12}}>
-          <div style={{padding:10,background:C.s1,borderRadius:5}}><div style={{fontSize:9,color:C.t3,textTransform:"uppercase",letterSpacing:.8,fontWeight:600,marginBottom:3,fontFamily:M}}>Category</div><div style={{fontSize:11.5,fontWeight:600,color:C.t1}}>{req.aiTriage.category}</div></div>
-          <div style={{padding:10,background:C.s1,borderRadius:5}}><div style={{fontSize:9,color:C.t3,textTransform:"uppercase",letterSpacing:.8,fontWeight:600,marginBottom:3,fontFamily:M}}>Est Hours</div><div style={{fontSize:20,fontWeight:400,color:C.tl,fontFamily:SR}}>{req.aiTriage.estimatedHours}</div></div>
-          <div style={{padding:10,background:C.s1,borderRadius:5}}><div style={{fontSize:9,color:C.t3,textTransform:"uppercase",letterSpacing:.8,fontWeight:600,marginBottom:3,fontFamily:M}}>Similar</div><div style={{fontSize:20,fontWeight:400,color:C.bl,fontFamily:SR}}>{req.aiTriage.similarMatters||"—"}</div></div>
-          <div style={{padding:10,background:C.s1,borderRadius:5}}><div style={{fontSize:9,color:C.t3,textTransform:"uppercase",letterSpacing:.8,fontWeight:600,marginBottom:3,fontFamily:M}}>Confidence</div><div style={{fontSize:20,fontWeight:400,color:req.aiTriage.confidence>90?C.gn:C.am,fontFamily:SR}}>{req.aiTriage.confidence}%</div></div>
-        </div>
-        <div style={{padding:11,background:req.aiTriage.riskFlag.startsWith("Critical")?C.rdG:req.aiTriage.riskFlag.startsWith("None")?C.gnG:C.amG,borderRadius:5,borderLeft:`3px solid ${req.aiTriage.riskFlag.startsWith("Critical")?C.rd:req.aiTriage.riskFlag.startsWith("None")?C.gn:C.am}`,marginBottom:10}}>
-          <div style={{fontSize:9,fontWeight:600,color:C.t3,marginBottom:3,letterSpacing:1,textTransform:"uppercase",fontFamily:M}}>Risk Assessment</div>
-          <div style={{fontSize:11.5,color:C.t1,lineHeight:1.5}}>{req.aiTriage.riskFlag}</div>
-        </div>
-        <div style={{padding:10,background:C.s1,borderRadius:5,borderLeft:`2px solid ${C.cy}`}}>
-          <div style={{fontSize:9,fontWeight:600,color:C.t3,marginBottom:3,letterSpacing:1,textTransform:"uppercase",fontFamily:M}}>Routing Rule Applied</div>
-          <div style={{fontSize:11,color:C.t1,fontFamily:M}}>{req.aiTriage.routingRule}</div>
-        </div>
-      </Card>
-
-      <Card d={150}>
-        <div style={{fontSize:11,fontWeight:600,color:C.am,marginBottom:10,letterSpacing:1.2,fontFamily:M,textTransform:"uppercase"}}>⚡ Quick Actions</div>
-        {[
-          {l:req.stage==="complete"?"✓ Completed":"Advance Stage",c:C.bl,i:"→",fn:advance,disabled:req.stage==="complete"},
-          {l:"Escalate to GC",c:C.rd,i:"⚡",fn:escalate,disabled:req.status==="Escalated to GC"},
-          {l:"Mark Complete",c:C.gn,i:"✓",fn:complete,disabled:req.stage==="complete"},
-        ].map((a,i)=><div key={i} {...(a.disabled?{"aria-disabled":true}:pressable(a.fn,a.l))} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 11px",background:C.s1,borderRadius:4,cursor:a.disabled?"not-allowed":"pointer",marginBottom:6,border:`1px solid ${C.br}`,transition:"all .15s",opacity:a.disabled?.4:1}} onMouseEnter={e=>{if(a.disabled)return;e.currentTarget.style.borderColor=a.c;e.currentTarget.style.background=a.c+"18"}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.br;e.currentTarget.style.background=C.s1}}>
-          <span style={{fontSize:13,color:a.c,width:18,textAlign:"center"}}>{a.i}</span>
-          <span style={{fontSize:11,color:C.t1,flex:1}}>{a.l}</span>
-        </div>)}
-        <div style={{marginTop:12,padding:10,background:C.s1,borderRadius:4,borderLeft:`2px solid ${C.tl}`}}>
-          <div style={{fontSize:9,color:C.tl,textTransform:"uppercase",letterSpacing:1.2,fontFamily:M,marginBottom:4}}>Changes Persist</div>
-          <div style={{fontSize:10,color:C.t2,lineHeight:1.5}}>Every action updates the ticket store. Refresh the page — your changes are still here.</div>
-        </div>
-      </Card>
+    {/* Dispatch gate — the request needs direction before it reaches the Cockpit */}
+    <div style={{display:"flex",alignItems:"center",gap:10,padding:"10px 14px",marginBottom:14,borderRadius:5,background:dispatched?C.gnG:C.amG,border:`1px solid ${dispatched?C.gn:C.am}55`,borderLeft:`3px solid ${dispatched?C.gn:C.am}`}}>
+      <span style={{fontSize:14}}>{dispatched?"✓":"⚠"}</span>
+      <div style={{flex:1}}>
+        <div style={{fontSize:11,fontWeight:600,color:dispatched?C.gn:C.am,fontFamily:M,letterSpacing:.5,textTransform:"uppercase"}}>{dispatched?"Dispatched → in the Cockpit queue":"Awaiting dispatch"}</div>
+        <div style={{fontSize:11,color:C.t2,marginTop:2}}>{dispatched
+          ?(ladderRunning?"A governance ladder is running — it advances through the Cockpit.":"Assigned to a named owner — it now appears in their Cockpit queue.")
+          :"Give this request direction: start / confirm a governance ladder below, or assign it to an owner. Until then it stays here."}</div>
+      </div>
     </div>
+
+    {/* Dispatch controls — ladder + assignment */}
+    <div style={{fontSize:11,fontWeight:600,color:C.cy,marginBottom:8,letterSpacing:1,textTransform:"uppercase",fontFamily:M}}>Dispatch · direction &amp; ownership</div>
+    <WorkflowLadderCard ticket={req} onInstance={inst=>setLadderRunning(!!inst&&inst.status==="IN_PROGRESS")}/>
+
+    <div style={{padding:"11px 14px",marginBottom:14,background:C.s1,border:`1px solid ${C.br}`,borderRadius:4}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+        <div>
+          <div style={{fontSize:9,fontFamily:M,color:C.t3,letterSpacing:1.5,textTransform:"uppercase",fontWeight:600,marginBottom:4}}>Assignment · owner</div>
+          <div style={{fontSize:12,color:hasOwner?C.t1:C.t3}}>{hasOwner?<>Owned by <span style={{color:C.tl,fontWeight:600}}>{req.assigned}</span></>:"No owner yet — assign a person to route this directly (skips the ladder)."}</div>
+        </div>
+        <div onClick={()=>setShowAssign(true)} {...pressable(()=>setShowAssign(true),"Assign owner")} style={{padding:"6px 13px",border:`1px solid ${C.bl}`,color:C.bl,borderRadius:3,cursor:"pointer",fontSize:9,fontFamily:M,letterSpacing:1,textTransform:"uppercase",fontWeight:700,whiteSpace:"nowrap"}}>{hasOwner?"⟳ Reassign":"→ Assign owner"}</div>
+      </div>
+    </div>
+
+    {/* Audit trail — kept for tracking who did what, when (chain-sealed) */}
+    <PanelBoundary label="SLA custody legs" compact><SlaLegsPanel ticketId={req.id}/></PanelBoundary>
+    <PanelBoundary label="Ticket timeline" compact><TicketTimelinePanel ticketId={req.id}/></PanelBoundary>
   </div>;
 }
 

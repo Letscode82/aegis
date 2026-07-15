@@ -5,82 +5,82 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AEGIS — Regulatory Nervous System</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
-  --bone:#F5F6F2; --panel:#FFFFFF; --ink:#15201C; --ink-soft:#4A564F; --ink-faint:#8B948D;
-  --verdigris:#2E7D6B; --verdigris-soft:#E3F0EC;
-  --amber:#C98A04; --amber-soft:#FBF1DC;
-  --oxide:#B23A26; --oxide-soft:#F8E7E2;
-  --statute:#3F5E8C; --statute-soft:#E8EEF6;
-  --risk:#8A4B9E; --risk-soft:#F1E8F6;
-  --hair:#DFE3DC; --hair-soft:#ECEFE9; --r:10px;
+  --bone:#0B1020; --panel:#111831; --ink:#F4EFE6; --ink-soft:#C8CDD9; --ink-faint:#8B93AE;
+  --verdigris:#E8793B; --verdigris-soft:rgba(232,121,59,.15);
+  --amber:#E0B34A; --amber-soft:rgba(224,179,74,.15);
+  --oxide:#C8463D; --oxide-soft:rgba(200,70,61,.16);
+  --statute:#6B8EC4; --statute-soft:rgba(107,142,196,.16);
+  --risk:#A06C9A; --risk-soft:rgba(160,108,154,.16);
+  --hair:#2A3558; --hair-soft:#202A48; --r:10px;
 }
 *{box-sizing:border-box;margin:0;padding:0}
 html,body{height:100%}
-body{font-family:'IBM Plex Sans',sans-serif;background:var(--bone);color:var(--ink);font-size:14px;line-height:1.5;overflow:hidden}
-.mono{font-family:'IBM Plex Mono',monospace}
+body{font-family:'Inter',system-ui,sans-serif;background:var(--bone);color:var(--ink);font-size:14px;line-height:1.5;overflow:hidden}
+.mono{font-family:'JetBrains Mono',monospace}
 .app{display:grid;grid-template-columns:218px 1fr;grid-template-rows:56px 1fr;height:100vh}
 .topbar{grid-column:1/3;display:flex;align-items:center;gap:16px;padding:0 20px;background:var(--panel);border-bottom:1px solid var(--hair)}
-.brand{display:flex;align-items:center;gap:10px;font-family:'Sora',sans-serif;font-weight:700;font-size:16px;min-width:198px}
-.brand small{font-family:'IBM Plex Mono',monospace;font-weight:400;font-size:10px;color:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase}
+.brand{display:flex;align-items:center;gap:10px;font-family:'Fraunces',Georgia,serif;font-weight:700;font-size:16px;min-width:198px}
+.brand small{font-family:'JetBrains Mono',monospace;font-weight:400;font-size:10px;color:var(--ink-faint);letter-spacing:.08em;text-transform:uppercase}
 .askbrain{flex:1;max-width:620px;display:flex;align-items:center;gap:10px;background:var(--bone);border:1px solid var(--hair);border-radius:999px;padding:8px 16px;color:var(--ink-faint);cursor:text;font-size:13px}
 .askbrain:hover{border-color:var(--verdigris)}
-.askbrain .kbd{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:11px;border:1px solid var(--hair);border-radius:5px;padding:1px 6px;background:var(--panel)}
+.askbrain .kbd{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:11px;border:1px solid var(--hair);border-radius:5px;padding:1px 6px;background:var(--panel)}
 .topbar .right{margin-left:auto;display:flex;align-items:center;gap:14px}
-.agent-pill{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-soft);background:var(--verdigris-soft);border:1px solid #CDE4DD;border-radius:999px;padding:5px 12px}
+.agent-pill{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--ink-soft);background:var(--verdigris-soft);border:1px solid rgba(232,121,59,.35);border-radius:999px;padding:5px 12px}
 .dot{width:7px;height:7px;border-radius:50%;background:var(--verdigris);animation:pulse 2.2s infinite}
 @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(46,125,107,.35)}50%{box-shadow:0 0 0 5px rgba(46,125,107,0)}}
 .avatar{width:30px;height:30px;border-radius:50%;background:var(--statute);color:#fff;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600}
 .rail{background:var(--panel);border-right:1px solid var(--hair);padding:12px 10px;display:flex;flex-direction:column;gap:1px;overflow-y:auto}
-.rail .sec{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);padding:12px 10px 5px}
+.rail .sec{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);padding:12px 10px 5px}
 .navbtn{display:flex;align-items:center;gap:9px;width:100%;border:0;background:none;font:inherit;font-size:13.5px;color:var(--ink-soft);padding:7px 10px;border-radius:8px;cursor:pointer;text-align:left}
-.navbtn:hover{background:var(--bone)}
-.navbtn.active{background:var(--ink);color:#fff}
-.navbtn .badge{margin-left:auto;font-family:'IBM Plex Mono',monospace;font-size:10px;background:var(--oxide-soft);color:var(--oxide);border-radius:999px;padding:1px 7px;font-weight:500}
+.navbtn:hover{background:#1A2340}
+.navbtn.active{background:var(--verdigris);color:#fff}
+.navbtn .badge{margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;background:var(--oxide-soft);color:var(--oxide);border-radius:999px;padding:1px 7px;font-weight:500}
 .navbtn .badge.g{background:var(--verdigris-soft);color:var(--verdigris)}
 .navbtn.active .badge{background:rgba(255,255,255,.18);color:#fff}
 .rail .health{margin-top:auto;background:var(--bone);border:1px solid var(--hair);border-radius:var(--r);padding:11px}
 .rail .health h4{font-size:10.5px;color:var(--ink-faint);font-weight:500;margin-bottom:4px;text-transform:uppercase;letter-spacing:.06em}
-.rail .health .num{font-family:'Sora',sans-serif;font-size:22px;font-weight:700;color:var(--verdigris)}
+.rail .health .num{font-family:'Fraunces',Georgia,serif;font-size:22px;font-weight:700;color:var(--verdigris)}
 .meter{height:5px;border-radius:3px;background:var(--hair-soft);margin-top:7px;overflow:hidden}
-.meter i{display:block;height:100%;width:91%;background:linear-gradient(90deg,var(--verdigris),#5BA391);border-radius:3px}
+.meter i{display:block;height:100%;width:91%;background:linear-gradient(90deg,var(--verdigris),#E0B34A);border-radius:3px}
 .main{overflow-y:auto;padding:22px 28px}
 .view{display:none;animation:fadein .25s ease}
 .view.active{display:block}
 @keyframes fadein{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
-h1.pagetitle{font-family:'Sora',sans-serif;font-size:21px;font-weight:700;letter-spacing:-.02em}
+h1.pagetitle{font-family:'Fraunces',Georgia,serif;font-size:21px;font-weight:700;letter-spacing:-.02em}
 .pagehead{display:flex;align-items:baseline;gap:14px;margin-bottom:14px;flex-wrap:wrap}
 .pagehead .sub{color:var(--ink-faint);font-size:13px}
-.tag{font-family:'IBM Plex Mono',monospace;font-size:10.5px;border-radius:5px;padding:2px 7px;font-weight:500}
+.tag{font-family:'JetBrains Mono',monospace;font-size:10.5px;border-radius:5px;padding:2px 7px;font-weight:500}
 .tag.crit{background:var(--oxide-soft);color:var(--oxide)}
 .tag.warn{background:var(--amber-soft);color:var(--amber)}
 .tag.info{background:var(--statute-soft);color:var(--statute)}
 .tag.ok{background:var(--verdigris-soft);color:var(--verdigris)}
 .tag.risk{background:var(--risk-soft);color:var(--risk)}
 .tag.dim{background:var(--hair-soft);color:var(--ink-soft)}
-button.primary{font:inherit;font-weight:600;background:var(--ink);color:#fff;border:0;border-radius:8px;padding:8px 16px;cursor:pointer}
-button.primary:hover{background:#243730}
+button.primary{font:inherit;font-weight:600;background:var(--verdigris);color:#fff;border:0;border-radius:8px;padding:8px 16px;cursor:pointer}
+button.primary:hover{background:#C7692F}
 button.ghost{font:inherit;background:var(--panel);border:1px solid var(--hair);border-radius:8px;padding:7px 13px;cursor:pointer;color:var(--ink-soft)}
 button.ghost:hover{border-color:var(--ink-faint)}
 .card{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r)}
 table.tbl{width:100%;background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);border-collapse:separate;border-spacing:0;overflow:hidden}
-.tbl th{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);text-align:left;padding:10px 13px;border-bottom:1px solid var(--hair);font-weight:500}
+.tbl th{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);text-align:left;padding:10px 13px;border-bottom:1px solid var(--hair);font-weight:500}
 .tbl td{padding:10px 13px;border-bottom:1px solid var(--hair-soft);font-size:12.5px;vertical-align:middle}
 .tbl tr:last-child td{border-bottom:0}
-.tbl tr:hover td{background:#FAFBF8}
-.ctrlid{font-family:'IBM Plex Mono',monospace;font-size:11.5px;color:var(--statute)}
+.tbl tr:hover td{background:#1A2340}
+.ctrlid{font-family:'JetBrains Mono',monospace;font-size:11.5px;color:var(--statute)}
 :focus-visible{outline:2px solid var(--statute);outline-offset:2px}
 
 /* ===== v5: demo layer ===== */
 .overlay{position:fixed;inset:0;background:rgba(16,24,21,.82);backdrop-filter:blur(4px);z-index:60;display:flex;align-items:center;justify-content:center;animation:fadein .3s ease}
 .welcome{background:var(--bone);border-radius:16px;padding:38px 44px;max-width:560px;text-align:center}
-.welcome h2{font-family:'Sora',sans-serif;font-size:24px;font-weight:800;letter-spacing:-.02em;margin:14px 0 8px}
+.welcome h2{font-family:'Fraunces',Georgia,serif;font-size:24px;font-weight:800;letter-spacing:-.02em;margin:14px 0 8px}
 .welcome p{font-size:14px;color:var(--ink-soft);margin-bottom:22px}
 .welcome .row{display:flex;gap:10px;justify-content:center}
-.tourbox{position:fixed;bottom:24px;right:24px;width:340px;background:var(--ink);color:#fff;border-radius:14px;padding:16px 18px;z-index:55;box-shadow:0 12px 40px rgba(0,0,0,.35);display:none;animation:fadein .25s ease}
-.tourbox h5{font-family:'Sora',sans-serif;font-size:13.5px;margin-bottom:5px;display:flex;justify-content:space-between}
-.tourbox h5 .stepn{font-family:'IBM Plex Mono',monospace;font-size:10px;opacity:.6;font-weight:400}
+.tourbox{position:fixed;bottom:24px;right:24px;width:340px;background:#141C38;color:#fff;border-radius:14px;padding:16px 18px;z-index:55;box-shadow:0 12px 40px rgba(0,0,0,.35);display:none;animation:fadein .25s ease}
+.tourbox h5{font-family:'Fraunces',Georgia,serif;font-size:13.5px;margin-bottom:5px;display:flex;justify-content:space-between}
+.tourbox h5 .stepn{font-family:'JetBrains Mono',monospace;font-size:10px;opacity:.6;font-weight:400}
 .tourbox p{font-size:12.5px;opacity:.88;line-height:1.55;margin-bottom:12px}
 .tourbox .row{display:flex;gap:8px}
 .tourbox button{font:inherit;font-size:12px;font-weight:600;border-radius:7px;padding:6px 14px;cursor:pointer;border:0}
@@ -90,65 +90,65 @@ table.tbl{width:100%;background:var(--panel);border:1px solid var(--hair);border
 .brainmodal.open{display:flex;animation:fadein .2s ease}
 .braincard{background:var(--bone);border-radius:14px;width:min(720px,94vw);max-height:78vh;overflow-y:auto;padding:20px 24px}
 .braincard .inrow{display:flex;gap:8px}
-.braincard input{flex:1;font:inherit;font-size:14px;border:1px solid var(--hair);border-radius:10px;padding:11px 15px;background:#fff}
+.braincard input{flex:1;font:inherit;font-size:14px;border:1px solid var(--hair);border-radius:10px;padding:11px 15px;background:#141C38;color:var(--ink)}
 .braincard input:focus{outline:2px solid var(--verdigris)}
 .sugg{display:flex;flex-wrap:wrap;gap:7px;margin-top:10px}
-.sugg button{font:inherit;font-size:11.5px;border:1px solid var(--hair);background:#fff;border-radius:999px;padding:5px 12px;cursor:pointer;color:var(--ink-soft)}
+.sugg button{font:inherit;font-size:11.5px;border:1px solid var(--hair);background:#141C38;border-radius:999px;padding:5px 12px;cursor:pointer;color:var(--ink-soft)}
 .sugg button:hover{border-color:var(--verdigris)}
 .brainans{margin-top:16px;font-size:13.5px;line-height:1.7;white-space:pre-wrap}
 .brainans .cursor{display:inline-block;width:7px;height:14px;background:var(--verdigris);animation:blink 1s infinite;vertical-align:-2px}
 @keyframes blink{50%{opacity:0}}
 .nodechips{display:flex;flex-wrap:wrap;gap:7px;margin-top:14px;border-top:1px dashed var(--hair);padding-top:11px}
-.nodechip{font-size:11px;background:#fff;border:1px solid var(--hair);border-radius:8px;padding:4px 10px}
-.nodechip b{font-family:'IBM Plex Mono',monospace;color:var(--verdigris);font-weight:600}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--ink);color:#fff;border-radius:10px;padding:11px 18px;font-size:12.5px;z-index:80;opacity:0;transition:all .3s ease;pointer-events:none;display:flex;gap:9px;align-items:center}
+.nodechip{font-size:11px;background:#141C38;border:1px solid var(--hair);border-radius:8px;padding:4px 10px}
+.nodechip b{font-family:'JetBrains Mono',monospace;color:var(--verdigris);font-weight:600}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:#141C38;color:#fff;border-radius:10px;padding:11px 18px;font-size:12.5px;z-index:80;opacity:0;transition:all .3s ease;pointer-events:none;display:flex;gap:9px;align-items:center}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
-.toast .tick{color:#7BC4B0;font-weight:700}
+.toast .tick{color:#7FA780;font-weight:700}
 .tickertxt{display:inline-block;min-width:170px;transition:opacity .3s}
 .roigrid{display:grid;grid-template-columns:380px 1fr;gap:18px;align-items:start}
-.roiform label{display:block;font-size:11px;font-family:'IBM Plex Mono',monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin:13px 0 4px}
+.roiform label{display:block;font-size:11px;font-family:'JetBrains Mono',monospace;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-faint);margin:13px 0 4px}
 .roiform input[type=range]{width:100%;accent-color:var(--verdigris)}
-.roiform .val{font-family:'Sora',sans-serif;font-weight:700;font-size:15px}
+.roiform .val{font-family:'Fraunces',Georgia,serif;font-weight:700;font-size:15px}
 .roiout{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.roiout .o{background:var(--ink);color:#fff;border-radius:12px;padding:16px 18px}
-.roiout .o b{font-family:'Sora',sans-serif;font-size:26px;font-weight:800;color:#7BC4B0;display:block}
+.roiout .o{background:#141C38;color:#fff;border-radius:12px;padding:16px 18px}
+.roiout .o b{font-family:'Fraunces',Georgia,serif;font-size:26px;font-weight:800;color:#7FA780;display:block}
 .roiout .o span{font-size:11.5px;opacity:.8}
-.roiout .o.wide{grid-column:1/3;background:var(--verdigris-soft);color:var(--ink-soft);border:1px solid #CDE4DD}
+.roiout .o.wide{grid-column:1/3;background:var(--verdigris-soft);color:var(--ink-soft);border:1px solid rgba(232,121,59,.35)}
 .roiout .o.wide b{color:var(--verdigris);font-size:20px}
 
 /* ===== v6: simplicity layer ===== */
 .modetoggle{display:flex;gap:0;margin:2px 0 6px;border:1px solid var(--hair);border-radius:8px;overflow:hidden}
-.modetoggle button{flex:1;font:inherit;font-size:10.5px;font-weight:600;padding:6px 4px;border:0;background:#fff;color:var(--ink-faint);cursor:pointer}
-.modetoggle button.on{background:var(--ink);color:#fff}
+.modetoggle button{flex:1;font:inherit;font-size:10.5px;font-weight:600;padding:6px 4px;border:0;background:#141C38;color:var(--ink-faint);cursor:pointer}
+.modetoggle button.on{background:var(--verdigris);color:#fff}
 body.simple .navbtn:not([data-ess]){display:none}
 body.simple .rail .sec:not([data-ess]){display:none}
 .persona{display:flex;gap:6px;margin-bottom:16px}
-.persona button{font:inherit;font-size:12px;border:1px solid var(--hair);background:#fff;border-radius:999px;padding:6px 14px;cursor:pointer;color:var(--ink-soft)}
-.persona button.on{background:var(--ink);border-color:var(--ink);color:#fff}
+.persona button{font:inherit;font-size:12px;border:1px solid var(--hair);background:#141C38;border-radius:999px;padding:6px 14px;cursor:pointer;color:var(--ink-soft)}
+.persona button.on{background:var(--verdigris);border-color:var(--verdigris);color:#fff}
 .todaywrap{max-width:820px}
 .todaycard{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:16px 19px;margin-bottom:12px;display:flex;gap:14px;align-items:flex-start}
 .todaycard .ic{flex:none;width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:15px}
-.todaycard h4{font-family:'Sora',sans-serif;font-size:14px;font-weight:600}
+.todaycard h4{font-family:'Fraunces',Georgia,serif;font-size:14px;font-weight:600}
 .todaycard p{font-size:12.5px;color:var(--ink-soft);margin:3px 0 0}
 .todaycard .plain{font-size:11.5px;color:var(--statute);margin-top:5px;font-style:italic}
 .todaycard .act{margin-left:auto;flex:none;align-self:center}
 .todayhead{display:flex;align-items:baseline;gap:12px;margin:4px 0 14px}
-.todayhead b{font-family:'Sora',sans-serif;font-size:19px}
+.todayhead b{font-family:'Fraunces',Georgia,serif;font-size:19px}
 .todayhead span{font-size:12.5px;color:var(--ink-faint)}
 .tpersona{display:none}.tpersona.on{display:block}
 .clockgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:16px 0}
 .clock{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:16px;text-align:center}
-.clock.hot{border-color:var(--oxide);background:#FFF8F6}
-.clock h5{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint)}
-.clock .t{font-family:'IBM Plex Mono',monospace;font-size:30px;font-weight:600;margin:6px 0 2px}
+.clock.hot{border-color:var(--oxide);background:rgba(200,70,61,.10)}
+.clock h5{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint)}
+.clock .t{font-family:'JetBrains Mono',monospace;font-size:30px;font-weight:600;margin:6px 0 2px}
 .clock.hot .t{color:var(--oxide)}
 .clock .d{font-size:11px;color:var(--ink-soft)}
 .incstep{display:flex;gap:11px;align-items:flex-start;background:var(--panel);border:1px solid var(--hair);border-radius:10px;padding:11px 14px;margin-bottom:8px;font-size:12.5px}
 .incstep .st2{flex:none;width:18px;color:var(--verdigris);font-weight:700}
-.timemachine{background:linear-gradient(135deg,#1B2620,#15201C);color:#fff;border-radius:var(--r);padding:15px 18px;margin-top:14px}
-.timemachine h4{font-family:'Sora',sans-serif;font-size:13px;display:flex;align-items:center;gap:8px}
-.timemachine input[type=range]{width:100%;accent-color:#7BC4B0;margin:10px 0 4px}
-.timemachine .lbls{display:flex;justify-content:space-between;font-family:'IBM Plex Mono',monospace;font-size:9.5px;opacity:.6}
+.timemachine{background:linear-gradient(135deg,#141C38,#0B1020);color:#fff;border-radius:var(--r);padding:15px 18px;margin-top:14px}
+.timemachine h4{font-family:'Fraunces',Georgia,serif;font-size:13px;display:flex;align-items:center;gap:8px}
+.timemachine input[type=range]{width:100%;accent-color:#7FA780;margin:10px 0 4px}
+.timemachine .lbls{display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:9.5px;opacity:.6}
 .timemachine .snap{font-size:12px;opacity:.92;margin-top:9px;line-height:1.6;min-height:38px}
 .inttbl .pos{font-size:11.5px;color:var(--ink-soft);max-width:44ch}
 @media (prefers-reduced-motion: reduce){*{animation:none!important;transition:none!important}}
@@ -158,11 +158,11 @@ body.simple .rail .sec:not([data-ess]){display:none}
 <div class="app">
   <header class="topbar">
     <div class="brand">
-      <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><circle cx="13" cy="5" r="2.6" fill="#15201C"/><circle cx="5" cy="14" r="2.6" fill="#2E7D6B"/><circle cx="21" cy="14" r="2.6" fill="#3F5E8C"/><circle cx="13" cy="22" r="2.6" fill="#C98A04"/><path d="M13 5L5 14M13 5l8 9M5 14l8 8m8-8l-8 8" stroke="#15201C" stroke-width="1.1" opacity=".45"/></svg>
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none"><circle cx="13" cy="5" r="2.6" fill="#F4EFE6"/><circle cx="5" cy="14" r="2.6" fill="#E8793B"/><circle cx="21" cy="14" r="2.6" fill="#6B8EC4"/><circle cx="13" cy="22" r="2.6" fill="#E0B34A"/><path d="M13 5L5 14M13 5l8 9M5 14l8 8m8-8l-8 8" stroke="#F4EFE6" stroke-width="1.1" opacity=".45"/></svg>
       <span>AEGIS <small>reg · nervous · system</small></span>
     </div>
     <div class="askbrain" role="button" tabindex="0" onclick="askBrain()">
-      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="#8B948D" stroke-width="1.4"/><path d="M9.5 9.5L13 13" stroke="#8B948D" stroke-width="1.4" stroke-linecap="round"/></svg>
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="6" cy="6" r="4.5" stroke="#8B93AE" stroke-width="1.4"/><path d="M9.5 9.5L13 13" stroke="#8B93AE" stroke-width="1.4" stroke-linecap="round"/></svg>
       Ask the brain — “show risks above appetite touched by DPDP changes”
       <span class="kbd">⌘K</span>
     </div>
@@ -247,17 +247,17 @@ body.simple .rail .sec:not([data-ess]){display:none}
     <div class="pagehead"><h1 class="pagetitle">Regulatory radar</h1><span class="sub">Scout watching 214 sources · 6 jurisdictions · last sweep 4 min ago</span></div>
     <style>
       .change-card{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:18px 20px;margin-bottom:14px;cursor:pointer;position:relative;transition:border-color .15s}
-      .change-card:hover{border-color:var(--ink-faint);box-shadow:0 4px 18px rgba(21,32,28,.06)}
+      .change-card:hover{border-color:var(--ink-faint);box-shadow:0 4px 18px rgba(0,0,0,.35)}
       .change-card .toprow{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}
-      .change-card h3{font-family:'Sora',sans-serif;font-size:15.5px;font-weight:600;margin-bottom:4px}
-      .change-card .src{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--statute)}
+      .change-card h3{font-family:'Fraunces',Georgia,serif;font-size:15.5px;font-weight:600;margin-bottom:4px}
+      .change-card .src{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--statute)}
       .change-card p.summary{color:var(--ink-soft);font-size:13px;margin:8px 0 12px;max-width:64ch}
       .blast{display:flex;gap:18px;border-top:1px dashed var(--hair);padding-top:10px;flex-wrap:wrap}
-      .blast .b b{font-family:'Sora',sans-serif;font-size:17px;font-weight:700;display:block}
+      .blast .b b{font-family:'Fraunces',Georgia,serif;font-size:17px;font-weight:700;display:block}
       .blast .b span{font-size:11px;color:var(--ink-faint)}
       .blast .cta{margin-left:auto;align-self:center}
       .deadline{position:absolute;top:18px;right:20px;text-align:right}
-      .deadline b{font-family:'Sora',sans-serif;font-size:15px}
+      .deadline b{font-family:'Fraunces',Georgia,serif;font-size:15px}
       .deadline span{display:block;font-size:10.5px;color:var(--ink-faint)}
     </style>
     <article class="change-card" onclick="go('cascade')">
@@ -300,14 +300,14 @@ body.simple .rail .sec:not([data-ess]){display:none}
       .pstage:first-child{border-radius:var(--r) 0 0 var(--r)}
       .pstage:last-child{border-radius:0 var(--r) var(--r) 0}
       .pstage+.pstage{border-left:0}
-      .pstage h5{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px}
-      .pstage b{font-family:'Sora',sans-serif;font-size:18px}
+      .pstage h5{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:4px}
+      .pstage b{font-family:'Fraunces',Georgia,serif;font-size:18px}
       .pstage span{display:block;font-size:11px;color:var(--ink-soft)}
       .pstage::after{content:"→";position:absolute;right:-7px;top:42%;color:var(--ink-faint);z-index:2;background:var(--bone);border-radius:50%;font-size:12px}
       .pstage:last-child::after{content:""}
       .sla{display:flex;gap:14px;margin:0 0 18px}
-      .sla .s{background:var(--verdigris-soft);border:1px solid #CDE4DD;border-radius:var(--r);padding:10px 16px;font-size:12px;color:var(--ink-soft)}
-      .sla .s b{font-family:'Sora',sans-serif;color:var(--verdigris)}
+      .sla .s{background:var(--verdigris-soft);border:1px solid rgba(232,121,59,.35);border-radius:var(--r);padding:10px 16px;font-size:12px;color:var(--ink-soft)}
+      .sla .s b{font-family:'Fraunces',Georgia,serif;color:var(--verdigris)}
     </style>
     <div class="pipeline">
       <div class="pstage"><h5>1 · Detect</h5><b>214</b><span>sources swept — gazettes, regulator APIs, RSS, consultation portals</span></div>
@@ -335,7 +335,7 @@ body.simple .rail .sec:not([data-ess]){display:none}
     </table>
     <div style="margin-top:14px;font-size:12.5px;color:var(--ink-soft);max-width:78ch">Quarterly, Cartographer re-certifies every obligation→control mapping; mappings untouched by humans for 12 months are flagged for owner review. Ingestion is multilingual — obligations are extracted in source language (EN · HI · 中文 · 日本語 ready via jurisdiction packs) and stored bilingually with the original clause always authoritative.</div>
     <div style="margin-top:16px" class="card">
-      <div style="padding:13px 16px;border-bottom:1px solid var(--hair);display:flex;align-items:baseline;gap:10px"><b style="font-family:'Sora',sans-serif;font-size:13.5px">Enforcement intelligence</b><span style="font-size:11.5px;color:var(--ink-faint)">penalties &amp; orders against peers — this is what calibrates your exposure model</span></div>
+      <div style="padding:13px 16px;border-bottom:1px solid var(--hair);display:flex;align-items:baseline;gap:10px"><b style="font-family:'Fraunces',Georgia,serif;font-size:13.5px">Enforcement intelligence</b><span style="font-size:11.5px;color:var(--ink-faint)">penalties &amp; orders against peers — this is what calibrates your exposure model</span></div>
       <table class="tbl" style="border:0">
         <thead><tr><th>Action</th><th>Regulator</th><th>Peer / sector</th><th>Penalty</th><th>Signal extracted</th><th>Your exposure impact</th></tr></thead>
         <tbody>
@@ -353,12 +353,12 @@ body.simple .rail .sec:not([data-ess]){display:none}
     <style>
       .cascade-grid{display:grid;grid-template-columns:1fr 330px;gap:18px;align-items:start}
       .canvas{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:14px 10px 6px;overflow-x:auto}
-      .canvas .legend{display:flex;gap:13px;padding:4px 14px 10px;font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.08em;color:var(--ink-faint);text-transform:uppercase;flex-wrap:wrap;align-items:center}
+      .canvas .legend{display:flex;gap:13px;padding:4px 14px 10px;font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.08em;color:var(--ink-faint);text-transform:uppercase;flex-wrap:wrap;align-items:center}
       .legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px}
-      svg .colhead{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;fill:var(--ink-faint)}
-      svg .node rect{rx:8;stroke-width:1.2;fill:#fff}
-      svg .node .lbl{font-size:11px;font-weight:600;fill:var(--ink);font-family:'IBM Plex Sans',sans-serif}
-      svg .node .sub{font-family:'IBM Plex Mono',monospace;font-size:8.5px;fill:var(--ink-faint)}
+      svg .colhead{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;fill:var(--ink-faint)}
+      svg .node rect{rx:8;stroke-width:1.2;fill:var(--panel)}
+      svg .node .lbl{font-size:11px;font-weight:600;fill:var(--ink);font-family:'Inter',system-ui,sans-serif}
+      svg .node .sub{font-family:'JetBrains Mono',monospace;font-size:8.5px;fill:var(--ink-faint)}
       svg .edge{fill:none;stroke-width:1.5;opacity:.85;stroke-dasharray:600;stroke-dashoffset:600}
       .ripple svg .edge{animation:draw 1s ease forwards}
       .ripple svg .node{opacity:0;animation:nodein .4s ease forwards}
@@ -366,7 +366,7 @@ body.simple .rail .sec:not([data-ess]){display:none}
       @keyframes nodein{to{opacity:1}}
       .l1{animation-delay:.05s!important}.l2{animation-delay:.4s!important}.l3{animation-delay:.75s!important}.l4{animation-delay:1.1s!important}.l5{animation-delay:1.45s!important}.l6{animation-delay:1.8s!important}
       .dossier{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:16px}
-      .dossier h4{font-family:'Sora',sans-serif;font-size:13px;font-weight:600;margin-bottom:4px}
+      .dossier h4{font-family:'Fraunces',Georgia,serif;font-size:13px;font-weight:600;margin-bottom:4px}
       .dossier .by{font-size:11px;color:var(--ink-faint);margin-bottom:12px}
       .action{border:1px solid var(--hair);border-radius:8px;padding:11px 12px;margin-bottom:9px}
       .action h5{font-size:12.5px;font-weight:600;margin-bottom:3px}
@@ -375,8 +375,8 @@ body.simple .rail .sec:not([data-ess]){display:none}
       .action button{font:inherit;font-size:12px;border-radius:7px;padding:5px 11px;cursor:pointer}
       .approve{background:var(--verdigris);color:#fff;border:0;font-weight:600}
       .approve.done{background:var(--verdigris-soft);color:var(--verdigris);cursor:default}
-      .edit{background:#fff;border:1px solid var(--hair);color:var(--ink-soft)}
-      .diff{background:#FBFBF8;border:1px solid var(--hair);border-radius:8px;font-family:'IBM Plex Mono',monospace;font-size:10.5px;padding:9px 11px;margin-bottom:12px;line-height:1.7}
+      .edit{background:#141C38;border:1px solid var(--hair);color:var(--ink-soft)}
+      .diff{background:#0B1020;border:1px solid var(--hair);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:10.5px;padding:9px 11px;margin-bottom:12px;line-height:1.7}
       .diff del{background:var(--oxide-soft);color:var(--oxide);padding:0 3px;border-radius:3px}
       .diff ins{background:var(--verdigris-soft);color:var(--verdigris);text-decoration:none;padding:0 3px;border-radius:3px}
     </style>
@@ -384,7 +384,7 @@ body.simple .rail .sec:not([data-ess]){display:none}
       <div class="canvas ripple" id="canvas">
         <div class="legend">
           <span><i style="background:var(--statute)"></i>Regulation</span>
-          <span><i style="background:#7A8FB0"></i>Obligation</span>
+          <span><i style="background:#6BA4A4"></i>Obligation</span>
           <span><i style="background:var(--risk)"></i>Risk (ISO 6.1.2)</span>
           <span><i style="background:var(--amber)"></i>Policy</span>
           <span><i style="background:var(--verdigris)"></i>Control (Annex A)</span>
@@ -400,38 +400,38 @@ body.simple .rail .sec:not([data-ess]){display:none}
           <text class="colhead" x="988" y="22">OWNERS</text>
 
           <!-- reg -> obligations -->
-          <path class="edge l2" d="M175 260 C 200 260, 192 112, 215 112" stroke="#7A8FB0"/>
-          <path class="edge l2" d="M175 260 C 198 260, 195 262, 215 262" stroke="#7A8FB0"/>
-          <path class="edge l2" d="M175 260 C 200 260, 192 412, 215 412" stroke="#7A8FB0"/>
+          <path class="edge l2" d="M175 260 C 200 260, 192 112, 215 112" stroke="#6BA4A4"/>
+          <path class="edge l2" d="M175 260 C 198 260, 195 262, 215 262" stroke="#6BA4A4"/>
+          <path class="edge l2" d="M175 260 C 200 260, 192 412, 215 412" stroke="#6BA4A4"/>
           <!-- obligations -> risks -->
-          <path class="edge l3" d="M365 112 C 388 112, 383 111, 405 111" stroke="#8A4B9E"/>
-          <path class="edge l3" d="M365 262 C 388 262, 383 261, 405 261" stroke="#8A4B9E"/>
-          <path class="edge l3" d="M365 412 C 388 412, 383 411, 405 411" stroke="#8A4B9E"/>
+          <path class="edge l3" d="M365 112 C 388 112, 383 111, 405 111" stroke="#A06C9A"/>
+          <path class="edge l3" d="M365 262 C 388 262, 383 261, 405 261" stroke="#A06C9A"/>
+          <path class="edge l3" d="M365 412 C 388 412, 383 411, 405 411" stroke="#A06C9A"/>
           <!-- risks -> policies -->
-          <path class="edge l4" d="M563 111 C 586 111, 581 112, 603 112" stroke="#C98A04"/>
-          <path class="edge l4" d="M563 261 C 586 261, 581 262, 603 262" stroke="#C98A04"/>
-          <path class="edge l4" d="M563 411 C 586 411, 581 412, 603 412" stroke="#C98A04"/>
+          <path class="edge l4" d="M563 111 C 586 111, 581 112, 603 112" stroke="#E0B34A"/>
+          <path class="edge l4" d="M563 261 C 586 261, 581 262, 603 262" stroke="#E0B34A"/>
+          <path class="edge l4" d="M563 411 C 586 411, 581 412, 603 412" stroke="#E0B34A"/>
           <!-- policies -> controls -->
-          <path class="edge l5" d="M753 112 C 776 112, 770 77, 793 77" stroke="#2E7D6B"/>
-          <path class="edge l5" d="M753 112 C 776 112, 770 167, 793 167" stroke="#2E7D6B"/>
-          <path class="edge l5" d="M753 262 C 776 262, 770 257, 793 257" stroke="#2E7D6B"/>
-          <path class="edge l5" d="M753 262 C 776 262, 770 347, 793 347" stroke="#2E7D6B"/>
-          <path class="edge l5" d="M753 412 C 776 412, 770 437, 793 437" stroke="#2E7D6B"/>
+          <path class="edge l5" d="M753 112 C 776 112, 770 77, 793 77" stroke="#E8793B"/>
+          <path class="edge l5" d="M753 112 C 776 112, 770 167, 793 167" stroke="#E8793B"/>
+          <path class="edge l5" d="M753 262 C 776 262, 770 257, 793 257" stroke="#E8793B"/>
+          <path class="edge l5" d="M753 262 C 776 262, 770 347, 793 347" stroke="#E8793B"/>
+          <path class="edge l5" d="M753 412 C 776 412, 770 437, 793 437" stroke="#E8793B"/>
           <!-- controls -> owners -->
-          <path class="edge l6" d="M945 77  C 966 77,  962 118, 985 118" stroke="#15201C"/>
-          <path class="edge l6" d="M945 167 C 966 167, 962 120, 985 120" stroke="#15201C"/>
-          <path class="edge l6" d="M945 257 C 966 257, 962 218, 985 218" stroke="#15201C"/>
-          <path class="edge l6" d="M945 347 C 966 347, 962 220, 985 220" stroke="#15201C"/>
-          <path class="edge l6" d="M945 437 C 966 437, 962 318, 985 318" stroke="#15201C"/>
-          <path class="edge l6" d="M945 85 C 975 95, 958 418, 985 418" stroke="#15201C" stroke-dasharray="4 4" opacity=".5"/>
+          <path class="edge l6" d="M945 77  C 966 77,  962 118, 985 118" stroke="#5A6380"/>
+          <path class="edge l6" d="M945 167 C 966 167, 962 120, 985 120" stroke="#5A6380"/>
+          <path class="edge l6" d="M945 257 C 966 257, 962 218, 985 218" stroke="#5A6380"/>
+          <path class="edge l6" d="M945 347 C 966 347, 962 220, 985 220" stroke="#5A6380"/>
+          <path class="edge l6" d="M945 437 C 966 437, 962 318, 985 318" stroke="#5A6380"/>
+          <path class="edge l6" d="M945 85 C 975 95, 958 418, 985 418" stroke="#5A6380" stroke-dasharray="4 4" opacity=".5"/>
 
           <!-- regulation -->
           <g class="node l1"><rect x="30" y="226" width="145" height="68" stroke="var(--statute)" fill="var(--statute-soft)"/>
             <text class="lbl" x="42" y="250">DPDP Rules 2026</text><text class="sub" x="42" y="266">G.S.R. 312(E) · Rules 6, 9</text><text class="sub" x="42" y="280">effective 28 Jul 2026</text></g>
           <!-- obligations -->
-          <g class="node l2"><rect x="215" y="88" width="150" height="48" stroke="#7A8FB0"/><text class="lbl" x="226" y="107">24h breach notify</text><text class="sub" x="226" y="123">OBL-211 v3 · was 72h</text></g>
-          <g class="node l2"><rect x="215" y="238" width="150" height="48" stroke="#7A8FB0"/><text class="lbl" x="226" y="257">Consent interop</text><text class="sub" x="226" y="273">OBL-212 v1 · DEPA</text></g>
-          <g class="node l2"><rect x="215" y="388" width="150" height="48" stroke="#7A8FB0"/><text class="lbl" x="226" y="407">RoPA expansion</text><text class="sub" x="226" y="423">OBL-213 v2</text></g>
+          <g class="node l2"><rect x="215" y="88" width="150" height="48" stroke="#6BA4A4"/><text class="lbl" x="226" y="107">24h breach notify</text><text class="sub" x="226" y="123">OBL-211 v3 · was 72h</text></g>
+          <g class="node l2"><rect x="215" y="238" width="150" height="48" stroke="#6BA4A4"/><text class="lbl" x="226" y="257">Consent interop</text><text class="sub" x="226" y="273">OBL-212 v1 · DEPA</text></g>
+          <g class="node l2"><rect x="215" y="388" width="150" height="48" stroke="#6BA4A4"/><text class="lbl" x="226" y="407">RoPA expansion</text><text class="sub" x="226" y="423">OBL-213 v2</text></g>
           <!-- risks -->
           <g class="node l3"><rect x="405" y="84" width="158" height="54" stroke="var(--risk)" fill="var(--risk-soft)"/><text class="lbl" x="416" y="103">Late breach report</text><text class="sub" x="416" y="118">RSK-31 · CRITICAL ↑ · ₹48Cr</text><text class="sub" x="416" y="131">risk owner: CISO</text></g>
           <g class="node l3"><rect x="405" y="234" width="158" height="54" stroke="var(--risk)" fill="var(--risk-soft)"/><text class="lbl" x="416" y="253">Unlawful processing</text><text class="sub" x="416" y="268">RSK-44 · HIGH ↑ above appetite</text><text class="sub" x="416" y="281">risk owner: DPO</text></g>
@@ -475,18 +475,18 @@ body.simple .rail .sec:not([data-ess]){display:none}
     <style>
       .board{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;align-items:start}
       .col{background:var(--hair-soft);border-radius:var(--r);padding:10px}
-      .col h5{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);padding:2px 4px 8px;display:flex;justify-content:space-between}
+      .col h5{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);padding:2px 4px 8px;display:flex;justify-content:space-between}
       .col h5 .n{color:var(--ink-faint)}
       .tcard{background:var(--panel);border:1px solid var(--hair);border-radius:8px;padding:10px 11px;margin-bottom:9px;font-size:12px;cursor:grab}
       .tcard:hover{border-color:var(--ink-faint)}
       .tcard .t{font-weight:600;font-size:12.5px;margin-bottom:3px}
       .tcard .meta{display:flex;gap:6px;flex-wrap:wrap;margin-top:7px;align-items:center}
       .tcard .who{margin-left:auto;width:20px;height:20px;border-radius:50%;color:#fff;font-size:8.5px;font-weight:600;display:flex;align-items:center;justify-content:center}
-      .agentchip{font-family:'IBM Plex Mono',monospace;font-size:9.5px;background:var(--verdigris-soft);color:var(--verdigris);border-radius:4px;padding:1px 6px}
-      .humanchip{font-family:'IBM Plex Mono',monospace;font-size:9.5px;background:var(--statute-soft);color:var(--statute);border-radius:4px;padding:1px 6px}
-      .sla-ok{font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--ink-faint)}
-      .sla-hot{font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--oxide);font-weight:600}
-      .gate{border-top:2px solid var(--amber);background:#FFFDF6}
+      .agentchip{font-family:'JetBrains Mono',monospace;font-size:9.5px;background:var(--verdigris-soft);color:var(--verdigris);border-radius:4px;padding:1px 6px}
+      .humanchip{font-family:'JetBrains Mono',monospace;font-size:9.5px;background:var(--statute-soft);color:var(--statute);border-radius:4px;padding:1px 6px}
+      .sla-ok{font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--ink-faint)}
+      .sla-hot{font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--oxide);font-weight:600}
+      .gate{border-top:2px solid var(--amber);background:rgba(224,179,74,.08)}
     </style>
     <div class="board">
       <div class="col"><h5>Triage <span class="n">2</span></h5>
@@ -521,9 +521,9 @@ body.simple .rail .sec:not([data-ess]){display:none}
     <style>
       .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
       .stat{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:12px 14px}
-      .stat b{font-family:'Sora',sans-serif;font-size:22px;font-weight:700;display:block}
+      .stat b{font-family:'Fraunces',Georgia,serif;font-size:22px;font-weight:700;display:block}
       .stat span{font-size:11.5px;color:var(--ink-faint)}
-      .stat .delta{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--verdigris)}
+      .stat .delta{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--verdigris)}
       .ownercell{display:flex;align-items:center;gap:7px}
       .mini{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:600;color:#fff;flex:none}
     </style>
@@ -546,7 +546,7 @@ body.simple .rail .sec:not([data-ess]){display:none}
       </tbody>
     </table>
     <div class="card" style="margin-top:16px">
-      <div style="padding:13px 16px;border-bottom:1px solid var(--hair);display:flex;align-items:baseline;gap:10px"><b style="font-family:'Sora',sans-serif;font-size:13.5px">Interpretations — the firm's positions on ambiguous law</b><span style="font-size:11.5px;color:var(--ink-faint)">the layer regulators actually examine; counsel-backed, review-triggered</span></div>
+      <div style="padding:13px 16px;border-bottom:1px solid var(--hair);display:flex;align-items:baseline;gap:10px"><b style="font-family:'Fraunces',Georgia,serif;font-size:13.5px">Interpretations — the firm's positions on ambiguous law</b><span style="font-size:11.5px;color:var(--ink-faint)">the layer regulators actually examine; counsel-backed, review-triggered</span></div>
       <table class="tbl inttbl" style="border:0">
         <thead><tr><th>ID</th><th>Term / question</th><th>Our position</th><th>Basis</th><th>Approved</th><th>Review trigger</th></tr></thead>
         <tbody>
@@ -558,7 +558,7 @@ body.simple .rail .sec:not([data-ess]){display:none}
       <div style="padding:10px 16px;font-size:11.5px;color:var(--ink-soft);border-top:1px dashed var(--hair)">When a regulation, guidance note or enforcement action touches a term with an interpretation, the interpretation enters its own review queue <i>before</i> downstream controls are judged — positions first, plumbing second. Contested positions escalate to partner counsel in-product; the opinion returns as a privileged node.</div>
     </div>
     <div class="timemachine">
-      <h4>⧖ Time machine — the graph as of any date <span class="tag" style="background:rgba(255,255,255,.12);color:#7BC4B0">AUDIT SUPERPOWER</span></h4>
+      <h4>⧖ Time machine — the graph as of any date <span class="tag" style="background:rgba(255,255,255,.12);color:#7FA780">AUDIT SUPERPOWER</span></h4>
       <input type="range" min="0" max="3" value="3" id="tmr" oninput="timeMachine(this.value)">
       <div class="lbls"><span>01 JAN 26</span><span>31 MAR 26</span><span>01 MAY 26</span><span>TODAY</span></div>
       <div class="snap" id="tmsnap">Viewing: <b>today</b> — posture 91% · 312 obligations · 3 risks above appetite · CTRL-042 GAP (introduced by G.S.R. 312(E), 09 Jun) · SoA v18.</div>
@@ -569,19 +569,19 @@ body.simple .rail .sec:not([data-ess]){display:none}
   <section class="view" id="view-crosswalk">
     <div class="pagehead"><h1 class="pagetitle">Control crosswalk</h1><span class="sub">Map once, comply many — one internal control satisfies multiple frameworks simultaneously</span></div>
     <style>
-      .sim{display:flex;align-items:center;gap:12px;background:var(--risk-soft);border:1px solid #E2D2EC;border-radius:var(--r);padding:13px 16px;margin-bottom:16px;flex-wrap:wrap}
-      .sim b{font-family:'Sora',sans-serif}
-      .sim select{font:inherit;border:1px solid var(--hair);border-radius:7px;padding:6px 10px;background:#fff}
+      .sim{display:flex;align-items:center;gap:12px;background:var(--risk-soft);border:1px solid rgba(160,108,154,.35);border-radius:var(--r);padding:13px 16px;margin-bottom:16px;flex-wrap:wrap}
+      .sim b{font-family:'Fraunces',Georgia,serif}
+      .sim select{font:inherit;border:1px solid var(--hair);border-radius:7px;padding:6px 10px;background:#141C38;color:var(--ink)}
       .simres{font-size:12.5px;color:var(--ink-soft)}
       .simres b{color:var(--risk)}
-      .xw td.c{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:10.5px}
+      .xw td.c{text-align:center;font-family:'JetBrains Mono',monospace;font-size:10.5px}
       .hit{background:var(--verdigris-soft);color:var(--verdigris);border-radius:4px;padding:2px 6px;display:inline-block}
       .miss{color:var(--hair)}
       .gapcell{background:var(--oxide-soft);color:var(--oxide);border-radius:4px;padding:2px 6px;display:inline-block;font-weight:600}
       .cov{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
       .cov .f{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:11px 13px}
       .cov .f h6{font-size:11.5px;font-weight:600}
-      .cov .f b{font-family:'Sora',sans-serif;font-size:19px;color:var(--verdigris)}
+      .cov .f b{font-family:'Fraunces',Georgia,serif;font-size:19px;color:var(--verdigris)}
       .cov .f span{font-size:10.5px;color:var(--ink-faint);display:block}
     </style>
     <div class="sim">
@@ -616,7 +616,7 @@ body.simple .rail .sec:not([data-ess]){display:none}
     <style>
       .soastats{display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap}
       .soastats .s{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:10px 16px;font-size:12.5px}
-      .soastats .s b{font-family:'Sora',sans-serif;font-size:18px;display:block}
+      .soastats .s b{font-family:'Fraunces',Georgia,serif;font-size:18px;display:block}
       .just{font-size:11.5px;color:var(--ink-soft);max-width:46ch}
     </style>
     <div class="soastats">
@@ -647,20 +647,20 @@ body.simple .rail .sec:not([data-ess]){display:none}
     <style>
       .setup-grid{display:grid;grid-template-columns:1fr 330px;gap:18px;align-items:start}
       .step{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:15px 18px;margin-bottom:11px;display:flex;gap:14px}
-      .step .num{flex:none;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Sora',sans-serif;font-weight:700;font-size:13px}
+      .step .num{flex:none;width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Fraunces',Georgia,serif;font-weight:700;font-size:13px}
       .step.done .num{background:var(--verdigris);color:#fff}
       .step.now .num{background:var(--amber);color:#fff}
       .step.todo .num{background:var(--hair-soft);color:var(--ink-faint)}
       .step.now{border-color:var(--amber)}
-      .step h4{font-family:'Sora',sans-serif;font-size:14px;font-weight:600}
+      .step h4{font-family:'Fraunces',Georgia,serif;font-size:14px;font-weight:600}
       .step p{font-size:12.5px;color:var(--ink-soft);margin:3px 0 8px;max-width:62ch}
-      .step .progress{font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-faint)}
+      .step .progress{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--ink-faint)}
       .step .actions{margin-top:8px;display:flex;gap:8px}
       .keepalive{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:16px}
-      .keepalive h4{font-family:'Sora',sans-serif;font-size:13px;font-weight:600;margin-bottom:10px}
+      .keepalive h4{font-family:'Fraunces',Georgia,serif;font-size:13px;font-weight:600;margin-bottom:10px}
       .loop{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--hair-soft);font-size:12px;color:var(--ink-soft)}
       .loop:last-child{border:0}
-      .loop .freq{font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--verdigris);flex:none;width:64px;text-transform:uppercase;padding-top:2px}
+      .loop .freq{font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--verdigris);flex:none;width:64px;text-transform:uppercase;padding-top:2px}
     </style>
     <div class="setup-grid">
       <div>
@@ -714,11 +714,11 @@ body.simple .rail .sec:not([data-ess]){display:none}
   <section class="view" id="view-scope">
     <div class="pagehead"><h1 class="pagetitle">Scope &amp; conflicts</h1><span class="sub">Business context layer — regulations apply to entities, products and sites, not to "the company". Conflicts surface here first.</span></div>
     <style>
-      .scopetbl td.c{text-align:center;font-family:'IBM Plex Mono',monospace;font-size:10.5px}
+      .scopetbl td.c{text-align:center;font-family:'JetBrains Mono',monospace;font-size:10.5px}
       .applies{background:var(--statute-soft);color:var(--statute);border-radius:4px;padding:2px 8px;display:inline-block}
       .na{color:var(--hair)}
       .conflict{background:var(--panel);border:1px solid var(--hair);border-left:3px solid var(--oxide);border-radius:var(--r);padding:14px 17px;margin-bottom:11px}
-      .conflict h4{font-family:'Sora',sans-serif;font-size:13.5px;font-weight:600;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+      .conflict h4{font-family:'Fraunces',Georgia,serif;font-size:13.5px;font-weight:600;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
       .conflict p{font-size:12.5px;color:var(--ink-soft);margin:6px 0 8px;max-width:80ch}
       .resolution{background:var(--verdigris-soft);border-radius:8px;padding:9px 12px;font-size:12px;color:var(--ink-soft)}
       .resolution b{color:var(--verdigris)}
@@ -732,7 +732,7 @@ body.simple .rail .sec:not([data-ess]){display:none}
         <tr><td><b>Hyderabad DC</b> · processing site</td><td class="c"><span class="applies">R.12</span></td><td class="c"><span class="applies">Ch.V</span></td><td class="c"><span class="applies">¶6</span></td><td class="c"><span class="na">—</span></td><td class="c"><span class="na">—</span></td><td class="mono" style="font-size:11px">23</td></tr>
       </tbody>
     </table>
-    <h4 style="font-family:'Sora',sans-serif;font-size:14px;margin-bottom:10px">Detected conflicts of law <span class="tag crit" style="margin-left:6px">2 OPEN</span></h4>
+    <h4 style="font-family:'Fraunces',Georgia,serif;font-size:14px;margin-bottom:10px">Detected conflicts of law <span class="tag crit" style="margin-left:6px">2 OPEN</span></h4>
     <div class="conflict">
       <h4>Breach notification windows collide <span class="tag info">CERT-In 6h</span><span class="tag info">DPDP 24h</span><span class="tag info">GDPR 72h</span></h4>
       <p>The same incident on the payments app can trigger three clocks. CERT-In's 6-hour reporting (cyber incident) is stricter than DPDP's 24h (personal data breach) and GDPR's 72h — but the report contents and recipients differ, so "comply to strictest" alone is not sufficient.</p>
@@ -750,12 +750,12 @@ body.simple .rail .sec:not([data-ess]){display:none}
     <div class="pagehead"><h1 class="pagetitle">Scenario war-room</h1><span class="sub">Simulate regulation before it exists. The cascade runs on hypothetical changes — readiness becomes a number, not a feeling.</span></div>
     <style>
       .scn{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:16px 18px;margin-bottom:13px}
-      .scn h4{font-family:'Sora',sans-serif;font-size:14.5px;font-weight:600;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+      .scn h4{font-family:'Fraunces',Georgia,serif;font-size:14.5px;font-weight:600;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
       .scn p{font-size:12.5px;color:var(--ink-soft);margin:6px 0 10px;max-width:78ch}
       .scnstats{display:flex;gap:20px;border-top:1px dashed var(--hair);padding-top:10px;flex-wrap:wrap;align-items:center}
-      .scnstats .s b{font-family:'Sora',sans-serif;font-size:16px;display:block}
+      .scnstats .s b{font-family:'Fraunces',Georgia,serif;font-size:16px;display:block}
       .scnstats .s span{font-size:10.5px;color:var(--ink-faint)}
-      .ready{font-family:'Sora',sans-serif;font-weight:700;font-size:16px}
+      .ready{font-family:'Fraunces',Georgia,serif;font-weight:700;font-size:16px}
     </style>
     <div class="scn">
       <h4>SEBI algo accountability — enacted as drafted <span class="tag risk">HORIZON · Q1 2027</span><span class="tag ok">SIMULATED 2h AGO</span></h4>
@@ -797,11 +797,11 @@ body.simple .rail .sec:not([data-ess]){display:none}
     <style>
       .gaterow{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:14px 17px;margin-bottom:11px;display:flex;gap:14px;align-items:flex-start}
       .gaterow .stat{flex:none;width:86px;text-align:center;padding-top:2px}
-      .gaterow .stat b{font-family:'Sora',sans-serif;font-size:13px;display:block}
-      .gaterow h4{font-family:'Sora',sans-serif;font-size:13.5px;font-weight:600}
+      .gaterow .stat b{font-family:'Fraunces',Georgia,serif;font-size:13px;display:block}
+      .gaterow h4{font-family:'Fraunces',Georgia,serif;font-size:13.5px;font-weight:600}
       .gaterow p{font-size:12px;color:var(--ink-soft);margin-top:3px;max-width:75ch}
       .gchecks{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap}
-      .packnote{background:var(--risk-soft);border:1px solid #E2D2EC;border-radius:var(--r);padding:12px 16px;font-size:12.5px;color:var(--ink-soft);margin-top:14px}
+      .packnote{background:var(--risk-soft);border:1px solid rgba(160,108,154,.35);border-radius:var(--r);padding:12px 16px;font-size:12.5px;color:var(--ink-soft);margin-top:14px}
     </style>
     <div class="gaterow">
       <div class="stat"><span class="tag warn">IN REVIEW</span><b style="color:var(--amber)">2 blockers</b></div>
@@ -835,7 +835,7 @@ body.simple .rail .sec:not([data-ess]){display:none}
     <style>
       .govgrid{display:grid;grid-template-columns:1fr 330px;gap:16px;align-items:start}
       .defens{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:15px}
-      .defens h4{font-family:'Sora',sans-serif;font-size:13px;font-weight:600;margin-bottom:9px}
+      .defens h4{font-family:'Fraunces',Georgia,serif;font-size:13px;font-weight:600;margin-bottom:9px}
       .drow{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid var(--hair-soft);font-size:12px;color:var(--ink-soft)}
       .drow:last-child{border:0}
       .drow .ic{flex:none;width:18px;color:var(--verdigris);font-weight:700}
@@ -852,7 +852,7 @@ body.simple .rail .sec:not([data-ess]){display:none}
           </tbody>
         </table>
         <div style="background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:14px 16px;margin-top:13px;font-size:12.5px;color:var(--ink-soft)">
-          <b style="font-family:'Sora',sans-serif;font-size:13px;color:var(--ink)">Model-change protocol.</b> Agent upgrades replay the full golden set + your last 90 days of decisions; any mapping that would flip is queued for human re-certification <i>before</i> the upgrade ships. You are never silently re-mapped. Evaluation methodology and golden sets are exportable — your model-risk team can independently re-run them.
+          <b style="font-family:'Fraunces',Georgia,serif;font-size:13px;color:var(--ink)">Model-change protocol.</b> Agent upgrades replay the full golden set + your last 90 days of decisions; any mapping that would flip is queued for human re-certification <i>before</i> the upgrade ships. You are never silently re-mapped. Evaluation methodology and golden sets are exportable — your model-risk team can independently re-run them.
         </div>
       </div>
       <aside class="defens">
@@ -871,23 +871,23 @@ body.simple .rail .sec:not([data-ess]){display:none}
   <section class="view" id="view-composer">
     <div class="pagehead"><h1 class="pagetitle">Composer</h1><span class="sub">One kernel, many skins. Compose your AEGIS from packs — industry, jurisdiction, capability, partner. Each pack declares exactly what it installs.</span></div>
     <style>
-      .kernelbar{background:var(--ink);color:#fff;border-radius:var(--r);padding:14px 18px;display:flex;gap:22px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
-      .kernelbar b{font-family:'Sora',sans-serif;font-size:14px}
+      .kernelbar{background:#141C38;color:#fff;border-radius:var(--r);padding:14px 18px;display:flex;gap:22px;align-items:center;margin-bottom:18px;flex-wrap:wrap}
+      .kernelbar b{font-family:'Fraunces',Georgia,serif;font-size:14px}
       .kernelbar span{font-size:11.5px;opacity:.75}
-      .packsec{font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);margin:16px 0 8px}
+      .packsec{font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-faint);margin:16px 0 8px}
       .packs{display:grid;grid-template-columns:repeat(3,1fr);gap:13px}
       .pack{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:14px 15px;display:flex;flex-direction:column}
       .pack.installed{border-color:var(--verdigris)}
-      .pack h4{font-family:'Sora',sans-serif;font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px}
-      .pack .ver{font-family:'IBM Plex Mono',monospace;font-size:9.5px;color:var(--ink-faint)}
+      .pack h4{font-family:'Fraunces',Georgia,serif;font-size:13.5px;font-weight:600;display:flex;align-items:center;gap:8px}
+      .pack .ver{font-family:'JetBrains Mono',monospace;font-size:9.5px;color:var(--ink-faint)}
       .pack p{font-size:11.5px;color:var(--ink-soft);margin:6px 0 9px}
       .installs{font-size:10.5px;color:var(--ink-faint);line-height:1.8;margin-bottom:10px}
       .installs b{color:var(--ink-soft);font-weight:600}
       .pack .foot{margin-top:auto;display:flex;align-items:center;gap:8px}
       .toggle{margin-left:auto;font:inherit;font-size:11.5px;font-weight:600;border-radius:7px;padding:5px 13px;cursor:pointer;border:0}
       .toggle.on{background:var(--verdigris-soft);color:var(--verdigris)}
-      .toggle.off{background:var(--ink);color:#fff}
-      .signed{font-family:'IBM Plex Mono',monospace;font-size:9px;color:var(--verdigris)}
+      .toggle.off{background:#2A3558;color:#fff}
+      .signed{font-family:'JetBrains Mono',monospace;font-size:9px;color:var(--verdigris)}
     </style>
     <div class="kernelbar">
       <b>◍ AEGIS Kernel — always on, identical for every customer</b>
@@ -933,19 +933,19 @@ body.simple .rail .sec:not([data-ess]){display:none}
     <style>
       .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:16px}
       .kpi{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:13px 15px}
-      .kpi h6{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px}
-      .kpi b{font-family:'Sora',sans-serif;font-size:24px;font-weight:700}
-      .kpi .trend{font-family:'IBM Plex Mono',monospace;font-size:10px}
+      .kpi h6{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin-bottom:5px}
+      .kpi b{font-family:'Fraunces',Georgia,serif;font-size:24px;font-weight:700}
+      .kpi .trend{font-family:'JetBrains Mono',monospace;font-size:10px}
       .up{color:var(--verdigris)} .down{color:var(--oxide)}
       .boardgrid{display:grid;grid-template-columns:1.2fr 1fr;gap:16px;margin-bottom:16px}
       .bcard{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:15px 17px}
-      .bcard h4{font-family:'Sora',sans-serif;font-size:13.5px;font-weight:600;margin-bottom:10px}
+      .bcard h4{font-family:'Fraunces',Georgia,serif;font-size:13.5px;font-weight:600;margin-bottom:10px}
       .riskrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--hair-soft);font-size:12.5px}
       .riskrow:last-child{border:0}
-      .riskrow .exp{margin-left:auto;font-family:'Sora',sans-serif;font-weight:700}
+      .riskrow .exp{margin-left:auto;font-family:'Fraunces',Georgia,serif;font-weight:700}
       .outlook{display:flex;gap:10px;padding:9px 0;border-bottom:1px solid var(--hair-soft);font-size:12.5px}
       .outlook:last-child{border:0}
-      .outlook .d{font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--statute);flex:none;width:70px;padding-top:2px}
+      .outlook .d{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--statute);flex:none;width:70px;padding-top:2px}
       .method{font-size:11px;color:var(--ink-faint);margin-top:10px;border-top:1px dashed var(--hair);padding-top:8px}
     </style>
     <div class="kpis">
@@ -961,9 +961,9 @@ body.simple .rail .sec:not([data-ess]){display:none}
         <svg viewBox="0 0 520 120" width="100%" aria-label="Exposure trend">
           <polyline points="10,58 55,62 100,55 145,70 190,66 235,80 280,44 325,50 370,46 415,72 460,60 505,52" fill="none" stroke="var(--statute)" stroke-width="2"/>
           <polyline points="10,58 55,62 100,55 145,70 190,66 235,80 280,44 325,50 370,46 415,72 460,60 505,52" fill="none" stroke="var(--statute)" stroke-width="8" opacity=".08"/>
-          <circle cx="415" cy="72" r="3.5" fill="var(--oxide)"/><text x="392" y="92" font-size="9" font-family="IBM Plex Mono" fill="var(--oxide)">DPDP amend.</text>
-          <circle cx="505" cy="52" r="3.5" fill="var(--verdigris)"/><text x="446" y="40" font-size="9" font-family="IBM Plex Mono" fill="var(--verdigris)">treatments approved</text>
-          <text x="10" y="112" font-size="9" font-family="IBM Plex Mono" fill="var(--ink-faint)">JUL 25</text><text x="478" y="112" font-size="9" font-family="IBM Plex Mono" fill="var(--ink-faint)">JUN 26</text>
+          <circle cx="415" cy="72" r="3.5" fill="var(--oxide)"/><text x="392" y="92" font-size="9" font-family="JetBrains Mono" fill="var(--oxide)">DPDP amend.</text>
+          <circle cx="505" cy="52" r="3.5" fill="var(--verdigris)"/><text x="446" y="40" font-size="9" font-family="JetBrains Mono" fill="var(--verdigris)">treatments approved</text>
+          <text x="10" y="112" font-size="9" font-family="JetBrains Mono" fill="var(--ink-faint)">JUL 25</text><text x="478" y="112" font-size="9" font-family="JetBrains Mono" fill="var(--ink-faint)">JUN 26</text>
         </svg>
         <div class="method">Methodology: max statutory penalty × enforcement likelihood (calibrated on 214 peer enforcement actions ingested) × control-gap factor. Every number traces to its inputs — defensible in front of the board and the regulator.</div>
       </div>
@@ -998,13 +998,13 @@ body.simple .rail .sec:not([data-ess]){display:none}
     <style>
       .agents{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;max-width:1000px}
       .agentcard{background:var(--panel);border:1px solid var(--hair);border-radius:var(--r);padding:17px}
-      .agentcard h3{font-family:'Sora',sans-serif;font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+      .agentcard h3{font-family:'Fraunces',Georgia,serif;font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
       .agentcard p{font-size:12.5px;color:var(--ink-soft);margin:6px 0 12px}
       .auto{display:grid;grid-template-columns:repeat(4,1fr);gap:4px}
-      .auto button{font:inherit;font-size:11px;padding:7px 4px;border:1px solid var(--hair);background:#fff;cursor:pointer;color:var(--ink-faint)}
+      .auto button{font:inherit;font-size:11px;padding:7px 4px;border:1px solid var(--hair);background:#141C38;cursor:pointer;color:var(--ink-faint)}
       .auto button:first-child{border-radius:7px 0 0 7px}.auto button:last-child{border-radius:0 7px 7px 0}
-      .auto button.sel{background:var(--ink);border-color:var(--ink);color:#fff;font-weight:600}
-      .autolbl{font-family:'IBM Plex Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin:12px 0 6px}
+      .auto button.sel{background:var(--verdigris);border-color:var(--verdigris);color:#fff;font-weight:600}
+      .autolbl{font-family:'JetBrains Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-faint);margin:12px 0 6px}
       .agentstat{display:flex;gap:14px;margin-top:11px;font-size:11.5px;color:var(--ink-faint);flex-wrap:wrap}
       .agentstat b{color:var(--ink);font-weight:600}
     </style>
@@ -1066,7 +1066,7 @@ body.simple .rail .sec:not([data-ess]){display:none}
       </tbody>
     </table>
     <div class="card">
-      <div style="padding:13px 16px;border-bottom:1px solid var(--hair);display:flex;align-items:baseline;gap:10px"><b style="font-family:'Sora',sans-serif;font-size:13.5px">Filing calendar — next 90 days</b><span style="font-size:11.5px;color:var(--ink-faint)">recurring returns with preparer → reviewer → submit chain; evidence attached on submission</span></div>
+      <div style="padding:13px 16px;border-bottom:1px solid var(--hair);display:flex;align-items:baseline;gap:10px"><b style="font-family:'Fraunces',Georgia,serif;font-size:13.5px">Filing calendar — next 90 days</b><span style="font-size:11.5px;color:var(--ink-faint)">recurring returns with preparer → reviewer → submit chain; evidence attached on submission</span></div>
       <table class="tbl" style="border:0">
         <thead><tr><th>Filing</th><th>Regulator</th><th>Period</th><th>Due</th><th>Preparer → Reviewer</th><th>Status</th></tr></thead>
         <tbody>
@@ -1096,9 +1096,9 @@ body.simple .rail .sec:not([data-ess]){display:none}
         <div class="incstep"><span class="st2">·</span><div><b>Board + commitment check</b> — CMT-01 (MeitY) unaffected; ARC chair notification per POL-07 §5 queued behind CISO sign-off</div></div>
       </div>
       <div class="card" style="padding:15px 17px">
-        <b style="font-family:'Sora',sans-serif;font-size:13px">Privileged decision log</b>
+        <b style="font-family:'Fraunces',Georgia,serif;font-size:13px">Privileged decision log</b>
         <p style="font-size:11.5px;color:var(--ink-soft);margin:6px 0 10px">Every determination is counsel-labelled; release outside the response team requires GC approval. This log is what protects the company in the litigation that follows a breach.</p>
-        <div style="font-family:'IBM Plex Mono',monospace;font-size:10.5px;color:var(--ink-soft);line-height:2">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:10.5px;color:var(--ink-soft);line-height:2">
           09:12 severity SEV-2 · A.Sharma<br>09:18 INT-09 applied · provisional non-significant · M.Das ⚖<br>09:25 CERT-In draft v1 · agent, cites dir. ¶12<br>09:31 EU scope query started · auto
         </div>
         <button class="ghost" style="width:100%;margin-top:12px" onclick="toast('Drill ended · timeline archived · gaps found: 0 · mean step latency 6.2 min')">End drill &amp; archive</button>
@@ -1132,14 +1132,14 @@ function askBrain(){alert('Conversational queries over the graph — “show ris
 <!-- v5 demo layer -->
 <div class="overlay" id="welcome">
   <div class="welcome">
-    <svg width="44" height="44" viewBox="0 0 26 26" fill="none"><circle cx="13" cy="5" r="2.6" fill="#15201C"/><circle cx="5" cy="14" r="2.6" fill="#2E7D6B"/><circle cx="21" cy="14" r="2.6" fill="#3F5E8C"/><circle cx="13" cy="22" r="2.6" fill="#C98A04"/><path d="M13 5L5 14M13 5l8 9M5 14l8 8m8-8l-8 8" stroke="#15201C" stroke-width="1.1" opacity=".45"/></svg>
+    <svg width="44" height="44" viewBox="0 0 26 26" fill="none"><circle cx="13" cy="5" r="2.6" fill="#F4EFE6"/><circle cx="5" cy="14" r="2.6" fill="#E8793B"/><circle cx="21" cy="14" r="2.6" fill="#6B8EC4"/><circle cx="13" cy="22" r="2.6" fill="#E0B34A"/><path d="M13 5L5 14M13 5l8 9M5 14l8 8m8-8l-8 8" stroke="#F4EFE6" stroke-width="1.1" opacity=".45"/></svg>
     <h2>Your company's regulatory nervous system</h2>
     <p>A regulation changed in Delhi this morning. Watch what happens to your policies, controls, owners and board pack — in 90 seconds.</p>
     <div class="row">
       <button class="primary" onclick="closeWelcome();startTour()">▶ Start the 90-second tour</button>
       <button class="ghost" onclick="closeWelcome()">Explore on my own</button>
     </div>
-    <div style="margin-top:14px;font-family:'IBM Plex Mono',monospace;font-size:10px;color:var(--ink-faint)">TIP: PRESS ⌘K ANYTIME TO ASK THE BRAIN A QUESTION</div>
+    <div style="margin-top:14px;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--ink-faint)">TIP: PRESS ⌘K ANYTIME TO ASK THE BRAIN A QUESTION</div>
   </div>
 </div>
 
@@ -1151,7 +1151,7 @@ function askBrain(){alert('Conversational queries over the graph — “show ris
 
 <div class="brainmodal" id="brainmodal" onclick="if(event.target===this)closeBrain()">
   <div class="braincard">
-    <div style="font-family:'IBM Plex Mono',monospace;font-size:10px;letter-spacing:.12em;color:var(--verdigris);text-transform:uppercase;margin-bottom:10px">◍ Ask the brain — answers cite graph nodes</div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:10px;letter-spacing:.12em;color:var(--verdigris);text-transform:uppercase;margin-bottom:10px">◍ Ask the brain — answers cite graph nodes</div>
     <div class="inrow">
       <input id="brainq" placeholder="e.g. which controls break if DPDP consent rules change?" onkeydown="if(event.key==='Enter')brainAsk(this.value)">
       <button class="primary" onclick="brainAsk(document.getElementById('brainq').value)">Ask</button>
