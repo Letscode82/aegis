@@ -1053,7 +1053,11 @@ function CockpitTab({store,cockpit}){
   // working queue shows dispatched work only and undispatched requests
   // move behind a header chip.
   const[laddered,setLaddered]=useState(()=>new Set());
-  const[enforceDispatch,setEnforceDispatch]=useState(()=>{try{return typeof window!=="undefined"&&window.localStorage.getItem("aegis:cockpit:gate")==="1";}catch{return false;}});
+  // Default ON now the workflow library is seeded + existing tickets can
+  // be backfilled: a request needs direction (ladder or owner) before it
+  // enters the working queue. A reviewer can still turn it off (persists
+  // "0"); only an explicit off disables it.
+  const[enforceDispatch,setEnforceDispatch]=useState(()=>{try{return typeof window==="undefined"?true:window.localStorage.getItem("aegis:cockpit:gate")!=="0";}catch{return true;}});
   const[showUndispatched,setShowUndispatched]=useState(false);
   useEffect(()=>{
     let on=true;

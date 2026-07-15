@@ -260,6 +260,19 @@ export function WorkflowDesignerTab({ canManage }) {
   const [defs, setDefs] = useState(null);
   const [editing, setEditing] = useState(null); // def object, or "new", or null
   const [seeding, setSeeding] = useState(false);
+  const [backfilling, setBackfilling] = useState(false);
+
+  // Attach ladders to existing open tickets that predate the library
+  // (auto-ladder only fires at creation). Idempotent server-side.
+  const backfill = async () => {
+    setBackfilling(true);
+    try {
+      const r = await fetch("/api/admin/workflows/backfill-intake-ladders", { method: "POST" });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) throw new Error(d.error || `Backfill failed (HTTP ${r.status})`);
+      toast.success(`Laddered ${d.laddered} ticket${d.laddered === 1 ? "" : "s"} · ${d.already} already had one · ${d.noMatch} no matching type.`);
+    } catch (e) { toast.error(String(e.message || e)); } finally { setBackfilling(false); }
+  };
 
   const load = useCallback(async () => {
     try {
@@ -297,6 +310,7 @@ export function WorkflowDesignerTab({ canManage }) {
         </div>
         {canManage && <div style={{ display: "flex", gap: 8 }}>
           {defs.length === 0 && <button onClick={seed} disabled={seeding} style={{ ...btn(C.tl), opacity: seeding ? 0.6 : 1 }}>{seeding ? "Seeding…" : "Seed 10-ladder library"}</button>}
+          {defs.length > 0 && <button onClick={backfill} disabled={backfilling} title="Attach ladders to existing open tickets that were created before the library was seeded" style={{ ...btn(C.tl), opacity: backfilling ? 0.6 : 1 }}>{backfilling ? "Laddering…" : "⤵ Ladder existing tickets"}</button>}
           <button onClick={() => setEditing("new")} style={btn(C.pp)}>+ New workflow</button>
         </div>}
       </div>
