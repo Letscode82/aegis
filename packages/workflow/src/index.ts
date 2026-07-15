@@ -14,6 +14,7 @@ export {
   actOnWorkflow,
   getWorkflowInstance,
   listInstancesForEntity,
+  listRunningInstanceEntityIds,
   listWorkflowDefinitions,
   listWorkflowVersions,
   revertWorkflowToVersion,
