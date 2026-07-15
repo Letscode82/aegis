@@ -149,6 +149,9 @@ importers:
         specifier: ^18.3.1
         version: 18.3.1
     devDependencies:
+      '@aegis/documents':
+        specifier: workspace:*
+        version: link:../../packages/documents
       '@aegis/eslint-config':
         specifier: workspace:*
         version: link:../../packages/eslint-config
