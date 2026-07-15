@@ -35,7 +35,8 @@
     "./teams-channel": "./src/teams-channel/server.ts",
     "./notifications": "./src/notifications/server.ts",
     "./conflict": "./src/conflict/server.ts",
-    "./agents": "./src/agents/index.js"
+    "./agents": "./src/agents/index.js",
+    "./workflow-bridge": "./src/workflow-bridge/server.ts"
   },
   "files": [
     "src"
