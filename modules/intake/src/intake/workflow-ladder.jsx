@@ -18,7 +18,7 @@ import { C, M } from "@aegis/ui";
 
 const RAG_COLORS={green:C.gn,amber:C.am,red:C.rd,grey:C.br,skipped:C.t3};
 
-export function WorkflowLadderCard({ticket}){
+export function WorkflowLadderCard({ticket,onInstance}){
   const[instance,setInstance]=useState(null);
   const[definitions,setDefinitions]=useState([]);
   const[pickKey,setPickKey]=useState("");
@@ -37,7 +37,9 @@ export function WorkflowLadderCard({ticket}){
       ]);
       if(instResp.ok){
         const data=await instResp.json();
-        setInstance((data.instances&&data.instances[0])||null);
+        const inst=(data.instances&&data.instances[0])||null;
+        setInstance(inst);
+        if(onInstance) onInstance(inst);
       }
       if(defResp.ok){
         const d=await defResp.json();
