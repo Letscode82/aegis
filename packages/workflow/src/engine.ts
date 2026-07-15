@@ -446,4 +446,22 @@ export async function listInstancesForEntity(
   });
 }
 
+/**
+ * Bulk lookup: the set of entityIds (of a given entityType, e.g.
+ * "intake_ticket") that currently have an IN_PROGRESS ladder in the org.
+ * Powers the Cockpit's dispatch signal without an N+1 fetch — one query
+ * returns every laddered ticket id so the queue can tell dispatched from
+ * undispatched at a glance.
+ */
+export async function listRunningInstanceEntityIds(
+  organizationId: string,
+  entityType: string,
+): Promise<string[]> {
+  const rows = await prisma.workflowInstance.findMany({
+    where: { organizationId, entityType, status: "IN_PROGRESS" },
+    select: { entityId: true },
+  });
+  return Array.from(new Set(rows.map((r) => r.entityId)));
+}
+
 export { shouldSkip };

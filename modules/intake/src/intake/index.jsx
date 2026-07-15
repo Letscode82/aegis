@@ -1045,18 +1045,48 @@ function CockpitTab({store,cockpit}){
   const[ladderBusy,setLadderBusy]=useState(false);
   const[ladderSendBack,setLadderSendBack]=useState("");
   const[ladderRefresh,setLadderRefresh]=useState(0);
+  // PR-C2 — dispatch gate. A request is "dispatched" once it has
+  // direction: a running ladder OR a named owner OR it's already been
+  // worked. `laddered` is the set of ticket ids with an IN_PROGRESS
+  // ladder (one bulk fetch, no N+1). The gate is OPT-IN (default off)
+  // so the demo is unchanged until a reviewer turns it on; when on, the
+  // working queue shows dispatched work only and undispatched requests
+  // move behind a header chip.
+  const[laddered,setLaddered]=useState(()=>new Set());
+  const[enforceDispatch,setEnforceDispatch]=useState(()=>{try{return typeof window!=="undefined"&&window.localStorage.getItem("aegis:cockpit:gate")==="1";}catch{return false;}});
+  const[showUndispatched,setShowUndispatched]=useState(false);
+  useEffect(()=>{
+    let on=true;
+    fetch("/api/workflows/running-entities?entityType=intake_ticket")
+      .then(r=>r.ok?r.json():null)
+      .then(d=>{ if(on&&d&&Array.isArray(d.entityIds)) setLaddered(new Set(d.entityIds)); })
+      .catch(()=>{/* dispatch signal is best-effort — gate stays permissive */});
+    return()=>{on=false;};
+  },[ladderRefresh]);
+  const isDispatched=useCallback((t)=>!!t&&(laddered.has(t.id)||!!t.assignedToUserId||!!t.triagedBy),[laddered]);
+  const toggleEnforce=useCallback(()=>setEnforceDispatch(v=>{const n=!v;try{window.localStorage.setItem("aegis:cockpit:gate",n?"1":"0");}catch{/* ignore */}return n;}),[]);
 
-  // Filter by search if active
+  // Undispatched awaiting requests — no direction yet (no ladder, no
+  // owner, not worked). Surfaced as a header count; hidden from the
+  // working queue only when the gate is enforced.
+  const undispatchedCount=useMemo(()=>queue.filter(t=>isAwaitingTriage(t)&&!isDispatched(t)).length,[queue,isDispatched]);
+
+  // Filter by search + (when enforced) by dispatch state. Already-triaged
+  // tickets always stay; only *awaiting* undispatched ones are gated.
   const visibleQueue=useMemo(()=>{
-    if(!search.trim()) return queue;
-    const q=search.toLowerCase();
-    return queue.filter(t=>
-      t.id.toLowerCase().includes(q)||
-      (t.from||"").toLowerCase().includes(q)||
-      (t.desc||"").toLowerCase().includes(q)||
-      (t.type||"").toLowerCase().includes(q)||
-      (t.aiTriage?.category||"").toLowerCase().includes(q));
-  },[queue,search]);
+    let list=queue;
+    if(enforceDispatch&&!showUndispatched) list=list.filter(t=>!isAwaitingTriage(t)||isDispatched(t));
+    if(search.trim()){
+      const q=search.toLowerCase();
+      list=list.filter(t=>
+        t.id.toLowerCase().includes(q)||
+        (t.from||"").toLowerCase().includes(q)||
+        (t.desc||"").toLowerCase().includes(q)||
+        (t.type||"").toLowerCase().includes(q)||
+        (t.aiTriage?.category||"").toLowerCase().includes(q));
+    }
+    return list;
+  },[queue,search,enforceDispatch,showUndispatched,isDispatched]);
 
   // Keep pos in range as queue changes
   useEffect(()=>{
@@ -1257,6 +1287,12 @@ function CockpitTab({store,cockpit}){
             ⏲ {snoozedCount} snoozed {showSnoozed?"· shown":""}
           </div>
         </>}
+        {undispatchedCount>0&&<>
+          <div style={{width:1,height:28,background:C.br}}/>
+          <div onClick={()=>setShowUndispatched(s=>!s)} title={enforceDispatch?(showUndispatched?"Hide undispatched requests":"Show undispatched requests — they need a ladder or an owner"):"Requests without direction yet — assign a ladder or owner on the Inbox dispatch desk"} style={{padding:"4px 9px",border:`1px solid ${showUndispatched?C.am:C.am+"66"}`,background:showUndispatched?C.am+"18":C.amG,borderRadius:3,cursor:"pointer",fontSize:10,fontFamily:M,color:C.am,letterSpacing:.8,display:"flex",alignItems:"center",gap:5,transition:"all .12s"}}>
+            ⚠ {undispatchedCount} need dispatch {enforceDispatch&&showUndispatched?"· shown":""}
+          </div>
+        </>}
       </div>
       <div style={{display:"flex",gap:7,alignItems:"center",flexWrap:"wrap"}}>
         {bulkMode&&<div style={{display:"flex",gap:7,alignItems:"center"}}>
@@ -1264,6 +1300,7 @@ function CockpitTab({store,cockpit}){
           {selected.length>0&&<div onClick={bulkApprove} style={{padding:"5px 10px",background:C.gn,color:C.bg,fontSize:9.5,fontFamily:M,letterSpacing:1.2,cursor:"pointer",textTransform:"uppercase",fontWeight:700}}>→ Approve {selected.length}</div>}
         </div>}
         {showSearch&&<input ref={searchRef} value={search} onChange={e=>setSearch(e.target.value)} placeholder="search id / requester / text" style={{...inputStyle,width:260,fontSize:10.5}}/>}
+        <div onClick={toggleEnforce} title={enforceDispatch?"Dispatch gate ON — the queue shows dispatched work only (ladder running or owner assigned). Undispatched requests wait behind the ⚠ chip.":"Dispatch gate OFF — every request shows. Turn on to require direction (a ladder or an owner) before a request enters the working queue."} style={{padding:"4px 8px",border:`1px solid ${enforceDispatch?C.cy:C.br}`,background:enforceDispatch?C.cy+"18":"transparent",borderRadius:3,cursor:"pointer",fontSize:10,fontFamily:M,color:enforceDispatch?C.cy:C.t3,letterSpacing:.5,display:"flex",alignItems:"center",gap:5}}>{enforceDispatch?"⊘ Gate on":"⊘ Gate"}</div>
         <div onClick={toggleCompact} title="Focus mode — collapse secondary panels so the request + recommendation lead" style={{padding:"4px 8px",border:`1px solid ${compact?C.pp:C.br}`,background:compact?C.pp+"18":"transparent",borderRadius:3,cursor:"pointer",fontSize:10,fontFamily:M,color:compact?C.pp:C.t3,letterSpacing:.5,display:"flex",alignItems:"center",gap:5}}>{compact?"⊟ Focus on":"⊞ Focus"}</div>
         <div onClick={()=>setShowCheatsheet(true)} style={{padding:"4px 8px",border:`1px solid ${C.br}`,borderRadius:3,cursor:"pointer",fontSize:10,fontFamily:M,color:C.t3,letterSpacing:.5,display:"flex",alignItems:"center",gap:5}}>{bulkMode?<Kbd k="a"/>:<Kbd k="?"/>} {bulkMode?"bulk approve":"help"}</div>
       </div>
@@ -1275,6 +1312,13 @@ function CockpitTab({store,cockpit}){
         {bulkMode&&<div onClick={()=>toggleSelected(current.id)} style={{padding:"8px 12px",marginBottom:10,background:selected.includes(current.id)?C.gnG:C.s1,border:`1px solid ${selected.includes(current.id)?C.gn:C.br}`,borderRadius:4,cursor:"pointer",display:"flex",alignItems:"center",gap:10,fontSize:11,fontFamily:M,color:selected.includes(current.id)?C.gn:C.t2,letterSpacing:1,textTransform:"uppercase",fontWeight:600}}>
           <span style={{fontSize:14}}>{selected.includes(current.id)?"☑":"☐"}</span>
           <span>{selected.includes(current.id)?"selected for bulk":"press space to select"}</span>
+        </div>}
+        {!isDispatched(current)&&<div style={{display:"flex",alignItems:"flex-start",gap:9,padding:"10px 13px",marginBottom:12,borderRadius:6,background:C.amG,border:`1px solid ${C.am}55`,borderLeft:`3px solid ${C.am}`}}>
+          <span style={{fontSize:14}}>⚠</span>
+          <div style={{flex:1}}>
+            <div style={{fontSize:10.5,fontFamily:M,letterSpacing:1,textTransform:"uppercase",fontWeight:700,color:C.am}}>Not dispatched yet</div>
+            <div style={{fontSize:11,color:C.t2,marginTop:2,lineHeight:1.5}}>This request has no direction — start a governance ladder below, or assign an owner (⌨ <Kbd k="r"/> reassign). Until then it isn&apos;t part of anyone&apos;s working queue.</div>
+          </div>
         </div>}
         <CockpitStepPanel ticket={current} instance={ladderInstance} busy={ladderBusy} sendBackTo={ladderSendBack} onSendBackToChange={setLadderSendBack} onAct={actOnLadder}/>
         <LitigationSummaryCard ticket={current}/>
@@ -1326,9 +1370,10 @@ function CockpitTab({store,cockpit}){
           </div>
         </Card>
       </div>
-    </div>:<Card style={{background:C.gnG,borderLeft:`3px solid ${C.gn}`,padding:32,textAlign:"center"}}>
-      <div style={{fontSize:26,fontFamily:SR,color:C.t1,marginBottom:6}}>{search?"No matches":"Queue empty"}</div>
-      <div style={{fontSize:12,color:C.t2,lineHeight:1.55,fontFamily:F,marginBottom:4}}>{search?"Try a different search term.":"No tickets awaiting triage. Inbox zero."}</div>
+    </div>:<Card style={{background:enforceDispatch&&undispatchedCount>0?C.amG:C.gnG,borderLeft:`3px solid ${enforceDispatch&&undispatchedCount>0?C.am:C.gn}`,padding:32,textAlign:"center"}}>
+      <div style={{fontSize:26,fontFamily:SR,color:C.t1,marginBottom:6}}>{search?"No matches":enforceDispatch&&undispatchedCount>0?"Nothing dispatched":"Queue empty"}</div>
+      <div style={{fontSize:12,color:C.t2,lineHeight:1.55,fontFamily:F,marginBottom:8}}>{search?"Try a different search term.":enforceDispatch&&undispatchedCount>0?`${undispatchedCount} request${undispatchedCount===1?"":"s"} awaiting dispatch — assign a ladder or an owner on the Inbox to bring them into the working queue.`:"No tickets awaiting triage. Inbox zero."}</div>
+      {enforceDispatch&&undispatchedCount>0&&<div onClick={()=>setShowUndispatched(true)} style={{display:"inline-block",padding:"6px 13px",border:`1px solid ${C.am}`,color:C.am,borderRadius:3,cursor:"pointer",fontSize:9.5,fontFamily:M,letterSpacing:1,textTransform:"uppercase",fontWeight:700,marginBottom:8}}>⚠ Show {undispatchedCount} undispatched</div>}
       <div style={{fontSize:10,color:C.t3,fontFamily:M,letterSpacing:.8}}>Triaged today: <span style={{color:C.gn,fontWeight:600}}>{cockpit.state.triagedToday}</span></div>
     </Card>}
 
