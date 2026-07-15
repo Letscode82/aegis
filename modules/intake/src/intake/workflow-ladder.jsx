@@ -18,7 +18,7 @@ import { C, M } from "@aegis/ui";
 
 const RAG_COLORS={green:C.gn,amber:C.am,red:C.rd,grey:C.br,skipped:C.t3};
 
-export function WorkflowLadderCard({ticket,onInstance}){
+export function WorkflowLadderCard({ticket,onInstance,hideActions,refreshKey}){
   const[instance,setInstance]=useState(null);
   const[definitions,setDefinitions]=useState([]);
   const[pickKey,setPickKey]=useState("");
@@ -48,7 +48,7 @@ export function WorkflowLadderCard({ticket,onInstance}){
     }catch{/* card is best-effort — no ladder, no noise */}
   },[ticket?.id]);
 
-  useEffect(()=>{setInstance(null);setError(null);setSendBackTo("");setPickKey("");load();},[load]);
+  useEffect(()=>{setInstance(null);setError(null);setSendBackTo("");setPickKey("");load();},[load,refreshKey]);
 
   const startLadder=async()=>{
     if(!pickKey) return;
@@ -155,7 +155,7 @@ export function WorkflowLadderCard({ticket,onInstance}){
       </div>)}
     </div>
 
-    {!done&&<div style={{display:"flex",gap:7,alignItems:"center",flexWrap:"wrap"}}>
+    {!hideActions&&!done&&<div style={{display:"flex",gap:7,alignItems:"center",flexWrap:"wrap"}}>
       {btn("✓ Approve step",C.gn,()=>act("approve"),busy)}
       {previousSteps.length>0&&<>
         <select value={sendBackTo} onChange={e=>setSendBackTo(e.target.value)} style={{background:C.s1,border:`1px solid ${C.br}`,color:C.t2,fontSize:9.5,fontFamily:M,padding:"3px 5px",borderRadius:3}}>
