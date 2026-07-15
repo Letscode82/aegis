@@ -26,6 +26,7 @@ import { WorkPanel } from "./work-panel";
 import { PartiesPanel } from "./parties-panel";
 import { LitigationSummaryCard } from "./litigation-view";
 import { WorkflowLadderCard } from "./workflow-ladder";
+import { CockpitStepPanel } from "./cockpit-step-panel";
 import { RequestTypesTab } from "./request-types-admin";
 import { MyWorkTab } from "./my-work";
 import { MyRequestsTab } from "./my-requests";
@@ -1036,6 +1037,14 @@ function CockpitTab({store,cockpit}){
   const[showSearch,setShowSearch]=useState(false);
   const[toast,setToast]=useState(null);
   const searchRef=useRef(null);
+  // PR-C — adaptive Cockpit. The running ladder's current step decides
+  // what the Cockpit leads with (agent output / approval / deep work).
+  // The instance is lifted from WorkflowLadderCard's onInstance so the
+  // step panel + the act buttons share one source of truth.
+  const[ladderInstance,setLadderInstance]=useState(null);
+  const[ladderBusy,setLadderBusy]=useState(false);
+  const[ladderSendBack,setLadderSendBack]=useState("");
+  const[ladderRefresh,setLadderRefresh]=useState(0);
 
   // Filter by search if active
   const visibleQueue=useMemo(()=>{
@@ -1056,6 +1065,10 @@ function CockpitTab({store,cockpit}){
 
   const current=visibleQueue[pos];
 
+  // Clear the lifted ladder instance when the focused ticket changes so
+  // a stale step panel never flashes before WorkflowLadderCard reloads.
+  useEffect(()=>{setLadderInstance(null);setLadderSendBack("");},[current?.id]);
+
   const showToast=useCallback((msg,tone="gn",durationMs=2400)=>{
     setToast({msg,tone});
     setTimeout(()=>setToast(null),durationMs);
@@ -1063,6 +1076,25 @@ function CockpitTab({store,cockpit}){
 
   const next=useCallback(()=>setPos(p=>Math.min(p+1,visibleQueue.length-1)),[visibleQueue.length]);
   const prev=useCallback(()=>setPos(p=>Math.max(p-1,0)),[]);
+
+  // Act on the running ladder's current step (approve / send back /
+  // reject). Posts to the workflow act endpoint with the optimistic
+  // version, then bumps a refresh key so WorkflowLadderCard reloads and
+  // re-emits the fresh instance via onInstance.
+  const actOnLadder=useCallback(async(action,extra={})=>{
+    if(!ladderInstance) return;
+    setLadderBusy(true);
+    try{
+      const resp=await fetch(`/api/workflows/instances/${ladderInstance.id}/act`,{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({action,expectedVersion:ladderInstance.version,...extra}),
+      });
+      const data=await resp.json().catch(()=>({}));
+      if(!resp.ok){ showToast(data.error||`Ladder action failed (${resp.status})`,"rd"); }
+      else { showToast(`Ladder · ${String(action).replace(/_/g," ")}`,"gn"); setLadderSendBack(""); setLadderRefresh(x=>x+1); }
+    }catch(e){ showToast(String(e.message||e),"rd"); }
+    finally{ setLadderBusy(false); }
+  },[ladderInstance,showToast]);
 
   const approve=useCallback(async()=>{
     if(editing||showReassign||!current||!current.agentRecommendation) return;
@@ -1244,8 +1276,9 @@ function CockpitTab({store,cockpit}){
           <span style={{fontSize:14}}>{selected.includes(current.id)?"☑":"☐"}</span>
           <span>{selected.includes(current.id)?"selected for bulk":"press space to select"}</span>
         </div>}
+        <CockpitStepPanel ticket={current} instance={ladderInstance} busy={ladderBusy} sendBackTo={ladderSendBack} onSendBackToChange={setLadderSendBack} onAct={actOnLadder}/>
         <LitigationSummaryCard ticket={current}/>
-        <WorkflowLadderCard ticket={current}/>
+        <WorkflowLadderCard ticket={current} hideActions refreshKey={ladderRefresh} onInstance={setLadderInstance}/>
         <TicketDetailPanel ticket={current} compact={compact}/>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:12}}>
