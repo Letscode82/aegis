@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { C, F, M, SR } from "@aegis/ui";
+import { InvoiceReviewModal } from "./invoice-review-modal.jsx";
 
 // ── Legal Spend & Outside-Counsel dashboard (SP-2) ───────────────────
 //
@@ -41,15 +42,15 @@ function Bar({ pct, color }) {
 export function SpendDashboard() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [openInvoice, setOpenInvoice] = useState(null);
 
-  useEffect(() => {
-    let on = true;
+  const load = useCallback(() => {
     fetch("/api/spend/overview")
       .then((r) => (r.ok ? r.json() : r.json().then((d) => Promise.reject(d.error || `HTTP ${r.status}`))))
-      .then((d) => { if (on) setData(d.overview); })
-      .catch((e) => { if (on) setError(String(e)); });
-    return () => { on = false; };
+      .then((d) => setData(d.overview))
+      .catch((e) => setError(String(e)));
   }, []);
+  useEffect(() => { load(); }, [load]);
 
   if (error) return <div style={{ padding: 24, color: C.rd, fontFamily: M, fontSize: 12 }}>⚠ {error}</div>;
   if (!data) return <div style={{ padding: 40, textAlign: "center", color: C.t3, fontFamily: M, fontSize: 12, letterSpacing: 1 }}>◎ Loading spend…</div>;
@@ -113,7 +114,7 @@ export function SpendDashboard() {
           <span>Firm</span><span>Matter</span><span>Amount</span><span>Status</span><span>Flags</span><span>Proposed savings</span>
         </div>
         {data.invoices.map((inv) => (
-          <div key={inv.id} style={{ display: "grid", gridTemplateColumns: "1.4fr 1.6fr 90px 90px 80px 1fr", gap: 8, fontSize: 11, alignItems: "center", padding: "9px 4px", borderBottom: `1px solid ${C.br}33` }}>
+          <div key={inv.id} onClick={() => setOpenInvoice(inv.id)} title="Open invoice review" style={{ display: "grid", gridTemplateColumns: "1.4fr 1.6fr 90px 90px 80px 1fr", gap: 8, fontSize: 11, alignItems: "center", padding: "9px 4px", borderBottom: `1px solid ${C.br}33`, cursor: "pointer" }} onMouseEnter={(e) => (e.currentTarget.style.background = C.s1)} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
             <span style={{ color: C.t1 }}>{inv.vendorName}</span>
             <span style={{ color: C.t2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{inv.matterTitle}</span>
             <span style={{ fontFamily: M, color: C.t1 }}>{money(inv.amount)}</span>
@@ -149,8 +150,16 @@ export function SpendDashboard() {
       </div>
 
       <div style={{ fontSize: 9.5, color: C.t4, fontFamily: M, marginTop: 12, letterSpacing: .3 }}>
-        Flags are advisory. Deterministic flags (⚑) propose a short-pay; AI-judgment flags (◑) need reviewer approval. Review &amp; short-pay actions land in the next release.
+        Click an invoice to review it. Deterministic flags (⚑) feed the proposed short-pay; AI-judgment flags (◑) are advisory. Every approve / reject is chain-sealed.
       </div>
+
+      {openInvoice && (
+        <InvoiceReviewModal
+          invoiceId={openInvoice}
+          onClose={() => setOpenInvoice(null)}
+          onDone={load}
+        />
+      )}
     </div>
   );
 }

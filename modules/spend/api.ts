@@ -34,3 +34,12 @@ export {
   type SpendInvoiceSummary,
   type SpendBudgetSummary,
 } from "./src/internal/reads";
+
+export {
+  getInvoiceDetail,
+  runAndPersistReview,
+  approveInvoice,
+  rejectInvoice,
+  type InvoiceDetail,
+  type InvoiceDetailLine,
+} from "./src/internal/review/service";
