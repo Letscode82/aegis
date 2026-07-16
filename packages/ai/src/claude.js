@@ -31,8 +31,13 @@ export function parseJSONLoose(text){
 }
 
 export async function callClaude(prompt,opts={}){
-  const {maxTokens=1000,system,timeout=18000}=opts;
-  const body={model:CLAUDE_MODEL,max_tokens:maxTokens,messages:[{role:"user",content:prompt}]};
+  // Floor the token cap and widen the timeout: agents ask for structured
+  // JSON, and a cap that's too low truncates the JSON mid-object so
+  // JSON.parse throws and the agent degrades to "AI unavailable" even
+  // though the call succeeded. Raising the ceiling is free — the model
+  // stops when done; the cap only bites when a response would be cut off.
+  const {maxTokens=1000,system,timeout=30000}=opts;
+  const body={model:CLAUDE_MODEL,max_tokens:Math.max(maxTokens,1500),messages:[{role:"user",content:prompt}]};
   if(system) body.system=system;
   // Server-side: skip the relative-URL fetch and call the injected
   // transport directly (it returns the parsed Anthropic response).
