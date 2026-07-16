@@ -90,7 +90,15 @@ export function routeToAgent(ticket,enabledSettings,preferredAgentId){
 // The agent's process() still receives the FULL ticket so it can read
 // the document body for its analysis.
 export async function processTicketWithAgent(ticket,settings,preferredAgentId){
-  const routingTicket={...ticket,desc:descriptionLead(ticket&&ticket.desc)};
+  const routingTicket={
+    ...ticket,
+    desc:descriptionLead(ticket&&ticket.desc),
+    // Routing keys on the lead, which strips the attached-doc body — but
+    // some agents (contract review) need to know a document IS attached
+    // to claim the ticket. Surface that as a flag computed from the full
+    // description before it was stripped.
+    hasDocument:/---\s*attached document:/i.test((ticket&&ticket.desc)||""),
+  };
   const agent=routeToAgent(routingTicket,settings,preferredAgentId);
   if(!agent){
     await appendAgentLog({type:"no-agent-match",ticketId:ticket.id,desc:(ticket.desc||"").slice(0,80)});

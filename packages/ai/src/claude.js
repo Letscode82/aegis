@@ -15,6 +15,30 @@ export const CLAUDE_ENDPOINT="/api/claude";
 let _serverTransport=null;
 export function setClaudeTransport(fn){ _serverTransport=fn; }
 
+// Escape bare control characters (literal newlines / carriage returns /
+// tabs) that appear INSIDE a JSON string value. Models frequently emit a
+// multi-line "draftedResponse" with real line breaks instead of \n, which
+// is invalid JSON and makes JSON.parse throw — the single most common
+// reason a Claude-backed agent degrades to "AI unavailable" even though
+// the call succeeded. A tiny state machine tracks string context so only
+// in-string control chars are escaped; structural whitespace is untouched.
+function escapeBareControlChars(s){
+  let out="",inStr=false,esc=false;
+  for(let i=0;i<s.length;i++){
+    const ch=s[i];
+    if(esc){ out+=ch; esc=false; continue; }
+    if(ch==="\\"){ out+=ch; esc=true; continue; }
+    if(ch==='"'){ inStr=!inStr; out+=ch; continue; }
+    if(inStr){
+      if(ch==="\n"){ out+="\\n"; continue; }
+      if(ch==="\r"){ out+="\\r"; continue; }
+      if(ch==="\t"){ out+="\\t"; continue; }
+    }
+    out+=ch;
+  }
+  return out;
+}
+
 // Strip accidental markdown fences, then parse
 export function parseJSONLoose(text){
   if(!text) throw new Error("Empty response");
@@ -27,7 +51,8 @@ export function parseJSONLoose(text){
   const lastClose=Math.max(raw.lastIndexOf("}"),raw.lastIndexOf("]"));
   if(lastClose<firstBrace) throw new Error("Unbalanced JSON");
   raw=raw.slice(firstBrace,lastClose+1);
-  return JSON.parse(raw);
+  try{ return JSON.parse(raw); }
+  catch{ return JSON.parse(escapeBareControlChars(raw)); } // repair unescaped newlines etc.
 }
 
 export async function callClaude(prompt,opts={}){
