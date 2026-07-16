@@ -26,3 +26,11 @@ export {
   type FlagCode,
   type FlagSeverity,
 } from "./src/internal/review/rules";
+
+export {
+  getSpendOverview,
+  type SpendOverview,
+  type SpendFirmSummary,
+  type SpendInvoiceSummary,
+  type SpendBudgetSummary,
+} from "./src/internal/reads";

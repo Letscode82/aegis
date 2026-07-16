@@ -18,6 +18,7 @@
     "@aegis/db": "workspace:*",
     "@aegis/documents": "workspace:*",
     "@aegis/intake": "workspace:*",
+    "@aegis/spend": "workspace:*",
     "@aegis/matter": "workspace:*",
     "@aegis/observability": "workspace:*",
     "@aegis/ui": "workspace:*",
