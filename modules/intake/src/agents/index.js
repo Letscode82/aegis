@@ -12,6 +12,7 @@ import { MarketingReviewAgent } from "./marketing-review";
 import { buildRec } from "./build-rec";
 import { friendlyAIError } from "@aegis/ai";
 import { appendAgentLog } from "../storage/agent-log";
+import { descriptionLead } from "../intake/ticket-desc.js";
 
 export { NDAAgent, FAQAgent, VendorIntakeAgent, ContractReviewAgent, TrademarkAgent, LitigationAgent, PolicyQAAgent, NoticeMgmtAgent, ContractSpecialistAgent, PrivacyAssessmentAgent, MarketingReviewAgent };
 export { buildRec } from "./build-rec";
@@ -82,9 +83,15 @@ export function routeToAgent(ticket,enabledSettings,preferredAgentId){
   return null;
 }
 
-// Run the router against a ticket and log the result
+// Run the router against a ticket and log the result.
+// ROUTING keys on the human-authored request LEAD only — an attached
+// document's incidental wording (e.g. a contract full of "notice of
+// termination" language) must not pull the ticket to the wrong agent.
+// The agent's process() still receives the FULL ticket so it can read
+// the document body for its analysis.
 export async function processTicketWithAgent(ticket,settings,preferredAgentId){
-  const agent=routeToAgent(ticket,settings,preferredAgentId);
+  const routingTicket={...ticket,desc:descriptionLead(ticket&&ticket.desc)};
+  const agent=routeToAgent(routingTicket,settings,preferredAgentId);
   if(!agent){
     await appendAgentLog({type:"no-agent-match",ticketId:ticket.id,desc:(ticket.desc||"").slice(0,80)});
     return {agent:null,recommendation:null};
