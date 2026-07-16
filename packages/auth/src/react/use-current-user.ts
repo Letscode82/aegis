@@ -12,6 +12,8 @@
 
 import { useEffect, useState } from "react";
 import type { AuthUser, RoleName, Permission } from "../index";
+import { ROLE_PERMISSIONS } from "../index";
+import { getPreviewRole, subscribePreviewRole } from "./preview-role";
 
 export interface CurrentUserState {
   user: AuthUser | null;
@@ -23,12 +25,17 @@ export interface CurrentUserState {
 export function useCurrentUser(): CurrentUserState & {
   has: (perm: Permission) => boolean;
   roleName: RoleName | null;
+  /** The role being previewed (admin-only, read-only), or null. */
+  previewRole: RoleName | null;
 } {
   const [state, setState] = useState<CurrentUserState>({
     user: null,
     loading: true,
     error: null,
   });
+  // Preview-as-role (admin-only, read-only). Re-render when it changes.
+  const [preview, setPreview] = useState<RoleName | null>(() => getPreviewRole());
+  useEffect(() => subscribePreviewRole(() => setPreview(getPreviewRole())), []);
 
   useEffect(() => {
     let cancelled = false;
@@ -63,12 +70,23 @@ export function useCurrentUser(): CurrentUserState & {
     };
   }, []);
 
-  const has = (perm: Permission): boolean =>
-    !!state.user && state.user.permissions.includes(perm);
+  // Preview applies only when the REAL user is an admin. It swaps the
+  // rendered roleName + permission set for the previewed role; the real
+  // user identity (id/name/email) is untouched, and the server enforces
+  // real permissions on every mutation regardless of this.
+  const realRole = state.user?.roleName ?? null;
+  const previewActive = !!preview && realRole === "admin";
+  const effectiveRole: RoleName | null = previewActive ? preview : realRole;
+  const effectivePerms: readonly Permission[] = previewActive
+    ? ROLE_PERMISSIONS[preview]
+    : state.user?.permissions ?? [];
+
+  const has = (perm: Permission): boolean => effectivePerms.includes(perm);
 
   return {
     ...state,
     has,
-    roleName: state.user?.roleName ?? null,
+    roleName: effectiveRole,
+    previewRole: previewActive ? preview : null,
   };
 }
