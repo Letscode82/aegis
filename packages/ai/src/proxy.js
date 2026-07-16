@@ -75,19 +75,23 @@ export async function handleClaudeRequest(req, res) {
     return res.status(400).json({ error: "Missing request body" });
   }
 
-  // Per-deployment model override. Set ANTHROPIC_MODEL in the environment
-  // to change the model without a code deploy; otherwise the caller's
-  // model (@aegis/ai.CLAUDE_MODEL) is used. The server is the authority —
-  // the client can't force a model it isn't allowed to use.
-  const modelOverride = process.env.ANTHROPIC_MODEL;
-  if (modelOverride) {
-    try {
-      const parsed = JSON.parse(body);
-      parsed.model = modelOverride;
+  // The server is the authority on the model. Two reasons to rewrite it:
+  //   1. ANTHROPIC_MODEL is set — an explicit per-deployment override.
+  //   2. the client sent no model, or a known-DEAD model id — which
+  //      happens when a browser is running a stale cached bundle. The
+  //      retired "claude-sonnet-4-6" id 404s upstream and degrades every
+  //      agent; we must never forward it, even from an old client.
+  // Otherwise the caller's (valid) model is forwarded unchanged.
+  const SAFE_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
+  const DEAD_MODELS = new Set(["claude-sonnet-4-6"]);
+  try {
+    const parsed = JSON.parse(body);
+    if (process.env.ANTHROPIC_MODEL || !parsed.model || DEAD_MODELS.has(parsed.model)) {
+      parsed.model = SAFE_MODEL;
       body = JSON.stringify(parsed);
-    } catch {
-      /* non-JSON body — forward unchanged */
     }
+  } catch {
+    /* non-JSON body — forward unchanged */
   }
   if (Buffer.byteLength(body, "utf8") > BODY_LIMIT_BYTES) {
     return res.status(413).json({ error: "Request body exceeds 50KB limit" });
