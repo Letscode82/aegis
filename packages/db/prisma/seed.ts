@@ -2138,6 +2138,25 @@ async function seedSpend(orgId: string) {
         status: "ACCEPTED" as never,
       },
     });
+
+    // Planted violations on the reviewable invoices so the SP-1 review
+    // engine surfaces real DETERMINISTIC flags + a meaningful proposed
+    // short-pay in the demo (rate-over-card, out-of-period, non-billable).
+    if (inv.id === "inv-snowflake-005") {
+      const priorPeriod = new Date(inv.periodStart.getTime() - 45 * 24 * 60 * 60 * 1000);
+      await prisma.invoiceLineItem.createMany({
+        data: [
+          { invoiceId: inv.id, timekeeperId: "p-tk-skadden-partner", hours: 6, rate: 1650, description: "Emergency counterparty call and negotiation strategy", date: inv.periodStart, status: "PENDING" as never },
+          { invoiceId: inv.id, timekeeperId: "p-tk-skadden-partner", hours: 3, rate: 1450, description: "Prior-month diligence review carried into this bill", date: priorPeriod, status: "PENDING" as never },
+          { invoiceId: inv.id, timekeeperId: "p-tk-skadden-senior", hours: 4, rate: 1100, description: "Clerical filing documents and photocopying exhibits", date: inv.periodStart, status: "PENDING" as never },
+        ],
+      });
+    }
+    if (inv.id === "inv-snowflake-006") {
+      await prisma.invoiceLineItem.create({
+        data: { invoiceId: inv.id, timekeeperId: "p-tk-axiom-senior", hours: 5, rate: 525, description: "Contract review billed above the agreed ALSP card rate", date: inv.periodStart, status: "PENDING" as never },
+      });
+    }
   }
 
   // Budgets — one matter-scoped, one annual-scoped.
