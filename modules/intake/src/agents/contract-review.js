@@ -34,9 +34,19 @@ export const ContractReviewAgent={
 
   canHandle(ticket){
     const cat=(ticket.aiTriage?.category||"").toLowerCase();
+    const type=(ticket.type||"").toLowerCase();
     const d=(ticket.desc||"").toLowerCase();
-    return (/contract.{0,5}review|\bmsa\b|\bsow\b|redline/.test(cat)||/contract.{0,5}review/.test(ticket.type?.toLowerCase()||""))
-      &&!/\bnda\b/.test(d); // NDAs go to NDA Agent
+    // Contract Review type/category always. A "Contract Question" only
+    // routes here when a document is actually attached (a contract to
+    // review) — a plain contract question with no doc stays with the FAQ
+    // agent. The Contract-Type Specialist runs earlier and grabs types
+    // with a matching playbook; the rest fall through to this first-pass
+    // review instead of "no matching agent". NDAs go to the NDA agent.
+    return (
+      /contract.{0,5}review|\bmsa\b|\bsow\b|redline/.test(cat)
+      || /contract.{0,5}review/.test(type)
+      || (/\bcontract\b/.test(type) && ticket.hasDocument === true)
+    ) && !/\bnda\b/.test(d);
   },
 
   async process(ticket){
