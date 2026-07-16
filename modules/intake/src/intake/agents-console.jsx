@@ -28,13 +28,42 @@ export function AgentsConsoleTab({ canManage, settings, toggle }) {
 
   const enabledOf = (id) => !(settings && settings[id] && settings[id].enabled === false);
 
+  // Live Claude connectivity check — tells "AI unavailable" apart (key /
+  // model / quota) with one server-side ping, so a degraded agent is
+  // diagnosable without reading deploy logs.
+  const [aiHealth, setAiHealth] = useState(null); // null | "checking" | result
+  const checkAi = async () => {
+    setAiHealth("checking");
+    try {
+      const r = await fetch("/api/_health/claude");
+      setAiHealth(await r.json());
+    } catch (e) { setAiHealth({ ok: false, reason: String(e.message || e) }); }
+  };
+
   return (
     <div>
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 15, fontFamily: SR, color: C.t1 }}>Agents</div>
-        <div style={{ fontSize: 10.5, color: C.t3, fontFamily: M, marginTop: 2 }}>
-          Every agent, what standard it applies, which request types it handles, and how it's performing. Admins configure routing + on/off here; agent logic is code (that's what keeps the governance guarantee).
+      <div style={{ marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 15, fontFamily: SR, color: C.t1 }}>Agents</div>
+          <div style={{ fontSize: 10.5, color: C.t3, fontFamily: M, marginTop: 2 }}>
+            Every agent, what standard it applies, which request types it handles, and how it's performing. Admins configure routing + on/off here; agent logic is code (that's what keeps the governance guarantee).
+          </div>
         </div>
+        {canManage && (
+          <div style={{ textAlign: "right" }}>
+            <button onClick={checkAi} disabled={aiHealth === "checking"} style={{ background: "transparent", border: `1px solid ${C.tl}`, color: C.tl, fontSize: 9.5, fontFamily: M, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700, padding: "6px 12px", borderRadius: 3, cursor: aiHealth === "checking" ? "default" : "pointer", opacity: aiHealth === "checking" ? 0.6 : 1 }}>
+              {aiHealth === "checking" ? "Testing…" : "◎ Test AI connection"}
+            </button>
+            {aiHealth && aiHealth !== "checking" && (
+              <div style={{ marginTop: 6, maxWidth: 340, fontSize: 10, fontFamily: M, color: aiHealth.ok ? C.gn : C.rd, textAlign: "left", padding: "7px 9px", background: (aiHealth.ok ? C.gn : C.rd) + "14", border: `1px solid ${(aiHealth.ok ? C.gn : C.rd)}55`, borderRadius: 3, lineHeight: 1.5 }}>
+                {aiHealth.ok
+                  ? `✓ AI reachable · model ${aiHealth.model} · ${aiHealth.ms}ms`
+                  : `✕ ${aiHealth.reason || "AI unavailable"}${aiHealth.status ? ` (HTTP ${aiHealth.status})` : ""}`}
+                {!aiHealth.ok && aiHealth.detail ? <div style={{ color: C.t3, marginTop: 3 }}>{aiHealth.detail}</div> : null}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
