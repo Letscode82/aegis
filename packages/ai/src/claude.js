@@ -1,4 +1,8 @@
-export const CLAUDE_MODEL="claude-sonnet-4-6";
+// Valid, current Anthropic model id. "claude-sonnet-4-6" was NOT a real
+// model — every call 404'd upstream and the agents degraded to their
+// "AI unavailable" fallback even with a valid ANTHROPIC_API_KEY set. The
+// server proxy can override this per-deployment via ANTHROPIC_MODEL.
+export const CLAUDE_MODEL="claude-sonnet-5";
 // Client-side calls go through our serverless proxy (api/claude.js) so the
 // Anthropic API key stays on the server and CORS is avoided.
 export const CLAUDE_ENDPOINT="/api/claude";
@@ -77,6 +81,10 @@ export function friendlyAIError(err){
   const status=err&&err.status;
   const body=(err&&err.body)||"";
   if(status===429) return "Too many AI requests right now — please wait a minute.";
-  if(status===500&&/not configured/i.test(body)) return "AI service is being configured. Please try again or use the structured form.";
+  if(status===500&&/not configured/i.test(body)) return "AI service is being configured (ANTHROPIC_API_KEY not set).";
+  if(status===401||status===403) return "AI request rejected — the ANTHROPIC_API_KEY is invalid or lacks access.";
+  if((status===404||status===400)&&/model/i.test(body)) return "AI model id is invalid — set a valid ANTHROPIC_MODEL (e.g. claude-sonnet-5).";
+  if(status===402||/credit|quota|billing/i.test(body)) return "AI account is out of credit / over quota — check Anthropic billing.";
+  if(typeof status==="number"&&status>=400) return `AI service error ${status}. Check the model id and API key.`;
   return "AI assistant is unavailable right now. Please try again or use the structured form.";
 }

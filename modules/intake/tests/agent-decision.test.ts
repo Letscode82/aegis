@@ -32,7 +32,7 @@ vi.mock("@aegis/db", () => ({
     AUTO_REJECTED: "AUTO_REJECTED",
   },
 }));
-vi.mock("@aegis/ai", () => ({ CLAUDE_MODEL: "claude-sonnet-4-6" }));
+vi.mock("@aegis/ai", () => ({ CLAUDE_MODEL: "claude-sonnet-5" }));
 
 const {
   syncAgentDecisionForTicket,
@@ -68,7 +68,7 @@ describe("syncAgentDecisionForTicket — creation", () => {
     expect(data.resourceType).toBe("IntakeTicket");
     expect(data.resourceId).toBe("REQ-1");
     expect(data.agentName).toBe("nda-agent");
-    expect(data.modelId).toBe("claude-sonnet-4-6");
+    expect(data.modelId).toBe("claude-sonnet-5");
     expect(data.modelVersion).toBe("live");
   });
 

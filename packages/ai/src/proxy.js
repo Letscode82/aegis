@@ -65,7 +65,7 @@ export async function handleClaudeRequest(req, res) {
     return res.status(500).json({ error: "AI service not configured" });
   }
 
-  const body =
+  let body =
     req.body && typeof req.body === "object"
       ? JSON.stringify(req.body)
       : typeof req.body === "string"
@@ -73,6 +73,21 @@ export async function handleClaudeRequest(req, res) {
       : "";
   if (!body) {
     return res.status(400).json({ error: "Missing request body" });
+  }
+
+  // Per-deployment model override. Set ANTHROPIC_MODEL in the environment
+  // to change the model without a code deploy; otherwise the caller's
+  // model (@aegis/ai.CLAUDE_MODEL) is used. The server is the authority —
+  // the client can't force a model it isn't allowed to use.
+  const modelOverride = process.env.ANTHROPIC_MODEL;
+  if (modelOverride) {
+    try {
+      const parsed = JSON.parse(body);
+      parsed.model = modelOverride;
+      body = JSON.stringify(parsed);
+    } catch {
+      /* non-JSON body — forward unchanged */
+    }
   }
   if (Buffer.byteLength(body, "utf8") > BODY_LIMIT_BYTES) {
     return res.status(413).json({ error: "Request body exceeds 50KB limit" });
