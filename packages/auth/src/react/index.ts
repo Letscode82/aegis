@@ -11,3 +11,8 @@ export {
   useCurrentUser,
   type CurrentUserState,
 } from "./use-current-user";
+export {
+  getPreviewRole,
+  setPreviewRole,
+  subscribePreviewRole,
+} from "./preview-role";

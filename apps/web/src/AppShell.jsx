@@ -10,6 +10,7 @@ import { BrainDemoView, RegulatoryDemoView } from "./views/gc-suite-demos.jsx";
 import { MatterManagementShell, AuditLogShell } from "./views/matter-shell.jsx";
 import { AdminUsersShell, AdminRolesShell } from "./views/admin-shell.jsx";
 import { UserBadge } from "./views/user-badge.jsx";
+import { PreviewRoleSwitcher, PreviewRoleBanner } from "./views/preview-role-switcher.jsx";
 
 // Reads `?view=...` on first mount so deep links (e.g. /matter/[id]
 // rewriting to /?view=matters&matterId=...) land in the right tile.
@@ -121,9 +122,11 @@ export default function App(){
           <div style={{display:"flex",alignItems:"center",gap:6}}><Dot c={C.em} p/><span style={{fontSize:9,color:C.em,fontFamily:M,letterSpacing:2,textTransform:"uppercase"}}>LIVE</span></div>
           <span style={{fontSize:10.5,color:C.t3,fontFamily:M,letterSpacing:.5}}>{time.toLocaleTimeString("en-US",{hour12:false})} · {time.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</span>
           <div onClick={()=>setCopilotOpen(true)} style={{padding:"6px 14px",border:`1px solid ${C.em}`,color:C.em,fontSize:10,fontFamily:M,letterSpacing:1.5,cursor:"pointer",textTransform:"uppercase",transition:"all .12s"}} onMouseEnter={e=>{e.currentTarget.style.background=C.em;e.currentTarget.style.color=C.bg}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color=C.em}}>◎ Ask Aurora</div>
+          <PreviewRoleSwitcher/>
           <UserBadge/>
         </div>
       </div>
+      <PreviewRoleBanner/>
       <div style={{flex:1,overflow:"auto",padding:18}} key={view}><Comp/></div>
     </div>
     <AICopilot open={copilotOpen} setOpen={setCopilotOpen}/>
