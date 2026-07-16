@@ -43,3 +43,11 @@ export {
   type InvoiceDetail,
   type InvoiceDetailLine,
 } from "./src/internal/review/service";
+
+export {
+  getOutsideCounselOverview,
+  type CounselFirm,
+  type CounselTimekeeper,
+  type CounselRateCardEntry,
+  type CounselScorecard,
+} from "./src/internal/counsel";
