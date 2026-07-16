@@ -41,6 +41,9 @@ importers:
       '@aegis/observability':
         specifier: workspace:*
         version: link:../../packages/observability
+      '@aegis/spend':
+        specifier: workspace:*
+        version: link:../../modules/spend
       '@aegis/ui':
         specifier: workspace:*
         version: link:../../packages/ui
