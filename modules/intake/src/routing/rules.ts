@@ -10,6 +10,7 @@
  * Semantics:
  *   - Rules evaluate in ascending evalOrder.
  *   - All non-null match* conditions AND together.
+ *   - Keyword matching keys on the request LEAD, not attached docs.
  *   - Later rules see earlier rules' effects (a rule that sets
  *     priority to Critical can cause a matchPriority=Critical rule
  *     to fire next).
@@ -19,6 +20,8 @@
  *   - Attorney decisions always win: the caller must not evaluate
  *     rules for tickets that already have a triage action.
  */
+
+import { descriptionLead } from "../intake/ticket-desc.js";
 
 export interface RoutingRuleLike {
   id: string;
@@ -165,8 +168,11 @@ export function ruleMatches(
   if (rule.matchDepartment && rule.matchDepartment !== ticket.department)
     return false;
   if (rule.matchKeyword) {
-    if (!ticket.description.toLowerCase().includes(rule.matchKeyword.toLowerCase()))
-      return false;
+    // Match the human-authored request LEAD only — never the appended
+    // document body, whose incidental words (e.g. "breach" in a
+    // commercial contract) otherwise fire rules spuriously.
+    const lead = descriptionLead(ticket.description).toLowerCase();
+    if (!lead.includes(rule.matchKeyword.toLowerCase())) return false;
   }
   if (rule.matchComplexity && rule.matchComplexity !== ticket.complexity) return false;
   return true;

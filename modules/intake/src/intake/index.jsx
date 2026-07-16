@@ -2632,7 +2632,12 @@ export function IntakeView(){
     {divider:true},
     {id:"sla",label:"SLA Dashboard",icon:"◔"},
     {id:"poolops",label:"Pool Ops",icon:"⛁"},
-    {id:"routing",label:"Smart Routing",icon:"⚯",count:routingRules?routingRules.length:undefined},
+    // Smart Routing tab retired from the nav — the governance ladder
+    // (Workflow Designer) is the routing brain now: it owns which agent
+    // runs at which step, per-step SLA, and per-step approver. The rule
+    // engine stays dormant behind the scenes (schema + admin API kept)
+    // so it can be re-surfaced if a tenant ever needs org-policy rules;
+    // it no longer fires spuriously on document text (see rules.ts).
     ...(canManageRouting?[
       {divider:true},
       {id:"teams",label:"Teams",icon:"◪"},
