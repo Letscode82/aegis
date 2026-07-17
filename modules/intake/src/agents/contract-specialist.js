@@ -1,6 +1,10 @@
 import { buildRec, buildDegradedRec } from "./build-rec";
 import { selectPlaybook } from "./contract-playbooks";
-import { callClaudeJSON, friendlyAIError } from "@aegis/ai";
+import { callClaude, callClaudeJSON, friendlyAIError } from "@aegis/ai";
+
+// Cap the embedded document so a large upload can't truncate the JSON or
+// exceed the timeout (see contract-review.js for the same failure mode).
+const MAX_DOC_CHARS = 9000;
 
 // ── Agent 11 · Contract-Type Specialist (GC Suite Working Architecture)
 //
@@ -81,7 +85,10 @@ For EVERY issue, assign a band: ACCEPT (within playbook), NEGOTIATE (deviation w
 
 TICKET:
 - Requester: ${ticket.from} (${ticket.dept})
-- Description: "${(ticket.desc||"").slice(0,2500)}"
+- Description / document:
+"""
+${(ticket.desc||"").slice(0,MAX_DOC_CHARS)}
+"""
 
 Produce:
 1. Which mandatory clauses are addressed / missing / unassessable without the full text.
@@ -91,10 +98,10 @@ Produce:
 
 This is type-specific first-pass review — attorney sign-off is always required before execution.
 
-Respond with ONLY this JSON:
-{"draftedResponse":"review summary to the requester, \\n line breaks, 160-240 words, bulleted issue list with ACCEPT/NEGOTIATE/REJECT bands","alternativeTone":"one-line summary","confidence":0.0-1.0,"reasoning":"one line naming the playbook + overall posture","concerns":["...issues the attorney must confirm, worst first"]}`;
+Respond with ONLY this JSON (keep draftedResponse to 160-240 words; use \\n for line breaks; do NOT use double-quotes inside the string):
+{"draftedResponse":"review summary to the requester, bulleted issue list with ACCEPT/NEGOTIATE/REJECT bands","alternativeTone":"one-line summary","confidence":0.0-1.0,"reasoning":"one line naming the playbook + overall posture","concerns":["...issues the attorney must confirm, worst first"]}`;
 
-      const result=await callClaudeJSON(prompt,{maxTokens:900});
+      const result=await callClaudeJSON(prompt,{maxTokens:1800,timeout:45000});
       const confidence=Math.min(typeof result.confidence==="number"?result.confidence:0.6,mustEscalate?0.75:0.9);
       const concerns=[...selectionConcerns,...(Array.isArray(result.concerns)?result.concerns:[])];
       if(!concerns.some(c=>/sign.?off|attorney/i.test(c))){
@@ -111,16 +118,41 @@ Respond with ONLY this JSON:
         playbook:stamp,
       });
     }catch(e){
-      console.error("[agent:contract-specialist] callClaudeJSON failed:",e);
+      console.error("[agent:contract-specialist] JSON path failed, retrying as plain text:",e);
+      // Plain-text retry — same type-specific review, no fragile JSON.
+      try{
+        const textPrompt=`You are the Contract-Type Specialist agent for AEGIS Legal. Review the contract below against this SPECIFIC playbook, then write a concise review (180-240 words) addressed to ${(ticket.from||"").split(" ")[0]||"there"} that: lists mandatory clauses addressed/missing, any forbidden-clause signals, deviations from the negotiable bands (with the standard fallback), and a recommendation — each issue tagged ACCEPT/NEGOTIATE/REJECT, worst first. End by stating attorney sign-off is required before execution. Plain text only — no preamble, no JSON.
+
+${playbookText}
+
+TICKET — ${ticket.from} (${ticket.dept}):
+"""
+${(ticket.desc||"").slice(0,MAX_DOC_CHARS)}
+"""`;
+        const prose=await callClaude(textPrompt,{maxTokens:1400,timeout:45000});
+        const clean=(prose||"").trim();
+        if(!clean) throw new Error("Empty plain-text review");
+        return buildRec(this.id,{
+          confidence:mustEscalate?0.5:0.55,
+          suggestedAction:mustEscalate?"escalate":"flag-for-review",
+          draftedResponse:clean,
+          reasoning:`Type-specific review against ${pb.label} ${pb.version} (produced as plain text — structured extraction unavailable).`,
+          concerns:[...selectionConcerns,"Attorney sign-off required before execution — this is a first-pass review."],
+          precedentLinks:[{id:pb.id,title:`${pb.label} playbook ${pb.version}`}],
+          playbook:stamp,
+        });
+      }catch(e2){
+      console.error("[agent:contract-specialist] plain-text fallback also failed:",e2);
       // Degraded path keeps the deterministic value: the selected
       // playbook (stamped + cited) and the escalation-gate results.
       return buildDegradedRec(this.id,{
         draftedResponse:`Hi ${(ticket.from||"").split(" ")[0]||"there"},\n\nI've logged your ${pb.label.toLowerCase()} review request. Our AI assistant is temporarily unavailable, so the clause-by-clause analysis will be run by a reviewer against playbook ${pb.id} ${pb.version} (mandatory clauses, forbidden clauses, negotiable bands) before attorney sign-off.\n\n— AEGIS Contract Review`,
         reasoning:`Playbook ${pb.id} ${pb.version} selected deterministically; AI review unavailable — manual review against the same standard required.`,
-        concerns:[friendlyAIError(e),...selectionConcerns,"No AI review produced — manual playbook review + attorney sign-off required."],
+        concerns:[friendlyAIError(e2),...selectionConcerns,"No AI review produced — manual playbook review + attorney sign-off required."],
         precedentLinks:[{id:pb.id,title:`${pb.label} playbook ${pb.version}`}],
         playbook:stamp,
       });
+      }
     }
   },
 };
