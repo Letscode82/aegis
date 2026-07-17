@@ -12,7 +12,7 @@ import { ALL_AGENTS, routeToAgent } from "../agents";
 const labelS = { fontSize: 9.5, fontFamily: M, color: C.t3, letterSpacing: 1, textTransform: "uppercase", marginBottom: 3 };
 const btn = (bg) => ({ padding: "5px 11px", background: bg, color: C.bg, fontSize: 9.5, fontFamily: M, letterSpacing: 1.2, cursor: "pointer", textTransform: "uppercase", fontWeight: 700, borderRadius: 3, border: "none" });
 
-function TypeForm({ onCancel, onSaved }) {
+export function TypeForm({ onCancel, onSaved, initialWorkflowKey }) {
   const [ladderKeys, setLadderKeys] = useState([]);
   useEffect(() => {
     fetch("/api/workflows/definitions").then((r) => r.json()).then((d) => {
@@ -23,7 +23,7 @@ function TypeForm({ onCancel, onSaved }) {
   const [key, setKey] = useState("");
   const [workstream, setWorkstream] = useState("");
   const [stages, setStages] = useState("");
-  const [workflowKey, setWorkflowKey] = useState("");
+  const [workflowKey, setWorkflowKey] = useState(initialWorkflowKey || "");
   const [preferredAgentId, setPreferredAgentId] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -89,7 +89,7 @@ function HandledByChip({ type }) {
   );
 }
 
-function FieldsEditor({ type, onCancel, onSaved }) {
+export function FieldsEditor({ type, onCancel, onSaved }) {
   const [rows, setRows] = useState(() =>
     (type.fields || []).map((f) => ({
       key: f.key, label: f.label, kind: f.kind, required: !!f.required,

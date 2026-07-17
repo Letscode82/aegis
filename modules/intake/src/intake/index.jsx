@@ -16,7 +16,7 @@ import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
 import { TicketSummaryButton, AskAuroraChat } from "../ai-features";
 import { isAwaitingTriage } from "./triage-filter";
 import { splitTicketDescription } from "./ticket-desc";
-import { RequestPipelinesTab } from "./request-pipelines";
+import { WorkflowsTab } from "./workflows-tab";
 import { WorkflowSlaPanel } from "./workflow-sla";
 import { ViewAsSwitcher } from "./view-as-switcher";
 import { AgentsConsoleTab } from "./agents-console";
@@ -2646,7 +2646,7 @@ export function IntakeView(){
     ...(canManageRouting?[
       {divider:true},
       {id:"teams",label:"Teams",icon:"◪"},
-      {id:"pipelines",label:"Request Pipelines",icon:"❏"},
+      {id:"pipelines",label:"Workflows",icon:"⛓"},
       {id:"agents-console",label:"Agents",icon:"◉"},
     ]:[]),
   ]:[
@@ -2710,7 +2710,7 @@ export function IntakeView(){
     {tab==="poolops"&&<PoolOpsTab/>}
     {tab==="routing"&&<RoutingTab rules={routingRules} loading={routingRules===null&&!routingError} error={routingError} onRuleUpdated={onRuleUpdated} onRuleCreated={onRuleCreated} onRuleDeleted={onRuleDeleted} assignees={routingAssignees} canManage={canManageRouting}/>}
     {tab==="teams"&&<TeamsTab canManage={canManageRouting}/>}
-    {tab==="pipelines"&&<RequestPipelinesTab canManage={canManageRouting}/>}
+    {tab==="pipelines"&&<WorkflowsTab canManage={canManageRouting}/>}
     {tab==="agents-console"&&<AgentsConsoleTab canManage={canManageRouting} settings={agentSettingsHook.settings} toggle={agentSettingsHook.toggle}/>}
     {tab==="selfserve"&&<SelfServeTab onFileTicket={(draft)=>{setPrefillDesc(draft||"");setTab("new");}}/>}
     </PanelBoundary>

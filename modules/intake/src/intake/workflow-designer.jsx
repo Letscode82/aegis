@@ -193,7 +193,7 @@ function VersionHistory({ defKey, onRevertLoad }) {
   );
 }
 
-function DefinitionEditor({ def, onCancel, onSaved }) {
+export function DefinitionEditor({ def, onCancel, onSaved }) {
   const toast = useToast();
   const isNew = !def;
   const [key, setKey] = useState(def?.key || "");
@@ -219,7 +219,7 @@ function DefinitionEditor({ def, onCancel, onSaved }) {
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) throw new Error(d.error || `Save failed (HTTP ${r.status})`);
       toast.success(`Saved "${d.definition.name}" (v${d.definition.version}).`);
-      onSaved();
+      onSaved(d.definition);
     } catch (e) { toast.error(String(e.message || e)); } finally { setBusy(false); }
   };
 
