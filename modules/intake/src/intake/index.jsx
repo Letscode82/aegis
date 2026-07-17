@@ -65,7 +65,6 @@ function TypePickerGate({onPickSimple,onPickComplex}){
             <div style={{fontSize:10,fontFamily:M,color:C.tl,letterSpacing:1.5,textTransform:"uppercase",fontWeight:600,marginBottom:3}}>FAST PATH · STRUCTURED FORM</div>
             <div style={{fontSize:14,color:C.t1,fontFamily:SR,lineHeight:1.3}}>When you know exactly what you need</div>
           </div>
-          <Pill t="v7.2 FORM" c={C.tl}/>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
           {SIMPLE_TYPES.map(t=><div key={t.id} onClick={()=>onPickSimple(t.id)} style={{padding:10,border:`1px solid ${C.br}`,borderRadius:4,cursor:"pointer",transition:"all .12s",background:C.s1}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.tl;e.currentTarget.style.background=C.tlG}} onMouseLeave={e=>{e.currentTarget.style.borderColor=C.br;e.currentTarget.style.background=C.s1}}>
@@ -81,7 +80,6 @@ function TypePickerGate({onPickSimple,onPickComplex}){
             <div style={{fontSize:10,fontFamily:M,color:C.em,letterSpacing:1.5,textTransform:"uppercase",fontWeight:600,marginBottom:3}}>SMART PATH · COPILOT CHAT</div>
             <div style={{fontSize:14,color:C.t1,fontFamily:SR,lineHeight:1.3}}>When you're not sure what you need</div>
           </div>
-          <Pill t="v8 NEW" c={C.em}/>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:7}}>
           {COMPLEX_TYPES.map(t=><div key={t.id} onClick={()=>onPickComplex(t.id)} style={{padding:10,border:`1px solid ${t.sensitive?C.am+"66":C.br}`,borderRadius:4,cursor:"pointer",transition:"all .12s",background:C.s1}} onMouseEnter={e=>{e.currentTarget.style.borderColor=C.em;e.currentTarget.style.background=C.emG}} onMouseLeave={e=>{e.currentTarget.style.borderColor=t.sensitive?C.am+"66":C.br;e.currentTarget.style.background=C.s1}}>
@@ -612,7 +610,7 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,goToMyRequests
       </div>
       {missingFields.length>0&&<div style={{marginTop:8,fontSize:10,color:C.am,fontFamily:M}}>⚠ Required for {selectedReqType.name}: {missingFields.join(", ")}</div>}
       <div style={{marginTop:14,padding:11,background:C.s1,borderRadius:5,borderLeft:`2px solid ${C.em}`,fontSize:10.5,color:C.t2,fontFamily:M,lineHeight:1.55}}>
-        <div style={{color:C.em,fontWeight:600,marginBottom:3,letterSpacing:.5}}>v8 FLOW</div>
+        <div style={{color:C.em,fontWeight:600,marginBottom:3,letterSpacing:.5}}>FLOW</div>
         On submit: regex triage runs → ticket saved → agent router picks best fit → recommendation generated → ticket lands in Cockpit for attorney review. <span style={{color:C.am}}>Agents never auto-close.</span>
       </div>
     </Card>
@@ -1571,7 +1569,7 @@ function AgentSettingsPanel({onClose,settings,toggle,log}){
           </div>}
 
           <div style={{marginTop:16,padding:11,background:C.amG,borderLeft:`2px solid ${C.am}`,borderRadius:3,fontSize:10.5,color:C.t2,lineHeight:1.6,fontFamily:M}}>
-            <span style={{color:C.am,fontWeight:600,letterSpacing:.5}}>v8 SAFETY RULE:</span> Agents <span style={{color:C.am,fontWeight:600}}>never auto-close tickets</span>. They produce recommendations. Every close is attorney-initiated, logged, and reversible.
+            <span style={{color:C.am,fontWeight:600,letterSpacing:.5}}>SAFETY RULE:</span> Agents <span style={{color:C.am,fontWeight:600}}>never auto-close tickets</span>. They produce recommendations. Every close is attorney-initiated, logged, and reversible.
           </div>
         </>:<>
           {/* Audit log viewer */}
@@ -2625,10 +2623,10 @@ export function IntakeView(){
   const tabs=isStaffNav?[
     {id:"mywork",label:"My Work",icon:"☰"},
     {id:"inbox",label:"Inbox",icon:"◉"},
-    {id:"cockpit",label:"Triage Cockpit",icon:"⌘",v8:true},
+    {id:"cockpit",label:"Triage Cockpit",icon:"⌘"},
     {id:"kanban",label:"Kanban",icon:"◱"},
     {divider:true},
-    {id:"new",label:"New Request",icon:"＋",v8:true},
+    {id:"new",label:"New Request",icon:"＋"},
     {id:"myrequests",label:"My Requests",icon:"◍"},
     {id:"selfserve",label:"Self-Service",icon:"◈",count:SELF_SERVE_ARTICLES.length},
     {divider:true},
@@ -2647,7 +2645,7 @@ export function IntakeView(){
       {id:"agents-console",label:"Agents",icon:"◉"},
     ]:[]),
   ]:[
-    {id:"new",label:"New Request",icon:"＋",v8:true},
+    {id:"new",label:"New Request",icon:"＋"},
     {id:"myrequests",label:"My Requests",icon:"◍"},
     {id:"selfserve",label:"Self-Service",icon:"◈",count:SELF_SERVE_ARTICLES.length},
   ];
@@ -2655,7 +2653,7 @@ export function IntakeView(){
   const awaiting=store.tickets.filter(isAwaitingTriage).length;
 
   if(store.loading) return <div style={{padding:40,textAlign:"center",color:C.t3,fontFamily:M,fontSize:12,letterSpacing:1}}>
-    ◎ LOADING AEGIS LEGAL INTAKE v8 …
+    ◎ LOADING AEGIS LEGAL INTAKE …
   </div>;
 
   return <div>
@@ -2664,7 +2662,7 @@ export function IntakeView(){
     {/* Aurora eyebrow + title */}
     <div style={{marginBottom:16,display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:20,flexWrap:"wrap"}}>
       <div>
-        <div style={{fontSize:10,fontFamily:M,letterSpacing:2,color:C.cy,textTransform:"uppercase",marginBottom:4}}>OPERATIONS · LEGAL · INTAKE v8</div>
+        <div style={{fontSize:10,fontFamily:M,letterSpacing:2,color:C.cy,textTransform:"uppercase",marginBottom:4}}>OPERATIONS · LEGAL · INTAKE</div>
         <div style={{fontSize:24,fontFamily:SR,color:C.t1,fontWeight:400,lineHeight:1.2}}>Mission control for every legal request — <em style={{color:C.cy,fontStyle:"italic"}}>triaged, drafted, resolved</em></div>
         <div style={{fontSize:11,color:C.t3,marginTop:4,fontFamily:M}}>Intake Copilot · Triage Cockpit · Agent Layer · persistent store · hybrid AI triage</div>
       </div>
@@ -2685,7 +2683,6 @@ export function IntakeView(){
         const active=tab===t.id;
         return <div key={t.id} {...pressable(()=>{setTab(t.id);setSel(null)},`${t.label} section`)} aria-current={active?"page":undefined} style={{padding:"8px 14px",borderBottom:`2px solid ${active?C.cy:"transparent"}`,cursor:"pointer",transition:"all .15s",fontFamily:M,fontSize:10.5,letterSpacing:1.2,textTransform:"uppercase",color:active?C.cy:C.t3,fontWeight:active?600:400,display:"flex",alignItems:"center",gap:6,marginBottom:-1,whiteSpace:"nowrap"}} onMouseEnter={e=>{if(!active)e.currentTarget.style.color=C.t1}} onMouseLeave={e=>{if(!active)e.currentTarget.style.color=C.t3}}>
           <span style={{fontSize:12}}>{t.icon}</span>{t.label}
-          {t.v8&&<Pill t="v8" c={C.em}/>}
           {t.count!==undefined&&<span style={{fontSize:9,padding:"1px 5px",background:active?C.cy+"22":C.br+"44",color:active?C.cy:C.t3,borderRadius:2,fontFamily:M}}>{t.count}</span>}
           {t.id==="cockpit"&&awaiting>0&&<span style={{fontSize:9,color:C.am,fontFamily:M,fontWeight:700}}>·{awaiting}</span>}
         </div>;
