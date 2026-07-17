@@ -167,6 +167,9 @@ importers:
       '@aegis/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@aegis/contracts':
+        specifier: workspace:*
+        version: link:../contracts
       '@aegis/db':
         specifier: workspace:*
         version: link:../../packages/db

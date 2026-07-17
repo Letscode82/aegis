@@ -37,3 +37,18 @@ export {
   type CreateClauseInput,
   type CreateObligationInput,
 } from "./src/internal/service";
+
+export {
+  extractContractKnowledge,
+  type ExtractedKnowledge,
+  type ExtractedClause,
+  type ExtractedObligation,
+} from "./src/internal/extract";
+
+export {
+  spawnContractFromIntake,
+  extractAndPersistContractKnowledge,
+  type SpawnContractFromIntakeInput,
+  type SpawnContractResult,
+  type ContractExtractionResult,
+} from "./src/internal/intake-spawn";

@@ -50,6 +50,7 @@
   "dependencies": {
     "@aegis/ai": "workspace:*",
     "@aegis/auth": "workspace:*",
+    "@aegis/contracts": "workspace:*",
     "@aegis/db": "workspace:*",
     "@aegis/matter": "workspace:*",
     "@aegis/observability": "workspace:*",
