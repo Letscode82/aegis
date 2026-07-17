@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { C, F, M, SR } from "@aegis/ui";
 import { ContractDetailModal } from "./contract-detail-modal.jsx";
 import { ClauseLibraryModal } from "./clause-library-modal.jsx";
+import { TemplatesModal } from "./templates-modal.jsx";
 
 // ── Contract repository (CTR-1) ──────────────────────────────────────
 //
@@ -46,6 +47,7 @@ export function ContractsRepository() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [canManage, setCanManage] = useState(false);
   const [showPlaybook, setShowPlaybook] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
 
   const load = useCallback(() => {
     fetch("/api/contracts/overview")
@@ -91,7 +93,10 @@ export function ContractsRepository() {
           <div style={{ fontSize: 10, fontFamily: M, letterSpacing: 2, color: C.bl, textTransform: "uppercase" }}>Legal · Contract Lifecycle Management</div>
           <div style={{ fontSize: 24, fontFamily: SR, color: C.t1, lineHeight: 1.2 }}>The contract <em style={{ color: C.bl, fontStyle: "italic" }}>system of record</em></div>
         </div>
-        <button onClick={() => setShowPlaybook(true)} style={{ padding: "7px 13px", background: "transparent", color: C.bl, border: `1px solid ${C.bl}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer", flexShrink: 0 }}>📖 Playbook</button>
+        <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+          <button onClick={() => setShowPlaybook(true)} style={{ padding: "7px 13px", background: "transparent", color: C.bl, border: `1px solid ${C.bl}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" }}>📖 Playbook</button>
+          <button onClick={() => setShowTemplates(true)} style={{ padding: "7px 13px", background: "transparent", color: C.tl, border: `1px solid ${C.tl}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" }}>📄 Templates</button>
+        </div>
       </div>
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
@@ -160,6 +165,7 @@ export function ContractsRepository() {
         />
       )}
       {showPlaybook && <ClauseLibraryModal canManage={canManage} onClose={() => setShowPlaybook(false)} />}
+      {showTemplates && <TemplatesModal canManage={canManage} onClose={() => setShowTemplates(false)} />}
     </div>
   );
 }

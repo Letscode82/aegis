@@ -1677,7 +1677,25 @@ async function seedContracts(orgId: string, ownerPersonId: string) {
     playbookCount++;
   }
 
-  return { contracts: CONTRACTS.length, clauses: clauseCount, obligations: obligationCount, reviewToken: demoRawToken, playbook: playbookCount };
+  // Templates DB: the editable drafts the agents draft from. MNDA-v4.2
+  // is the NDA agent's default; the rest seed the contract/notice kinds.
+  const TEMPLATES: Array<{ kind: "NDA" | "CONTRACT" | "NOTICE" | "OTHER"; key: string; name: string; description: string; body: string; sortOrder: number }> = [
+    { kind: "NDA", key: "mnda-v4.2", name: "Standard Mutual NDA (MNDA-v4.2)", description: "2-year mutual, standard carve-outs, 12-month no-solicit, Delaware.", sortOrder: 1, body: "MUTUAL NON-DISCLOSURE AGREEMENT (MNDA-v4.2)\n\nThis Mutual Non-Disclosure Agreement is entered into by {{company}} and {{counterparty}} as of {{date}}.\n\n1. Purpose: {{purpose}}.\n2. Term: 2 years from the effective date.\n3. Confidentiality: standard carve-outs (already known, independently developed, publicly available, required by law).\n4. Non-solicit: mutual, 12 months.\n5. Governing law: Delaware; standard venue.\n6. Return/destroy on termination.\n\nSigned: {{company}} __________   {{counterparty}} __________" },
+    { kind: "CONTRACT", key: "msa-v2", name: "Master Services Agreement (MSA-v2)", description: "Playbook-aligned MSA skeleton.", sortOrder: 2, body: "MASTER SERVICES AGREEMENT (MSA-v2)\n\nBetween {{company}} and {{counterparty}}, effective {{date}}.\n\n- Liability: capped at 12 months' fees; uncapped IP/confidentiality/indemnity carve-outs.\n- Payment: Net 45.\n- IP: present-tense assignment of deliverables; license-back for background IP.\n- Term & termination: {{term}}; 30-day termination for convenience.\n- Governing law: Delaware." },
+    { kind: "CONTRACT", key: "dpa-v1", name: "Data Processing Addendum (DPA-v1)", description: "GDPR-aligned DPA.", sortOrder: 3, body: "DATA PROCESSING ADDENDUM (DPA-v1)\n\nProcessor {{counterparty}} processes personal data on behalf of controller {{company}}.\n\n- Sub-processors: 30-day change notice; right to object.\n- Security: appropriate technical + organisational measures.\n- Audit: annual right.\n- Sub-processing + cross-border transfers per applicable law." },
+    { kind: "NOTICE", key: "notice-nonrenewal", name: "Non-renewal Notice", description: "Serve before the notice window closes.", sortOrder: 4, body: "NOTICE OF NON-RENEWAL\n\nTo: {{counterparty}}\nRe: {{contractTitle}}\n\n{{company}} hereby gives notice that it will not renew the above agreement, effective {{expiryDate}}, in accordance with the {{noticeWindowDays}}-day notice provision. This notice is served on {{date}}." },
+  ];
+  let templateCount = 0;
+  for (const t of TEMPLATES) {
+    await prisma.template.upsert({
+      where: { organizationId_key: { organizationId: orgId, key: t.key } },
+      update: { kind: t.kind, name: t.name, description: t.description, body: t.body, sortOrder: t.sortOrder, active: true },
+      create: { organizationId: orgId, kind: t.kind, key: t.key, name: t.name, description: t.description, body: t.body, sortOrder: t.sortOrder },
+    });
+    templateCount++;
+  }
+
+  return { contracts: CONTRACTS.length, clauses: clauseCount, obligations: obligationCount, reviewToken: demoRawToken, playbook: playbookCount, templates: templateCount };
 }
 
 async function main() {
@@ -1761,7 +1779,7 @@ async function main() {
   const ct = await seedContracts(org.id, alexPerson.id);
   console.log(
     `[seed] contracts=${ct.contracts} clauses=${ct.clauses} contract_obligations=${ct.obligations} ` +
-      `clause_library=${ct.playbook} review_portal=/contract-review/${ct.reviewToken}`,
+      `clause_library=${ct.playbook} templates=${ct.templates} review_portal=/contract-review/${ct.reviewToken}`,
   );
 
   console.log("[seed] done.");

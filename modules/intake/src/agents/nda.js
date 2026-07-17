@@ -2,6 +2,21 @@ import { buildRec, buildDegradedRec } from "./build-rec";
 import { checkCounterpartyRelationship } from "./counterparty-lookup";
 import { callClaudeJSON, friendlyAIError } from "@aegis/ai";
 
+// Draft from the org's DB template (the "📄 Templates" store) so editing
+// the NDA template there changes what this agent produces. Falls back to
+// the built-in MNDA-v4.2 summary on any failure (unauthenticated,
+// server-side relative fetch, no template) so the agent never breaks.
+async function loadNdaTemplate(){
+  try{
+    const r=await fetch("/api/intake/template?kind=NDA");
+    if(r.ok){
+      const d=await r.json();
+      if(d&&d.ok&&d.template&&typeof d.template.body==="string"&&d.template.body.trim()) return d.template;
+    }
+  }catch{/* fall through to the built-in default */}
+  return { name:"MNDA-v4.2", body:"Standard Mutual NDA: 2-year term, standard carve-outs, mutual no-solicit 12 months, Delaware law." };
+}
+
 export const NDAAgent={
   id:"nda-agent",
   name:"NDA Agent",
@@ -39,6 +54,7 @@ export const NDAAgent={
 
     // Use Claude for the drafted response if API available, else fall back to template
     let draftedResponse=null,confidence=0.92,reasoning=null;
+    const tmpl=await loadNdaTemplate();
     try{
       const prompt=`You are the NDA Agent for AEGIS Legal Mission Control. A legal intake ticket has arrived requesting a Non-Disclosure Agreement.
 
@@ -50,7 +66,8 @@ TICKET:
 COUNTERPARTY CHECK (live, from our system of record):
 ${priorNDA.note}
 
-PLAYBOOK TEMPLATE: MNDA-v4.2 (2-year term, standard carve-outs, mutual no-solicit 12 months, Delaware law).
+PLAYBOOK TEMPLATE (${tmpl.name}) — draft from this:
+${(tmpl.body||"").slice(0,1200)}
 
 Draft a professional, confident response (as if sent from a senior paralegal) confirming what you've done and next steps. Mention the template version, key terms, the prior-NDA check result, and say the doc is ready for DocuSign. Address the requester by first name. 130-180 words.
 
