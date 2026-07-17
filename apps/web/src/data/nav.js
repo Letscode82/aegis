@@ -20,7 +20,6 @@ export const NAV=[
   {id:"brain",label:"Company Brain",icon:"◎",c:C.tl,group:"INTELLIGENCE"},
   {id:"board",label:"Board Pack",icon:"◇",c:C.pp,group:"INTELLIGENCE"},
   {id:"divider3"},
-  {id:"workflows",label:"Workflow Builder",icon:"▷",c:C.tl,group:"PLATFORM"},
   {id:"architecture",label:"Architecture",icon:"▶",c:C.pp,group:"PLATFORM"},
   {id:"divider4"},
   // PLATFORM admin tools — each entry is permission-gated. AppShell
