@@ -719,105 +719,131 @@ export function MissionControlView(){
 // ═══════════════════════════════════════════════════════════════════
 // RISK GRAPH — cross-domain correlation visualization
 // ═══════════════════════════════════════════════════════════════════
+const RG_RISK_COLOR = { high: C.rd, medium: C.am, low: C.gn };
+const RG_TYPE_LABEL = { counterparty: "Counterparty", matter: "Matter", contract: "Contract", hold: "Legal Hold" };
+
 export function RiskGraphView(){
-  const[sel,setSel]=useState(null);
-  // Nodes: matters, contracts, regulations, spend firms — positioned to show correlations
-  const nodes=[
-    {id:"M1",label:"Acme Patent",type:"matter",x:20,y:30,r:22,c:C.pp,det:"LIT-324 · $12M exposure · Discovery"},
-    {id:"M2",label:"EU Antitrust",type:"matter",x:50,y:20,r:32,c:C.rd,det:"LIT-326 · $180M exposure · Investigation"},
-    {id:"M3",label:"LATAM FCPA",type:"matter",x:75,y:35,r:28,c:C.rd,det:"LIT-332 · $120M exposure · Internal Investigation"},
-    {id:"M4",label:"GDPR Breach",type:"matter",x:30,y:70,r:18,c:C.am,det:"LIT-328 · $28M exposure · Pre-trial"},
-    {id:"V1",label:"LATAM Vendor Pool",type:"vendor",x:80,y:65,r:16,c:C.am,det:"14 vendors across Brazil, Mexico, Argentina · 3 overlap with EU + FCPA"},
-    {id:"C1",label:"SAP SE",type:"contract",x:45,y:55,r:14,c:C.bl,det:"CTR-4821 · $4.2M · Unlimited indemnity risk"},
-    {id:"C2",label:"Huawei",type:"contract",x:85,y:20,r:12,c:C.rd,det:"CTR-4825 · Sanctions exposure · Legal hold"},
-    {id:"R1",label:"EU AI Act",type:"reg",x:35,y:40,r:16,c:C.tl,det:"REG-001 · Aug 2026 deadline · 47 contracts affected"},
-    {id:"R2",label:"DPDP India",type:"reg",x:15,y:55,r:14,c:C.tl,det:"REG-002 · Cross-border data transfer"},
-    {id:"R3",label:"CAC China",type:"reg",x:65,y:75,r:14,c:C.tl,det:"REG-003 · Data localization"},
-    {id:"F1",label:"Cleary Gottlieb",type:"firm",x:55,y:40,r:14,c:C.am,det:"$14.8M YTD · EU Antitrust + GDPR · 4 matters"},
-    {id:"F2",label:"Sullivan & Cromwell",type:"firm",x:65,y:50,r:12,c:C.am,det:"$5.2M YTD · FCPA lead · rate 9% above benchmark"},
+  const[data,setData]=useState(null);
+  const[error,setError]=useState(null);
+  const[selId,setSelId]=useState(null);
+
+  useEffect(()=>{
+    let alive=true;
+    fetch("/api/intelligence/risk-graph")
+      .then(r=>r.ok?r.json():r.json().then(d=>Promise.reject(d.error||`HTTP ${r.status}`)))
+      .then(d=>{if(alive)setData(d.graph)})
+      .catch(e=>{if(alive)setError(String(e))});
+    return()=>{alive=false};
+  },[]);
+
+  const header=(
+    <div style={{marginBottom:16}}>
+      <div style={{fontSize:10,fontFamily:M,letterSpacing:2,color:C.em,textTransform:"uppercase",marginBottom:4}}>CROSS · DOMAIN · RISK</div>
+      <div style={{fontSize:24,fontFamily:SR,fontWeight:400,color:C.t1,lineHeight:1.2}}>Risk Graph — where <em style={{color:C.em,fontStyle:"italic"}}>exposure connects</em></div>
+      <div style={{fontSize:11,color:C.t3,marginTop:4,fontFamily:M}}>Counterparties · matters · contracts · legal holds — linked by real relationships, scored by real signals</div>
+    </div>
+  );
+
+  if(error) return <div>{header}<div style={{padding:20,background:C.rdG||"transparent",border:`1px solid ${C.rd}55`,borderRadius:6,fontSize:12,color:C.t1,fontFamily:M}}>⚠ Couldn't load the risk graph: {error}</div></div>;
+  if(!data) return <div>{header}<div style={{padding:40,textAlign:"center",color:C.t3,fontFamily:M,fontSize:12,letterSpacing:1}}>◎ Mapping risk…</div></div>;
+
+  const nm={};data.nodes.forEach(n=>nm[n.id]=n);
+  const sel=selId?nm[selId]:null;
+  const conns=sel?data.edges.filter(e=>e.source===sel.id||e.target===sel.id):[];
+  const s=data.stats;
+  const stat=[
+    {l:"Nodes",v:s.nodes,c:C.tl},
+    {l:"High-risk contracts",v:s.highRiskContracts,c:s.highRiskContracts>0?C.rd:C.gn},
+    {l:"Overdue obligations",v:s.overdueObligations,c:s.overdueObligations>0?C.rd:C.gn},
+    {l:"Matters under hold",v:s.mattersUnderHold,c:s.mattersUnderHold>0?C.am:C.t3},
+    {l:"Unscreened parties",v:s.unscreenedCounterparties,c:s.unscreenedCounterparties>0?C.am:C.gn},
+    {l:"Auto-renew traps",v:s.autoRenewTraps,c:s.autoRenewTraps>0?C.am:C.gn},
   ];
-  const edges=[
-    {a:"M2",b:"M3",s:"Shared vendor pool",w:3,c:C.rd},
-    {a:"M2",b:"V1",s:"Pricing data custodians",w:2,c:C.am},
-    {a:"M3",b:"V1",s:"Payment anomalies",w:3,c:C.rd},
-    {a:"M2",b:"F1",s:"Lead counsel",w:2,c:C.am},
-    {a:"M4",b:"F1",s:"Co-counsel",w:1,c:C.t4},
-    {a:"M3",b:"F2",s:"Lead counsel",w:2,c:C.am},
-    {a:"C1",b:"R1",s:"Clause impact",w:2,c:C.tl},
-    {a:"C1",b:"R2",s:"Cross-border",w:1,c:C.tl},
-    {a:"M1",b:"C1",s:"Contract in dispute",w:1,c:C.t4},
-    {a:"M2",b:"R1",s:"AI governance overlap",w:2,c:C.tl},
-  ];
-  const nm={};nodes.forEach(n=>nm[n.id]=n);
 
   return <div>
-    <div style={{marginBottom:16}}>
-      <div style={{fontSize:10,fontFamily:M,letterSpacing:2,color:C.em,textTransform:"uppercase",marginBottom:4}}>CROSS · DOMAIN · CORRELATION</div>
-      <div style={{fontSize:24,fontFamily:SR,fontWeight:400,color:C.t1,lineHeight:1.2}}>Risk Graph — where <em style={{color:C.em,fontStyle:"italic"}}>everything touches everything</em></div>
-      <div style={{fontSize:11,color:C.t3,marginTop:4,fontFamily:M}}>Matters · contracts · regulations · outside counsel · vendors — connected by shared data points</div>
+    {header}
+
+    <div style={{display:"flex",gap:8,flexWrap:"wrap",marginBottom:14}}>
+      {stat.map((k,i)=><div key={i} style={{flex:1,minWidth:120,padding:"11px 13px",background:C.cd,border:`1px solid ${C.br}`,borderRadius:6}}>
+        <div style={{fontSize:9,fontFamily:M,color:C.t3,letterSpacing:1.3,textTransform:"uppercase",fontWeight:600}}>{k.l}</div>
+        <div style={{fontSize:22,fontFamily:SR,color:k.c,marginTop:3,lineHeight:1}}>{k.v}</div>
+      </div>)}
     </div>
 
     <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:14}}>
       {/* SVG graph */}
       <div style={{background:C.cd,border:`1px solid ${C.br}`,padding:14,position:"relative",height:520}}>
-        <div style={{fontSize:10,fontFamily:M,color:C.t3,letterSpacing:1.5,textTransform:"uppercase",marginBottom:8}}>LIVE · TOPOLOGY</div>
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{width:"100%",height:"92%"}}>
-          {/* Grid overlay */}
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <div style={{fontSize:10,fontFamily:M,color:C.t3,letterSpacing:1.5,textTransform:"uppercase"}}>Relationship · Topology</div>
+          <div style={{display:"flex",gap:10,fontSize:8.5,fontFamily:M,color:C.t3}}>
+            {["high","medium","low"].map(sv=><span key={sv} style={{display:"flex",alignItems:"center",gap:3}}><span style={{width:7,height:7,borderRadius:"50%",background:RG_RISK_COLOR[sv],display:"inline-block"}}/>{sv}</span>)}
+          </div>
+        </div>
+        {data.nodes.length===0
+          ? <div style={{padding:40,textAlign:"center",color:C.t4,fontFamily:M,fontSize:11}}>No connected entities yet — open a matter or contract with a counterparty to populate the graph.</div>
+          : <svg viewBox="0 0 100 100" preserveAspectRatio="none" style={{width:"100%",height:"88%"}}>
           <defs>
             <pattern id="grid" width="5" height="5" patternUnits="userSpaceOnUse">
               <path d="M 5 0 L 0 0 0 5" fill="none" stroke={C.br} strokeWidth="0.1" opacity="0.5"/>
             </pattern>
           </defs>
           <rect width="100" height="100" fill="url(#grid)"/>
-          {/* Edges */}
-          {edges.map((e,i)=>{
-            const a=nm[e.a],b=nm[e.b];
+          {data.edges.map((e,i)=>{
+            const a=nm[e.source],b=nm[e.target];
             if(!a||!b) return null;
+            const hot=sel&&(e.source===sel.id||e.target===sel.id);
             return <g key={i}>
-              <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={e.c} strokeWidth={e.w*0.3} opacity={0.6}/>
-              <text x={(a.x+b.x)/2} y={(a.y+b.y)/2-1} fontSize="1.6" fill={C.t3} textAnchor="middle" fontFamily="JetBrains Mono">{e.s}</text>
+              <line x1={a.x} y1={a.y} x2={b.x} y2={b.y} stroke={hot?C.em:C.t4} strokeWidth={hot?0.5:0.25} opacity={hot?0.9:0.4}/>
+              {hot&&<text x={(a.x+b.x)/2} y={(a.y+b.y)/2-0.8} fontSize="1.6" fill={C.t3} textAnchor="middle" fontFamily="JetBrains Mono">{e.kind}</text>}
             </g>;
           })}
-          {/* Nodes */}
-          {nodes.map(n=>{
-            const r=n.r*0.3;
-            return <g key={n.id} style={{cursor:"pointer"}} onClick={()=>setSel(n)}>
-              <circle cx={n.x} cy={n.y} r={r*1.4} fill={n.c} opacity="0.15"/>
-              <circle cx={n.x} cy={n.y} r={r} fill={n.c} opacity={sel?.id===n.id?1:0.85} stroke={sel?.id===n.id?C.em:n.c} strokeWidth={sel?.id===n.id?0.8:0}/>
-              <text x={n.x} y={n.y+r+2} fontSize="1.8" fill={C.t1} textAnchor="middle" fontFamily="Inter" fontWeight="500">{n.label}</text>
+          {data.nodes.map(n=>{
+            const col=RG_RISK_COLOR[n.severity];
+            const on=sel?.id===n.id;
+            return <g key={n.id} style={{cursor:"pointer"}} onClick={()=>setSelId(on?null:n.id)}>
+              <circle cx={n.x} cy={n.y} r={n.r*1.5} fill={col} opacity="0.14"/>
+              <circle cx={n.x} cy={n.y} r={n.r} fill={col} opacity={on?1:0.85} stroke={on?C.em:col} strokeWidth={on?0.7:0}/>
+              <text x={n.x} y={n.y+n.r+2.2} fontSize="1.7" fill={on?C.t1:C.t2} textAnchor="middle" fontFamily="Inter" fontWeight="500">{n.label.length>22?n.label.slice(0,20)+"…":n.label}</text>
             </g>;
           })}
-        </svg>
+        </svg>}
+        <div style={{display:"flex",justifyContent:"space-around",marginTop:6,fontSize:8.5,fontFamily:M,color:C.t4,letterSpacing:1,textTransform:"uppercase"}}>
+          <span>Counterparties</span><span>Matters</span><span>Contracts</span><span>Holds</span>
+        </div>
       </div>
+
       {/* Side panel */}
       <div style={{background:C.cd,border:`1px solid ${C.br}`,padding:14}}>
-        <div style={{fontSize:10,fontFamily:M,color:C.em,letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>{sel?"NODE · DETAIL":"AURORA · INSIGHTS"}</div>
+        <div style={{fontSize:10,fontFamily:M,color:C.em,letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>{sel?"Node · Detail":"Risk · Insights"}</div>
         {sel?<div>
-          <div style={{fontSize:16,fontFamily:SR,color:C.t1,marginBottom:4}}>{sel.label}</div>
-          <div style={{fontSize:9,fontFamily:M,color:sel.c,letterSpacing:1,textTransform:"uppercase",marginBottom:10}}>{sel.type}</div>
-          <div style={{fontSize:11,color:C.t2,lineHeight:1.6}}>{sel.det}</div>
-          <div style={{fontSize:10,fontFamily:M,color:C.t3,letterSpacing:1.5,textTransform:"uppercase",marginTop:18,marginBottom:6}}>CONNECTIONS</div>
-          {edges.filter(e=>e.a===sel.id||e.b===sel.id).map((e,i)=>{
-            const other=nm[e.a===sel.id?e.b:e.a];
+          <div style={{fontSize:16,fontFamily:SR,color:C.t1,marginBottom:3}}>{sel.label}</div>
+          <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:12}}>
+            <span style={{fontSize:9,fontFamily:M,color:C.t3,letterSpacing:1,textTransform:"uppercase"}}>{RG_TYPE_LABEL[sel.type]}</span>
+            {sel.sub&&<span style={{fontSize:9,fontFamily:M,color:C.t4}}>· {sel.sub}</span>}
+            <span style={{marginLeft:"auto",fontSize:11,fontFamily:M,color:RG_RISK_COLOR[sel.severity],fontWeight:700}}>{sel.riskScore}/100</span>
+          </div>
+          {sel.flags.length>0?<div>
+            <div style={{fontSize:10,fontFamily:M,color:C.t3,letterSpacing:1.5,textTransform:"uppercase",marginBottom:6}}>Risk signals</div>
+            {sel.flags.map((f,i)=><div key={i} style={{display:"flex",gap:6,alignItems:"flex-start",padding:"4px 0",fontSize:11,color:C.t1}}><span style={{color:RG_RISK_COLOR[sel.severity]}}>▲</span>{f}</div>)}
+          </div>:<div style={{fontSize:11,color:C.gn,fontFamily:M}}>✓ No risk signals on this node.</div>}
+          <div style={{fontSize:10,fontFamily:M,color:C.t3,letterSpacing:1.5,textTransform:"uppercase",marginTop:16,marginBottom:6}}>Connections ({conns.length})</div>
+          {conns.map((e,i)=>{
+            const other=nm[e.source===sel.id?e.target:e.source];
             return <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:`1px solid ${C.br}22`,fontSize:10.5}}>
-              <span style={{color:C.t1}}>→ {other?.label}</span>
-              <span style={{color:e.c,fontFamily:M,fontSize:9}}>{e.s}</span>
+              <span style={{color:C.t1,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>→ {other?.label}</span>
+              <span style={{color:C.t3,fontFamily:M,fontSize:9,flexShrink:0,marginLeft:8}}>{e.kind}</span>
             </div>;
           })}
-          <div onClick={()=>setSel(null)} style={{fontSize:9,fontFamily:M,color:C.em,letterSpacing:1,marginTop:14,cursor:"pointer",textTransform:"uppercase"}}>← CLEAR SELECTION</div>
+          <div onClick={()=>setSelId(null)} style={{fontSize:9,fontFamily:M,color:C.em,letterSpacing:1,marginTop:14,cursor:"pointer",textTransform:"uppercase"}}>← Clear selection</div>
         </div>:<div>
-          <div style={{fontSize:11,color:C.t2,lineHeight:1.6,marginBottom:14}}>The graph reveals three high-conviction correlations the GC office should act on immediately:</div>
-          {[
-            {n:1,t:"EU Antitrust + LATAM FCPA share 3 vendors",d:"Same vendor pool raises consistency-of-disclosure risk if regulators cross-reference. Coordinate counsel."},
-            {n:2,t:"Cleary Gottlieb on 4 concurrent matters",d:"Concentration risk + conflict-check exposure. Consider diversification or negotiate volume discount."},
-            {n:3,t:"EU AI Act touches 47 contracts + Acme Patent",d:"IP dispute may re-open if counterparty argues AI-trained on their patents. Proactive amendment sweep recommended."},
-          ].map((ins,i)=><div key={i} style={{padding:"8px 0",borderBottom:`1px solid ${C.br}22`}}>
-            <div style={{display:"flex",gap:8,marginBottom:3}}>
-              <span style={{fontFamily:M,fontSize:10,color:C.em,letterSpacing:1}}>#{ins.n}</span>
-              <span style={{fontSize:11,color:C.t1,fontWeight:500}}>{ins.t}</span>
+          <div style={{fontSize:11,color:C.t2,lineHeight:1.6,marginBottom:14}}>What the graph is telling the GC office right now — every line is a real aggregation over live entities:</div>
+          {data.insights.map((ins,i)=><div key={i} style={{padding:"8px 0",borderBottom:`1px solid ${C.br}22`}}>
+            <div style={{display:"flex",gap:8,alignItems:"flex-start"}}>
+              <span style={{width:8,height:8,borderRadius:"50%",background:RG_RISK_COLOR[ins.severity],flexShrink:0,marginTop:4}}/>
+              <span style={{fontSize:11,color:C.t1,lineHeight:1.5}}>{ins.text}</span>
             </div>
-            <div style={{fontSize:10,color:C.t3,marginLeft:22,lineHeight:1.5}}>{ins.d}</div>
           </div>)}
+          <div style={{fontSize:9,fontFamily:M,color:C.t4,marginTop:12,letterSpacing:.3}}>Click any node to inspect its risk signals and connections.</div>
         </div>}
       </div>
     </div>
