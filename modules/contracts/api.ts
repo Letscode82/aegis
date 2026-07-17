@@ -27,6 +27,14 @@ export {
 } from "./src/internal/reads";
 
 export {
+  getContractAlerts,
+  type ContractAlerts,
+  type ContractAlert,
+  type AlertKind,
+  type AlertSeverity,
+} from "./src/internal/alerts";
+
+export {
   createContract,
   updateContractStatus,
   addClause,

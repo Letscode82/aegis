@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { C, F, M, SR, Pill, Dot, Stat, Bar, Card, SH, WorkflowSteps, ApprovalBadge, pc } from "@aegis/ui";
 import { MissionControlBriefing, MatterRiskBadge, buildBriefingContext } from "@aegis/intake";
+import { ContractKeyDatesCard } from "@aegis/contracts/ui";
 import { INTEGRATIONS, ARCH_LAYERS } from "../data/integrations";
 import { CASES } from "../data/cases";
 import { GOVERNANCE as _GOVERNANCE } from "../data/governance";
@@ -649,6 +650,9 @@ export function MissionControlView(){
     {/* AI OPERATIONS — agent activity, scorecard, pending review */}
     <AIOperationsSection/>
 
+    {/* CONTRACT KEY DATES — live renewals / expiries / obligations (CTR-4) */}
+    <ContractKeyDatesCard onOpenContracts={()=>{if(typeof window!=="undefined")window.location.assign("/?view=contracts");}}/>
+
     {/* LIVE TICKER */}
     <div style={{background:C.s1,border:`1px solid ${C.br}`,padding:"8px 14px",marginBottom:16,display:"flex",alignItems:"center",gap:12}}>
       <Dot c={C.em} p/>
@@ -679,9 +683,8 @@ export function MissionControlView(){
           {t:"Cross-domain correlation: EU Antitrust + LATAM FCPA share 3 vendors",s:"critical"},
           {t:"Regulatory-to-contract mapping: new EU AI Act affects 47 contracts",s:"warning"},
           {t:"Spend anomaly: Cleary Q1 rate 8% above market benchmark",s:"warning"},
-          {t:"Contract renewal cluster: 12 critical contracts expire in 60 days",s:"info"},
           {t:"Custodian risk: Anna Petrov (dept. Eng.) has not ack'd hold",s:"critical"},
-        ].map((s,i)=><div key={i} style={{padding:"7px 0",borderBottom:i<4?`1px solid ${C.br}22`:"none",display:"flex",gap:8}}>
+        ].map((s,i,arr)=><div key={i} style={{padding:"7px 0",borderBottom:i<arr.length-1?`1px solid ${C.br}22`:"none",display:"flex",gap:8}}>
           <Dot c={s.s==="critical"?C.rd:s.s==="warning"?C.am:C.tl} p={s.s==="critical"}/>
           <div style={{fontSize:10.5,color:C.t1,lineHeight:1.4,flex:1}}>{s.t}</div>
         </div>)}
