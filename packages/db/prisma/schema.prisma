@@ -75,6 +75,7 @@ model Organization {
   contracts      Contract[]
   contractReviewTokens ContractReviewToken[]
   clauseLibraryEntries ClauseLibraryEntry[]
+  templates      Template[]
   dsars          DataSubjectRequest[]
   consents       ConsentRecord[]
   ropas          DataProcessingActivity[]
@@ -2025,6 +2026,38 @@ model ClauseLibraryEntry {
 
   @@unique([organizationId, clauseType])
   @@index([organizationId, active])
+}
+
+/// Editable draft templates the agents draft from (NDA, contract, notice).
+/// One admin home alongside the clause library so playbooks AND templates
+/// live in the DB and drive agent behaviour — edit a template here and the
+/// NDA/contract agent drafts from the new text. Body is markdown/text with
+/// {{variable}} placeholders the agent fills.
+enum TemplateKind {
+  NDA
+  CONTRACT
+  NOTICE
+  OTHER
+}
+
+model Template {
+  id             String       @id @default(cuid())
+  organizationId String
+  kind           TemplateKind @default(CONTRACT)
+  key            String // stable per-org key, e.g. "mnda-v4.2"
+  name           String
+  body           String // markdown / text with {{variable}} placeholders
+  description    String?
+  version        Int          @default(1)
+  active         Boolean      @default(true)
+  sortOrder      Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, key])
+  @@index([organizationId, kind, active])
 }
 
 // ════════════════════════════════════════════════════════════════════

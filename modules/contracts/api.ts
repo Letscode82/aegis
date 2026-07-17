@@ -45,6 +45,16 @@ export {
 } from "./src/internal/clause-library";
 
 export {
+  listTemplates,
+  getTemplateByKey,
+  getDefaultTemplateForKind,
+  upsertTemplate,
+  deleteTemplate,
+  type TemplateDTO,
+  type UpsertTemplateInput,
+} from "./src/internal/templates";
+
+export {
   createContract,
   updateContractStatus,
   addClause,
