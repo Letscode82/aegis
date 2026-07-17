@@ -73,6 +73,7 @@ model Organization {
   vendors        Vendor[]
   budgets        Budget[]
   contracts      Contract[]
+  contractReviewTokens ContractReviewToken[]
   dsars          DataSubjectRequest[]
   consents       ConsentRecord[]
   ropas          DataProcessingActivity[]
@@ -298,6 +299,7 @@ model Person {
   dsarRequests        DataSubjectRequest[]
   consentRecords      ConsentRecord[]
   intakeTicketParties IntakeTicketParty[]
+  contractReviewTokens ContractReviewToken[]
 
   @@index([organizationId, email])
   @@index([organizationId, externalRef])
@@ -1900,6 +1902,14 @@ enum ContractRisk {
   HIGH
 }
 
+/// Lifecycle of a login-less counterparty review link (CTR-3).
+enum ContractReviewTokenStatus {
+  ACTIVE // link is live; counterparty can view + respond
+  USED // counterparty submitted a final accept / counter
+  REVOKED // internal user cancelled the link
+  EXPIRED // past expiresAt
+}
+
 model Contract {
   id             String         @id @default(cuid())
   organizationId String
@@ -1927,6 +1937,7 @@ model Contract {
   matter       Matter?       @relation(fields: [matterId], references: [id], onDelete: SetNull)
 
   clauses ContractClause[]
+  reviewTokens ContractReviewToken[]
 
   @@index([organizationId, status])
   @@index([organizationId, expiryDate])
@@ -1954,6 +1965,39 @@ model ContractClause {
 
   @@index([contractId])
   @@index([contractId, type])
+}
+
+/// Scoped, login-less access grant for external counterparty review of a
+/// single contract draft (CTR-3). Mirrors the M365DeviceCodeSession
+/// precedent: the opaque secret lives only in the emailed URL — this row
+/// stores ONLY its SHA-256 hash, never the raw token. The token is the
+/// authoritative gate (status + expiry + scope), not a Permission enum,
+/// because the counterparty contact has no User/role. Every counterparty
+/// action is chain-sealed via AuditLog (`contract.review.*`); nothing the
+/// counterparty does auto-executes — internal approval still gates.
+model ContractReviewToken {
+  id             String                    @id @default(cuid())
+  organizationId String
+  contractId     String
+  personId       String // the COUNTERPARTY_CONTACT Person the link is for
+  tokenHash      String                    @unique // SHA-256 of the raw token
+  status         ContractReviewTokenStatus @default(ACTIVE)
+  expiresAt      DateTime
+  consentAt      DateTime? // consent-gate acceptance timestamp
+  viewedAt       DateTime? // first draft view
+  respondedAt    DateTime? // final accept / counter
+  lastDecision   String? // "ACCEPT" | "COUNTER" | "COMMENT" (denormalized)
+  createdById    String // internal User who issued the link
+  createdAt      DateTime                  @default(now())
+  updatedAt      DateTime                  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contract     Contract     @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  person       Person       @relation(fields: [personId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+  @@index([personId])
+  @@index([organizationId, status])
 }
 
 // ════════════════════════════════════════════════════════════════════

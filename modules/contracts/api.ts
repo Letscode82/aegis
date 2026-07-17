@@ -52,3 +52,24 @@ export {
   type SpawnContractResult,
   type ContractExtractionResult,
 } from "./src/internal/intake-spawn";
+
+export {
+  mintContractReviewToken,
+  resolveContractReviewToken,
+  recordReviewConsent,
+  submitReviewResponse,
+  revokeContractReviewToken,
+  getContractReviewActivity,
+  // pure helpers (also unit-tested)
+  decisionToAction,
+  isFinalDecision,
+  tokenUsable,
+  hashToken,
+  generateRawToken,
+  reviewUrl,
+  type ReviewDecision,
+  type MintedReviewToken,
+  type ReviewTokenContext,
+  type ReviewActivity,
+  type ReviewActivityEvent,
+} from "./src/internal/review-token";

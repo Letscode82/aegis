@@ -142,9 +142,136 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
                 </div>
               ))}
             </div>
+
+            {/* Counterparty review round-trip */}
+            <ReviewPanel contractId={contractId} canManage={canManage} />
           </>
         )}
       </div>
+    </div>
+  );
+}
+
+const REVIEW_ACTION_LABEL = {
+  "contract.review.invited": "Invited to review",
+  "contract.review.consented": "Accepted review terms",
+  "contract.review.viewed": "Viewed the draft",
+  "contract.review.commented": "Commented",
+  "contract.review.accepted": "Accepted the draft",
+  "contract.review.countered": "Proposed changes (counter)",
+  "contract.review.revoked": "Link revoked",
+};
+const TOKEN_COLOR = { ACTIVE: C.bl, USED: C.gn, REVOKED: C.t3, EXPIRED: C.am };
+const relTime = (iso) => {
+  const d = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (d < 3600) return `${Math.max(1, Math.round(d / 60))}m ago`;
+  if (d < 86400) return `${Math.round(d / 3600)}h ago`;
+  return `${Math.round(d / 86400)}d ago`;
+};
+
+function ReviewPanel({ contractId, canManage }) {
+  const [act, setAct] = useState(null);
+  const [err, setErr] = useState(null);
+  const [personId, setPersonId] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [freshLink, setFreshLink] = useState(null);
+
+  const load = useCallback(() => {
+    fetch(`/api/contracts/${contractId}/review`)
+      .then((r) => (r.ok ? r.json() : r.json().then((d) => Promise.reject(d.error || `HTTP ${r.status}`))))
+      .then((d) => setAct(d.activity))
+      .catch((e) => setErr(String(e)));
+  }, [contractId]);
+  useEffect(() => { load(); }, [load]);
+
+  const invite = async () => {
+    if (!personId) return;
+    setBusy(true); setErr(null);
+    try {
+      const r = await fetch(`/api/contracts/${contractId}/review`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ personId }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setFreshLink(d.url); setPersonId(""); load();
+    } catch (e) { setErr(String(e.message || e)); } finally { setBusy(false); }
+  };
+  const revoke = async (tokenId) => {
+    setBusy(true); setErr(null);
+    try {
+      const r = await fetch(`/api/contracts/${contractId}/review`, {
+        method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tokenId }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      load();
+    } catch (e) { setErr(String(e.message || e)); } finally { setBusy(false); }
+  };
+
+  return (
+    <div style={{ padding: "14px 18px", borderTop: `1px solid ${C.br}` }}>
+      <div style={{ fontSize: 10, fontFamily: M, color: C.t3, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 600, marginBottom: 10 }}>
+        Counterparty review {act && <span style={{ color: C.t4 }}>· {act.tokens.length} link{act.tokens.length === 1 ? "" : "s"}</span>}
+      </div>
+      {err && <div style={{ fontSize: 10.5, color: C.rd, fontFamily: M, marginBottom: 8 }}>⚠ {err}</div>}
+      {!act ? <div style={{ fontSize: 10.5, color: C.t4, fontFamily: M }}>Loading…</div> : (
+        <>
+          {act.tokens.length === 0 && <div style={{ fontSize: 11, color: C.t4, fontStyle: "italic", marginBottom: 8 }}>No review links issued yet.</div>}
+          {act.tokens.map((t) => (
+            <div key={t.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, padding: "6px 0", borderBottom: `1px solid ${C.br}22` }}>
+              <div style={{ minWidth: 0 }}>
+                <span style={{ fontSize: 11, color: C.t1 }}>{t.personName || "Counterparty contact"}</span>
+                {t.lastDecision && <span style={{ fontSize: 9.5, fontFamily: M, color: C.t3, marginLeft: 8 }}>last: {t.lastDecision}</span>}
+              </div>
+              <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+                <Pill t={t.status} c={TOKEN_COLOR[t.status] || C.t3} />
+                {canManage && t.status === "ACTIVE" && <button disabled={busy} onClick={() => revoke(t.id)} style={btn(C.rd)}>Revoke</button>}
+              </div>
+            </div>
+          ))}
+
+          {act.events.length > 0 && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", marginBottom: 5 }}>Activity</div>
+              {act.events.slice(0, 8).map((e, i) => (
+                <div key={i} style={{ display: "flex", gap: 8, alignItems: "baseline", padding: "3px 0", fontSize: 10.5 }}>
+                  <span style={{ color: C.t4, fontFamily: M, fontSize: 9, flexShrink: 0, minWidth: 52 }}>{relTime(e.at)}</span>
+                  <span style={{ color: C.t2 }}>
+                    <b style={{ color: C.t1 }}>{e.personName || "System"}</b> · {REVIEW_ACTION_LABEL[e.action] || e.action}
+                    {e.comment && <span style={{ color: C.t3 }}> — “{e.comment.length > 90 ? e.comment.slice(0, 88) + "…" : e.comment}”</span>}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {canManage && (
+            <div style={{ marginTop: 12 }}>
+              {freshLink && (
+                <div style={{ padding: "8px 10px", background: C.s1, borderRadius: 5, marginBottom: 8 }}>
+                  <div style={{ fontSize: 9.5, fontFamily: M, color: C.gn, letterSpacing: 1, textTransform: "uppercase", marginBottom: 4 }}>Link created — send to the counterparty</div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <input readOnly value={freshLink} style={{ flex: 1, minWidth: 0, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 4, color: C.t2, fontFamily: M, fontSize: 10, padding: "5px 8px" }} />
+                    <button onClick={() => { try { navigator.clipboard.writeText(freshLink); } catch { /* noop */ } }} style={btn(C.cy)}>Copy</button>
+                  </div>
+                  <div style={{ fontSize: 9, color: C.t4, fontFamily: M, marginTop: 4 }}>Shown once. The raw token isn't stored — only its hash.</div>
+                </div>
+              )}
+              {act.availableContacts.length === 0 ? (
+                <div style={{ fontSize: 10.5, color: C.t4, fontStyle: "italic" }}>No counterparty contacts on file — add a contact (Person · COUNTERPARTY_CONTACT) for this counterparty to invite them.</div>
+              ) : (
+                <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                  <select value={personId} onChange={(e) => setPersonId(e.target.value)} style={{ background: C.bg, border: `1px solid ${C.br}`, borderRadius: 4, color: C.t1, fontFamily: F, fontSize: 11, padding: "6px 8px" }}>
+                    <option value="">Select a contact…</option>
+                    {act.availableContacts.map((p) => <option key={p.personId} value={p.personId}>{p.name}{p.email ? ` (${p.email})` : ""}</option>)}
+                  </select>
+                  <button disabled={busy || !personId} onClick={invite} style={{ ...btn(C.cy), opacity: !personId ? 0.5 : 1 }}>Invite to review</button>
+                </div>
+              )}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
