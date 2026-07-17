@@ -34,6 +34,10 @@ import {
   IntakeStatus,
   AgentRecommendationStatus,
   ConversationRole,
+  ContractStatus,
+  ContractRisk,
+  ObligationSourceType,
+  ObligationStatus,
 } from "@prisma/client";
 import { createHash } from "node:crypto";
 // Build-time relative import — see CLAUDE.md "Documented exceptions".
@@ -1360,6 +1364,261 @@ async function seedProductionFoundation() {
   );
 }
 
+// ───────────────────────────────────────────────────────────────────
+// Section 8 — Contracts (CTR-1)
+// ───────────────────────────────────────────────────────────────────
+//
+// The CLM system of record. Contracts attach to the shared entities:
+// counterparty = Counterparty, matter = Matter. Clauses are the one
+// contract-specific shape (ContractClause). Commitments are the SHARED
+// Obligation entity (sourceType=CONTRACT) — the same rows Company Brain,
+// Regulatory, and Governance query. The Snowflake MSA mirrors the seeded
+// matter/hold storyline (IP §8.2 ambiguity, Net-30-vs-45 payment terms)
+// so the demo reads as one connected brain across modules.
+//
+// Idempotent: every row upserts on an explicit id. Dates are anchored to
+// the seed run so "expiring soon" / "overdue" render live.
+
+async function seedContracts(orgId: string, ownerPersonId: string) {
+  const now = new Date();
+  const day = 86_400_000;
+  const at = (deltaDays: number) => new Date(now.getTime() + deltaDays * day);
+
+  type ClauseSeed = {
+    id: string;
+    type: string;
+    text: string;
+    summary?: string;
+    risk: ContractRisk;
+    deviation?: boolean;
+  };
+  type ObligationSeed = {
+    id: string;
+    description: string;
+    dueDate?: Date | null;
+    recurrence?: string | null;
+    ownerId?: string | null;
+    status?: ObligationStatus;
+  };
+  type ContractSeed = {
+    id: string;
+    title: string;
+    type: string;
+    status: ContractStatus;
+    risk: ContractRisk;
+    value?: number | null;
+    currency?: string;
+    counterpartyId?: string | null;
+    matterId?: string | null;
+    effectiveDate?: Date | null;
+    expiryDate?: Date | null;
+    autoRenew?: boolean;
+    noticeWindowDays?: number | null;
+    governingLaw?: string | null;
+    clauses: ClauseSeed[];
+    obligations: ObligationSeed[];
+  };
+
+  const CONTRACTS: ContractSeed[] = [
+    {
+      id: "ct-snowflake-msa",
+      title: "Snowflake MSA — Master Services Agreement",
+      type: "Master Services Agreement",
+      status: ContractStatus.ACTIVE,
+      risk: ContractRisk.HIGH,
+      value: 2_400_000,
+      currency: "USD",
+      counterpartyId: "cp-snowflake",
+      matterId: "m-snowflake-msa",
+      effectiveDate: at(-350),
+      expiryDate: at(45), // inside the 90d renewal window
+      autoRenew: true,
+      noticeWindowDays: 60,
+      governingLaw: "Delaware, USA",
+      clauses: [
+        { id: "cl-snow-liability", type: "LIABILITY_CAP", risk: ContractRisk.HIGH, deviation: true, summary: "Cap set at 12 months of fees — playbook requires 24.", text: "Aggregate liability capped at fees paid in the 12 months preceding the claim. Playbook standard is 24 months; deviation escalated to GC." },
+        { id: "cl-snow-ip", type: "IP", risk: ContractRisk.HIGH, deviation: true, summary: "§8.2 ownership of derivative works is ambiguous.", text: "Section 8.2 leaves ownership of jointly-developed derivative works undefined. Flagged for IP team; counterparty escalated to outside counsel." },
+        { id: "cl-snow-payment", type: "PAYMENT", risk: ContractRisk.MEDIUM, deviation: true, summary: "Counterparty proposes Net 30 vs our Net 45.", text: "Payment terms Net 30. Company playbook is Net 45. Under negotiation by Engineering / Finance." },
+        { id: "cl-snow-autorenew", type: "AUTO_RENEWAL", risk: ContractRisk.MEDIUM, deviation: false, summary: "12-month auto-renew, 60-day notice.", text: "Agreement auto-renews for successive 12-month terms unless either party gives 60 days' written notice." },
+        { id: "cl-snow-law", type: "GOVERNING_LAW", risk: ContractRisk.LOW, deviation: false, text: "Governed by the laws of the State of Delaware." },
+      ],
+      obligations: [
+        { id: "obl-snow-renewal", description: "Serve or waive renewal notice (60-day window before expiry)", dueDate: at(-15), ownerId: ownerPersonId, status: ObligationStatus.OPEN },
+        { id: "obl-snow-ip", description: "Resolve §8.2 derivative-works ownership ambiguity with IP team", dueDate: at(-7), ownerId: ownerPersonId, status: ObligationStatus.IN_PROGRESS },
+        { id: "obl-snow-soc2", description: "Obtain annual SOC 2 Type II report from vendor", dueDate: at(120), recurrence: "FREQ=YEARLY", ownerId: ownerPersonId, status: ObligationStatus.OPEN },
+      ],
+    },
+    {
+      id: "ct-globex-supply",
+      title: "Globex Industries — Supply Agreement",
+      type: "Supply Agreement",
+      status: ContractStatus.ACTIVE,
+      risk: ContractRisk.MEDIUM,
+      value: 850_000,
+      currency: "USD",
+      counterpartyId: "cp-globex",
+      effectiveDate: at(-190),
+      expiryDate: at(175),
+      autoRenew: false,
+      governingLaw: "New York, USA",
+      clauses: [
+        { id: "cl-globex-term", type: "TERMINATION", risk: ContractRisk.MEDIUM, deviation: false, summary: "90-day termination for convenience.", text: "Either party may terminate for convenience on 90 days' written notice." },
+        { id: "cl-globex-indemnity", type: "INDEMNITY", risk: ContractRisk.MEDIUM, deviation: true, summary: "Mutual indemnity narrower than playbook.", text: "Indemnity limited to third-party IP claims. Playbook expects broader mutual indemnity including data-breach claims." },
+        { id: "cl-globex-warranty", type: "WARRANTY", risk: ContractRisk.LOW, deviation: false, text: "Goods warranted against defects for 12 months from delivery." },
+      ],
+      obligations: [
+        { id: "obl-globex-volume", description: "Submit quarterly volume forecast to supplier", dueDate: at(20), recurrence: "FREQ=QUARTERLY", ownerId: ownerPersonId, status: ObligationStatus.OPEN },
+        { id: "obl-globex-price", description: "Conduct annual price review before renewal", dueDate: at(120), ownerId: ownerPersonId, status: ObligationStatus.OPEN },
+      ],
+    },
+    {
+      id: "ct-datastream-dpa",
+      title: "DataStream AI — Data Processing Addendum",
+      type: "Data Processing Addendum",
+      status: ContractStatus.EXECUTED,
+      risk: ContractRisk.MEDIUM,
+      value: null,
+      currency: "USD",
+      counterpartyId: "cp-datastream",
+      effectiveDate: at(-120),
+      expiryDate: null,
+      autoRenew: false,
+      governingLaw: "EU (GDPR)",
+      clauses: [
+        { id: "cl-ds-confidentiality", type: "CONFIDENTIALITY", risk: ContractRisk.LOW, deviation: false, text: "Standard mutual confidentiality with 3-year survival." },
+        { id: "cl-ds-subprocessor", type: "OTHER", risk: ContractRisk.MEDIUM, deviation: false, summary: "Sub-processor list requires 30-day change notice.", text: "Processor must give 30 days' notice before adding or replacing a sub-processor; controller may object." },
+      ],
+      obligations: [
+        { id: "obl-ds-audit", description: "Exercise annual audit right against processor", dueDate: at(230), recurrence: "FREQ=YEARLY", ownerId: ownerPersonId, status: ObligationStatus.OPEN },
+      ],
+    },
+    {
+      id: "ct-deloitte-sow",
+      title: "Deloitte — Advisory Statement of Work",
+      type: "Statement of Work",
+      status: ContractStatus.IN_NEGOTIATION,
+      risk: ContractRisk.LOW,
+      value: 320_000,
+      currency: "USD",
+      counterpartyId: "cp-deloitte",
+      effectiveDate: null,
+      expiryDate: null,
+      autoRenew: false,
+      governingLaw: "Delaware, USA",
+      clauses: [
+        { id: "cl-del-payment", type: "PAYMENT", risk: ContractRisk.LOW, deviation: false, summary: "Milestone-based, Net 45.", text: "Fees invoiced on milestone completion, payable Net 45. Aligns with playbook." },
+      ],
+      obligations: [],
+    },
+    {
+      id: "ct-acme-nda",
+      title: "Acme Corp — Mutual NDA",
+      type: "NDA",
+      status: ContractStatus.ACTIVE,
+      risk: ContractRisk.LOW,
+      value: null,
+      currency: "USD",
+      counterpartyId: "cp-acme",
+      effectiveDate: at(-70),
+      expiryDate: at(660),
+      autoRenew: false,
+      governingLaw: "Delaware, USA",
+      clauses: [
+        { id: "cl-acme-confidentiality", type: "CONFIDENTIALITY", risk: ContractRisk.LOW, deviation: false, text: "Mutual confidentiality, 2-year term, 3-year survival on trade secrets." },
+        { id: "cl-acme-term", type: "TERMINATION", risk: ContractRisk.LOW, deviation: false, text: "Either party may terminate on 30 days' notice; confidentiality obligations survive." },
+      ],
+      obligations: [
+        { id: "obl-acme-return", description: "Return or destroy confidential materials on termination", dueDate: null, ownerId: ownerPersonId, status: ObligationStatus.OPEN },
+      ],
+    },
+  ];
+
+  let clauseCount = 0;
+  let obligationCount = 0;
+
+  for (const c of CONTRACTS) {
+    await prisma.contract.upsert({
+      where: { id: c.id },
+      update: {
+        title: c.title,
+        type: c.type,
+        status: c.status,
+        risk: c.risk,
+        value: c.value ?? null,
+        currency: c.currency ?? "USD",
+        counterpartyId: c.counterpartyId ?? null,
+        matterId: c.matterId ?? null,
+        effectiveDate: c.effectiveDate ?? null,
+        expiryDate: c.expiryDate ?? null,
+        autoRenew: c.autoRenew ?? false,
+        noticeWindowDays: c.noticeWindowDays ?? null,
+        governingLaw: c.governingLaw ?? null,
+      },
+      create: {
+        id: c.id,
+        organizationId: orgId,
+        title: c.title,
+        type: c.type,
+        status: c.status,
+        risk: c.risk,
+        value: c.value ?? null,
+        currency: c.currency ?? "USD",
+        counterpartyId: c.counterpartyId ?? null,
+        matterId: c.matterId ?? null,
+        effectiveDate: c.effectiveDate ?? null,
+        expiryDate: c.expiryDate ?? null,
+        autoRenew: c.autoRenew ?? false,
+        noticeWindowDays: c.noticeWindowDays ?? null,
+        governingLaw: c.governingLaw ?? null,
+      },
+    });
+
+    for (const cl of c.clauses) {
+      await prisma.contractClause.upsert({
+        where: { id: cl.id },
+        update: { type: cl.type, text: cl.text, summary: cl.summary ?? null, risk: cl.risk, deviation: cl.deviation ?? false },
+        create: {
+          id: cl.id,
+          contractId: c.id,
+          type: cl.type,
+          text: cl.text,
+          summary: cl.summary ?? null,
+          risk: cl.risk,
+          deviation: cl.deviation ?? false,
+        },
+      });
+      clauseCount++;
+    }
+
+    for (const o of c.obligations) {
+      await prisma.obligation.upsert({
+        where: { id: o.id },
+        update: {
+          description: o.description,
+          dueDate: o.dueDate ?? null,
+          recurrence: o.recurrence ?? null,
+          ownerId: o.ownerId ?? null,
+          status: o.status ?? ObligationStatus.OPEN,
+        },
+        create: {
+          id: o.id,
+          organizationId: orgId,
+          sourceType: ObligationSourceType.CONTRACT,
+          sourceId: c.id,
+          description: o.description,
+          dueDate: o.dueDate ?? null,
+          recurrence: o.recurrence ?? null,
+          ownerId: o.ownerId ?? null,
+          status: o.status ?? ObligationStatus.OPEN,
+        },
+      });
+      obligationCount++;
+    }
+  }
+
+  return { contracts: CONTRACTS.length, clauses: clauseCount, obligations: obligationCount };
+}
+
 async function main() {
   if ((process.env.AEGIS_SEED_PROFILE ?? "").trim().toLowerCase() === "production") {
     await seedProductionFoundation();
@@ -1437,6 +1696,11 @@ async function main() {
 
   const nd = await seedNdaDocuments(org.id, user.id);
   console.log(`[seed] nda_documents=${nd}`);
+
+  const ct = await seedContracts(org.id, alexPerson.id);
+  console.log(
+    `[seed] contracts=${ct.contracts} clauses=${ct.clauses} contract_obligations=${ct.obligations}`,
+  );
 
   console.log("[seed] done.");
 }

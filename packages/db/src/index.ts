@@ -52,6 +52,8 @@ export {
   DocumentOwnerType,
   ObligationSourceType,
   ObligationStatus,
+  ContractStatus,
+  ContractRisk,
   MatterType,
   MatterStatus,
   MatterPartyRole,
@@ -132,4 +134,6 @@ export type {
   DataProcessingActivity,
   PrivacyIncident,
   UserPreference,
+  Contract,
+  ContractClause,
 } from "@prisma/client";
