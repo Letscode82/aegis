@@ -39,11 +39,15 @@ import { SlaLegsPanel } from "./sla-legs-panel";
 // Splits simple vs complex request types into Form path vs Copilot path.
 const SIMPLE_TYPES=[
   {id:"NDA Request",icon:"◉",hint:"Standard NDA — template fit"},
+  {id:"Contract Review",icon:"◐",hint:"Review a contract against playbook"},
   {id:"Contract Question",icon:"◈",hint:"FAQ-style lookup"},
   {id:"Vendor Due Diligence",icon:"⬡",hint:"Standard vendor onboarding"},
-  {id:"IP Question",icon:"◇",hint:"Trademark / OSS / patent"},
+  {id:"Trademark Check",icon:"◑",hint:"Clearance / brand search"},
+  {id:"Marketing Review",icon:"◒",hint:"Ad copy / campaign / claims"},
+  {id:"Privacy Assessment",icon:"◓",hint:"DPIA / new data processing"},
   {id:"Privacy Question",icon:"◎",hint:"DPIA / GDPR question"},
-  {id:"Contract Review",icon:"◐",hint:"Known contract type"},
+  {id:"Notice / Deadline",icon:"◔",hint:"Legal notice / cure period"},
+  {id:"IP Question",icon:"◇",hint:"Trademark / OSS / patent"},
 ];
 const COMPLEX_TYPES=[
   {id:"Employment Issue",icon:"⚠",hint:"Sensitive — HR / Employment matter",sensitive:true},
@@ -2067,8 +2071,9 @@ function SLATab({store}){
 // the bare "Other" type. Keep this aligned with NewRequestV8.
 const ROUTING_EDITOR_INTAKE_TYPES=[
   "NDA Request","Contract Question","Vendor Due Diligence","IP Question",
-  "Privacy Question","Contract Review","Employment Issue","Regulatory",
-  "Litigation / Dispute","Trademark Check","Legal Question — General","Other",
+  "Privacy Question","Contract Review","Trademark Check","Marketing Review",
+  "Privacy Assessment","Notice / Deadline","Employment Issue","Regulatory",
+  "Litigation / Dispute","Legal Question — General","Other",
 ];
 const ROUTING_EDITOR_PRIORITIES=["Critical","High","Medium","Low"];
 
