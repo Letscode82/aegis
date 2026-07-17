@@ -1648,7 +1648,36 @@ async function seedContracts(orgId: string, ownerPersonId: string) {
     },
   });
 
-  return { contracts: CONTRACTS.length, clauses: clauseCount, obligations: obligationCount, reviewToken: demoRawToken };
+  // CTR-5: the playbook clause bank — the standard/fallback positions the
+  // contract-review compares extracted clauses against. Mirrors the AEGIS
+  // Contract Playbook the review agent already checks. Upsert on
+  // (org, clauseType).
+  const PLAYBOOK: Array<{
+    clauseType: string; title: string; standardText: string; fallbackText: string;
+    guidance: string; riskIfDeviated: ContractRisk; sortOrder: number;
+  }> = [
+    { clauseType: "LIABILITY_CAP", title: "Limitation of liability", standardText: "Aggregate liability capped at fees paid in the 12 months preceding the claim, with uncapped carve-outs for IP infringement, confidentiality breach, indemnity obligations, and gross negligence / wilful misconduct.", fallbackText: "24 months' fees with the same carve-outs.", guidance: "Reject unlimited liability or no cap. Confirm the carve-outs survive the cap.", riskIfDeviated: ContractRisk.HIGH, sortOrder: 1 },
+    { clauseType: "INDEMNITY", title: "Indemnification", standardText: "Mutual indemnity limited to third-party claims.", fallbackText: "One-way indemnity from the vendor covering third-party IP and data-breach claims.", guidance: "Reject unlimited or first-party indemnities.", riskIfDeviated: ContractRisk.HIGH, sortOrder: 2 },
+    { clauseType: "IP", title: "Intellectual property", standardText: "Present-tense assignment of deliverables to the customer; license-back for the vendor's background IP.", fallbackText: "Assignment on final payment.", guidance: "Reject ambiguous, undefined, or joint ownership of deliverables / derivative works.", riskIfDeviated: ContractRisk.HIGH, sortOrder: 3 },
+    { clauseType: "PAYMENT", title: "Payment terms", standardText: "Net 45 from a valid invoice.", fallbackText: "Net 30 with a prompt-pay discount of at least 2%.", guidance: "Reject advance / upfront payment for services.", riskIfDeviated: ContractRisk.MEDIUM, sortOrder: 4 },
+    { clauseType: "AUTO_RENEWAL", title: "Auto-renewal", standardText: "Renews only if the non-renewal notice window is 60 days or less AND any price uplift is capped.", fallbackText: "90-day notice window with a CPI-capped uplift.", guidance: "Reject evergreen renewal with no notice window or an uncapped uplift.", riskIfDeviated: ContractRisk.MEDIUM, sortOrder: 5 },
+    { clauseType: "TERMINATION", title: "Termination for convenience", standardText: "Either party may terminate for convenience on 30 days' written notice.", fallbackText: "60 days' written notice.", guidance: "Pure term-lock with no exit right is a flag.", riskIfDeviated: ContractRisk.MEDIUM, sortOrder: 6 },
+    { clauseType: "GOVERNING_LAW", title: "Governing law", standardText: "Governed by the laws of the State of Delaware.", fallbackText: "New York or California.", guidance: "Avoid the counterparty's home jurisdiction for non-US counterparties.", riskIfDeviated: ContractRisk.LOW, sortOrder: 7 },
+    { clauseType: "CONFIDENTIALITY", title: "Confidentiality", standardText: "Mutual confidentiality with a defined term and 3-year survival on trade secrets.", fallbackText: "5-year survival on trade secrets.", guidance: "Avoid one-way or indefinite / perpetual confidentiality.", riskIfDeviated: ContractRisk.LOW, sortOrder: 8 },
+    { clauseType: "ASSIGNMENT", title: "Assignment", standardText: "No assignment without consent; affiliate / M&A successor permitted; termination right on a change of control to a competitor.", fallbackText: "Consent not to be unreasonably withheld.", guidance: "Reject free assignment to any third party.", riskIfDeviated: ContractRisk.MEDIUM, sortOrder: 9 },
+    { clauseType: "WARRANTY", title: "Warranty & acceptance", standardText: "90-day warranty plus a 30-day acceptance period.", fallbackText: "60-day warranty.", guidance: "Avoid AS-IS for paid deliverables.", riskIfDeviated: ContractRisk.MEDIUM, sortOrder: 10 },
+  ];
+  let playbookCount = 0;
+  for (const p of PLAYBOOK) {
+    await prisma.clauseLibraryEntry.upsert({
+      where: { organizationId_clauseType: { organizationId: orgId, clauseType: p.clauseType } },
+      update: { title: p.title, standardText: p.standardText, fallbackText: p.fallbackText, guidance: p.guidance, riskIfDeviated: p.riskIfDeviated, sortOrder: p.sortOrder, active: true },
+      create: { organizationId: orgId, clauseType: p.clauseType, title: p.title, standardText: p.standardText, fallbackText: p.fallbackText, guidance: p.guidance, riskIfDeviated: p.riskIfDeviated, sortOrder: p.sortOrder },
+    });
+    playbookCount++;
+  }
+
+  return { contracts: CONTRACTS.length, clauses: clauseCount, obligations: obligationCount, reviewToken: demoRawToken, playbook: playbookCount };
 }
 
 async function main() {
@@ -1732,7 +1761,7 @@ async function main() {
   const ct = await seedContracts(org.id, alexPerson.id);
   console.log(
     `[seed] contracts=${ct.contracts} clauses=${ct.clauses} contract_obligations=${ct.obligations} ` +
-      `review_portal=/contract-review/${ct.reviewToken}`,
+      `clause_library=${ct.playbook} review_portal=/contract-review/${ct.reviewToken}`,
   );
 
   console.log("[seed] done.");

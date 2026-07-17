@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import { C, F, M, SR } from "@aegis/ui";
 import { ContractDetailModal } from "./contract-detail-modal.jsx";
+import { ClauseLibraryModal } from "./clause-library-modal.jsx";
 
 // ── Contract repository (CTR-1) ──────────────────────────────────────
 //
@@ -44,6 +45,7 @@ export function ContractsRepository() {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [canManage, setCanManage] = useState(false);
+  const [showPlaybook, setShowPlaybook] = useState(false);
 
   const load = useCallback(() => {
     fetch("/api/contracts/overview")
@@ -84,9 +86,12 @@ export function ContractsRepository() {
 
   return (
     <div style={{ fontFamily: F, color: C.t1 }}>
-      <div style={{ marginBottom: 16 }}>
-        <div style={{ fontSize: 10, fontFamily: M, letterSpacing: 2, color: C.bl, textTransform: "uppercase" }}>Legal · Contract Lifecycle Management</div>
-        <div style={{ fontSize: 24, fontFamily: SR, color: C.t1, lineHeight: 1.2 }}>The contract <em style={{ color: C.bl, fontStyle: "italic" }}>system of record</em></div>
+      <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+        <div>
+          <div style={{ fontSize: 10, fontFamily: M, letterSpacing: 2, color: C.bl, textTransform: "uppercase" }}>Legal · Contract Lifecycle Management</div>
+          <div style={{ fontSize: 24, fontFamily: SR, color: C.t1, lineHeight: 1.2 }}>The contract <em style={{ color: C.bl, fontStyle: "italic" }}>system of record</em></div>
+        </div>
+        <button onClick={() => setShowPlaybook(true)} style={{ padding: "7px 13px", background: "transparent", color: C.bl, border: `1px solid ${C.bl}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer", flexShrink: 0 }}>📖 Playbook</button>
       </div>
 
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
@@ -154,6 +159,7 @@ export function ContractsRepository() {
           onChanged={load}
         />
       )}
+      {showPlaybook && <ClauseLibraryModal canManage={canManage} onClose={() => setShowPlaybook(false)} />}
     </div>
   );
 }

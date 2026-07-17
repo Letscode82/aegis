@@ -29,6 +29,8 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [busy, setBusy] = useState(null);
+  const [playbook, setPlaybook] = useState({}); // clauseType -> entry
+  const [openClause, setOpenClause] = useState(null);
 
   const load = useCallback(() => {
     setError(null);
@@ -38,6 +40,14 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
       .catch((e) => setError(String(e)));
   }, [contractId]);
   useEffect(() => { load(); }, [load]);
+
+  // CTR-5 — the playbook, for clause-vs-standard comparison.
+  useEffect(() => {
+    fetch("/api/contracts/clause-library")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.ok) setPlaybook(Object.fromEntries((d.entries || []).map((e) => [e.clauseType, e]))); })
+      .catch(() => {});
+  }, []);
 
   const setObligationStatus = async (obligationId, status) => {
     setBusy(obligationId);
@@ -99,17 +109,39 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
               </div>
               {c.clauses.length === 0 ? (
                 <div style={{ fontSize: 11, color: C.t4, fontStyle: "italic" }}>No clauses extracted yet. The contract agent populates these on review (CTR-2).</div>
-              ) : c.clauses.map((cl) => (
+              ) : c.clauses.map((cl) => {
+                const pb = playbook[cl.type];
+                const open = openClause === cl.id;
+                return (
                 <div key={cl.id} style={{ padding: "8px 0", borderBottom: `1px solid ${C.br}22` }}>
                   <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 3 }}>
                     <span style={{ fontSize: 11, fontWeight: 600, color: C.t1 }}>{cl.type.replace(/_/g, " ")}</span>
                     <Pill t={cl.risk} c={RISK_COLOR[cl.risk]} />
                     {cl.deviation && <Pill t="DEVIATES" c={C.rd} />}
+                    {pb && (
+                      <span onClick={() => setOpenClause(open ? null : cl.id)} style={{ marginLeft: "auto", cursor: "pointer", fontSize: 9, fontFamily: M, letterSpacing: .5, color: C.bl, textTransform: "uppercase" }}>
+                        {open ? "▾ playbook" : "⚖ vs playbook"}
+                      </span>
+                    )}
                   </div>
                   {cl.summary && <div style={{ fontSize: 10.5, color: C.tl, marginBottom: 2 }}>{cl.summary}</div>}
                   <div style={{ fontSize: 10.5, color: C.t2, lineHeight: 1.5 }}>{cl.text}</div>
+                  {pb && open && (
+                    <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                      <div style={{ padding: "8px 10px", background: C.s1, borderRadius: 5, borderLeft: `2px solid ${cl.deviation ? C.rd : C.gn}` }}>
+                        <div style={{ fontSize: 8.5, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t3, marginBottom: 3 }}>Playbook standard</div>
+                        <div style={{ fontSize: 10, color: C.t1, lineHeight: 1.5 }}>{pb.standardText}</div>
+                      </div>
+                      <div style={{ padding: "8px 10px", background: C.s1, borderRadius: 5 }}>
+                        {pb.fallbackText && <><div style={{ fontSize: 8.5, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t3, marginBottom: 3 }}>Acceptable fallback</div>
+                        <div style={{ fontSize: 10, color: C.t2, lineHeight: 1.5, marginBottom: 6 }}>{pb.fallbackText}</div></>}
+                        {pb.guidance && <><div style={{ fontSize: 8.5, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.am, marginBottom: 3 }}>Reviewer guidance</div>
+                        <div style={{ fontSize: 10, color: C.t2, lineHeight: 1.5 }}>{pb.guidance}</div></>}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              ))}
+              );})}
             </div>
 
             {/* Obligations */}
