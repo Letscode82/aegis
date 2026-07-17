@@ -35,6 +35,15 @@ export {
 } from "./src/internal/alerts";
 
 export {
+  listClauseLibrary,
+  getClauseLibraryByType,
+  upsertClauseLibraryEntry,
+  deleteClauseLibraryEntry,
+  type ClauseLibraryEntryDTO,
+  type UpsertClauseLibraryInput,
+} from "./src/internal/clause-library";
+
+export {
   createContract,
   updateContractStatus,
   addClause,

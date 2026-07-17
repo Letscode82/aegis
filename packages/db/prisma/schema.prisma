@@ -74,6 +74,7 @@ model Organization {
   budgets        Budget[]
   contracts      Contract[]
   contractReviewTokens ContractReviewToken[]
+  clauseLibraryEntries ClauseLibraryEntry[]
   dsars          DataSubjectRequest[]
   consents       ConsentRecord[]
   ropas          DataProcessingActivity[]
@@ -1998,6 +1999,32 @@ model ContractReviewToken {
   @@index([contractId])
   @@index([personId])
   @@index([organizationId, status])
+}
+
+/// The playbook clause bank (CTR-5). One canonical entry per clause type
+/// per org: the preferred standard position, an acceptable fallback, and
+/// reviewer guidance. Contract-review compares an extracted
+/// `ContractClause` against its matching entry so a deviation is shown
+/// against the actual playbook language, not just a boolean flag. Admin-
+/// managed; seeded from the AEGIS Contract Playbook.
+model ClauseLibraryEntry {
+  id             String       @id @default(cuid())
+  organizationId String
+  clauseType     String // matches ContractClause.type (LIABILITY_CAP | INDEMNITY | …)
+  title          String
+  standardText   String // preferred playbook position
+  fallbackText   String? // acceptable fallback / negotiation floor
+  guidance       String? // what to check, when to escalate
+  riskIfDeviated ContractRisk @default(MEDIUM)
+  active         Boolean      @default(true)
+  sortOrder      Int          @default(0)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, clauseType])
+  @@index([organizationId, active])
 }
 
 // ════════════════════════════════════════════════════════════════════

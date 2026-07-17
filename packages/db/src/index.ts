@@ -138,4 +138,5 @@ export type {
   Contract,
   ContractClause,
   ContractReviewToken,
+  ClauseLibraryEntry,
 } from "@prisma/client";
