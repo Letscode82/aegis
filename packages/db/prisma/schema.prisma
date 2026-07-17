@@ -76,6 +76,7 @@ model Organization {
   contractReviewTokens ContractReviewToken[]
   clauseLibraryEntries ClauseLibraryEntry[]
   templates      Template[]
+  contractVersions ContractVersion[]
   dsars          DataSubjectRequest[]
   consents       ConsentRecord[]
   ropas          DataProcessingActivity[]
@@ -1940,6 +1941,7 @@ model Contract {
 
   clauses ContractClause[]
   reviewTokens ContractReviewToken[]
+  versions ContractVersion[]
 
   @@index([organizationId, status])
   @@index([organizationId, expiryDate])
@@ -2058,6 +2060,37 @@ model Template {
 
   @@unique([organizationId, key])
   @@index([organizationId, kind, active])
+}
+
+/// Immutable snapshot of a contract's clause set at a point in time
+/// (CTR-5b). Captured on spawn, on re-extraction, and on a counterparty
+/// counter — plus manual "snapshot now". Diffing two versions yields the
+/// redline (added / removed / changed clauses). clausesJson is the frozen
+/// clause list so a snapshot survives later edits to the live clauses.
+enum ContractVersionSource {
+  SPAWN
+  EXTRACTION
+  COUNTERPARTY
+  MANUAL
+}
+
+model ContractVersion {
+  id             String                @id @default(cuid())
+  organizationId String
+  contractId     String
+  version        Int // sequential per contract, 1-indexed
+  label          String
+  source         ContractVersionSource @default(MANUAL)
+  clausesJson    Json // frozen [{type,text,summary,risk,deviation}]
+  clauseCount    Int                   @default(0)
+  createdById    String?
+  createdAt      DateTime              @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contract     Contract     @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@unique([contractId, version])
+  @@index([contractId])
 }
 
 // ════════════════════════════════════════════════════════════════════
