@@ -31,6 +31,7 @@ import { processTicketWithAgent } from "./index.js";
 import { lookupCounterpartyRelationship } from "../counterparty/server";
 import { screenAgainstSanctions } from "../sanctions/server";
 import { syncAgentDecisionForTicket } from "../agent-decision/server";
+import { resolveEffectiveAgentIdForType } from "../request-types/server";
 
 /** The recommendation fields this runner reads off the JS agent result. */
 interface AgentRecShape {
@@ -121,14 +122,13 @@ export async function runAgentForTicketServer(
       desc: ticket.desc ?? "",
     };
 
-    // Program #5 — honour a per-request-type agent binding when set.
+    // Program #5 + ladder binding — honour the request type's effective
+    // agent: explicit preferredAgentId, else the bound ladder's first
+    // AGENT-step agent. This is what makes "I bound an agent to my ladder
+    // step" actually process the ticket.
     let preferredAgentId: string | undefined;
     if (ticket.requestTypeId) {
-      const rt = await prisma.intakeRequestType.findFirst({
-        where: { id: ticket.requestTypeId, organizationId },
-        select: { preferredAgentId: true },
-      });
-      preferredAgentId = rt?.preferredAgentId ?? undefined;
+      preferredAgentId = (await resolveEffectiveAgentIdForType(organizationId, ticket.requestTypeId)) ?? undefined;
     }
 
     // processTicketWithAgent comes from the JS agent registry; the

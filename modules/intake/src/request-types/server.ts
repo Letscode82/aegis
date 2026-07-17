@@ -33,6 +33,11 @@ export interface RequestTypeDTO {
   workflowKey: string | null;
   /// Agent id handling this type (program #5) — null = auto/router.
   preferredAgentId: string | null;
+  /// Effective agent to run: the explicit preferredAgentId, else the
+  /// bound ladder's first AGENT-step agent, else null (router decides).
+  /// This is what makes "I bound an agent to my ladder step" actually
+  /// process the ticket, even when the type has no preferredAgentId.
+  resolvedAgentId: string | null;
   sortOrder: number;
   fields: RequestFieldDTO[];
 }
@@ -91,6 +96,7 @@ function toDTO(r: TypeRow): RequestTypeDTO {
     stages: Array.isArray(r.stagesJson) ? (r.stagesJson as string[]) : [],
     workflowKey: r.workflowKey ?? null,
     preferredAgentId: r.preferredAgentId ?? null,
+    resolvedAgentId: r.preferredAgentId ?? null, // ladder fallback merged in listRequestTypes/getRequestType
     sortOrder: r.sortOrder,
     fields: r.fields
       .slice()
@@ -111,6 +117,60 @@ function toDTO(r: TypeRow): RequestTypeDTO {
 
 const INCLUDE_FIELDS = { fields: true } as const;
 
+/**
+ * Map each ladder key → its first AGENT step's agentKey. This is the seam
+ * that makes a ladder's agent binding drive processing: if a request type
+ * has no explicit preferredAgentId but its bound ladder has an AGENT step,
+ * that step's agent becomes the type's effective agent.
+ */
+async function ladderAgentByKey(
+  organizationId: string,
+  workflowKeys: string[],
+): Promise<Record<string, string>> {
+  const keys = Array.from(new Set(workflowKeys.filter(Boolean)));
+  if (keys.length === 0) return {};
+  const defs = await prisma.workflowDefinition.findMany({
+    where: { organizationId, key: { in: keys }, isActive: true },
+    include: { steps: { where: { kind: "AGENT" }, orderBy: { stepOrder: "asc" } } },
+  });
+  const out: Record<string, string> = {};
+  for (const d of defs) {
+    for (const s of d.steps) {
+      const cfg = (s.agentConfigJson ?? {}) as { agentKey?: string };
+      if (cfg.agentKey) { out[d.key] = cfg.agentKey; break; }
+    }
+  }
+  return out;
+}
+
+function withResolvedAgent(dto: RequestTypeDTO, ladderAgents: Record<string, string>): RequestTypeDTO {
+  const resolvedAgentId = dto.preferredAgentId || (dto.workflowKey ? ladderAgents[dto.workflowKey] : null) || null;
+  return { ...dto, resolvedAgentId };
+}
+
+/**
+ * The effective processing agent for a request type: explicit
+ * preferredAgentId, else the bound ladder's first AGENT-step agent, else
+ * null. Used server-side (run-server) so ladder-driven agent selection
+ * works on the email / Teams ingest paths too.
+ */
+export async function resolveEffectiveAgentIdForType(
+  organizationId: string,
+  requestTypeId: string,
+): Promise<string | null> {
+  const rt = await prisma.intakeRequestType.findFirst({
+    where: { id: requestTypeId, organizationId },
+    select: { preferredAgentId: true, workflowKey: true },
+  });
+  if (!rt) return null;
+  if (rt.preferredAgentId) return rt.preferredAgentId;
+  if (rt.workflowKey) {
+    const m = await ladderAgentByKey(organizationId, [rt.workflowKey]);
+    return m[rt.workflowKey] ?? null;
+  }
+  return null;
+}
+
 export async function listRequestTypes(
   organizationId: string,
   opts: { includeInactive?: boolean } = {},
@@ -120,7 +180,9 @@ export async function listRequestTypes(
     include: INCLUDE_FIELDS,
     orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
   });
-  return rows.map((r) => toDTO(r as TypeRow));
+  const dtos = rows.map((r) => toDTO(r as TypeRow));
+  const ladderAgents = await ladderAgentByKey(organizationId, dtos.map((d) => d.workflowKey || "").filter(Boolean));
+  return dtos.map((d) => withResolvedAgent(d, ladderAgents));
 }
 
 export async function getRequestType(
@@ -131,7 +193,10 @@ export async function getRequestType(
     where: { id, organizationId },
     include: INCLUDE_FIELDS,
   });
-  return row ? toDTO(row as TypeRow) : null;
+  if (!row) return null;
+  const dto = toDTO(row as TypeRow);
+  const ladderAgents = await ladderAgentByKey(organizationId, dto.workflowKey ? [dto.workflowKey] : []);
+  return withResolvedAgent(dto, ladderAgents);
 }
 
 export interface RequestTypeInput {
