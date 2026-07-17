@@ -40,8 +40,14 @@ export function WorkflowsTab({ canManage }) {
   const [error, setError] = useState(null);
   const [selKey, setSelKey] = useState(null);
   const [creating, setCreating] = useState(false);
-  const [guided, setGuided] = useState(true);
+  // Guided setup preference is remembered per-user (localStorage), default on.
+  const [guided, setGuided] = useState(() => {
+    if (typeof window === "undefined") return true;
+    try { const v = window.localStorage.getItem("aegis:workflows:guided"); return v === null ? true : v === "1"; } catch { return true; }
+  });
+  useEffect(() => { try { window.localStorage.setItem("aegis:workflows:guided", guided ? "1" : "0"); } catch { /* noop */ } }, [guided]);
   const [guidedStep, setGuidedStep] = useState(0); // 0 = intake, 1 = governance
+  const [intakeTypeId, setIntakeTypeId] = useState(null); // which bound type's fields to edit (shared ladders)
   const [settingUpIntake, setSettingUpIntake] = useState(false);
 
   const load = useCallback(async () => {
@@ -58,10 +64,10 @@ export function WorkflowsTab({ canManage }) {
   }, []);
   useEffect(() => { load(); }, [load]);
 
-  const boundType = (defKey) => types.find((t) => t.workflowKey === defKey) || null;
+  const boundTypes = (defKey) => types.filter((t) => t.workflowKey === defKey);
   const sel = defs && selKey ? defs.find((d) => d.key === selKey) : null;
 
-  const openWorkflow = (key) => { setSelKey(key); setCreating(false); setSettingUpIntake(false); setGuidedStep(0); };
+  const openWorkflow = (key) => { setSelKey(key); setCreating(false); setSettingUpIntake(false); setGuidedStep(0); setIntakeTypeId(null); };
   const afterDefSaved = (savedDef) => { load().then(() => { if (savedDef?.key) openWorkflow(savedDef.key); }); setCreating(false); };
 
   if (error) return <div style={{ padding: 20, background: C.rdG, border: `1px solid ${C.rd}55`, borderRadius: 5, fontSize: 12, color: C.t1 }}>Couldn't load workflows: {error} <span onClick={load} style={{ marginLeft: 8, color: C.cy, cursor: "pointer", fontFamily: M }}>RETRY</span></div>;
@@ -82,14 +88,21 @@ export function WorkflowsTab({ canManage }) {
   }
 
   if (sel) {
-    const bt = boundType(sel.key);
+    const bts = boundTypes(sel.key);
+    const bt = bts.find((t) => t.id === intakeTypeId) || bts[0] || null;
     const ladderAgent = firstLadderAgent(sel);
 
     const IntakeSection = (
       <Card>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
           <div style={{ ...sectionLabel, marginBottom: 0 }}>0 · Intake — who files it & what they fill</div>
+          {bts.length > 1 && (
+            <select value={bt?.id || ""} onChange={(e) => setIntakeTypeId(e.target.value)} style={{ background: C.bg, border: `1px solid ${C.br}`, borderRadius: 4, color: C.t1, fontFamily: M, fontSize: 10.5, padding: "5px 7px" }}>
+              {bts.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+            </select>
+          )}
         </div>
+        {bts.length > 1 && <div style={{ fontSize: 10, color: C.am, fontFamily: M, marginBottom: 8 }}>⚠ {bts.length} request types share this workflow — editing the intake for <b>{bt?.name}</b> only.</div>}
         {bt ? (
           <>
             <div style={{ fontSize: 12, color: C.t1, marginBottom: 4 }}>Request type: <b>{bt.name}</b>{bt.workstream ? <span style={{ color: C.t3 }}> · {bt.workstream}</span> : null}</div>
@@ -181,7 +194,8 @@ export function WorkflowsTab({ canManage }) {
           <div style={{ fontSize: 11, color: C.t3 }}>Seed the governance library from the Agents / admin tools, or create one with <b>+ New workflow</b>.</div>
         </div>
       ) : defs.map((d) => {
-        const bt = boundType(d.key);
+        const dbts = boundTypes(d.key);
+        const bt = dbts[0];
         const la = firstLadderAgent(d);
         return (
           <div key={d.key} onClick={() => openWorkflow(d.key)} style={{ display: "flex", alignItems: "center", gap: 14, padding: "12px 14px", background: C.cd, border: `1px solid ${C.br}`, borderRadius: 6, marginBottom: 8, cursor: "pointer" }}
@@ -189,7 +203,7 @@ export function WorkflowsTab({ canManage }) {
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 13.5, color: C.t1, fontWeight: 600 }}>{d.name}</div>
               <div style={{ fontSize: 10, fontFamily: M, color: C.t3, marginTop: 3 }}>
-                {bt ? <span style={{ color: C.cy }}>◈ {bt.name}{typeof bt.fields?.length === "number" ? ` · ${bt.fields.length} field${bt.fields.length === 1 ? "" : "s"}` : ""}</span> : <span style={{ color: C.t4 }}>◈ no intake form</span>}
+                {bt ? <span style={{ color: C.cy }}>◈ {bt.name}{dbts.length > 1 ? ` +${dbts.length - 1}` : ""}{typeof bt.fields?.length === "number" ? ` · ${bt.fields.length} field${bt.fields.length === 1 ? "" : "s"}` : ""}</span> : <span style={{ color: C.t4 }}>◈ no intake form</span>}
                 <span style={{ color: C.t4 }}> · {(d.steps || []).length} step{(d.steps || []).length === 1 ? "" : "s"}</span>
                 {la ? <span style={{ color: C.pp }}> · ⚙ {agentName(la)}</span> : null}
               </div>
