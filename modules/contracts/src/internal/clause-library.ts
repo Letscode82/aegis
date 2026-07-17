@@ -65,6 +65,26 @@ export async function getClauseLibraryByType(organizationId: string): Promise<Re
   return Object.fromEntries(entries.map((e) => [e.clauseType, e]));
 }
 
+/**
+ * Render the active clause library as the prose playbook the contract
+ * agents review against. This is the seam that makes the "📖 Playbook"
+ * UI live: edit a clause here, and the agent's next review checks against
+ * the new position. Returns "" when the library is empty so callers can
+ * fall back to their built-in default.
+ */
+export async function getContractPlaybookText(organizationId: string): Promise<string> {
+  const entries = await listClauseLibrary(organizationId, { includeInactive: false });
+  if (entries.length === 0) return "";
+  const lines = entries.map((e) => {
+    const parts = [`- ${e.title} (${e.clauseType}): ${e.standardText}`];
+    if (e.fallbackText) parts.push(`  Fallback: ${e.fallbackText}`);
+    if (e.guidance) parts.push(`  Guidance: ${e.guidance}`);
+    parts.push(`  Risk if deviated: ${e.riskIfDeviated}.`);
+    return parts.join("\n");
+  });
+  return `AEGIS Contract Playbook (org-configured — check every clause against these positions):\n${lines.join("\n")}`;
+}
+
 /** Upsert on (org, clauseType); chain-sealed. */
 export async function upsertClauseLibraryEntry(
   organizationId: string,
