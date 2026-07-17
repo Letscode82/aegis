@@ -1139,10 +1139,12 @@ function CockpitTab({store,cockpit}){
     // matter, not just "approved + sent". Falls back to the legacy
     // text when nothing spawned (Q&A-shaped intake types).
     const spawn=result?.spawnedMatters?.find(s=>s.ticketId===current.id);
-    if(spawn){
-      const num=spawn.matterNumber||"DRAFT";
-      // Linger 6s so the user has time to click into the new matter.
-      showToast(<>✓ {current.id} approved · <a href={`/matter/${spawn.matterId}`} style={{color:C.cy,textDecoration:"underline"}} onClick={e=>e.stopPropagation()}>Matter {num} created</a></>,"gn",6000);
+    const spawnC=result?.spawnedContracts?.find(s=>s.ticketId===current.id);
+    if(spawn||spawnC){
+      const num=spawn?.matterNumber||"DRAFT";
+      // Linger 6s so the user has time to click through to the new
+      // matter / contract — the "one brain" moment of the demo.
+      showToast(<>✓ {current.id} approved{spawn&&<> · <a href={`/matter/${spawn.matterId}`} style={{color:C.cy,textDecoration:"underline"}} onClick={e=>e.stopPropagation()}>Matter {num} created</a></>}{spawnC&&<> · <a href="/?view=contracts" style={{color:C.cy,textDecoration:"underline"}} onClick={e=>e.stopPropagation()}>Contract created</a></>}</>,"gn",6000);
     } else {
       showToast(`✓ ${current.id} approved + sent`,"gn");
     }
@@ -1204,9 +1206,10 @@ function CockpitTab({store,cockpit}){
     await cockpit.incrementTriaged();
     setEditing(false);setDraftEdit("");
     const spawn=result?.spawnedMatters?.find(s=>s.ticketId===current.id);
-    if(spawn){
-      const num=spawn.matterNumber||"DRAFT";
-      showToast(<>✓ {current.id} edited · <a href={`/matter/${spawn.matterId}`} style={{color:C.cy,textDecoration:"underline"}} onClick={e=>e.stopPropagation()}>Matter {num} created</a></>,"gn",6000);
+    const spawnC=result?.spawnedContracts?.find(s=>s.ticketId===current.id);
+    if(spawn||spawnC){
+      const num=spawn?.matterNumber||"DRAFT";
+      showToast(<>✓ {current.id} edited{spawn&&<> · <a href={`/matter/${spawn.matterId}`} style={{color:C.cy,textDecoration:"underline"}} onClick={e=>e.stopPropagation()}>Matter {num} created</a></>}{spawnC&&<> · <a href="/?view=contracts" style={{color:C.cy,textDecoration:"underline"}} onClick={e=>e.stopPropagation()}>Contract created</a></>}</>,"gn",6000);
     } else {
       showToast(`✓ ${current.id} edited + sent`,"gn");
     }

@@ -40,6 +40,7 @@ import { buildPoolResolver } from "../routing/teams";
 import { deriveComplexity } from "../routing/complexity";
 import { maybeStartWorkflowForTicket } from "../workflow-bridge/server";
 import { maybeSpawnMatterForApprovedTicket } from "../matter-spawn/server";
+import { maybeSpawnContractForApprovedTicket } from "../contract-spawn/server";
 import { syncAgentDecisionForTicket } from "../agent-decision/server";
 import { buildAutoBatonRows } from "../handoff/auto";
 import { notifyTicketEvent } from "../notifications/server";
@@ -269,6 +270,13 @@ export interface SaveTicketsV8Result {
     matterNumber: string | null;
     matterTitle: string;
   }>;
+  spawnedContracts: Array<{
+    ticketId: string;
+    contractId: string;
+    contractTitle: string;
+    clauses: number;
+    obligations: number;
+  }>;
 }
 
 async function saveTicketsV8(
@@ -277,6 +285,7 @@ async function saveTicketsV8(
   ctx?: { req?: { headers: Record<string, string | string[] | undefined> }; res?: unknown },
 ): Promise<SaveTicketsV8Result> {
   const spawnedMatters: SaveTicketsV8Result["spawnedMatters"] = [];
+  const spawnedContracts: SaveTicketsV8Result["spawnedContracts"] = [];
   // Resolve the actor once — every audit row carries this user's id.
   // Goes through @aegis/auth/server when a request is present, so a
   // real Auth0 session correctly attributes the audit; otherwise
@@ -784,6 +793,48 @@ async function saveTicketsV8(
               },
             });
           }
+
+          // CTR-2 — auto-spawn a Contract for contract-bearing intake
+          // types (Contract Review, NDA Request). Mirrors matter-spawn:
+          // the intake contract flow feeds the same Contracts system of
+          // record, and the shared extractor seeds clauses + obligations.
+          // Runs after matter-spawn so the new Contract can link the
+          // matter created above. Same failure isolation.
+          try {
+            const spawnContract = await maybeSpawnContractForApprovedTicket(
+              {
+                id: t.id,
+                type: common.type,
+                description: common.description,
+                matterId: before?.matterId ?? null,
+                organizationId: orgId,
+                requesterName: t.from ?? null,
+              },
+              demoUser,
+            );
+            if (spawnContract) {
+              spawnedContracts.push({
+                ticketId: t.id,
+                contractId: spawnContract.contractId,
+                contractTitle: spawnContract.title,
+                clauses: spawnContract.clauses,
+                obligations: spawnContract.obligations,
+              });
+            }
+          } catch (err) {
+            await logAudit({
+              organizationId: orgId,
+              actorId: actor,
+              actorType: "USER",
+              action: "intake.ticket.contract_spawn_failed",
+              resourceType: "IntakeTicket",
+              resourceId: t.id,
+              afterJson: {
+                error: err instanceof Error ? err.message : String(err),
+                intakeType: common.type,
+              },
+            });
+          }
         }
       }
     }
@@ -962,7 +1013,7 @@ async function saveTicketsV8(
   }
   // Item 5 — advance round-robin cursors for pool members picked this pass.
   if (poolResolver) await poolResolver.commitPicks();
-  return { spawnedMatters };
+  return { spawnedMatters, spawnedContracts };
 }
 
 // ── User-preference KV (cockpit state, agent settings, agent log) ────
@@ -1114,6 +1165,7 @@ export async function intakeStorageGet(
  */
 export interface IntakeStorageSetResult {
   spawnedMatters?: SaveTicketsV8Result["spawnedMatters"];
+  spawnedContracts?: SaveTicketsV8Result["spawnedContracts"];
 }
 
 /**
@@ -1142,6 +1194,7 @@ export async function intakeStorageSet(
     const result = await saveTicketsV8(org.id, parsed, ctx);
     return {
       spawnedMatters: result.spawnedMatters.length > 0 ? result.spawnedMatters : undefined,
+      spawnedContracts: result.spawnedContracts.length > 0 ? result.spawnedContracts : undefined,
     };
   }
   if (key === K_TICKETS_SEEDED) {
