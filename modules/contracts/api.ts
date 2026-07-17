@@ -37,6 +37,7 @@ export {
 export {
   listClauseLibrary,
   getClauseLibraryByType,
+  getContractPlaybookText,
   upsertClauseLibraryEntry,
   deleteClauseLibraryEntry,
   type ClauseLibraryEntryDTO,

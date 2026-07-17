@@ -21,6 +21,22 @@ const CONTRACT_PLAYBOOK=`AEGIS Contract Playbook (defaults to check against):
 // to "Claude unavailable" while smaller NDAs succeeded.
 const MAX_DOC_CHARS = 9000;
 
+// Prefer the org's DB-configured playbook (the "📖 Playbook" / clause
+// library) so editing a clause there changes what this agent flags — the
+// live-playbook loop. Falls back to the built-in default on any failure
+// (unauthenticated, server-side relative fetch, empty library) so the
+// agent never breaks.
+async function loadPlaybook(){
+  try{
+    const r=await fetch("/api/intake/contract-playbook");
+    if(r.ok){
+      const d=await r.json();
+      if(d&&d.ok&&typeof d.playbookText==="string"&&d.playbookText.trim()) return d.playbookText;
+    }
+  }catch{/* fall through to the built-in default */}
+  return CONTRACT_PLAYBOOK;
+}
+
 // Real AI-assisted first-pass contract review. Claude extracts the key
 // commercial clauses, compares them to our playbook, flags deviations
 // with severity, and drafts a redline summary + recommendation. Genuine
@@ -59,6 +75,7 @@ export const ContractReviewAgent={
   async process(ticket){
     const name=(ticket.from||"").split(" ")[0]||"there";
     const desc=(ticket.desc||"").slice(0,MAX_DOC_CHARS);
+    const playbook=await loadPlaybook();
     const context=`TICKET:
 - Requester: ${ticket.from} (${ticket.dept})
 - Description / document:
@@ -69,7 +86,7 @@ ${desc}
     try{
       const prompt=`You are the Contract Review Agent for AEGIS Legal. Do a FIRST-PASS review of the contract below, comparing its terms against our playbook. If the full document text is included, review it clause by clause; otherwise review what the requester described and call out what still needs the full text.
 
-${CONTRACT_PLAYBOOK}
+${playbook}
 
 For EVERY issue you flag, assign a severity: BLOCKER / HIGH / MEDIUM / LOW, worst first.
 
@@ -104,7 +121,7 @@ Respond with ONLY this JSON (keep draftedResponse to 160-240 words; use \\n for 
       try{
         const textPrompt=`You are the Contract Review Agent for AEGIS Legal. Do a FIRST-PASS review of the contract below against this playbook, then write a concise review (180-240 words) addressed to ${name} that: names the key clauses, flags each deviation with a severity (BLOCKER/HIGH/MEDIUM/LOW, worst first) as a bulleted list, notes what still needs the full document, and gives a recommendation. End by stating attorney sign-off is required before execution. Plain text only — no preamble, no JSON.
 
-${CONTRACT_PLAYBOOK}
+${playbook}
 
 ${context}`;
         const prose=await callClaude(textPrompt,{maxTokens:1400,timeout:45000});
