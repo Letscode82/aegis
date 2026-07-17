@@ -26,6 +26,21 @@ export function TemplatesModal({ canManage, onClose }) {
   const [form, setForm] = useState(empty());
   const [busy, setBusy] = useState(false);
   const [expanded, setExpanded] = useState(null);
+  const [aiInstr, setAiInstr] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+
+  const generate = async () => {
+    setAiBusy(true); setError(null);
+    try {
+      const r = await fetch("/api/contracts/templates/generate", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ kind: form.kind, name: form.name, instructions: aiInstr }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setForm((f) => ({ ...f, body: d.body }));
+    } catch (e) { setError(String(e.message || e)); } finally { setAiBusy(false); }
+  };
 
   const load = useCallback(() => {
     fetch(`/api/contracts/templates${canManage ? "?all=1" : ""}`)
@@ -84,6 +99,16 @@ export function TemplatesModal({ canManage, onClose }) {
                 <div><div style={lbl}>Name</div><input value={form.name} onChange={upd("name")} placeholder="Standard Mutual NDA" style={input} /></div>
               </div>
               <div style={{ marginBottom: 8 }}><div style={lbl}>Description</div><input value={form.description} onChange={upd("description")} style={input} /></div>
+              {canManage && (
+                <div style={{ marginBottom: 8, padding: "9px 11px", background: C.s1, borderRadius: 5, border: `1px solid ${C.pp}44` }}>
+                  <div style={{ ...lbl, color: C.pp }}>✨ Draft with AI</div>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <input value={aiInstr} onChange={(e) => setAiInstr(e.target.value)} placeholder="e.g. mutual NDA, 3-year term, California law, no residuals clause" style={{ ...input, flex: 1 }} />
+                    <button disabled={aiBusy} onClick={generate} style={{ padding: "6px 12px", background: C.pp, color: C.bg, border: "none", borderRadius: 4, fontFamily: M, fontSize: 9.5, letterSpacing: 1, fontWeight: 700, textTransform: "uppercase", cursor: "pointer", whiteSpace: "nowrap", opacity: aiBusy ? .6 : 1 }}>{aiBusy ? "Drafting…" : "Generate"}</button>
+                  </div>
+                  <div style={{ fontSize: 9, color: C.t4, fontFamily: M, marginTop: 4 }}>AI drafts the body below — review and edit before saving. Nothing is saved until you click Save.</div>
+                </div>
+              )}
               <div style={{ marginBottom: 10 }}><div style={lbl}>Body (markdown / text with {"{{variables}}"})</div><textarea value={form.body} onChange={upd("body")} rows={8} style={{ ...mono, resize: "vertical" }} /></div>
               <div style={{ display: "flex", gap: 8 }}>
                 <button disabled={busy || !form.key.trim() || !form.name.trim() || !form.body.trim()} onClick={save} style={btn(C.gn)}>{busy ? "…" : "Save"}</button>
