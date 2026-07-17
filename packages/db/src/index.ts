@@ -54,6 +54,7 @@ export {
   ObligationStatus,
   ContractStatus,
   ContractRisk,
+  ContractReviewTokenStatus,
   MatterType,
   MatterStatus,
   MatterPartyRole,
@@ -136,4 +137,5 @@ export type {
   UserPreference,
   Contract,
   ContractClause,
+  ContractReviewToken,
 } from "@prisma/client";

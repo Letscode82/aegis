@@ -1616,7 +1616,39 @@ async function seedContracts(orgId: string, ownerPersonId: string) {
     }
   }
 
-  return { contracts: CONTRACTS.length, clauses: clauseCount, obligations: obligationCount };
+  // CTR-3 demo: a counterparty contact + a LIVE review link on the Acme
+  // NDA so the tokenised portal walks end-to-end at /contract-review/<t>.
+  // The raw token is a fixed demo string (safe: it's a demo tenant); the
+  // row stores only its SHA-256 hash, exactly as production does.
+  await prisma.person.upsert({
+    where: { id: "p-acme-contact" },
+    update: { name: "Jordan Fields", email: "jordan.fields@acme.example", metadata: { counterpartyId: "cp-acme" } },
+    create: {
+      id: "p-acme-contact",
+      organizationId: orgId,
+      type: PersonType.COUNTERPARTY_CONTACT,
+      name: "Jordan Fields",
+      email: "jordan.fields@acme.example",
+      metadata: { counterpartyId: "cp-acme" },
+    },
+  });
+  const demoRawToken = "demo-acme-nda-review-2026";
+  const demoTokenHash = createHash("sha256").update(demoRawToken, "utf8").digest("hex");
+  await prisma.contractReviewToken.upsert({
+    where: { tokenHash: demoTokenHash },
+    update: { status: "ACTIVE", expiresAt: at(30) },
+    create: {
+      organizationId: orgId,
+      contractId: "ct-acme-nda",
+      personId: "p-acme-contact",
+      tokenHash: demoTokenHash,
+      status: "ACTIVE",
+      expiresAt: at(30),
+      createdById: "seed",
+    },
+  });
+
+  return { contracts: CONTRACTS.length, clauses: clauseCount, obligations: obligationCount, reviewToken: demoRawToken };
 }
 
 async function main() {
@@ -1699,7 +1731,8 @@ async function main() {
 
   const ct = await seedContracts(org.id, alexPerson.id);
   console.log(
-    `[seed] contracts=${ct.contracts} clauses=${ct.clauses} contract_obligations=${ct.obligations}`,
+    `[seed] contracts=${ct.contracts} clauses=${ct.clauses} contract_obligations=${ct.obligations} ` +
+      `review_portal=/contract-review/${ct.reviewToken}`,
   );
 
   console.log("[seed] done.");
