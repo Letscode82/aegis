@@ -3,11 +3,13 @@ import { C, M, SR, Card, Pill, Bar, Dot } from "@aegis/ui";
 
 // ── W2-3 · Pool Ops — utilization, overflow, throughput per tier ─────
 //
-// The "senior counsel freed for strategic work" evidence view. Reads
-// GET /api/intake/pool-ops (pure aggregation over data the routing
-// engine already produces): per-member and per-pool utilization, the
-// complexity mix each tier is carrying, overflow pressure inside the
-// window, and closed-ticket throughput.
+// The "who's overloaded, where's the backlog" capacity view — the
+// complement to the dispatch desk (it tells you who has headroom to take
+// an assignment). Reads GET /api/intake/pool-ops (pure aggregation over
+// live ticket data): per-member and per-pool utilization, the complexity
+// mix each tier is carrying, overflow pressure, and closed-ticket
+// throughput. (The rule-based "routed by" counts were dropped when Smart
+// Routing was retired — the ladder is the routing brain now.)
 
 const utilColor = (pct) => pct == null ? C.t3 : pct >= 100 ? C.rd : pct >= 70 ? C.am : C.gn;
 
@@ -100,8 +102,7 @@ function TeamCard({ team, d }) {
           <MixChip label="Complex" count={team.complexityMix.complex} color={C.rd} />
         </div>
         <div style={{ fontSize: 10, fontFamily: M, color: C.t3 }}>
-          Routed <span style={{ color: C.t1 }}>{team.routedCount}</span>
-          {" · "}Closed 7d <span style={{ color: C.gn }}>{team.closed7d}</span>
+          Closed 7d <span style={{ color: C.gn }}>{team.closed7d}</span>
           {" · "}30d <span style={{ color: C.gn }}>{team.closed30d}</span>
           {team.effortMinutes > 0 && <span> · Effort <span style={{ color: C.tl }}>{team.effortMinutes >= 60 ? `${Math.round(team.effortMinutes / 60 * 10) / 10}h` : `${team.effortMinutes}m`}</span></span>}
           {team.overdueCount > 0 && <span> · <span style={{ color: C.rd }}>{team.overdueCount} overdue</span></span>}
@@ -140,11 +141,10 @@ export function PoolOpsTab() {
     (a, t) => ({
       open: a.open + t.openTotal,
       overflow: a.overflow + t.overflowInCount,
-      routed: a.routed + t.routedCount,
       closed7: a.closed7 + t.closed7d,
       overdue: a.overdue + t.overdueCount,
     }),
-    { open: 0, overflow: 0, routed: 0, closed7: 0, overdue: 0 },
+    { open: 0, overflow: 0, closed7: 0, overdue: 0 },
   );
 
   return (
@@ -159,7 +159,6 @@ export function PoolOpsTab() {
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
         <StatBlock label="Open in pools" value={totals.open} color={C.tl} />
         <StatBlock label="Awaiting pickup" value={data.unassignedOpen} color={data.unassignedOpen > 0 ? C.am : C.gn} sub="unassigned queue" />
-        <StatBlock label="Routed by rules" value={totals.routed} sub={`last ${data.windowDays}d`} />
         <StatBlock label="Overflow events" value={totals.overflow} color={totals.overflow > 0 ? C.am : C.gn} sub="capacity pressure" />
         <StatBlock label="Closed 7d" value={totals.closed7} color={C.gn} sub="throughput" />
         {totals.overdue > 0 && <StatBlock label="Overdue" value={totals.overdue} color={C.rd} sub="SLA breached" />}
@@ -169,8 +168,8 @@ export function PoolOpsTab() {
         <div style={{ padding: 28, textAlign: "center", background: C.cd, border: `1px dashed ${C.br}`, borderRadius: 6 }}>
           <div style={{ fontSize: 13, fontFamily: SR, color: C.t1, marginBottom: 6 }}>No pools configured yet</div>
           <div style={{ fontSize: 11, color: C.t3, lineHeight: 1.6 }}>
-            Create tiers on the <b>Teams</b> tab (e.g. Tier 1 · Paralegals → Tier 2 · Counsel → Tier 3 · Senior),
-            then point Smart Routing rules at them. This dashboard lights up as work flows through the pools.
+            Create tiers on the <b>Teams</b> tab (e.g. Tier 1 · Paralegals → Tier 2 · Counsel → Tier 3 · Senior)
+            and assign work to them from the Inbox. This dashboard lights up with live utilization as tickets flow through the pools.
           </div>
         </div>
       ) : (
