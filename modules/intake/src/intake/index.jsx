@@ -16,7 +16,7 @@ import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
 import { TicketSummaryButton, AskAuroraChat } from "../ai-features";
 import { isAwaitingTriage } from "./triage-filter";
 import { splitTicketDescription } from "./ticket-desc";
-import { WorkflowDesignerTab } from "./workflow-designer";
+import { RequestPipelinesTab } from "./request-pipelines";
 import { WorkflowSlaPanel } from "./workflow-sla";
 import { ViewAsSwitcher } from "./view-as-switcher";
 import { AgentsConsoleTab } from "./agents-console";
@@ -27,7 +27,6 @@ import { PartiesPanel } from "./parties-panel";
 import { LitigationSummaryCard } from "./litigation-view";
 import { WorkflowLadderCard } from "./workflow-ladder";
 import { CockpitStepPanel } from "./cockpit-step-panel";
-import { RequestTypesTab } from "./request-types-admin";
 import { MyWorkTab } from "./my-work";
 import { MyRequestsTab } from "./my-requests";
 import { PoolOpsTab } from "./pool-ops";
@@ -2644,8 +2643,7 @@ export function IntakeView(){
     ...(canManageRouting?[
       {divider:true},
       {id:"teams",label:"Teams",icon:"◪"},
-      {id:"request-types",label:"Request Types",icon:"❏"},
-      {id:"workflow-designer",label:"Workflow Designer",icon:"⛓"},
+      {id:"pipelines",label:"Request Pipelines",icon:"❏"},
       {id:"agents-console",label:"Agents",icon:"◉"},
     ]:[]),
   ]:[
@@ -2710,8 +2708,7 @@ export function IntakeView(){
     {tab==="poolops"&&<PoolOpsTab/>}
     {tab==="routing"&&<RoutingTab rules={routingRules} loading={routingRules===null&&!routingError} error={routingError} onRuleUpdated={onRuleUpdated} onRuleCreated={onRuleCreated} onRuleDeleted={onRuleDeleted} assignees={routingAssignees} canManage={canManageRouting}/>}
     {tab==="teams"&&<TeamsTab canManage={canManageRouting}/>}
-    {tab==="request-types"&&<RequestTypesTab canManage={canManageRouting}/>}
-    {tab==="workflow-designer"&&<WorkflowDesignerTab canManage={canManageRouting}/>}
+    {tab==="pipelines"&&<RequestPipelinesTab canManage={canManageRouting}/>}
     {tab==="agents-console"&&<AgentsConsoleTab canManage={canManageRouting} settings={agentSettingsHook.settings} toggle={agentSettingsHook.toggle}/>}
     {tab==="selfserve"&&<SelfServeTab onFileTicket={(draft)=>{setPrefillDesc(draft||"");setTab("new");}}/>}
     </PanelBoundary>
