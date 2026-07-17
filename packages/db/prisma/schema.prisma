@@ -72,6 +72,7 @@ model Organization {
   intakeRequestTypes IntakeRequestType[]
   vendors        Vendor[]
   budgets        Budget[]
+  contracts      Contract[]
   dsars          DataSubjectRequest[]
   consents       ConsentRecord[]
   ropas          DataProcessingActivity[]
@@ -252,6 +253,7 @@ model Counterparty {
   matters Matter[]
   vendors Vendor[]
   intakeTicketParties IntakeTicketParty[]
+  contracts Contract[]
   // Persons attached to this counterparty as contacts (Person.type = COUNTERPARTY_CONTACT,
   // metadata.counterpartyId = this id). Not modeled as FK to keep Person polymorphic.
 
@@ -518,6 +520,7 @@ model Matter {
   invoices      Invoice[]
   intakeTickets IntakeTicket[]
   tasks         MatterTask[]
+  contracts     Contract[]
 
   @@unique([organizationId, matterNumber])
   @@index([organizationId, status])
@@ -1865,6 +1868,92 @@ model Timekeeper {
   @@unique([vendorId, personId])
   @@index([vendorId])
   @@index([personId])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 6b. Contracts (CLM)
+// ════════════════════════════════════════════════════════════════════
+//
+// The contract system of record. Attaches to shared entities — the
+// counterparty is a `Counterparty`, the paper is a `Document`
+// (ownerType = CONTRACT), commitments are `Obligation` rows
+// (sourceType = CONTRACT, sourceId = Contract.id), and the approval flow
+// runs on the workflow ladder. Clauses are contract-internal, extracted
+// by the shared contract agent, and — with obligations — are the durable
+// knowledge Company Brain queries. No `ContractParty` table: parties are
+// shared entities.
+
+enum ContractStatus {
+  DRAFT
+  IN_REVIEW
+  IN_NEGOTIATION
+  APPROVED
+  EXECUTED
+  ACTIVE
+  EXPIRED
+  TERMINATED
+}
+
+enum ContractRisk {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+model Contract {
+  id             String         @id @default(cuid())
+  organizationId String
+  counterpartyId String?
+  matterId       String? // link to the Matter this contract belongs to
+  title          String
+  type           String // "MSA" | "NDA" | "License" | "Supply" | …
+  status         ContractStatus @default(DRAFT)
+  risk           ContractRisk   @default(MEDIUM)
+  value          Float?
+  currency       String         @default("USD")
+  effectiveDate  DateTime?
+  expiryDate     DateTime?
+  autoRenew      Boolean        @default(false)
+  /// Days before expiry a non-renewal notice must be given.
+  noticeWindowDays Int?
+  governingLaw   String?
+  /// Source of truth pointer — the intake ticket this spawned from, if any.
+  sourceIntakeTicketId String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  counterparty Counterparty? @relation(fields: [counterpartyId], references: [id], onDelete: SetNull)
+  matter       Matter?       @relation(fields: [matterId], references: [id], onDelete: SetNull)
+
+  clauses ContractClause[]
+
+  @@index([organizationId, status])
+  @@index([organizationId, expiryDate])
+  @@index([counterpartyId])
+  @@index([matterId])
+}
+
+model ContractClause {
+  id         String       @id @default(cuid())
+  contractId String
+  /// "LIABILITY_CAP" | "INDEMNITY" | "GOVERNING_LAW" | "TERMINATION" |
+  /// "PAYMENT" | "AUTO_RENEWAL" | "IP" | "CONFIDENTIALITY" |
+  /// "ASSIGNMENT" | "WARRANTY" | "OTHER"
+  type       String
+  /// The extracted clause text (verbatim or summarised).
+  text       String
+  /// Short AI summary of what the clause does.
+  summary    String?
+  risk       ContractRisk @default(LOW)
+  /// True when the clause deviates from the playbook standard.
+  deviation  Boolean      @default(false)
+  createdAt  DateTime     @default(now())
+
+  contract Contract @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([contractId])
+  @@index([contractId, type])
 }
 
 // ════════════════════════════════════════════════════════════════════

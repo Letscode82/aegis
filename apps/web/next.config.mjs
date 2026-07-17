@@ -32,7 +32,7 @@ const nextConfig = {
     },
   },
   // Workspace packages ship as source (.js/.jsx/.ts). Let Next.js transpile them.
-  transpilePackages: ["@aegis/ui", "@aegis/ai", "@aegis/intake", "@aegis/db", "@aegis/auth"],
+  transpilePackages: ["@aegis/ui", "@aegis/ai", "@aegis/intake", "@aegis/db", "@aegis/auth", "@aegis/contracts"],
   eslint: {
     // We run ESLint via turbo; don't block production builds on lint.
     ignoreDuringBuilds: true,
