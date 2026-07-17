@@ -56,6 +56,7 @@ export {
   ContractRisk,
   ContractReviewTokenStatus,
   TemplateKind,
+  ContractVersionSource,
   MatterType,
   MatterStatus,
   MatterPartyRole,
@@ -141,4 +142,5 @@ export type {
   ContractReviewToken,
   ClauseLibraryEntry,
   Template,
+  ContractVersion,
 } from "@prisma/client";

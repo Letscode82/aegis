@@ -55,6 +55,19 @@ export {
 } from "./src/internal/templates";
 
 export {
+  snapshotContractVersion,
+  listContractVersions,
+  diffContractVersions,
+  diffClauseSets,
+  diffCounts,
+  type ContractVersionSummary,
+  type ContractVersionDetail,
+  type ContractDiff,
+  type ClauseChange,
+  type SnapshotClause,
+} from "./src/internal/versions";
+
+export {
   createContract,
   updateContractStatus,
   addClause,

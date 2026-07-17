@@ -177,6 +177,9 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
 
             {/* Counterparty review round-trip */}
             <ReviewPanel contractId={contractId} canManage={canManage} />
+
+            {/* Version history + redline diff (CTR-5b) */}
+            <VersionsPanel contractId={contractId} canManage={canManage} />
           </>
         )}
       </div>
@@ -312,3 +315,110 @@ const btn = (c) => ({
   padding: "4px 10px", borderRadius: 4, border: `1px solid ${c}`, background: "transparent",
   color: c, fontSize: 9.5, fontFamily: M, fontWeight: 600, letterSpacing: .5, cursor: "pointer", textTransform: "uppercase",
 });
+
+// ── Version history + redline diff (CTR-5b) ──────────────────────────
+const VSRC_LABEL = { SPAWN: "spawn", EXTRACTION: "re-review", COUNTERPARTY: "counterparty", MANUAL: "manual" };
+const CHANGE_COLOR = { added: C.gn, removed: C.rd, changed: C.am };
+
+function VersionsPanel({ contractId, canManage }) {
+  const [versions, setVersions] = useState(null);
+  const [err, setErr] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [from, setFrom] = useState("");
+  const [to, setTo] = useState("");
+  const [diff, setDiff] = useState(null);
+
+  const load = useCallback(() => {
+    fetch(`/api/contracts/${contractId}/versions`)
+      .then((r) => (r.ok ? r.json() : r.json().then((d) => Promise.reject(d.error || `HTTP ${r.status}`))))
+      .then((d) => {
+        setVersions(d.versions || []);
+        if ((d.versions || []).length >= 2) { setTo(String(d.versions[0].version)); setFrom(String(d.versions[1].version)); }
+      })
+      .catch((e) => setErr(String(e)));
+  }, [contractId]);
+  useEffect(() => { load(); }, [load]);
+
+  const snapshot = async () => {
+    setBusy(true); setErr(null);
+    try {
+      const r = await fetch(`/api/contracts/${contractId}/versions`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      if (d.unchanged) setErr("No clause changes since the last version — nothing to snapshot.");
+      load();
+    } catch (e) { setErr(String(e.message || e)); } finally { setBusy(false); }
+  };
+
+  const runDiff = async () => {
+    if (!from || !to || from === to) return;
+    setBusy(true); setErr(null); setDiff(null);
+    try {
+      const r = await fetch(`/api/contracts/${contractId}/versions/diff?from=${from}&to=${to}`);
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setDiff(d.diff);
+    } catch (e) { setErr(String(e.message || e)); } finally { setBusy(false); }
+  };
+
+  const sel = { background: C.bg, border: `1px solid ${C.br}`, borderRadius: 4, color: C.t1, fontFamily: M, fontSize: 10.5, padding: "5px 7px" };
+
+  return (
+    <div style={{ padding: "14px 18px", borderTop: `1px solid ${C.br}` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+        <div style={{ fontSize: 10, fontFamily: M, color: C.t3, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 600 }}>
+          Version history {versions && <span style={{ color: C.t4 }}>· {versions.length}</span>}
+        </div>
+        {canManage && <button disabled={busy} onClick={snapshot} style={btn(C.tl)}>Snapshot now</button>}
+      </div>
+      {err && <div style={{ fontSize: 10.5, color: C.rd, fontFamily: M, marginBottom: 8 }}>⚠ {err}</div>}
+      {!versions ? <div style={{ fontSize: 10.5, color: C.t4, fontFamily: M }}>Loading…</div>
+        : versions.length === 0 ? <div style={{ fontSize: 11, color: C.t4, fontStyle: "italic" }}>No versions yet — a snapshot is taken automatically when the agent extracts clauses.</div>
+        : (
+        <>
+          {versions.map((v) => (
+            <div key={v.id} style={{ display: "flex", gap: 10, alignItems: "baseline", padding: "5px 0", borderBottom: `1px solid ${C.br}22`, fontSize: 10.5 }}>
+              <span style={{ fontFamily: M, color: C.tl, minWidth: 28 }}>v{v.version}</span>
+              <span style={{ color: C.t1, flex: 1 }}>{v.label}</span>
+              <span style={{ fontFamily: M, fontSize: 9, color: C.t4 }}>{VSRC_LABEL[v.source] || v.source} · {v.clauseCount} clause{v.clauseCount === 1 ? "" : "s"}</span>
+            </div>
+          ))}
+          {versions.length >= 2 && (
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginTop: 10, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 9.5, fontFamily: M, color: C.t4, textTransform: "uppercase", letterSpacing: 1 }}>Redline</span>
+              <select value={from} onChange={(e) => setFrom(e.target.value)} style={sel}>{versions.map((v) => <option key={v.id} value={v.version}>v{v.version}</option>)}</select>
+              <span style={{ color: C.t4, fontFamily: M }}>→</span>
+              <select value={to} onChange={(e) => setTo(e.target.value)} style={sel}>{versions.map((v) => <option key={v.id} value={v.version}>v{v.version}</option>)}</select>
+              <button disabled={busy || from === to} onClick={runDiff} style={{ ...btn(C.bl), opacity: from === to ? .5 : 1 }}>Compare</button>
+            </div>
+          )}
+          {diff && (
+            <div style={{ marginTop: 12, padding: "10px 12px", background: C.s1, borderRadius: 6 }}>
+              <div style={{ fontSize: 10, fontFamily: M, color: C.t3, marginBottom: 8 }}>
+                v{diff.fromVersion} → v{diff.toVersion} · <span style={{ color: C.gn }}>+{diff.counts.added}</span> <span style={{ color: C.rd }}>−{diff.counts.removed}</span> <span style={{ color: C.am }}>~{diff.counts.changed}</span> · {diff.counts.unchanged} unchanged
+              </div>
+              {diff.changes.length === 0 ? <div style={{ fontSize: 10.5, color: C.gn, fontFamily: M }}>✓ No clause differences.</div>
+                : diff.changes.map((c, i) => (
+                  <div key={i} style={{ padding: "6px 0", borderBottom: `1px solid ${C.br}22` }}>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 2 }}>
+                      <span style={{ fontSize: 8.5, fontFamily: M, letterSpacing: .6, textTransform: "uppercase", color: CHANGE_COLOR[c.kind] }}>{c.kind}</span>
+                      <span style={{ fontSize: 10.5, fontWeight: 600, color: C.t1 }}>{c.type.replace(/_/g, " ")}</span>
+                      {c.kind === "changed" && <span style={{ fontSize: 9, fontFamily: M, color: C.t4 }}>{c.fields.join(", ")}</span>}
+                    </div>
+                    {c.kind === "added" && <div style={{ fontSize: 10, color: C.gn, lineHeight: 1.5 }}>+ {c.to.text}</div>}
+                    {c.kind === "removed" && <div style={{ fontSize: 10, color: C.rd, lineHeight: 1.5, textDecoration: "line-through", opacity: .8 }}>− {c.from.text}</div>}
+                    {c.kind === "changed" && (
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 3 }}>
+                        <div style={{ fontSize: 10, color: C.rd, lineHeight: 1.5 }}><span style={{ color: C.t4, fontFamily: M, fontSize: 8.5 }}>v{diff.fromVersion} </span>{c.from.text}{c.fields.includes("risk") ? ` · ${c.from.risk}` : ""}</div>
+                        <div style={{ fontSize: 10, color: C.gn, lineHeight: 1.5 }}><span style={{ color: C.t4, fontFamily: M, fontSize: 8.5 }}>v{diff.toVersion} </span>{c.to.text}{c.fields.includes("risk") ? ` · ${c.to.risk}` : ""}</div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}

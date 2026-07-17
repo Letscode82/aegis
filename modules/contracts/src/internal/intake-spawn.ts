@@ -15,6 +15,7 @@
 import { prisma } from "@aegis/db";
 import { createContract, addClause, createObligation } from "./service";
 import { extractContractKnowledge } from "./extract";
+import { snapshotContractVersion } from "./versions";
 
 interface Actor {
   id: string | null;
@@ -60,6 +61,17 @@ export async function extractAndPersistContractKnowledge(
       agentActor,
     );
   }
+  // CTR-5b — freeze this extraction as a contract version so the redline
+  // history starts on spawn. Best-effort; never blocks the extraction.
+  try {
+    const existing = await prisma.contractVersion.count({ where: { contractId } });
+    await snapshotContractVersion(
+      organizationId,
+      contractId,
+      { label: existing === 0 ? "Initial extraction" : "Re-review", source: existing === 0 ? "SPAWN" : "EXTRACTION" },
+      { id: actor.id, type: "AGENT" },
+    );
+  } catch { /* snapshot is non-critical */ }
   return { clauses: clauses.length, obligations: obligations.length };
 }
 
