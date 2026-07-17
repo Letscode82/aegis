@@ -8,7 +8,6 @@ import { ALL_ALERTS, ALL_APPROVALS } from "../data/aggregate";
 import { BRAIN_QUERIES } from "../data/brain";
 import { OCM_FIRMS } from "../data/ocm";
 import { CYBER_INCIDENTS } from "../data/cyber";
-import { WORKFLOWS_BUILT } from "../data/workflows";
 import { TICKERS } from "../data/tickers";
 import { AIOperationsSection } from "./ai-ops/ai-operations-section.jsx";
 
@@ -381,50 +380,9 @@ export function CyberView(){
 }
 
 
-export function WorkflowBuilderView(){
-  const[sel,setSel]=useState(null);
-  const wf=sel!==null?WORKFLOWS_BUILT[sel]:null;
-  if(wf) return <div>
-    <div onClick={()=>setSel(null)} style={{display:"inline-flex",alignItems:"center",gap:4,cursor:"pointer",fontSize:11,color:C.bl,marginBottom:12,padding:"3px 6px",borderRadius:3}} onMouseEnter={e=>e.currentTarget.style.background=C.blG} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>← Back</div>
-    <Card style={{borderLeft:`3px solid ${C.tl}`,marginBottom:14}}>
-      <div style={{display:"flex",justifyContent:"space-between"}}><div>
-        <div style={{display:"flex",gap:5,marginBottom:4}}><Pill t={wf.status} c={C.gn}/><Pill t={`${wf.steps} steps`} c={C.bl}/></div>
-        <div style={{fontSize:15,fontWeight:700,color:C.t1,fontFamily:`'Fraunces',Georgia,serif`}}>{wf.name}</div>
-        <div style={{fontSize:11,color:C.t2,marginTop:2}}>Trigger: {wf.triggers} | Created by: {wf.createdBy} on {wf.created}</div></div>
-        <div style={{textAlign:"right"}}><div style={{fontSize:20,fontWeight:700,color:C.tl,fontFamily:M}}>{wf.executions}</div><div style={{fontSize:9,color:C.t3}}>executions</div></div>
-      </div>
-    </Card>
-    <Card d={50}><div style={{fontSize:11,fontWeight:600,color:C.tl,marginBottom:10,letterSpacing:1}}>WORKFLOW NODES</div>
-      <div style={{display:"flex",flexWrap:"wrap",gap:4}}>
-        {wf.nodes.map((n,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:4,animation:`fu .2s ease ${i*30}ms both`}}>
-          <div style={{padding:"6px 10px",borderRadius:6,background:C.s1,border:`1px solid ${C.br}`,fontSize:10.5,color:C.t1,fontWeight:500}}>
-            <span style={{fontFamily:M,fontSize:9,color:C.tl,marginRight:4}}>{i+1}</span>{n}
-          </div>
-          {i<wf.nodes.length-1&&<span style={{color:C.t4,fontSize:12}}>→</span>}
-        </div>)}
-      </div>
-    </Card>
-  </div>;
-  return <div>
-    <SH icon="⚙️" title="Workflow Builder" sub="Low-code automation • 6 active workflows • 4,320 total executions" c={C.tl}/>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
-      {[{l:"Active Workflows",v:WORKFLOWS_BUILT.length,c:C.tl},{l:"Total Executions",v:"4,320",c:C.bl},{l:"Avg Time Saved",v:"82%",c:C.gn},{l:"Auto-Completed",v:"63%",c:C.gn}].map((s,i)=>
-        <Card key={i} d={i*40}><Stat l={s.l} v={s.v} c={s.c} s/></Card>)}
-    </div>
-    <Card>{WORKFLOWS_BUILT.map((w,i)=><div key={w.name} onClick={()=>setSel(i)} style={{padding:"12px",borderBottom:`1px solid ${C.br}22`,cursor:"pointer",animation:`fu .25s ease ${i*30}ms both`}} onMouseEnter={e=>e.currentTarget.style.background=C.cdH} onMouseLeave={e=>e.currentTarget.style.background="transparent"}>
-      <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-        <div style={{display:"flex",gap:5,alignItems:"center"}}><Pill t={w.status} c={C.gn}/><span style={{fontSize:13,fontWeight:600,color:C.t1}}>{w.name}</span></div>
-        <div style={{fontFamily:M,fontSize:14,fontWeight:700,color:C.tl}}>{w.executions}</div>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,fontSize:10}}>
-        <div><span style={{color:C.t3}}>Trigger: </span><span style={{color:C.t2}}>{w.triggers}</span></div>
-        <div><span style={{color:C.t3}}>Steps: </span><span style={{fontFamily:M,color:C.t1}}>{w.steps}</span></div>
-        <div><span style={{color:C.t3}}>Avg Time: </span><span style={{fontFamily:M,color:C.tl}}>{w.avgTime}</span></div>
-        <div><span style={{color:C.t3}}>By: </span><span style={{color:C.t2}}>{w.createdBy}</span></div>
-      </div>
-    </div>)}</Card>
-  </div>;
-}
+// The old v8 "Workflow Builder" mock was removed — the real
+// @aegis/workflow-backed Workflow Designer (a tab inside Legal Intake)
+// is the single workflow-authoring surface now.
 
 export function ArchitectureView(){
   return <div>

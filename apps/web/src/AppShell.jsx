@@ -7,7 +7,7 @@ import { ALL_APPROVALS, ALL_ALERTS } from "./data/aggregate";
 import { DailyView, AlertsView, ApprovalsView, LitigationView as _LitigationView, ComplianceView as _ComplianceView, GovernanceView } from "./views/v72";
 import { SpendDashboard, OutsideCounselView } from "@aegis/spend/ui";
 import { ContractsRepository } from "@aegis/contracts/ui";
-import { MissionControlView, BoardReportView, CyberView, WorkflowBuilderView, ArchitectureView, RiskGraphView, ScenariosView } from "./views/v8";
+import { MissionControlView, BoardReportView, CyberView, ArchitectureView, RiskGraphView, ScenariosView } from "./views/v8";
 import { BrainDemoView, RegulatoryDemoView } from "./views/gc-suite-demos.jsx";
 import { MatterManagementShell, AuditLogShell } from "./views/matter-shell.jsx";
 import { AdminUsersShell, AdminRolesShell } from "./views/admin-shell.jsx";
@@ -42,7 +42,7 @@ export default function App(){
     intake:IntakeView,matters:MatterManagementShell,contracts:ContractsRepository,
     regulatory:RegulatoryDemoView,graph:RiskGraphView,scenarios:ScenariosView,
     ocm:OutsideCounselView,spend:SpendDashboard,governance:GovernanceView,
-    cyber:CyberView,brain:BrainDemoView,board:BoardReportView,workflows:WorkflowBuilderView,
+    cyber:CyberView,brain:BrainDemoView,board:BoardReportView,
     architecture:ArchitectureView,
     users:AdminUsersShell,roles:AdminRolesShell,audit:AuditLogShell};
   // In the intake-only profile, any view outside the allowed set (e.g. a
