@@ -519,7 +519,7 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,goToMyRequests
       aiTriage:{category:triage.cat,riskFlag:`${triage.risk} — ${triage.note}`,suggestedAssignee:triage.team,estimatedHours:triage.hrs,similarMatters:Math.floor(Math.random()*40)+5,confidence:triage.conf,routingRule:`${triage.rule}: ${triage.cat}`,source:triage.source||"regex"},
       conversation:null,agentRecommendation:null,triagedBy:null,triagedAt:null,triagedAction:null,
     };
-    const {ticket:saved,agent,recommendation}=await store.addTicketAndRunAgent(ticket,selectedReqType?.preferredAgentId||undefined);
+    const {ticket:saved,agent,recommendation}=await store.addTicketAndRunAgent(ticket,selectedReqType?.resolvedAgentId||selectedReqType?.preferredAgentId||undefined);
     setCreatedTicket({...saved,_agent:agent,_rec:recommendation});
     setSubmitted(true);
     setBusy(false);
