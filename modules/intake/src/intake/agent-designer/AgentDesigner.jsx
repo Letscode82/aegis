@@ -71,6 +71,25 @@ export function AgentDesigner({ agentKey, agentName, onClose }) {
   });
   const a = doc?.agent;
 
+  // Knowledge-item helpers (Knowledge tab).
+  const addItem = (pi) => set(["knowledge", pi, "items"], [...doc.knowledge[pi].items, { code: `ITEM.${doc.knowledge[pi].items.length + 1}`, kind: "RULE", title: "", bodyMarkdown: "", data: {}, cohortTags: [], sortOrder: doc.knowledge[pi].items.length }]);
+  const removeItem = (pi, ii) => set(["knowledge", pi, "items"], doc.knowledge[pi].items.filter((_, j) => j !== ii));
+  const aiDraftItem = async (pi, packName) => {
+    const instruction = window.prompt("Describe the knowledge item to draft (e.g. 'when is a DPA required'):", "");
+    if (!instruction) return;
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/admin/agents/${agentKey}/draft-item`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instruction, packName, kind: "RULE" }) });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || "draft failed");
+      const items = doc.knowledge[pi].items;
+      const code = `AI.${String(items.length + 1).padStart(3, "0")}`;
+      set(["knowledge", pi, "items"], [...items, { code, kind: "RULE", title: d.title, bodyMarkdown: d.body, data: {}, cohortTags: [], sortOrder: items.length }]);
+      toast.success("Drafted — review, edit, then Publish.");
+    } catch (e) { toast.error(String(e.message || e)); }
+    finally { setBusy(false); }
+  };
+
   const saveDraft = async () => {
     setBusy(true);
     try {
@@ -219,20 +238,31 @@ export function AgentDesigner({ agentKey, agentName, onClose }) {
 
               {tab === "Knowledge" && (
                 <>
-                  <div style={{ fontSize: 10, color: C.t3, fontFamily: F, marginBottom: 12, lineHeight: 1.5 }}>The packs this agent reads. Full item editing (add / edit / reorder clause codes) + AI authoring lands in the next step — for now this shows what's live.</div>
+                  <div style={{ fontSize: 10, color: C.t3, fontFamily: F, marginBottom: 12, lineHeight: 1.5 }}>The knowledge this agent reads, addressable by clause code. Edit an item and Publish — the agent applies it on the next request. Cohort tags scope an item to a slice of work (e.g. <span style={{ fontFamily: M, color: C.t2 }}>type:PB-LICENSING</span>).</div>
                   {doc.knowledge.length === 0 && <div style={{ color: C.t4, fontFamily: M, fontSize: 11 }}>No knowledge packs bound.</div>}
-                  {doc.knowledge.map((pack) => (
-                    <div key={pack.key} style={{ border: `1px solid ${C.br}`, borderRadius: 6, marginBottom: 10 }}>
-                      <div style={{ padding: "8px 12px", borderBottom: `1px solid ${C.br}`, display: "flex", justifyContent: "space-between" }}>
-                        <span style={{ fontSize: 12, color: C.t1, fontWeight: 600 }}>{pack.name}</span>
-                        <span style={{ fontSize: 9, fontFamily: M, color: C.t3 }}>{pack.kind} · {pack.items.length} items</span>
+                  {doc.knowledge.map((pack, pi) => (
+                    <div key={pack.key} style={{ border: `1px solid ${C.br}`, borderRadius: 6, marginBottom: 12 }}>
+                      <div style={{ padding: "8px 12px", borderBottom: `1px solid ${C.br}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <span style={{ fontSize: 12, color: C.t1, fontWeight: 600 }}>{pack.name} <span style={{ fontSize: 9, fontFamily: M, color: C.t3, fontWeight: 400 }}>· {pack.kind} · {pack.items.length} items{pack.cohorts?.length ? ` · ${pack.cohorts.length} cohorts` : ""}</span></span>
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button onClick={() => aiDraftItem(pi, pack.name)} disabled={busy} style={{ background: "transparent", border: `1px solid ${C.pp}`, color: C.pp, fontFamily: M, fontSize: 9, fontWeight: 700, padding: "3px 8px", borderRadius: 3, cursor: "pointer" }}>✨ AI draft</button>
+                          <button onClick={() => addItem(pi)} style={{ background: "transparent", border: `1px solid ${C.br}`, color: C.t3, fontFamily: M, fontSize: 9, padding: "3px 8px", borderRadius: 3, cursor: "pointer" }}>+ Item</button>
+                        </div>
                       </div>
-                      <div style={{ padding: "6px 12px" }}>
-                        {pack.items.map((it) => (
-                          <div key={it.code} style={{ padding: "5px 0", borderBottom: `1px solid ${C.br}22` }}>
-                            <div style={{ fontSize: 10, fontFamily: M, color: C.cy }}>{it.code} <span style={{ color: C.t4 }}>· {it.kind}</span></div>
-                            <div style={{ fontSize: 11, color: C.t1, fontFamily: F, marginTop: 1 }}>{it.title}</div>
-                            {it.bodyMarkdown && <div style={{ fontSize: 10, color: C.t3, fontFamily: F, marginTop: 1, lineHeight: 1.4 }}>{it.bodyMarkdown}</div>}
+                      <div style={{ padding: "8px 12px" }}>
+                        {pack.items.length === 0 && <div style={{ fontSize: 10, color: C.t4, fontFamily: M }}>No items yet.</div>}
+                        {pack.items.map((it, ii) => (
+                          <div key={ii} style={{ padding: "8px 0", borderBottom: `1px solid ${C.br}33` }}>
+                            <div style={{ display: "flex", gap: 6, marginBottom: 5 }}>
+                              <input value={it.code} onChange={(e) => set(["knowledge", pi, "items", ii, "code"], e.target.value)} placeholder="CODE" style={{ ...inputStyle, width: 130, fontFamily: M, fontSize: 10, padding: "4px 6px", color: C.cy }} />
+                              <select value={it.kind} onChange={(e) => set(["knowledge", pi, "items", ii, "kind"], e.target.value)} style={{ ...inputStyle, width: 105, fontSize: 10, padding: "4px 6px" }}>
+                                {["CLAUSE", "RULE", "QA", "TEMPLATE", "REFERENCE"].map((k) => <option key={k} value={k}>{k}</option>)}
+                              </select>
+                              <input value={it.title} onChange={(e) => set(["knowledge", pi, "items", ii, "title"], e.target.value)} placeholder="Title" style={{ ...inputStyle, flex: 1, fontSize: 11, padding: "4px 6px" }} />
+                              <button onClick={() => removeItem(pi, ii)} title="Delete item" style={{ background: "transparent", border: `1px solid ${C.rd}44`, color: C.rd, borderRadius: 3, cursor: "pointer", fontSize: 11, padding: "0 7px" }}>×</button>
+                            </div>
+                            <textarea rows={2} value={it.bodyMarkdown} onChange={(e) => set(["knowledge", pi, "items", ii, "bodyMarkdown"], e.target.value)} placeholder="Guidance / body" style={{ ...inputStyle, fontSize: 11, padding: "5px 7px" }} />
+                            <input value={csv(it.cohortTags)} onChange={(e) => set(["knowledge", pi, "items", ii, "cohortTags"], fromCsv(e.target.value))} placeholder="cohort tags (comma-separated, optional)" style={{ ...inputStyle, marginTop: 4, fontSize: 9.5, fontFamily: M, padding: "4px 6px", color: C.t3 }} />
                           </div>
                         ))}
                       </div>

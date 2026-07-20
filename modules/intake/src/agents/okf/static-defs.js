@@ -17,6 +17,17 @@
 // in oKF-2. So prompt wording here is faithful, not byte-identical.
 import { AGENT_PROFILES } from "../agent-profiles";
 import { normalizeDocument } from "./serialize";
+import {
+  approvedKbPack,
+  policyCorpusPack,
+  claimsLibraryPack,
+  contractTypeCatalogPack,
+  noticeTaxonomyPack,
+  privacyTriagePack,
+  trademarkHeuristicsPack,
+  caseBriefPack,
+  sanctionsRulesPack,
+} from "./migrated-corpora";
 
 const ATTORNEY_RISK = "Attorney sign-off required before execution — this is a first-pass review.";
 
@@ -45,20 +56,6 @@ function clauseItems() {
     cohortTags: [],
     sortOrder: i,
   }));
-}
-
-// Minimal placeholder pack for agents whose full corpus migrates in oKF-3.
-// Non-empty so the Designer's Knowledge tab and the runtime have real
-// structure; the REFERENCE item names where the corpus lives today.
-function corpusPointerPack(key, name, kind, source) {
-  return {
-    key,
-    name,
-    kind,
-    description: `Seed pack — full corpus migrates from ${source} in oKF-3.`,
-    items: [{ code: "REF.SOURCE", kind: "REFERENCE", title: name, bodyMarkdown: `Curated in ${source}.`, data: {}, cohortTags: [], sortOrder: 0 }],
-    cohorts: [],
-  };
 }
 
 function prof(key) {
@@ -136,7 +133,7 @@ export const STATIC_AGENT_DEFS = [
       fallbackTemplate: `You are the Vendor Intake Agent. Summarize the screening posture for this vendor and recommend next steps in ~120 words. Plain text.\n\n{{knowledge}}\n\n{{ticket.desc}}`,
       variables: ["ticket.desc", "knowledge"],
     },
-    knowledge: [corpusPointerPack("sanctions-rules", "Sanctions screening rules", "REFERENCE", "the governed SanctionsListEntry feed")],
+    knowledge: [sanctionsRulesPack()],
   }),
   agentDef({
     key: "contract-specialist-agent",
@@ -155,7 +152,7 @@ export const STATIC_AGENT_DEFS = [
       fallbackTemplate: `You are the Contract-Type Specialist. Name the contract type + matching playbook, review against it, and write a ~200-word review to {{ticket.firstName}} ending with attorney sign-off required. Plain text.\n\n{{knowledge}}\n\n{{ticket.desc}}`,
       variables: ["ticket.firstName", "ticket.desc", "knowledge"],
     },
-    knowledge: [corpusPointerPack("contract-type-catalog", "Contract-type catalog", "CONTRACT_TYPE_CATALOG", "contract-playbooks.js")],
+    knowledge: [contractTypeCatalogPack()],
   }),
   agentDef({
     key: "contract-review-agent",
@@ -201,7 +198,7 @@ export const STATIC_AGENT_DEFS = [
       fallbackTemplate: `You are the Trademark Agent. Give a ~120-word preliminary clearance read for this mark, stating a formal search is mandatory. Plain text.\n\n{{ticket.desc}}`,
       variables: ["ticket.desc", "knowledge"],
     },
-    knowledge: [corpusPointerPack("tm-heuristics", "Clearance heuristics", "REFERENCE", "trademark.js")],
+    knowledge: [trademarkHeuristicsPack()],
   }),
   agentDef({
     key: "litigation-agent",
@@ -221,7 +218,7 @@ export const STATIC_AGENT_DEFS = [
       fallbackTemplate: null,
       variables: ["ticket.firstName", "ticket.desc", "knowledge"],
     },
-    knowledge: [corpusPointerPack("case-brief", "Case-brief structure", "REFERENCE", "litigation.js")],
+    knowledge: [caseBriefPack()],
   }),
   agentDef({
     key: "notice-mgmt-agent",
@@ -240,7 +237,7 @@ export const STATIC_AGENT_DEFS = [
       fallbackTemplate: `You are the Notice Management Agent. Classify this notice, list every deadline with the source quote, and draft a minimal acknowledgment (~180 words). Plain text.\n\n{{knowledge}}\n\n{{ticket.desc}}`,
       variables: ["ticket.desc", "knowledge"],
     },
-    knowledge: [corpusPointerPack("notice-taxonomy", "Notice taxonomy", "NOTICE_TAXONOMY", "notice-dates.js")],
+    knowledge: [noticeTaxonomyPack()],
   }),
   agentDef({
     key: "privacy-assessment-agent",
@@ -259,7 +256,7 @@ export const STATIC_AGENT_DEFS = [
       fallbackTemplate: `You are the Privacy Assessment Agent. Triage this processing (special categories, transfer triggers, DPIA threshold) in ~160 words. Plain text.\n\n{{knowledge}}\n\n{{ticket.desc}}`,
       variables: ["ticket.desc", "knowledge"],
     },
-    knowledge: [corpusPointerPack("privacy-triage", "Privacy triage signals", "PRIVACY_TRIAGE", "privacy-signals.js")],
+    knowledge: [privacyTriagePack()],
   }),
   agentDef({
     key: "marketing-review-agent",
@@ -278,7 +275,7 @@ export const STATIC_AGENT_DEFS = [
       fallbackTemplate: `You are the Marketing Review Agent. Review this content against the approved-claims library and flag issues (~160 words). Plain text.\n\n{{knowledge}}\n\n{{ticket.desc}}`,
       variables: ["ticket.desc", "knowledge"],
     },
-    knowledge: [corpusPointerPack("claims-library", "Approved-claims library", "CLAIMS_LIBRARY", "claims-signals.js")],
+    knowledge: [claimsLibraryPack()],
   }),
   agentDef({
     key: "faq-agent",
@@ -297,7 +294,7 @@ export const STATIC_AGENT_DEFS = [
       fallbackTemplate: `You are the FAQ Agent. Answer this from the approved KB, or recommend hand-off if it's non-standard (~120 words). Plain text.\n\n{{knowledge}}\n\n{{ticket.desc}}`,
       variables: ["ticket.desc", "knowledge"],
     },
-    knowledge: [corpusPointerPack("approved-kb", "Approved knowledge base", "APPROVED_KB", "kb.js")],
+    knowledge: [approvedKbPack()],
   }),
   agentDef({
     key: "policy-qa-agent",
@@ -316,7 +313,7 @@ export const STATIC_AGENT_DEFS = [
       fallbackTemplate: `You are the Policy Q&A Agent. Answer this from the policy corpus with a citation, flagging any conflict (~140 words). Plain text.\n\n{{knowledge}}\n\n{{ticket.desc}}`,
       variables: ["ticket.desc", "knowledge"],
     },
-    knowledge: [corpusPointerPack("policy-corpus", "Policy corpus", "POLICY_CORPUS", "policy-library.js")],
+    knowledge: [policyCorpusPack()],
   }),
 ];
 

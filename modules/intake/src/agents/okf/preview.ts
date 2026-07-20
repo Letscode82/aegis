@@ -12,6 +12,32 @@ import { runDefinition } from "./runtime";
 import { buildRec, buildDegradedRec } from "../build-rec.js";
 import { getAgentDocument } from "./store";
 
+/**
+ * AI-assisted knowledge authoring — drafts a single KnowledgeItem
+ * (title + body) from a short instruction. The human reviews and saves;
+ * nothing is persisted here (same discipline as the template generator).
+ */
+export async function draftKnowledgeItem(
+  instruction: string,
+  opts: { packName: string; kind: string },
+): Promise<{ title: string; body: string }> {
+  ensureServerClaudeTransport();
+  const prompt =
+    `You are helping a General Counsel author one knowledge entry for a legal AI agent's "${opts.packName}" pack (item kind: ${opts.kind}). ` +
+    `Draft a concise, accurate entry for this request: "${instruction}". ` +
+    `Keep the body to 1-3 sentences of practical legal-ops guidance — no preamble. ` +
+    `Respond with ONLY this JSON: {"title":"a short title","body":"the guidance"}.`;
+  try {
+    const result = await callClaudeJSON(prompt, { maxTokens: 500, timeout: 30000 });
+    return { title: String(result.title || instruction).slice(0, 120), body: String(result.body || "") };
+  } catch {
+    // Plain-text fallback so authoring still works if JSON truncates.
+    const prose = await callClaude(`${prompt}\n\n(Plain text: first line = title, rest = body.)`, { maxTokens: 500, timeout: 30000 });
+    const lines = String(prose || "").trim().split("\n");
+    return { title: (lines[0] || instruction).slice(0, 120), body: lines.slice(1).join("\n").trim() };
+  }
+}
+
 export interface PreviewTicket {
   from?: string;
   dept?: string;
