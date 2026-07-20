@@ -53,45 +53,49 @@ model Organization {
   region    String   @default("US")
   createdAt DateTime @default(now())
 
-  users          User[]
-  roles          Role[]
-  auditLogs      AuditLog[]
-  notifications  Notification[]
-  counterparties Counterparty[]
-  persons        Person[]
-  documents      Document[]
-  obligations    Obligation[]
-  events         Event[]
-  tags           Tag[]
-  matters        Matter[]
-  legalHolds     LegalHold[]
-  intakeTickets  IntakeTicket[]
-  intakeRoutingRules IntakeRoutingRule[]
-  intakeTeams    IntakeTeam[]
-  intakeEmailMailboxes IntakeEmailMailbox[]
-  intakeRequestTypes IntakeRequestType[]
-  vendors        Vendor[]
-  budgets        Budget[]
-  contracts      Contract[]
-  contractReviewTokens ContractReviewToken[]
-  clauseLibraryEntries ClauseLibraryEntry[]
-  templates      Template[]
-  contractVersions ContractVersion[]
-  dsars          DataSubjectRequest[]
-  consents       ConsentRecord[]
-  ropas          DataProcessingActivity[]
-  incidents      PrivacyIncident[]
+  users                   User[]
+  roles                   Role[]
+  auditLogs               AuditLog[]
+  notifications           Notification[]
+  counterparties          Counterparty[]
+  persons                 Person[]
+  documents               Document[]
+  obligations             Obligation[]
+  events                  Event[]
+  tags                    Tag[]
+  matters                 Matter[]
+  legalHolds              LegalHold[]
+  intakeTickets           IntakeTicket[]
+  intakeRoutingRules      IntakeRoutingRule[]
+  intakeTeams             IntakeTeam[]
+  intakeEmailMailboxes    IntakeEmailMailbox[]
+  intakeRequestTypes      IntakeRequestType[]
+  vendors                 Vendor[]
+  budgets                 Budget[]
+  contracts               Contract[]
+  contractReviewTokens    ContractReviewToken[]
+  clauseLibraryEntries    ClauseLibraryEntry[]
+  templates               Template[]
+  contractVersions        ContractVersion[]
+  agentDefinitions        AgentDefinition[]
+  agentDefinitionVersions AgentDefinitionVersion[]
+  knowledgePacks          KnowledgePack[]
+  knowledgePackVersions   KnowledgePackVersion[]
+  dsars                   DataSubjectRequest[]
+  consents                ConsentRecord[]
+  ropas                   DataProcessingActivity[]
+  incidents               PrivacyIncident[]
 
-  holdPolicy          OrganizationHoldPolicy?
-  holdNoticeTemplates HoldNoticeTemplate[]
-  holdScopeTemplates  HoldScopeTemplate[]
-  savedViews          SavedView[]
-  departedRetentions  DepartedCustodianRetention[]
-  agentDecisions      AgentDecision[]
-  m365Credential      OrganizationM365Credential?
+  holdPolicy             OrganizationHoldPolicy?
+  holdNoticeTemplates    HoldNoticeTemplate[]
+  holdScopeTemplates     HoldScopeTemplate[]
+  savedViews             SavedView[]
+  departedRetentions     DepartedCustodianRetention[]
+  agentDecisions         AgentDecision[]
+  m365Credential         OrganizationM365Credential?
   m365DeviceCodeSessions M365DeviceCodeSession[]
-  workflowDefinitions WorkflowDefinition[]
-  workflowInstances   WorkflowInstance[]
+  workflowDefinitions    WorkflowDefinition[]
+  workflowInstances      WorkflowInstance[]
 
   @@index([name])
 }
@@ -130,20 +134,20 @@ model User {
   persons      Person[]
   preferences  UserPreference[]
 
-  intakeTicketsAssigned         IntakeTicket[]        @relation("IntakeTicketAssignee")
-  intakeTicketsApprovalGate     IntakeTicket[]        @relation("IntakeTicketApprovalGate")
-  intakeRoutingRulesAssigned    IntakeRoutingRule[]   @relation("IntakeRoutingRuleAssignee")
-  intakeRoutingRulesEscalateTo  IntakeRoutingRule[]   @relation("IntakeRoutingRuleEscalateTo")
-  intakeRoutingRulesApprover    IntakeRoutingRule[]   @relation("IntakeRoutingRuleApprover")
-  intakeTeamMemberships         IntakeTeamMember[]    @relation("IntakeTeamMembership")
-  legalHoldsCreated             LegalHold[]           @relation("LegalHoldCreatedBy")
-  legalHoldsReleased            LegalHold[]           @relation("LegalHoldReleasedBy")
-  legalHoldEvents               LegalHoldEvent[]      @relation("LegalHoldEventActor")
-  legalHoldTriggersRecorded     HoldTriggerEvent[]    @relation("HoldTriggerRecordedBy")
-  noticeIssuancesIssued         HoldNoticeIssuance[]  @relation("HoldNoticeIssuedBy")
-  custodianDataSourcesConfirmed CustodianDataSource[] @relation("CustodianDataSourceConfirmedBy")
-  agentDecisionsApproved        AgentDecision[]       @relation("AgentDecisionApprovedBy")
-  holdScopeTemplatesCreated     HoldScopeTemplate[]   @relation("HoldScopeTemplateCreatedBy")
+  intakeTicketsAssigned         IntakeTicket[]              @relation("IntakeTicketAssignee")
+  intakeTicketsApprovalGate     IntakeTicket[]              @relation("IntakeTicketApprovalGate")
+  intakeRoutingRulesAssigned    IntakeRoutingRule[]         @relation("IntakeRoutingRuleAssignee")
+  intakeRoutingRulesEscalateTo  IntakeRoutingRule[]         @relation("IntakeRoutingRuleEscalateTo")
+  intakeRoutingRulesApprover    IntakeRoutingRule[]         @relation("IntakeRoutingRuleApprover")
+  intakeTeamMemberships         IntakeTeamMember[]          @relation("IntakeTeamMembership")
+  legalHoldsCreated             LegalHold[]                 @relation("LegalHoldCreatedBy")
+  legalHoldsReleased            LegalHold[]                 @relation("LegalHoldReleasedBy")
+  legalHoldEvents               LegalHoldEvent[]            @relation("LegalHoldEventActor")
+  legalHoldTriggersRecorded     HoldTriggerEvent[]          @relation("HoldTriggerRecordedBy")
+  noticeIssuancesIssued         HoldNoticeIssuance[]        @relation("HoldNoticeIssuedBy")
+  custodianDataSourcesConfirmed CustodianDataSource[]       @relation("CustodianDataSourceConfirmedBy")
+  agentDecisionsApproved        AgentDecision[]             @relation("AgentDecisionApprovedBy")
+  holdScopeTemplatesCreated     HoldScopeTemplate[]         @relation("HoldScopeTemplateCreatedBy")
   savedViews                    SavedView[]                 @relation("SavedViewOwner")
   noticeTemplateVersions        HoldNoticeTemplateVersion[] @relation("HoldNoticeTemplateVersionCreatedBy")
   m365DeviceCodeSessions        M365DeviceCodeSession[]     @relation("M365DeviceCodeSessionInitiator")
@@ -254,10 +258,10 @@ model Counterparty {
   parent       Counterparty?  @relation("CounterpartyHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   children     Counterparty[] @relation("CounterpartyHierarchy")
 
-  matters Matter[]
-  vendors Vendor[]
+  matters             Matter[]
+  vendors             Vendor[]
   intakeTicketParties IntakeTicketParty[]
-  contracts Contract[]
+  contracts           Contract[]
   // Persons attached to this counterparty as contacts (Person.type = COUNTERPARTY_CONTACT,
   // metadata.counterpartyId = this id). Not modeled as FK to keep Person polymorphic.
 
@@ -293,15 +297,15 @@ model Person {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   user         User?        @relation(fields: [userId], references: [id], onDelete: SetNull)
 
-  matterParties       MatterParty[]
-  legalHoldCustodians LegalHoldCustodian[]
-  departedRetentions  DepartedCustodianRetention[]
-  intakeRequested     IntakeTicket[]               @relation("IntakeRequester")
-  timekeepers         Timekeeper[]
-  invoiceLineItems    InvoiceLineItem[]
-  dsarRequests        DataSubjectRequest[]
-  consentRecords      ConsentRecord[]
-  intakeTicketParties IntakeTicketParty[]
+  matterParties        MatterParty[]
+  legalHoldCustodians  LegalHoldCustodian[]
+  departedRetentions   DepartedCustodianRetention[]
+  intakeRequested      IntakeTicket[]               @relation("IntakeRequester")
+  timekeepers          Timekeeper[]
+  invoiceLineItems     InvoiceLineItem[]
+  dsarRequests         DataSubjectRequest[]
+  consentRecords       ConsentRecord[]
+  intakeTicketParties  IntakeTicketParty[]
   contractReviewTokens ContractReviewToken[]
 
   @@index([organizationId, email])
@@ -825,10 +829,10 @@ model LegalHold {
   createdAt                 DateTime        @default(now())
   updatedAt                 DateTime        @updatedAt
 
-  organization    Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  matter          Matter                       @relation(fields: [matterId], references: [id], onDelete: Cascade)
-  createdBy       User                         @relation("LegalHoldCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
-  releasedBy      User?                        @relation("LegalHoldReleasedBy", fields: [releasedById], references: [id], onDelete: SetNull)
+  organization    Organization                     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  matter          Matter                           @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  createdBy       User                             @relation("LegalHoldCreatedBy", fields: [createdById], references: [id], onDelete: Restrict)
+  releasedBy      User?                            @relation("LegalHoldReleasedBy", fields: [releasedById], references: [id], onDelete: SetNull)
   custodians      LegalHoldCustodian[]
   noticeIssuances HoldNoticeIssuance[]
   events          LegalHoldEvent[]
@@ -879,12 +883,12 @@ model LegalHoldCustodian {
 }
 
 model CustodianDataSource {
-  id                        String             @id @default(cuid())
+  id                        String                       @id @default(cuid())
   legalHoldCustodianId      String
   type                      DataSourceType
   externalIdentifier        String
   displayLabel              String
-  preservationAction        PreservationAction @default(LEGAL_HOLD_IN_PLACE)
+  preservationAction        PreservationAction           @default(LEGAL_HOLD_IN_PLACE)
   /// Lifecycle of the preservation push to Microsoft (sub-PR 4d.0).
   /// Defaults to NOT_REQUESTED on row create; transitions to
   /// PENDING when applyPreservation is in flight, ON_HOLD on
@@ -895,15 +899,15 @@ model CustodianDataSource {
   preservationConfirmedById String?
   preservationFailureReason String?
   /// Surfaces D2 risk (e.g. ephemeral chat with no override).
-  retentionPolicyConflict   Boolean            @default(false)
+  retentionPolicyConflict   Boolean                      @default(false)
   metadataJson              Json?
   /// Graph linkage (sub-PR 4c). The Graph eDiscovery custodian's
   /// userSource or siteSource id; populated on successful applyHold.
   /// graphSourceType is "userSource" | "siteSource".
   graphSourceId             String?
   graphSourceType           String?
-  createdAt                 DateTime           @default(now())
-  updatedAt                 DateTime           @updatedAt
+  createdAt                 DateTime                     @default(now())
+  updatedAt                 DateTime                     @updatedAt
 
   legalHoldCustodian      LegalHoldCustodian @relation(fields: [legalHoldCustodianId], references: [id], onDelete: Cascade)
   preservationConfirmedBy User?              @relation("CustodianDataSourceConfirmedBy", fields: [preservationConfirmedById], references: [id], onDelete: SetNull)
@@ -1344,11 +1348,11 @@ model IntakeTicket {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  requester    Person       @relation("IntakeRequester", fields: [requesterId], references: [id], onDelete: Cascade)
-  matter       Matter?      @relation(fields: [matterId], references: [id], onDelete: SetNull)
-  assignedToUser User?      @relation("IntakeTicketAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
-  approvalGateUser User?    @relation("IntakeTicketApprovalGate", fields: [approvalGateUserId], references: [id], onDelete: SetNull)
+  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requester        Person       @relation("IntakeRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  matter           Matter?      @relation(fields: [matterId], references: [id], onDelete: SetNull)
+  assignedToUser   User?        @relation("IntakeTicketAssignee", fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  approvalGateUser User?        @relation("IntakeTicketApprovalGate", fields: [approvalGateUserId], references: [id], onDelete: SetNull)
 
   recommendations AgentRecommendation[]
   conversation    IntakeConversation[]
@@ -1357,13 +1361,13 @@ model IntakeTicket {
   parties         IntakeTicketParty[]
   handoffs        IntakeTicketHandoff[]
 
+  @@unique([organizationId, externalMessageId])
   @@index([organizationId, status])
   @@index([organizationId, priority])
   @@index([organizationId, submittedAt(sort: Desc)])
   @@index([requesterId])
   @@index([matterId])
   @@index([organizationId, assignedToUserId])
-  @@unique([organizationId, externalMessageId])
 }
 
 /// P2a (demo-lite) — server-side routing rules. Conditions AND
@@ -1395,13 +1399,13 @@ model IntakeRoutingRule {
   matchComplexity String?
 
   // ── Actions (null = no-op) ──
-  setAssigneeUserId String?
-  setPriority       String?
-  setSlaHours       Int?
+  setAssigneeUserId         String?
+  setPriority               String?
+  setSlaHours               Int?
   /// W2-5 — escalate action: assign to the named user, raise priority
   /// to Critical (unless the rule sets one explicitly), and flip the
   /// ticket to ESCALATED. Route + raise in one rule.
-  escalateToUserId String?
+  escalateToUserId          String?
   /// W2-5 — approval gate: stamps IntakeTicket.approvalGateUserId so
   /// only the named user can approve agent recommendations on matched
   /// tickets. The save chokepoint enforces + audits the gate.
@@ -1411,7 +1415,7 @@ model IntakeRoutingRule {
   /// overflows to the pool's `overflowTeam` when every member is at
   /// capacity. Mutually complements `setAssigneeUserId`: a direct
   /// assignee wins over a pool pick when both are set on one rule.
-  setTeamId         String?
+  setTeamId                 String?
 
   /// Effectiveness counters for the SLA Operations view.
   timesFired  Int       @default(0)
@@ -1466,11 +1470,11 @@ model IntakeTeam {
 /// tickets before the member is considered "at capacity" (0 =
 /// unbounded). `lastAssignedAt` is the round-robin cursor.
 model IntakeTeamMember {
-  id       String  @id @default(cuid())
-  teamId   String
-  userId   String
-  capacity Int     @default(0)
-  active   Boolean @default(true)
+  id             String    @id @default(cuid())
+  teamId         String
+  userId         String
+  capacity       Int       @default(0)
+  active         Boolean   @default(true)
   lastAssignedAt DateTime?
 
   createdAt DateTime @default(now())
@@ -1520,34 +1524,34 @@ model IntakeEmailMailbox {
 /// notices, …) with structured fields and a stage workflow. The specific
 /// field sets per client are configuration, filled in post-discovery.
 model IntakeRequestType {
-  id             String  @id @default(cuid())
-  organizationId String
+  id               String  @id @default(cuid())
+  organizationId   String
   /// Stable machine key, unique per org, e.g. "litigation-noncourt".
-  key            String
-  name           String
+  key              String
+  name             String
   /// High-level grouping, e.g. "Contracts", "Trademarks", "Litigation".
-  workstream     String?
-  description    String?
-  active         Boolean @default(true)
+  workstream       String?
+  description      String?
+  active           Boolean @default(true)
   /// Ordered stage names for this type's workflow, e.g.
   /// ["Intake","Triage","Assigned","In Review","Complete"].
-  stagesJson     Json    @default("[]")
+  stagesJson       Json    @default("[]")
   /// Optional WorkflowDefinition.key (W-C): when set, creating a
   /// ticket of this type starts an approval-ladder instance in
   /// @aegis/workflow (entityType "intake_ticket"). Null = no ladder;
   /// the plain stagesJson flow is unchanged.
-  workflowKey    String?
+  workflowKey      String?
   /// Optional agent id (program #5): when set, tickets of this type are
   /// handled by this specific registered agent, overriding the router's
   /// canHandle match. Null = auto (the deterministic router decides).
   preferredAgentId String?
   /// Display order in pickers.
-  sortOrder      Int     @default(100)
+  sortOrder        Int     @default(100)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   fields       IntakeRequestField[]
 
   @@unique([organizationId, key])
@@ -1629,13 +1633,13 @@ model IntakeTicketTask {
 /// ticket-local party table. Exactly one of personId / counterpartyId is
 /// set per row.
 model IntakeTicketParty {
-  id             String  @id @default(cuid())
+  id             String   @id @default(cuid())
   ticketId       String
   personId       String?
   counterpartyId String?
   /// adverse_party | opposing_counsel | our_counsel | witness |
   /// requester | third_party | other
-  role           String  @default("other")
+  role           String   @default("other")
   note           String?
   createdAt      DateTime @default(now())
 
@@ -1655,22 +1659,22 @@ model IntakeTicketParty {
 /// escalates an agent recommendation for review links the governing
 /// `AgentDecision` so the review gate and the baton are one record.
 model IntakeTicketHandoff {
-  id       String  @id @default(cuid())
-  ticketId String
+  id              String   @id @default(cuid())
+  ticketId        String
   /// Prior holder ("agent" | "human" | "queue"); null on the first pass.
-  fromHolder String?
+  fromHolder      String?
   /// New holder ("agent" | "human" | "queue").
-  toHolder   String
+  toHolder        String
   /// Concrete person receiving the baton when toHolder="human".
-  toUserId   String?
-  reason     String?
+  toUserId        String?
+  reason          String?
   /// Actor who performed the hand-off. Null actorId for AGENT / SYSTEM.
-  actorId    String?
+  actorId         String?
   /// "USER" | "AGENT" | "SYSTEM".
-  actorType  String  @default("USER")
+  actorType       String   @default("USER")
   /// The AgentDecision this hand-off relates to, when it gates a rec.
   agentDecisionId String?
-  createdAt  DateTime @default(now())
+  createdAt       DateTime @default(now())
 
   ticket IntakeTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
@@ -1914,34 +1918,34 @@ enum ContractReviewTokenStatus {
 }
 
 model Contract {
-  id             String         @id @default(cuid())
-  organizationId String
-  counterpartyId String?
-  matterId       String? // link to the Matter this contract belongs to
-  title          String
-  type           String // "MSA" | "NDA" | "License" | "Supply" | …
-  status         ContractStatus @default(DRAFT)
-  risk           ContractRisk   @default(MEDIUM)
-  value          Float?
-  currency       String         @default("USD")
-  effectiveDate  DateTime?
-  expiryDate     DateTime?
-  autoRenew      Boolean        @default(false)
+  id                   String         @id @default(cuid())
+  organizationId       String
+  counterpartyId       String?
+  matterId             String? // link to the Matter this contract belongs to
+  title                String
+  type                 String // "MSA" | "NDA" | "License" | "Supply" | …
+  status               ContractStatus @default(DRAFT)
+  risk                 ContractRisk   @default(MEDIUM)
+  value                Float?
+  currency             String         @default("USD")
+  effectiveDate        DateTime?
+  expiryDate           DateTime?
+  autoRenew            Boolean        @default(false)
   /// Days before expiry a non-renewal notice must be given.
-  noticeWindowDays Int?
-  governingLaw   String?
+  noticeWindowDays     Int?
+  governingLaw         String?
   /// Source of truth pointer — the intake ticket this spawned from, if any.
   sourceIntakeTicketId String?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  createdAt            DateTime       @default(now())
+  updatedAt            DateTime       @updatedAt
 
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   counterparty Counterparty? @relation(fields: [counterpartyId], references: [id], onDelete: SetNull)
   matter       Matter?       @relation(fields: [matterId], references: [id], onDelete: SetNull)
 
-  clauses ContractClause[]
+  clauses      ContractClause[]
   reviewTokens ContractReviewToken[]
-  versions ContractVersion[]
+  versions     ContractVersion[]
 
   @@index([organizationId, status])
   @@index([organizationId, expiryDate])
@@ -2365,37 +2369,37 @@ model OrganizationM365Credential {
 /// pruning; the prune service is exposed to the admin /jobs page.
 /// Rows are small (< 1 KB each) so the cleanup is opportunistic.
 model M365DeviceCodeSession {
-  id              String    @id @default(cuid())
-  organizationId  String
-  initiatedById   String
+  id                String    @id @default(cuid())
+  organizationId    String
+  initiatedById     String
   /// Long opaque code Microsoft returned at /devicecode. Used by
   /// every `/poll` to ask /token "are tokens ready yet". NOT shown
   /// to the user — this is the polling secret, not the display code.
-  deviceCode      String
+  deviceCode        String
   /// 4-character display code shown to the user in the admin UI
   /// modal. They paste this at https://microsoft.com/devicelogin.
-  userCode        String
-  verificationUri String
-  expiresAt       DateTime
-  pollIntervalSec Int       @default(5)
+  userCode          String
+  verificationUri   String
+  expiresAt         DateTime
+  pollIntervalSec   Int       @default(5)
   /// Reserved. The current implementation calls Microsoft's OAuth
   /// endpoints directly so MSAL is not in the path; this column
   /// stays nullable so a future MSAL-based implementation has a
   /// place to serialise its token-acquisition cache without a
   /// schema bump.
-  msalCacheJson   String?
-  status          String    @default("pending")
-  completedAt     DateTime?
+  msalCacheJson     String?
+  status            String    @default("pending")
+  completedAt       DateTime?
   /// Set when status is `completed` so the UI can confirm which
   /// account signed in without rebuilding from the audit log.
-  accountUpn      String?
+  accountUpn        String?
   /// JSON-array of OAuth scope strings Microsoft actually granted.
-  scopesGrantedJson Json    @default("[]")
-  errorMessage    String?
-  createdAt       DateTime  @default(now())
+  scopesGrantedJson Json      @default("[]")
+  errorMessage      String?
+  createdAt         DateTime  @default(now())
 
-  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  initiatedBy     User         @relation("M365DeviceCodeSessionInitiator", fields: [initiatedById], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  initiatedBy  User         @relation("M365DeviceCodeSessionInitiator", fields: [initiatedById], references: [id], onDelete: Cascade)
 
   @@index([organizationId, status])
   @@index([expiresAt])
@@ -2461,7 +2465,7 @@ model WorkflowDefinition {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @default(now()) @updatedAt
 
-  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization                @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   steps        WorkflowStep[]
   instances    WorkflowInstance[]
   versions     WorkflowDefinitionVersion[]
@@ -2502,24 +2506,24 @@ model WorkflowDefinitionVersion {
 /// @aegis/workflow's defineWorkflow (service layer, testable) rather
 /// than a trigger.
 model WorkflowStep {
-  id           String           @id @default(cuid())
-  definitionId String
+  id              String           @id @default(cuid())
+  definitionId    String
   /// 1..15
-  stepOrder    Int
-  name         String
+  stepOrder       Int
+  name            String
   /// Key of a host-app screen/panel rendered for this step
   /// (the wizard's screenRegistry resolves it).
-  screenKey    String
+  screenKey       String
   /// RoleName from @aegis/auth allowed to act; null = any staff role.
-  approverRole String?
-  kind         WorkflowStepKind @default(HUMAN)
+  approverRole    String?
+  kind            WorkflowStepKind @default(HUMAN)
   /// {"agentKey": "...", "minConfidence": 0.8} for AGENT steps.
-  agentConfigJson Json          @default("{}")
+  agentConfigJson Json             @default("{}")
   /// Optional per-step SLA — drives Amber→Red aging in the RAG strip.
-  slaHours     Int?
+  slaHours        Int?
   /// {"skip_if": {"field","op","value"}} — evaluated against the
   /// instance's contextJson by @aegis/workflow.
-  metadataJson Json             @default("{}")
+  metadataJson    Json             @default("{}")
 
   definition WorkflowDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
 
@@ -2561,19 +2565,19 @@ model WorkflowInstance {
 /// Product-surface record of every movement. The compliance record is
 /// the chain-sealed AuditLog row linked via resultingAuditLogId.
 model WorkflowTransition {
-  id            String         @id @default(cuid())
-  instanceId    String
-  fromStepOrder Int
+  id                  String         @id @default(cuid())
+  instanceId          String
+  fromStepOrder       Int
   /// Null when the workflow completes or is cancelled.
-  toStepOrder   Int?
-  action        WorkflowAction
+  toStepOrder         Int?
+  action              WorkflowAction
   /// User.id, or "agent:<agentKey>" for agent-applied decisions.
-  actor         String
-  comment       String?
+  actor               String
+  comment             String?
   /// AuditLog.id of the twin-recorded chain row (null only if the
   /// best-effort audit write failed — surfaced in logs).
   resultingAuditLogId String?
-  createdAt     DateTime       @default(now())
+  createdAt           DateTime       @default(now())
 
   instance WorkflowInstance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
 
@@ -2600,4 +2604,225 @@ model WorkflowAgentTask {
 
   @@index([status])
   @@index([instanceId, stepOrder])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 12. Agent Designer — Open Knowledge Format (oKF)
+// ════════════════════════════════════════════════════════════════════
+//
+// Turns the 11 hardcoded intake agents into org-owned, versioned,
+// exportable DATA. An AgentDefinition is the declarative spec for one
+// agent — identity, routing, model params, prompt template, output
+// thresholds, approver "risks to weigh", and approver role. KnowledgePacks
+// carry the agent's knowledge as KnowledgeItems keyed by a stable "clause
+// code" (C.LIAB.CAP), sliceable by KnowledgeCohort selectors.
+//
+// GOVERNANCE INVARIANT: the definition is configurable; the execution
+// harness is NOT. Whatever the config says, the runtime still writes a
+// PENDING AgentDecision and requires the human approve keystroke before
+// any state change. The designer changes WHAT the agent does, never
+// whether a human signs off. See modules/intake/src/agents/okf/runtime.js.
+
+enum AgentDefinitionStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum KnowledgePackKind {
+  CONTRACT_CLAUSES
+  APPROVED_KB
+  POLICY_CORPUS
+  NOTICE_TAXONOMY
+  CONTRACT_TYPE_CATALOG
+  PRIVACY_TRIAGE
+  CLAIMS_LIBRARY
+  TEMPLATE
+  REFERENCE
+}
+
+enum KnowledgeItemKind {
+  CLAUSE
+  RULE
+  QA
+  TEMPLATE
+  REFERENCE
+}
+
+/// The canonical, editable spec for one agent (oKF). One row per
+/// (organization, agentKey). `draftJson` holds the in-progress edit;
+/// `publishedVersion` points at the live AgentDefinitionVersion the
+/// runtime resolves. All behavioural fields are broken out as typed
+/// JSON so the Agent Designer can edit each aspect independently and
+/// the serializer can render a stable canonical document.
+model AgentDefinition {
+  id               String                @id @default(cuid())
+  organizationId   String
+  /// Stable agent id, e.g. "contract-review-agent". Matches the code
+  /// registry + AGENT_PROFILES keys so migration is a 1:1 mapping.
+  agentKey         String
+  name             String
+  shortName        String?
+  icon             String?
+  description      String?
+  enabled          Boolean               @default(true)
+  productionReady  Boolean               @default(true)
+  displayOrder     Int                   @default(0)
+  /// Routing rules → compiled into canHandle(): {matchCategory[],
+  /// matchType[], matchKeyword[], requiresDocument, excludeKeyword[]}.
+  routingJson      Json                  @default("{}")
+  /// Model params: {model?, maxTokens, timeout, temperature?, maxDocChars}.
+  modelJson        Json                  @default("{}")
+  /// Prompt: {mode:"json"|"text", systemTemplate, jsonContract?,
+  /// fallbackTemplate?, variables[]}.
+  promptJson       Json                  @default("{}")
+  /// Output contract: {autoSendAtConfidence, degradedConfidence,
+  /// defaultAction, precedentLinks[]}.
+  outputJson       Json                  @default("{}")
+  /// Approver-facing "risks to weigh before approving" checklist.
+  risks            String[]              @default([])
+  /// Playbook stamp shown on the Cockpit rec: {id, version}.
+  playbookJson     Json                  @default("{}")
+  /// Role that may approve this agent's recommendations (RBAC hint).
+  approverRole     String?
+  status           AgentDefinitionStatus @default(DRAFT)
+  publishedVersion Int                   @default(0)
+  /// Full in-progress oKF document (spec + bound pack refs) for the draft.
+  draftJson        Json                  @default("{}")
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  organization Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  versions     AgentDefinitionVersion[]
+
+  @@unique([organizationId, agentKey])
+  @@index([organizationId, enabled])
+}
+
+/// Immutable snapshot of an AgentDefinition per publish (version history +
+/// revert). specJson is the full canonical oKF document; bodyHash is its
+/// SHA-256 so a change is detectable off-database. Mirrors
+/// HoldNoticeTemplateVersion / the workflow-version pattern.
+model AgentDefinitionVersion {
+  id             String   @id @default(cuid())
+  organizationId String
+  definitionId   String
+  agentKey       String
+  version        Int
+  /// The full oKF canonical document at publish time.
+  specJson       Json
+  bodyHash       String
+  changeLog      String?
+  createdById    String?
+  createdAt      DateTime @default(now())
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  definition   AgentDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+
+  @@unique([definitionId, version])
+  @@index([organizationId, agentKey])
+}
+
+/// A pack of knowledge an agent reads (oKF). Org-owned; `agentKey` binds it
+/// to one agent (null = shared pack). One pack per knowledge domain — the
+/// contract clause library, the approved-KB, the policy corpus, etc. The
+/// live items are KnowledgeItem rows; each publish freezes a
+/// KnowledgePackVersion.
+model KnowledgePack {
+  id               String                @id @default(cuid())
+  organizationId   String
+  /// Stable per-org key, e.g. "contract-clauses" | "approved-kb".
+  key              String
+  name             String
+  description      String?
+  kind             KnowledgePackKind     @default(REFERENCE)
+  /// Agent this pack feeds; null for a shared pack.
+  agentKey         String?
+  status           AgentDefinitionStatus @default(DRAFT)
+  publishedVersion Int                   @default(0)
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items        KnowledgeItem[]
+  cohorts      KnowledgeCohort[]
+  versions     KnowledgePackVersion[]
+
+  @@unique([organizationId, key])
+  @@index([organizationId, agentKey])
+}
+
+/// Immutable snapshot of a pack's items at publish (version history +
+/// revert; canonical oKF JSON). itemsJson is the frozen item set.
+model KnowledgePackVersion {
+  id             String   @id @default(cuid())
+  organizationId String
+  packId         String
+  packKey        String
+  version        Int
+  itemsJson      Json
+  bodyHash       String
+  changeLog      String?
+  createdById    String?
+  createdAt      DateTime @default(now())
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  pack         KnowledgePack @relation(fields: [packId], references: [id], onDelete: Cascade)
+
+  @@unique([packId, version])
+  @@index([organizationId, packKey])
+}
+
+/// One unit of knowledge. `code` is the stable "clause code" (C.LIAB.CAP,
+/// QA.NDA.TERM, RULE.SANCTIONS.OWNERSHIP) — the addressable handle agents
+/// and cohorts reference. bodyMarkdown is the human-authored content;
+/// dataJson carries kind-specific structure (fallback position + severity
+/// for a CLAUSE, question/answer for a QA, {{variables}} for a TEMPLATE).
+/// cohortTags scope the item to a slice of work (contract type,
+/// jurisdiction, workstream).
+model KnowledgeItem {
+  id             String            @id @default(cuid())
+  organizationId String
+  packId         String
+  kind           KnowledgeItemKind @default(REFERENCE)
+  /// Stable, human-meaningful code within the pack.
+  code           String
+  title          String
+  bodyMarkdown   String            @default("")
+  /// Kind-specific structured payload (severity, fallback, answer, vars…).
+  dataJson       Json              @default("{}")
+  /// Cohort selectors this item belongs to (e.g. ["type:MSA","jur:US"]).
+  cohortTags     String[]          @default([])
+  active         Boolean           @default(true)
+  sortOrder      Int               @default(0)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  pack KnowledgePack @relation(fields: [packId], references: [id], onDelete: Cascade)
+
+  @@unique([packId, code])
+  @@index([packId, active])
+}
+
+/// A named selector that scopes a slice of a pack's items to a class of
+/// work — generalizes the Contract Specialist's per-type playbooks. The
+/// runtime resolves a ticket → matching cohort → its tagged items.
+/// selectorJson: {matchType[], matchJurisdiction[], matchWorkstream[]}.
+model KnowledgeCohort {
+  id             String   @id @default(cuid())
+  organizationId String
+  packId         String
+  key            String
+  name           String
+  /// Tag applied to items that belong to this cohort (matches
+  /// KnowledgeItem.cohortTags), e.g. "type:MSA".
+  tag            String
+  selectorJson   Json     @default("{}")
+  sortOrder      Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  pack KnowledgePack @relation(fields: [packId], references: [id], onDelete: Cascade)
+
+  @@unique([packId, key])
+  @@index([packId])
 }

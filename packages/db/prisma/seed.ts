@@ -51,6 +51,14 @@ import {
   ALL_ROLES,
   type RoleName,
 } from "../../auth/src/roles";
+// Dev-only seed reading its own module input — same documented-exception
+// category as the modules/intake/src/seed/* imports below (relative path
+// avoids the turbo-detected @aegis/db ↔ @aegis/intake cycle a package-name
+// import would create). STATIC_AGENT_DEFS is the code-shipped oKF spec for
+// the 11 agents; the seed writes it into AgentDefinition + KnowledgePack
+// rows so the Agent Designer has a starting point. Rows are written with
+// this file's own prisma client, so no runtime coupling to the module.
+import { STATIC_AGENT_DEFS } from "../../../modules/intake/src/agents/okf/static-defs.js";
 
 const prisma = new PrismaClient();
 
@@ -1698,6 +1706,105 @@ async function seedContracts(orgId: string, ownerPersonId: string) {
   return { contracts: CONTRACTS.length, clauses: clauseCount, obligations: obligationCount, reviewToken: demoRawToken, playbook: playbookCount, templates: templateCount };
 }
 
+// §12 — oKF Agent Designer: seed the 11 agents' definitions + knowledge
+// packs from the code-shipped static specs. Idempotent; only writes a v1
+// PUBLISHED version on first seed so a customer's later edits are never
+// clobbered. Uses this file's own prisma client (no module coupling).
+async function seedAgentDefinitions(orgId: string): Promise<number> {
+  let written = 0;
+  for (const doc of STATIC_AGENT_DEFS) {
+    const a = doc.agent;
+    const base = {
+      name: a.name,
+      shortName: a.shortName,
+      icon: a.icon,
+      description: a.description,
+      enabled: a.enabled,
+      productionReady: a.productionReady,
+      displayOrder: a.displayOrder,
+      routingJson: a.routing as object,
+      modelJson: a.model as object,
+      promptJson: a.prompt as object,
+      outputJson: a.output as object,
+      risks: a.risks,
+      playbookJson: a.playbook as object,
+      approverRole: a.approverRole,
+    };
+    const existing = await prisma.agentDefinition.findUnique({
+      where: { organizationId_agentKey: { organizationId: orgId, agentKey: a.key } },
+      select: { id: true, publishedVersion: true },
+    });
+    const def = await prisma.agentDefinition.upsert({
+      where: { organizationId_agentKey: { organizationId: orgId, agentKey: a.key } },
+      create: {
+        organizationId: orgId,
+        agentKey: a.key,
+        ...base,
+        status: "PUBLISHED",
+        publishedVersion: 1,
+        draftJson: {},
+      },
+      update: base, // refresh descriptive columns only; keep published state
+    });
+
+    // Knowledge packs + items + cohorts (upsert; prune removed item codes).
+    for (const pack of doc.knowledge) {
+      const packRow = await prisma.knowledgePack.upsert({
+        where: { organizationId_key: { organizationId: orgId, key: pack.key } },
+        create: {
+          organizationId: orgId,
+          key: pack.key,
+          name: pack.name,
+          description: pack.description,
+          kind: pack.kind as never,
+          agentKey: a.key,
+          status: "PUBLISHED",
+          publishedVersion: 1,
+        },
+        update: { name: pack.name, description: pack.description, kind: pack.kind as never, agentKey: a.key },
+      });
+      const keep = new Set(pack.items.map((i) => i.code));
+      const have = await prisma.knowledgeItem.findMany({ where: { packId: packRow.id }, select: { code: true } });
+      for (const h of have) if (!keep.has(h.code)) await prisma.knowledgeItem.deleteMany({ where: { packId: packRow.id, code: h.code } });
+      for (const it of pack.items) {
+        await prisma.knowledgeItem.upsert({
+          where: { packId_code: { packId: packRow.id, code: it.code } },
+          create: { organizationId: orgId, packId: packRow.id, code: it.code, kind: it.kind as never, title: it.title, bodyMarkdown: it.bodyMarkdown, dataJson: it.data as object, cohortTags: it.cohortTags, sortOrder: it.sortOrder },
+          update: { kind: it.kind as never, title: it.title, bodyMarkdown: it.bodyMarkdown, dataJson: it.data as object, cohortTags: it.cohortTags, sortOrder: it.sortOrder },
+        });
+      }
+      for (const c of pack.cohorts) {
+        await prisma.knowledgeCohort.upsert({
+          where: { packId_key: { packId: packRow.id, key: c.key } },
+          create: { organizationId: orgId, packId: packRow.id, key: c.key, name: c.name, tag: c.tag, selectorJson: c.selector as object, sortOrder: c.sortOrder },
+          update: { name: c.name, tag: c.tag, selectorJson: c.selector as object, sortOrder: c.sortOrder },
+        });
+      }
+    }
+
+    // v1 immutable version on first seed only.
+    if (!existing || existing.publishedVersion === 0) {
+      const spec = JSON.stringify(doc);
+      await prisma.agentDefinitionVersion.upsert({
+        where: { definitionId_version: { definitionId: def.id, version: 1 } },
+        create: {
+          organizationId: orgId,
+          definitionId: def.id,
+          agentKey: a.key,
+          version: 1,
+          specJson: doc as object,
+          bodyHash: createHash("sha256").update(spec).digest("hex"),
+          changeLog: "Seeded from code-shipped static definition.",
+          createdById: null,
+        },
+        update: {},
+      });
+    }
+    written += 1;
+  }
+  return written;
+}
+
 async function main() {
   if ((process.env.AEGIS_SEED_PROFILE ?? "").trim().toLowerCase() === "production") {
     await seedProductionFoundation();
@@ -1781,6 +1888,9 @@ async function main() {
     `[seed] contracts=${ct.contracts} clauses=${ct.clauses} contract_obligations=${ct.obligations} ` +
       `clause_library=${ct.playbook} templates=${ct.templates} review_portal=/contract-review/${ct.reviewToken}`,
   );
+
+  const agentDefs = await seedAgentDefinitions(org.id);
+  console.log(`[seed] agent_definitions=${agentDefs} (oKF Agent Designer)`);
 
   console.log("[seed] done.");
 }
