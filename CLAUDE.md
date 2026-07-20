@@ -791,6 +791,40 @@ gate — callers passing an `agentDecisionId` whose status is
 `PENDING` get an `AgentDecisionPendingError`. This is conservative
 AI governance enforced in the schema, not the prompt.
 
+### Agent Designer & the Open Knowledge Format (oKF)
+
+The 11 intake agents are data-driven, not hardcoded. Each has an
+`AgentDefinition` — the canonical oKF spec (identity, routing, model
+params, prompt template, output thresholds, approver risks) — plus
+`KnowledgePack`s of `KnowledgeItem`s (addressable by stable "clause
+code" like `C.LIAB.CAP`), sliceable by `KnowledgeCohort` selectors.
+The **Agent Designer** (`admin:agents:manage`, reachable from the
+Agents console) edits every aspect; each publish freezes an immutable
+`AgentDefinitionVersion` (history + revert), export/import round-trips
+the canonical oKF JSON. The generic runtime
+(`modules/intake/src/agents/okf/runtime.js`) executes any definition.
+
+**Two invariants:**
+
+- **The definition configures WHAT an agent does; it can never disable
+  the human gate.** No oKF field bypasses the PENDING `AgentDecision`
+  and the reviewer's approve keystroke — that stays enforced by the
+  persistence layer (`run-server.ts` / `storage/server.ts`),
+  regardless of any threshold or prompt edit. Configurable spec,
+  non-negotiable harness.
+- **`executionMode` splits pure-prompt from tool-augmented.** Agents
+  whose work is a Claude call over knowledge (`contract-review`,
+  `trademark`) publish `executionMode: "okf"` and run entirely from
+  their definition. Agents that do deterministic work the prompt-only
+  runtime cannot replicate — counterparty lookups (`nda`,
+  `litigation`), sanctions screening (`vendor`), deadline computation
+  (`notice`), claim/category detection (`marketing`, `privacy`),
+  KB/policy/playbook retrieval that also drives routing (`faq`,
+  `policy-qa`, `contract-specialist`) — stay `"code"` by design and
+  still read their oKF knowledge/config where the code consumes it.
+  Widening the `"okf"` set requires giving the runtime a tool
+  capability, not just flipping the flag.
+
 ---
 
 ## Module-load architectural guards
