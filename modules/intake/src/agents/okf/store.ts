@@ -258,11 +258,15 @@ export async function seedAgentDefinition(organizationId: string, rawDoc: unknow
 
 // ── Draft + publish (Agent Designer) ─────────────────────────────────
 
-/** Save an in-progress edit to draftJson (no behaviour change until publish). */
+/** Save an in-progress edit to draftJson (no behaviour change until publish).
+ *  Persists the knowledge packs/items too so the Designer's Knowledge tab
+ *  edits (add/edit/reorder/delete items, cohort tags) are durable — the
+ *  full document is the source of truth. Publish then freezes a version. */
 export async function saveAgentDraft(organizationId: string, agentKey: string, rawDoc: unknown): Promise<void> {
   const doc = normalizeDocument(rawDoc);
   if (doc.agent.key !== agentKey) throw new Error("agentKey mismatch");
   await writeAgentColumns(organizationId, doc, { status: "DRAFT", draftJson: JSON.parse(serializeDocument(doc)) });
+  await writeKnowledgePacks(organizationId, doc);
 }
 
 /**
