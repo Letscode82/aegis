@@ -37,6 +37,7 @@
     "./conflict": "./src/conflict/server.ts",
     "./agents": "./src/agents/index.js",
     "./agent-designer": "./src/agents/okf/store.ts",
+    "./agent-preview": "./src/agents/okf/preview.ts",
     "./okf": "./src/agents/okf/index.js",
     "./workflow-bridge": "./src/workflow-bridge/server.ts"
   },

@@ -498,7 +498,7 @@ this list. Renaming an existing value is a breaking change against the
 seeded admin role and any production tenant; add new values, never
 repurpose existing ones.
 
-### The 38 canonical permissions
+### The 40 canonical permissions
 
 | Domain | Permission | Purpose |
 |---|---|---|
@@ -541,6 +541,7 @@ repurpose existing ones.
 |        | `admin:manage_roles` | Edit role permission sets |
 |        | `admin:legal_hold:templates_manage` | CRUD hold scope templates |
 |        | `admin:m365:manage` | Manage M365 connection (app-only credentials + eDiscovery delegated-auth Device Code flow) |
+|        | `admin:agents:manage` | Edit / publish agent definitions + knowledge packs (Agent Designer / oKF) |
 
 ### The 8 canonical roles
 

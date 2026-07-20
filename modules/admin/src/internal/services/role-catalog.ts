@@ -10,7 +10,7 @@
 import { Permission, type RoleName } from "@aegis/auth";
 
 export const ROLE_DESCRIPTIONS: Record<RoleName, string> = {
-  admin: "Platform owner. All 39 permissions including admin domain.",
+  admin: "Platform owner. All 40 permissions including admin domain.",
   gc: "General Counsel. Full reads + most writes + audit + manage users.",
   attorney: "In-house attorney. Reads + writes within assigned matters.",
   paralegal: "Paralegals. Reads + intake/matter writes; no spend approvals.",
@@ -137,6 +137,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       Permission.AdminManageRoles,
       Permission.AdminLegalHoldTemplatesManage,
       Permission.AdminM365Manage,
+      Permission.AdminAgentsManage,
     ],
   },
 ];

@@ -87,6 +87,9 @@ export enum Permission {
   /** Sub-PR 4c.1: M365 connection management — app-only credentials
    *  and the eDiscovery delegated-auth Device Code flow. */
   AdminM365Manage              = "admin:m365:manage",
+  /** oKF-2: Agent Designer — edit/publish agent definitions + knowledge
+   *  packs (the Open Knowledge Format super-designer surface). */
+  AdminAgentsManage            = "admin:agents:manage",
 }
 
 /** Every permission value as a flat string array. Used by the seed and

@@ -3,6 +3,7 @@ import { C, F, M, SR, Card } from "@aegis/ui";
 import { ALL_AGENTS } from "../agents";
 import { profileFor } from "../agents/agent-profiles";
 import { knowledgeFor, tierMeta } from "../agents/agent-knowledge";
+import { AgentDesigner } from "./agent-designer/AgentDesigner";
 
 // ── Agents console (program #6) — the "admin manages agents" surface ──
 //
@@ -17,6 +18,7 @@ import { knowledgeFor, tierMeta } from "../agents/agent-knowledge";
 export function AgentsConsoleTab({ canManage, settings, toggle }) {
   const [metricsById, setMetricsById] = useState(null);
   const [types, setTypes] = useState([]);
+  const [designerAgent, setDesignerAgent] = useState(null); // {id,name} | null
 
   useEffect(() => {
     let on = true;
@@ -82,11 +84,16 @@ export function AgentsConsoleTab({ canManage, settings, toggle }) {
                     {a.id}{prof.playbook ? ` · ${prof.playbook.id} ${prof.playbook.version}` : ""}
                   </div>
                 </div>
-                {canManage && toggle && (
-                  <div onClick={() => toggle(a.id)} title={on ? "Disable this agent" : "Enable this agent"} style={{ width: 30, height: 16, borderRadius: 9, background: on ? C.gn : C.br, position: "relative", cursor: "pointer", flexShrink: 0, transition: "background .12s" }}>
-                    <div style={{ position: "absolute", top: 2, left: on ? 16 : 2, width: 12, height: 12, borderRadius: "50%", background: C.bg, transition: "left .12s" }} />
-                  </div>
-                )}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                  {canManage && (
+                    <button onClick={() => setDesignerAgent({ id: a.id, name: a.name })} title="Configure every aspect of this agent" style={{ background: "transparent", border: `1px solid ${C.cy}`, color: C.cy, fontFamily: M, fontSize: 8.5, fontWeight: 700, letterSpacing: 0.5, textTransform: "uppercase", padding: "3px 7px", borderRadius: 3, cursor: "pointer" }}>⚙ Configure</button>
+                  )}
+                  {canManage && toggle && (
+                    <div onClick={() => toggle(a.id)} title={on ? "Disable this agent" : "Enable this agent"} style={{ width: 30, height: 16, borderRadius: 9, background: on ? C.gn : C.br, position: "relative", cursor: "pointer", transition: "background .12s" }}>
+                      <div style={{ position: "absolute", top: 2, left: on ? 16 : 2, width: 12, height: 12, borderRadius: "50%", background: C.bg, transition: "left .12s" }} />
+                    </div>
+                  )}
+                </div>
               </div>
 
               {a.description && <div style={{ fontSize: 10.5, color: C.t2, fontFamily: F, marginTop: 6, lineHeight: 1.45 }}>{a.description}</div>}
@@ -151,6 +158,10 @@ export function AgentsConsoleTab({ canManage, settings, toggle }) {
           );
         })}
       </div>
+
+      {designerAgent && (
+        <AgentDesigner agentKey={designerAgent.id} agentName={designerAgent.name} onClose={() => setDesignerAgent(null)} />
+      )}
     </div>
   );
 }
