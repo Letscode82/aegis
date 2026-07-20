@@ -75,6 +75,8 @@ export interface OkfPlaybook {
   version: string;
 }
 
+export type ExecutionMode = "okf" | "code";
+
 export interface OkfAgent {
   key: string;
   name: string;
@@ -84,6 +86,16 @@ export interface OkfAgent {
   enabled: boolean;
   productionReady: boolean;
   displayOrder: number;
+  /**
+   * How the agent executes:
+   *  - "okf"  : run entirely from this definition via the generic runtime
+   *             (pure-prompt agents — the Designer's edits drive live output).
+   *  - "code" : run the code-shipped process() (tool-augmented agents that
+   *             do deterministic work — counterparty lookups, sanctions
+   *             screening, deadline computation — the prompt-only runtime
+   *             cannot replicate). Still reads its oKF knowledge/config.
+   */
+  executionMode: ExecutionMode;
   routing: OkfRouting;
   model: OkfModel;
   prompt: OkfPrompt;

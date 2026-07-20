@@ -9,10 +9,11 @@ import { NoticeMgmtAgent } from "./notice-mgmt";
 import { ContractSpecialistAgent } from "./contract-specialist";
 import { PrivacyAssessmentAgent } from "./privacy-assessment";
 import { MarketingReviewAgent } from "./marketing-review";
-import { buildRec } from "./build-rec";
-import { friendlyAIError } from "@aegis/ai";
+import { buildRec, buildDegradedRec } from "./build-rec";
+import { callClaude, callClaudeJSON, friendlyAIError } from "@aegis/ai";
 import { appendAgentLog } from "../storage/agent-log";
 import { descriptionLead } from "../intake/ticket-desc.js";
+import { runDefinition } from "./okf/runtime";
 
 export { NDAAgent, FAQAgent, VendorIntakeAgent, ContractReviewAgent, TrademarkAgent, LitigationAgent, PolicyQAAgent, NoticeMgmtAgent, ContractSpecialistAgent, PrivacyAssessmentAgent, MarketingReviewAgent };
 export { buildRec } from "./build-rec";
@@ -83,6 +84,23 @@ export function routeToAgent(ticket,enabledSettings,preferredAgentId){
   return null;
 }
 
+// Fetch the agent's published oKF definition and, if it opts into "okf"
+// execution, run it through the generic runtime. Returns the recommendation,
+// or null to signal "not an okf agent / unavailable → use process()".
+// Client-side only (relative fetch needs a page origin); server-created
+// tickets run process() directly, which is behaviourally equivalent.
+async function tryOkfExecution(agent,ticket){
+  let doc=null;
+  try{
+    const r=await fetch(`/api/intake/agent-def/${agent.id}`);
+    if(!r.ok) return null;
+    const d=await r.json();
+    doc=d&&d.ok?d.document:null;
+  }catch{ return null; }
+  if(!doc||!doc.agent||doc.agent.executionMode!=="okf") return null;
+  return runDefinition(ticket,doc,doc.knowledge,{callClaude,callClaudeJSON,buildRec,buildDegradedRec,friendlyAIError});
+}
+
 // Run the router against a ticket and log the result.
 // ROUTING keys on the human-authored request LEAD only — an attached
 // document's incidental wording (e.g. a contract full of "notice of
@@ -103,6 +121,22 @@ export async function processTicketWithAgent(ticket,settings,preferredAgentId){
   if(!agent){
     await appendAgentLog({type:"no-agent-match",ticketId:ticket.id,desc:(ticket.desc||"").slice(0,80)});
     return {agent:null,recommendation:null};
+  }
+  // oKF execution flip: if the agent's PUBLISHED definition opts into "okf"
+  // execution, run the generic runtime from that definition so the Agent
+  // Designer's edits (prompt / thresholds / knowledge) drive live output.
+  // Only pure-prompt agents publish executionMode:"okf"; tool-augmented
+  // agents (counterparty / sanctions / deadline work) stay on process().
+  // Any failure — fetch, unpublished def, runtime error — falls through to
+  // the hardcoded process() so the demo never breaks.
+  try{
+    const okfRec=await tryOkfExecution(agent,ticket);
+    if(okfRec){
+      await appendAgentLog({type:"recommendation-generated",ticketId:ticket.id,agentId:agent.id,confidence:okfRec.confidence,action:okfRec.suggestedAction,engine:"okf"});
+      return {agent,recommendation:okfRec};
+    }
+  }catch(e){
+    console.error(`[agent:${agent.id}] oKF execution failed, falling back to process():`,e);
   }
   try{
     const rec=await agent.process(ticket);

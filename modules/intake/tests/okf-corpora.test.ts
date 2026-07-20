@@ -44,3 +44,16 @@ describe("oKF-3 corpora migration", () => {
     }
   });
 });
+
+describe("oKF-4 execution mode", () => {
+  it("only the pure-prompt agents opt into okf execution", () => {
+    const okf = STATIC_AGENT_DEFS.filter((d) => d.agent.executionMode === "okf").map((d) => d.agent.key).sort();
+    expect(okf).toEqual(["contract-review-agent", "trademark-agent"]);
+  });
+
+  it("tool-augmented agents stay on code execution (default)", () => {
+    for (const key of ["nda-agent", "vendor-intake-agent", "notice-mgmt-agent", "privacy-assessment-agent", "marketing-review-agent", "litigation-agent", "faq-agent", "policy-qa-agent", "contract-specialist-agent"]) {
+      expect(byKey(key).agent.executionMode, key).toBe("code");
+    }
+  });
+});

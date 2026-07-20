@@ -9,12 +9,14 @@
 //      can't be fetched, so the browser demo never breaks.
 //
 // risks + playbook are pulled from agent-profiles.js so there's one source
-// of truth during the migration (agent-profiles retires in oKF-4). Routing
-// / model / prompt / output / knowledge are encoded here.
+// of truth. Routing / model / prompt / output / knowledge are encoded here;
+// the code corpora are migrated into real items (migrated-corpora.js).
 //
-// This is oKF-1 FOUNDATION: the specs exist and are valid + seeded, but the
-// live agents still run their hardcoded process() until the Designer flip
-// in oKF-2. So prompt wording here is faithful, not byte-identical.
+// executionMode: "okf" agents (contract-review, trademark) run entirely
+// from their published definition via the generic runtime — the Designer's
+// edits drive live output. "code" agents are tool-augmented (counterparty
+// lookups, sanctions screening, deadline computation) and keep process(),
+// still reading their oKF knowledge/config where the code consumes it.
 import { AGENT_PROFILES } from "../agent-profiles";
 import { normalizeDocument } from "./serialize";
 import {
@@ -77,6 +79,7 @@ function agentDef(a) {
       enabled: true,
       productionReady: a.productionReady !== false,
       displayOrder: a.displayOrder || 0,
+      executionMode: a.executionMode || "code",
       routing: a.routing || {},
       model: a.model || { maxTokens: 1500, timeout: 30000, maxDocChars: 9000 },
       prompt: a.prompt,
@@ -161,6 +164,7 @@ export const STATIC_AGENT_DEFS = [
     icon: "◐",
     description: "AI-assisted first-pass contract review: extracts key clauses, compares them to our playbook, flags deviations with severity, and drafts a redline summary. Recommends attorney sign-off before execution.",
     displayOrder: 4,
+    executionMode: "okf",
     routing: { matchCategory: ["contract review", "msa", "sow", "redline"], matchType: ["contract review", "contract"], matchKeyword: [], excludeKeyword: ["nda"], requiresDocument: false },
     model: { maxTokens: 1800, timeout: 45000, maxDocChars: 9000 },
     output: { autoSendAtConfidence: 0.85, degradedConfidence: 0.4, defaultAction: "flag-for-review", autoSendAction: "approve-and-send", precedentLinks: [{ id: "PLAYBOOK-MSA-v2", title: "MSA / Contract Playbook" }] },
@@ -188,6 +192,7 @@ export const STATIC_AGENT_DEFS = [
     description: "Preliminary trademark clearance heuristics (phonetic / visual / NICE class). NOT a registry search — a first pass before the formal search.",
     productionReady: false,
     displayOrder: 5,
+    executionMode: "okf",
     routing: { matchType: ["trademark", "tm clearance", "brand"], matchKeyword: ["trademark", "clearance", "brand name"], excludeKeyword: [] },
     model: { maxTokens: 1200, timeout: 30000, maxDocChars: 5000 },
     output: { autoSendAtConfidence: 0.95, degradedConfidence: 0.4, defaultAction: "flag-for-review", autoSendAction: "approve-and-send", precedentLinks: [] },

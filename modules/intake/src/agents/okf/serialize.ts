@@ -104,6 +104,7 @@ function normalizeAgent(raw: unknown): OkfAgent {
     enabled: bool(o.enabled, true),
     productionReady: bool(o.productionReady, true),
     displayOrder: num(o.displayOrder, 0),
+    executionMode: str(o.executionMode, "code") === "okf" ? "okf" : "code",
     routing: {
       matchCategory: strArr(routing.matchCategory),
       matchType: strArr(routing.matchType),
