@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { C, F, M, SR, Card } from "@aegis/ui";
 import { ALL_AGENTS } from "../agents";
 import { profileFor } from "../agents/agent-profiles";
+import { knowledgeFor, tierMeta } from "../agents/agent-knowledge";
 
 // ── Agents console (program #6) — the "admin manages agents" surface ──
 //
@@ -109,6 +110,31 @@ export function AgentsConsoleTab({ canManage, settings, toggle }) {
               <div style={{ fontSize: 9.5, fontFamily: M, color: C.t3, marginTop: 8 }}>
                 Handles: {bound.length ? bound.map((n) => <span key={n} style={{ color: C.pp }}>{n} </span>) : <span style={{ color: C.t4 }}>auto-routed by content</span>}
               </div>
+
+              {/* Agent Knowledge — what playbook this agent reads + can you edit it */}
+              {(() => {
+                const k = knowledgeFor(a.id);
+                if (!k) return null;
+                const t = tierMeta(k.tier);
+                const tc = C[t.color] || C.t3;
+                return (
+                  <details style={{ marginTop: 8, borderTop: `1px solid ${C.br}`, paddingTop: 8 }}>
+                    <summary style={{ fontSize: 9.5, fontFamily: M, color: C.t2, cursor: "pointer", letterSpacing: 0.5, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                      <span>📚 Knowledge source</span>
+                      <span style={{ fontSize: 8, fontFamily: M, fontWeight: 700, letterSpacing: 0.8, color: tc, background: tc + "18", border: `1px solid ${tc}55`, borderRadius: 3, padding: "1px 5px" }}>{t.icon} {t.label}</span>
+                    </summary>
+                    <div style={{ marginTop: 6, fontSize: 10, color: C.t2, fontFamily: F, lineHeight: 1.45 }}>{k.source}</div>
+                    <div style={{ marginTop: 4, fontSize: 9.5, color: C.t3, fontFamily: F, lineHeight: 1.45 }}>{k.detail}</div>
+                    <div style={{ marginTop: 6, fontSize: 9.5, fontFamily: M, color: C.t3 }}>
+                      Lives in:{" "}
+                      {k.where.href
+                        ? <a href={k.where.href} style={{ color: C.cy, textDecoration: "underline" }}>{k.where.label} →</a>
+                        : <span style={{ color: k.tier === "code" ? C.t3 : C.t2 }}>{k.where.label}</span>}
+                    </div>
+                    {k.promote && <div style={{ marginTop: 5, fontSize: 9, fontFamily: M, color: C.t4, lineHeight: 1.4 }}>↗ {k.promote}</div>}
+                  </details>
+                );
+              })()}
 
               {/* Risks to weigh — the doc-mandated approval checklist */}
               {prof.risks?.length > 0 && (
