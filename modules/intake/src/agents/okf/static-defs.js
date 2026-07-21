@@ -67,6 +67,47 @@ function clauseItems() {
   }));
 }
 
+// ── Draft templates → oKF TEMPLATE items (real migration of the Template
+// store). The Contracts 📄 Templates screen and the agents that draft from
+// these read the SAME per-agent template pack now — one store, two editors.
+// Each entry is [key, name, description, body]; the item's dataJson carries
+// {templateKind, description, version} so the Template DTO round-trips.
+const TEMPLATE_CORPUS = {
+  // NDA agent's default draft source (getDefaultTemplateForKind("NDA")).
+  NDA: [
+    ["mnda-v4.2", "Standard Mutual NDA (MNDA-v4.2)", "2-year mutual, standard carve-outs, 12-month no-solicit, Delaware.",
+      "MUTUAL NON-DISCLOSURE AGREEMENT (MNDA-v4.2)\n\nThis Mutual Non-Disclosure Agreement is entered into by {{company}} and {{counterparty}} as of {{date}}.\n\n1. Purpose: {{purpose}}.\n2. Term: 2 years from the effective date.\n3. Confidentiality: standard carve-outs (already known, independently developed, publicly available, required by law).\n4. Non-solicit: mutual, 12 months.\n5. Governing law: Delaware; standard venue.\n6. Return/destroy on termination.\n\nSigned: {{company}} __________   {{counterparty}} __________"],
+  ],
+  CONTRACT: [
+    ["msa-v2", "Master Services Agreement (MSA-v2)", "Playbook-aligned MSA skeleton.",
+      "MASTER SERVICES AGREEMENT (MSA-v2)\n\nBetween {{company}} and {{counterparty}}, effective {{date}}.\n\n- Liability: capped at 12 months' fees; uncapped IP/confidentiality/indemnity carve-outs.\n- Payment: Net 45.\n- IP: present-tense assignment of deliverables; license-back for background IP.\n- Term & termination: {{term}}; 30-day termination for convenience.\n- Governing law: Delaware."],
+    ["dpa-v1", "Data Processing Addendum (DPA-v1)", "GDPR-aligned DPA.",
+      "DATA PROCESSING ADDENDUM (DPA-v1)\n\nProcessor {{counterparty}} processes personal data on behalf of controller {{company}}.\n\n- Sub-processors: 30-day change notice; right to object.\n- Security: appropriate technical + organisational measures.\n- Audit: annual right.\n- Sub-processing + cross-border transfers per applicable law."],
+  ],
+  NOTICE: [
+    ["notice-nonrenewal", "Non-renewal Notice", "Serve before the notice window closes.",
+      "NOTICE OF NON-RENEWAL\n\nTo: {{counterparty}}\nRe: {{contractTitle}}\n\n{{company}} hereby gives notice that it will not renew the above agreement, effective {{expiryDate}}, in accordance with the {{noticeWindowDays}}-day notice provision. This notice is served on {{date}}."],
+  ],
+};
+
+function templateItems(kind) {
+  return (TEMPLATE_CORPUS[kind] || []).map(([key, name, description, body], i) => ({
+    code: key,
+    kind: "TEMPLATE",
+    title: name,
+    bodyMarkdown: body,
+    data: { templateKind: kind, description, version: 1 },
+    cohortTags: [],
+    sortOrder: i,
+  }));
+}
+
+/** A per-agent template pack — the oKF home of the Template store, split by
+ *  the agent that drafts from it (one pack per agent). */
+function templatePack(kind, key, name, description) {
+  return { key, name, kind: "TEMPLATE", description, items: templateItems(kind), cohorts: [] };
+}
+
 function prof(key) {
   const p = AGENT_PROFILES[key] || {};
   return { risks: p.risks || [], playbook: p.playbook || { id: "", version: "" } };
@@ -118,14 +159,10 @@ export const STATIC_AGENT_DEFS = [
       fallbackTemplate: `You are the NDA Agent for AEGIS Legal. Review this NDA request against our approved template and write a concise (150-word) response to {{ticket.firstName}} noting any deviations. Plain text only.\n\n{{knowledge}}\n\n{{ticket.desc}}`,
       variables: ["ticket.from", "ticket.dept", "ticket.firstName", "ticket.desc", "knowledge"],
     },
-    knowledge: [{
-      key: "nda-template",
-      name: "NDA template",
-      kind: "TEMPLATE",
-      description: "The approved mutual/one-way NDA the agent drafts from.",
-      items: [{ code: "TPL.MNDA", kind: "TEMPLATE", title: "Mutual NDA (MNDA v4.2)", bodyMarkdown: "Standard mutual NDA: 3-year term, mutual confidentiality, standard carve-outs (public / independently developed / lawfully received), Delaware governing law.", data: { variant: "mutual" }, cohortTags: [], sortOrder: 0 }],
-      cohorts: [],
-    }],
+    // The NDA agent drafts from this pack; it is also the Contracts 📄
+    // Templates screen's NDA store (one pack per agent). Full template body
+    // so getDefaultTemplateForKind("NDA") returns the draftable text.
+    knowledge: [templatePack("NDA", "nda-template", "NDA templates", "The approved NDA drafts the agent (and the Contracts Templates screen) works from.")],
   }),
   agentDef({
     key: "vendor-intake-agent",
@@ -183,14 +220,20 @@ export const STATIC_AGENT_DEFS = [
       fallbackTemplate: `You are the Contract Review Agent for AEGIS Legal. Do a FIRST-PASS review of the contract below against this playbook, then write a concise review (180-240 words) to {{ticket.firstName}} that names the key clauses, flags each deviation with a severity (BLOCKER/HIGH/MEDIUM/LOW, worst first) as a bulleted list, notes what still needs the full document, and ends by stating attorney sign-off is required before execution. Plain text only.\n\n{{knowledge}}\n\nTICKET:\n- Requester: {{ticket.from}} ({{ticket.dept}})\n"""\n{{ticket.desc}}\n"""`,
       variables: ["ticket.from", "ticket.dept", "ticket.firstName", "ticket.desc", "knowledge"],
     },
-    knowledge: [{
-      key: "contract-clauses",
-      name: "Contract clause library",
-      kind: "CONTRACT_CLAUSES",
-      description: "The risk-term checklist the reviewer flags against. Editable in the Knowledge tab; the same store the Contracts 📖 Playbook screen reads.",
-      items: clauseItems(),
-      cohorts: [],
-    }],
+    knowledge: [
+      {
+        key: "contract-clauses",
+        name: "Contract clause library",
+        kind: "CONTRACT_CLAUSES",
+        description: "The risk-term checklist the reviewer flags against. Editable in the Knowledge tab; the same store the Contracts 📖 Playbook screen reads.",
+        items: clauseItems(),
+        cohorts: [],
+      },
+      // The CONTRACT-kind draft templates (MSA, DPA) — the Contracts 📄
+      // Templates screen's CONTRACT store, owned by this agent (one pack
+      // per agent).
+      templatePack("CONTRACT", "contract-templates", "Contract templates", "MSA / DPA draft skeletons the Contracts Templates screen manages."),
+    ],
   }),
   agentDef({
     key: "trademark-agent",
@@ -262,7 +305,12 @@ export const STATIC_AGENT_DEFS = [
       fallbackTemplate: `You are the Notice Management Agent. Classify this notice, list every deadline with the source quote, and draft a minimal acknowledgment (~180 words). Plain text.\n\n{{knowledge}}\n\n{{ticket.desc}}`,
       variables: ["ticket.desc", "knowledge"],
     },
-    knowledge: [noticeTaxonomyPack()],
+    knowledge: [
+      noticeTaxonomyPack(),
+      // The NOTICE-kind draft templates — the Contracts 📄 Templates
+      // screen's NOTICE store, owned by this agent (one pack per agent).
+      templatePack("NOTICE", "notice-templates", "Notice templates", "Notice drafts (non-renewal, etc.) the Contracts Templates screen manages."),
+    ],
   }),
   agentDef({
     key: "privacy-assessment-agent",
