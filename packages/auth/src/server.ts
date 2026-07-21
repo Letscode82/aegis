@@ -318,11 +318,21 @@ function assembleAuthUser(
 
   const persistedPerms = dbUser.role?.permissions;
   const permissions =
-    Array.isArray(persistedPerms) && persistedPerms.length > 0
-      ? (persistedPerms as Permission[])
-      : roleName
-        ? Array.from(ROLE_PERMISSIONS[roleName])
-        : [];
+    // `admin` is the superuser bundle by invariant (the module-load
+    // "admin role is the superuser bundle" guard + AdminSupersetViolationError
+    // both enforce it). Resolve it from code, not the DB list: a Role row
+    // seeded before a permission was added (e.g. `admin:agents:manage`, which
+    // shipped with the Agent Designer) would otherwise be a non-empty-but-stale
+    // list that silently locks admins out of every newer feature. Admin's
+    // effective set is always the full enum, so this is more correct, not a
+    // relaxation. Non-admin roles keep their customizable persisted list.
+    roleName === "admin"
+      ? Array.from(ROLE_PERMISSIONS.admin)
+      : Array.isArray(persistedPerms) && persistedPerms.length > 0
+        ? (persistedPerms as Permission[])
+        : roleName
+          ? Array.from(ROLE_PERMISSIONS[roleName])
+          : [];
 
   return {
     id: dbUser.id,
