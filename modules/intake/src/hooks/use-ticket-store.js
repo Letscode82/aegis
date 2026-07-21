@@ -74,8 +74,12 @@ export function useTicketStore(agentSettings){
   // ticket detail page's workflow strip advances — without this it
   // stays "Agent Analysis active" forever because nothing else updates
   // that array post-creation.
-  const addTicketAndRunAgent=useCallback(async(ticket,preferredAgentId)=>{
-    const created=await addTicket(ticket);
+  // Shared agent-run tail — runs the agent on an already-saved ticket
+  // object, patches the recommendation + stage, persists, and re-pulls the
+  // server-canonical array. Used by both the eager path
+  // (addTicketAndRunAgent) and the deferred triage-first path
+  // (runAgentForTicket).
+  const _runAgentOnTicket=useCallback(async(created,preferredAgentId)=>{
     // Step 2 — optimistic "triage" flash. Functional setState avoids
     // a stale-closure miss on the just-added ticket.
     setTickets(prev=>prev.map(t=>t.id===created.id?{...t,stage:"triage"}:t));
@@ -131,7 +135,23 @@ export function useTicketStore(agentSettings){
     if(canonical&&canonical.length>0) setTickets(canonical);
     const finalTicket=(canonical||[]).find(t=>t.id===created.id)||finalTicketState;
     return {ticket:finalTicket,agent,recommendation};
-  },[agentSettings,addTicket]);
+  },[agentSettings]);
+
+  // Eager path (copilot "file from conversation") — save then run the agent
+  // in one shot.
+  const addTicketAndRunAgent=useCallback(async(ticket,preferredAgentId)=>{
+    const created=await addTicket(ticket);
+    return _runAgentOnTicket(created,preferredAgentId);
+  },[addTicket,_runAgentOnTicket]);
+
+  // Triage-first (deferred) path — run the agent on an ALREADY-saved ticket
+  // from the Cockpit, after the reviewer has confirmed/changed the ladder +
+  // agent. Returns null if the ticket id isn't in the store.
+  const runAgentForTicket=useCallback(async(id,preferredAgentId)=>{
+    const created=tickets.find(t=>t.id===id);
+    if(!created) return null;
+    return _runAgentOnTicket(created,preferredAgentId);
+  },[tickets,_runAgentOnTicket]);
 
   // Attorney triage action — always attorney-initiated. The
   // server-side saveTicketsV8 overwrites `triagedBy` with the
@@ -209,5 +229,5 @@ export function useTicketStore(agentSettings){
     if(fresh&&fresh.length>0) setTickets(fresh);
   },[]);
 
-  return{tickets:live,loading,addTicket,updateTicket,addTicketAndRunAgent,recordTriageAction,bulkApprove,resetToSeed,refresh};
+  return{tickets:live,loading,addTicket,updateTicket,addTicketAndRunAgent,runAgentForTicket,recordTriageAction,bulkApprove,resetToSeed,refresh};
 }
