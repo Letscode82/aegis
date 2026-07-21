@@ -124,6 +124,7 @@ export type {
   DepartedCustodianRetention,
   AgentDecision,
   SanctionsListEntry,
+  TrademarkMark,
   OrganizationM365Credential,
   IntakeTicket,
   IntakeRoutingRule,

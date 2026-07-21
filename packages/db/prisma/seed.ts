@@ -59,6 +59,11 @@ import {
 // rows so the Agent Designer has a starting point. Rows are written with
 // this file's own prisma client, so no runtime coupling to the module.
 import { STATIC_AGENT_DEFS } from "../../../modules/intake/src/agents/okf/static-defs.js";
+// Same dev-only, relative-path, pure-module category: the trademark
+// bootstrap DATA + the pure normalizer (no @aegis/db → no cycle). The
+// seed writes the knock-out reference marks with its own prisma client.
+import { TRADEMARK_BOOTSTRAP } from "../../../modules/intake/src/trademark/bootstrap-data.ts";
+import { normalizeMark as normalizeTrademark } from "../../../modules/intake/src/trademark/similarity.ts";
 
 const prisma = new PrismaClient();
 
@@ -1881,6 +1886,9 @@ async function main() {
   const sx = await seedSanctionsList();
   console.log(`[seed] sanctions_list_entries=${sx}`);
 
+  const tm = await seedTrademarkMarks();
+  console.log(`[seed] trademark_marks=${tm}`);
+
   const nd = await seedNdaDocuments(org.id, user.id);
   console.log(`[seed] nda_documents=${nd}`);
 
@@ -2393,6 +2401,30 @@ async function seedSanctionsList(): Promise<number> {
         country: e.country,
         refreshedAt,
       },
+    });
+    written += 1;
+  }
+  return written;
+}
+
+// Trademark knock-out reference marks (bootstrap of well-known registered
+// marks) — the real conflict source behind the Trademark Clearance agent.
+async function seedTrademarkMarks(): Promise<number> {
+  const refreshedAt = new Date();
+  let written = 0;
+  for (const m of TRADEMARK_BOOTSTRAP) {
+    const base = {
+      wordMark: m.wordMark,
+      normalizedMark: normalizeTrademark(m.wordMark),
+      niceClasses: m.classes,
+      status: m.status || "LIVE",
+      ownerName: m.owner,
+      refreshedAt,
+    };
+    await prisma.trademarkMark.upsert({
+      where: { source_sourceRef: { source: "BOOTSTRAP", sourceRef: m.ref } },
+      update: base,
+      create: { source: "BOOTSTRAP", sourceRef: m.ref, ...base },
     });
     written += 1;
   }

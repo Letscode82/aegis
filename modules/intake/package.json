@@ -30,6 +30,8 @@
     "./sanctions": "./src/sanctions/server.ts",
     "./sanctions-bootstrap": "./src/sanctions/bootstrap.ts",
     "./sanctions-ofac": "./src/sanctions/ofac-feed.ts",
+    "./trademark": "./src/trademark/server.ts",
+    "./trademark-bootstrap": "./src/trademark/bootstrap.ts",
     "./agent-metrics": "./src/agent-metrics/server.ts",
     "./pool-ops": "./src/pool-ops/server.ts",
     "./teams-channel": "./src/teams-channel/server.ts",
