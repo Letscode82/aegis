@@ -70,17 +70,23 @@ function makeRes(): FakeRes & NextApiResponse {
   return r as unknown as FakeRes & NextApiResponse;
 }
 
-/** Fake DB row in the shape `resolveByEmail()` expects. */
+/** Fake DB row in the shape `resolveByEmail()` expects.
+ *
+ * Uses a NON-admin canonical role (`legal_ops`) as the carrier so the exact
+ * `permissions` array under test is honored verbatim. `admin` can't be used
+ * here: it's the superuser bundle by invariant, so `assembleAuthUser`
+ * resolves it from code (the full Permission enum) regardless of the stored
+ * list — which would defeat a test that supplies a deliberately-narrow set. */
 function fakeDbUser(permissions: string[]) {
   return {
     id: "u1",
     organizationId: "org1",
-    email: "alex.nguyen@aegis-demo.example",
-    name: "Alex Nguyen",
+    email: "casey.ops@aegis-demo.example",
+    name: "Casey Ops",
     suspendedAt: null,
     role: {
-      id: "r-admin",
-      name: "admin",
+      id: "r-legal-ops",
+      name: "legal_ops",
       permissions, // Role.permissions is Json — array of strings works.
     },
     organization: { id: "org1", name: "AEGIS Demo" },
