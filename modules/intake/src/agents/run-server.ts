@@ -27,8 +27,10 @@ import { prisma, logAudit, AgentRecommendationStatus } from "@aegis/db";
 import { ensureServerClaudeTransport } from "@aegis/ai/server";
 import { setCounterpartyResolver } from "./counterparty-lookup.js";
 import { setSanctionsResolver } from "./sanctions-lookup.js";
+import { setTrademarkResolver } from "./trademark-lookup.js";
 import { processTicketWithAgent, setOkfDocResolver } from "./index.js";
 import { getPublishedAgentDocument } from "./okf/store";
+import { screenTrademark } from "../trademark/server";
 import { lookupCounterpartyRelationship } from "../counterparty/server";
 import { screenAgainstSanctions } from "../sanctions/server";
 import { syncAgentDecisionForTicket } from "../agent-decision/server";
@@ -75,6 +77,11 @@ function ensureWiring(): void {
   );
   setSanctionsResolver((name: string, country: string) =>
     screenAgainstSanctions(name, country),
+  );
+  // Real trademark knock-out screen for server-created tickets (no page
+  // origin to fetch). GLOBAL reference data → no org scoping needed.
+  setTrademarkResolver((mark: string, classes: number[]) =>
+    screenTrademark(mark, classes),
   );
   // Unify the oKF execution flip with the browser path: resolve the
   // published definition straight from the DB (no page origin to fetch),

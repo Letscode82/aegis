@@ -1227,6 +1227,40 @@ model SanctionsListEntry {
   @@index([source, refreshedAt])
 }
 
+/// Trademark knock-out reference data — the real conflict source behind the
+/// Trademark Clearance agent (replaces the "cannot search registries" AI
+/// heuristic). GLOBAL, not org-scoped: registered marks are public record
+/// shared across all tenants. Refreshed by refreshTrademarkMarks() (admin
+/// trigger, pg-boss-ready) from the USPTO open trademark API in production;
+/// seeded with a bootstrap set of well-known marks for demo/CI.
+/// `normalizedMark` is the lowercased, alphanumeric match key. Empty/stale
+/// table → screening returns "unavailable" (→ flag for review), never a
+/// false all-clear. A preliminary knock-out screen — NEVER a substitute for
+/// a formal registry clearance + counsel sign-off.
+model TrademarkMark {
+  id             String    @id @default(cuid())
+  /// "USPTO" | "EUIPO" | "BOOTSTRAP"
+  source         String
+  /// Stable id within the source (serial / registration number), for upsert.
+  sourceRef      String
+  /// The word mark as registered.
+  wordMark       String
+  /// Lowercased, alphanumeric-only — the match key.
+  normalizedMark String
+  /// NICE classification numbers (1-45) covered by the registration.
+  niceClasses    Int[]
+  /// "LIVE" | "DEAD" | "PENDING"
+  status         String    @default("LIVE")
+  ownerName      String?
+  registeredAt   DateTime?
+  /// When this row was last written by a refresh pass — drives staleness.
+  refreshedAt    DateTime  @default(now())
+
+  @@unique([source, sourceRef])
+  @@index([normalizedMark])
+  @@index([source, refreshedAt])
+}
+
 // ════════════════════════════════════════════════════════════════════
 // 5. Legal Intake
 // ════════════════════════════════════════════════════════════════════

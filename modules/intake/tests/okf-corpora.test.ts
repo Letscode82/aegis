@@ -46,13 +46,14 @@ describe("oKF-3 corpora migration", () => {
 });
 
 describe("oKF-4 execution mode", () => {
-  it("the okf-execution set is contract-review, litigation, trademark", () => {
+  it("the okf-execution set is contract-review, litigation", () => {
     const okf = STATIC_AGENT_DEFS.filter((d) => d.agent.executionMode === "okf").map((d) => d.agent.key).sort();
-    expect(okf).toEqual(["contract-review-agent", "litigation-agent", "trademark-agent"]);
+    expect(okf).toEqual(["contract-review-agent", "litigation-agent"]);
   });
 
-  it("agents whose deterministic step gates the action stay on code", () => {
-    for (const key of ["nda-agent", "vendor-intake-agent", "notice-mgmt-agent", "privacy-assessment-agent", "marketing-review-agent", "faq-agent", "policy-qa-agent", "contract-specialist-agent"]) {
+  it("agents whose deterministic step gates/augments the action stay on code", () => {
+    // trademark now runs a real knock-out screen (tool-augmented) → code.
+    for (const key of ["nda-agent", "vendor-intake-agent", "notice-mgmt-agent", "privacy-assessment-agent", "marketing-review-agent", "faq-agent", "policy-qa-agent", "contract-specialist-agent", "trademark-agent"]) {
       expect(byKey(key).agent.executionMode, key).toBe("code");
     }
   });
