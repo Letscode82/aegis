@@ -21,19 +21,12 @@ const CONTRACT_PLAYBOOK=`AEGIS Contract Playbook (defaults to check against):
 // to "Claude unavailable" while smaller NDAs succeeded.
 const MAX_DOC_CHARS = 9000;
 
-// Prefer the org's DB-configured playbook (the "📖 Playbook" / clause
-// library) so editing a clause there changes what this agent flags — the
-// live-playbook loop. Falls back to the built-in default on any failure
-// (unauthenticated, server-side relative fetch, empty library) so the
-// agent never breaks.
+// process() is the FALLBACK path now — Contract Review runs its oKF
+// definition (the editable contract-clauses Knowledge pack) as its primary
+// engine. This fallback uses the built-in playbook constant; the live,
+// editable playbook is the agent's oKF Knowledge (Agent Designer → Knowledge
+// tab), so there's no separate DB fetch here.
 async function loadPlaybook(){
-  try{
-    const r=await fetch("/api/intake/contract-playbook");
-    if(r.ok){
-      const d=await r.json();
-      if(d&&d.ok&&typeof d.playbookText==="string"&&d.playbookText.trim()) return d.playbookText;
-    }
-  }catch{/* fall through to the built-in default */}
   return CONTRACT_PLAYBOOK;
 }
 
