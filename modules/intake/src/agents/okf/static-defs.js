@@ -12,10 +12,12 @@
 // of truth. Routing / model / prompt / output / knowledge are encoded here;
 // the code corpora are migrated into real items (migrated-corpora.js).
 //
-// executionMode: "okf" agents (contract-review, trademark) run entirely
-// from their published definition via the generic runtime — the Designer's
-// edits drive live output. "code" agents are tool-augmented (counterparty
-// lookups, sanctions screening, deadline computation) and keep process(),
+// executionMode: "okf" agents (contract-review, trademark, litigation) run
+// entirely from their published definition via the generic runtime — the
+// Designer's edits drive live output. Litigation composes the "counterparty"
+// tool (oKF-7) for its deterministic record pull + output.alwaysConcerns for
+// its mandatory hold-trigger flag. "code" agents whose deterministic step
+// GATES the action (sanctions hit → escalate, deadline math) keep process(),
 // still reading their oKF knowledge/config where the code consumes it.
 import { AGENT_PROFILES } from "../agent-profiles";
 import { normalizeDocument } from "./serialize";
@@ -80,6 +82,7 @@ function agentDef(a) {
       productionReady: a.productionReady !== false,
       displayOrder: a.displayOrder || 0,
       executionMode: a.executionMode || "code",
+      tools: a.tools || [],
       routing: a.routing || {},
       model: a.model || { maxTokens: 1500, timeout: 30000, maxDocChars: 9000 },
       prompt: a.prompt,
@@ -207,21 +210,33 @@ export const STATIC_AGENT_DEFS = [
   }),
   agentDef({
     key: "litigation-agent",
-    name: "Litigation Agent",
+    name: "Litigation Intake Agent",
     shortName: "Litigation",
-    icon: "⚖",
-    description: "Assembles a non-court-facing case brief (evidence index) for a litigation/dispute intake. Tracking-only — not a theory of the case.",
-    productionReady: false,
+    icon: "§",
+    description: "Assembles a cited case brief for non-court-facing disputes: pulls the record (prior matters/agreements) via the counterparty tool, flags the legal-hold trigger, recommends a handling tier. Never places a hold; always attorney-reviewed.",
     displayOrder: 6,
+    // oKF-7: runs entirely from this definition. Its deterministic record
+    // pull is the "counterparty" tool (context, not a gate); the mandatory
+    // hold-trigger + conflicts + deadline concerns ride output.alwaysConcerns
+    // so they survive even the degraded path; never auto-sends.
+    executionMode: "okf",
+    tools: ["counterparty"],
     routing: { matchType: ["litigation", "dispute", "claim", "lawsuit"], matchKeyword: ["lawsuit", "litigation", "dispute", "subpoena", "complaint"], excludeKeyword: [] },
-    model: { maxTokens: 1600, timeout: 40000, maxDocChars: 8000 },
-    output: { autoSendAtConfidence: 0.95, degradedConfidence: 0.4, defaultAction: "flag-for-review", autoSendAction: "approve-and-send", precedentLinks: [] },
+    model: { maxTokens: 1200, timeout: 40000, maxDocChars: 2500 },
+    output: {
+      autoSendAtConfidence: 2, degradedConfidence: 0.4, defaultAction: "flag-for-review", autoSendAction: "flag-for-review", precedentLinks: [],
+      alwaysConcerns: [
+        "Legal-hold trigger flagged (over-inclusive by design): evaluate preservation NOW — no hold has been placed by this triage.",
+        "Run a conflicts check against existing matters/counterparties before staffing.",
+        "Confirm the response deadline.",
+      ],
+    },
     prompt: {
-      mode: "text",
-      systemTemplate: `You are the Litigation Agent for AEGIS Legal. Assemble a concise, non-court-facing case brief (an evidence index) for {{ticket.firstName}} from the intake below: parties, posture, key dates, documents referenced, and open questions. Treat this as an evidence index, NOT a theory of the case. Plain text, ~220 words.\n\n{{knowledge}}\n\n"""\n{{ticket.desc}}\n"""`,
-      jsonContract: null,
-      fallbackTemplate: null,
-      variables: ["ticket.firstName", "ticket.desc", "knowledge"],
+      mode: "json",
+      systemTemplate: `You are the Litigation Support Agent for AEGIS Legal. Assemble a CITED CASE BRIEF for an inbound NON-COURT-FACING litigation/dispute matter (demand letter, subpoena, pre-litigation dispute, notice of claim). You do NOT initiate a legal hold — never claim to have placed one.\n\nRECORD PULL (authoritative — cite as given, do NOT invent or extend):\n- {{tool.counterparty}}\n\nStructure the brief: 1. PARTIES · 2. CONTRACT LANDSCAPE (only what the record pull states) · 3. CHRONOLOGY · 4. EXPOSURE (claim type + severity: routine/elevated/critical) · 5. RELATED MATTERS (only from the record pull) · 6. OPEN OBLIGATIONS (deadlines) · 7. GAP ANALYSIS (mandatory final section — what the record does NOT contain; "nothing found" never reads as "nothing exists"). Recommend a handling tier: junior review, or escalate to senior litigation counsel.\n\nTICKET:\n- Requester: {{ticket.from}} ({{ticket.dept}})\n- Description: "{{ticket.desc}}"\n\nThis brief is an EVIDENCE INDEX, not a theory of the case. Always attorney-reviewed — never auto-final.`,
+      jsonContract: `Respond with ONLY this JSON:\n{"draftedResponse":"the case brief with the 7 numbered sections, \\n line breaks, 200-300 words","alternativeTone":"one-line summary","confidence":0.0-1.0,"reasoning":"one-line basis for the tier","concerns":["...items the attorney must confirm"]}`,
+      fallbackTemplate: `You are the Litigation Support Agent. Assemble a concise cited case brief (parties, chronology, exposure, open obligations, and a mandatory GAP ANALYSIS) for {{ticket.firstName}} from the intake below and the record pull. Never claim to have placed a hold. Plain text.\n\nRECORD PULL: {{tool.counterparty}}\n\n"""\n{{ticket.desc}}\n"""`,
+      variables: ["ticket.from", "ticket.dept", "ticket.firstName", "ticket.desc", "tool.counterparty"],
     },
     knowledge: [caseBriefPack()],
   }),

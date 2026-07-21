@@ -68,6 +68,10 @@ export interface OkfOutput {
   /** action at/above the threshold, e.g. "approve-and-send". */
   autoSendAction: string;
   precedentLinks: OkfPrecedentLink[];
+  /** Deterministic concerns prepended to EVERY recommendation, whatever
+   *  Claude returns — e.g. a mandatory legal-hold-trigger flag. Survives
+   *  the degraded path too. */
+  alwaysConcerns: string[];
 }
 
 export interface OkfPlaybook {
@@ -103,6 +107,15 @@ export interface OkfAgent {
   risks: string[];
   playbook: OkfPlaybook;
   approverRole: string | null;
+  /**
+   * Declared tool providers this agent runs BEFORE the Claude call. Each
+   * resolves deterministic context (e.g. "counterparty" → record pull)
+   * that the runtime injects as {{tool.<name>}} in the prompt. Tools
+   * provide CONTEXT — they do not gate the action. An agent whose
+   * deterministic step must GATE the recommendation (sanctions hit →
+   * escalate; missed deadline) stays executionMode "code".
+   */
+  tools: string[];
 }
 
 export type OkfItemKind = "CLAUSE" | "RULE" | "QA" | "TEMPLATE" | "REFERENCE";
@@ -203,8 +216,9 @@ export function validateOkfDocument(doc: unknown): OkfValidationResult {
     const o = a.output as Partial<OkfOutput> | undefined;
     if (!o || typeof o !== "object") errors.push("agent.output is required");
     else {
-      if (!isNum(o.autoSendAtConfidence) || o.autoSendAtConfidence < 0 || o.autoSendAtConfidence > 1)
-        errors.push("agent.output.autoSendAtConfidence must be 0..1");
+      // Allow > 1 as the "never auto-send" sentinel (e.g. always-flag agents).
+      if (!isNum(o.autoSendAtConfidence) || o.autoSendAtConfidence < 0)
+        errors.push("agent.output.autoSendAtConfidence must be ≥ 0");
       if (!isNum(o.degradedConfidence) || o.degradedConfidence < 0 || o.degradedConfidence > 1)
         errors.push("agent.output.degradedConfidence must be 0..1");
       if (!isStr(o.defaultAction)) errors.push("agent.output.defaultAction is required");

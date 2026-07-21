@@ -131,6 +131,7 @@ function normalizeAgent(raw: unknown): OkfAgent {
       degradedConfidence: num(output.degradedConfidence, 0.4),
       defaultAction: str(output.defaultAction, "flag-for-review"),
       autoSendAction: str(output.autoSendAction, "approve-and-send"),
+      alwaysConcerns: strArr(output.alwaysConcerns),
       precedentLinks: arr(output.precedentLinks)
         .map((p) => obj(p))
         .filter((p) => typeof p.id === "string")
@@ -139,6 +140,7 @@ function normalizeAgent(raw: unknown): OkfAgent {
     risks: strArr(o.risks),
     playbook: { id: str(playbook.id), version: str(playbook.version) },
     approverRole: strOrNull(o.approverRole),
+    tools: strArr(o.tools),
   };
 }
 
