@@ -22,7 +22,7 @@ vi.mock("@aegis/db", () => ({
 vi.mock("@aegis/ai/server", () => ({ ensureServerClaudeTransport: vi.fn() }));
 
 const processMock = vi.fn();
-vi.mock("../src/agents/index.js", () => ({ processTicketWithAgent: processMock }));
+vi.mock("../src/agents/index.js", () => ({ processTicketWithAgent: processMock, setOkfDocResolver: vi.fn() }));
 
 const syncMock = vi.fn();
 vi.mock("../src/agent-decision/server", () => ({ syncAgentDecisionForTicket: syncMock }));

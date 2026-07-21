@@ -27,7 +27,8 @@ import { prisma, logAudit, AgentRecommendationStatus } from "@aegis/db";
 import { ensureServerClaudeTransport } from "@aegis/ai/server";
 import { setCounterpartyResolver } from "./counterparty-lookup.js";
 import { setSanctionsResolver } from "./sanctions-lookup.js";
-import { processTicketWithAgent } from "./index.js";
+import { processTicketWithAgent, setOkfDocResolver } from "./index.js";
+import { getPublishedAgentDocument } from "./okf/store";
 import { lookupCounterpartyRelationship } from "../counterparty/server";
 import { screenAgainstSanctions } from "../sanctions/server";
 import { syncAgentDecisionForTicket } from "../agent-decision/server";
@@ -74,6 +75,13 @@ function ensureWiring(): void {
   );
   setSanctionsResolver((name: string, country: string) =>
     screenAgainstSanctions(name, country),
+  );
+  // Unify the oKF execution flip with the browser path: resolve the
+  // published definition straight from the DB (no page origin to fetch),
+  // so an "okf" agent runs its definition on server-created tickets too.
+  // orgId rides the per-run AsyncLocalStorage.
+  setOkfDocResolver((agentKey: string) =>
+    getPublishedAgentDocument(currentOrgId(), agentKey),
   );
   _wired = true;
 }
