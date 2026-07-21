@@ -5,6 +5,7 @@ import {
   renderKnowledge,
   selectItemsForTicket,
   mapConfidenceToAction,
+  resolveTools,
   runDefinition,
 } from "../src/agents/okf/runtime";
 import { buildRec, buildDegradedRec } from "../src/agents/build-rec.js";
@@ -72,6 +73,48 @@ describe("selectItemsForTicket + renderKnowledge (cohorts)", () => {
     const text = renderKnowledge(selectItemsForTicket(packs, { type: "NDA" }));
     expect(text).toContain("Always");
     expect(text).not.toContain("MSA only");
+  });
+});
+
+describe("resolveTools (oKF-7 tool capability)", () => {
+  const doc = { agent: { tools: ["counterparty", "missing"] } };
+  it("runs declared providers into {{tool.*}} and degrades gracefully", async () => {
+    const out = await resolveTools({ desc: "x" }, doc, { counterparty: async () => "record: 2 prior matters" });
+    expect(out["tool.counterparty"]).toBe("record: 2 prior matters");
+    expect(out["tool.missing"]).toContain("not available"); // no provider
+  });
+  it("a throwing provider degrades, never crashes the run", async () => {
+    const out = await resolveTools({}, { agent: { tools: ["counterparty"] } }, { counterparty: async () => { throw new Error("boom"); } });
+    expect(out["tool.counterparty"]).toContain("unavailable");
+  });
+});
+
+describe("alwaysConcerns (oKF-7)", () => {
+  const doc = normalizeDocument({
+    okfVersion: 1,
+    agent: {
+      key: "x", name: "X", executionMode: "okf", tools: ["counterparty"],
+      prompt: { mode: "json", systemTemplate: "brief {{tool.counterparty}}", jsonContract: "json" },
+      output: { autoSendAtConfidence: 2, defaultAction: "flag-for-review", autoSendAction: "flag-for-review", alwaysConcerns: ["MANDATORY hold-trigger"] },
+    },
+    knowledge: [],
+  });
+  const deps = (fns: object) => ({ buildRec, buildDegradedRec, friendlyAIError, tools: { counterparty: async () => "on record" }, ...fns });
+
+  it("prepends alwaysConcerns and injects the tool output; never auto-sends", async () => {
+    const rec = await runDefinition({ desc: "d" }, doc, [], deps({
+      callClaudeJSON: async () => ({ draftedResponse: "b", confidence: 0.99, concerns: ["claude concern"] }),
+      callClaude: async () => "b",
+    }));
+    expect(rec.concerns[0]).toBe("MANDATORY hold-trigger");
+    expect(rec.concerns).toContain("claude concern");
+    expect(rec.suggestedAction).toBe("flag-for-review"); // threshold 2 → impossible
+  });
+
+  it("alwaysConcerns survive the degraded path", async () => {
+    const boom = async () => { throw new Error("down"); };
+    const rec = await runDefinition({ desc: "d" }, doc, [], deps({ callClaudeJSON: boom, callClaude: boom }));
+    expect(rec.concerns).toContain("MANDATORY hold-trigger");
   });
 });
 

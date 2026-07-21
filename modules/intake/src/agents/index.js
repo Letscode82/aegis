@@ -14,6 +14,7 @@ import { callClaude, callClaudeJSON, friendlyAIError } from "@aegis/ai";
 import { appendAgentLog } from "../storage/agent-log";
 import { descriptionLead } from "../intake/ticket-desc.js";
 import { runDefinition } from "./okf/runtime";
+import { checkCounterpartyRelationship } from "./counterparty-lookup";
 
 export { NDAAgent, FAQAgent, VendorIntakeAgent, ContractReviewAgent, TrademarkAgent, LitigationAgent, PolicyQAAgent, NoticeMgmtAgent, ContractSpecialistAgent, PrivacyAssessmentAgent, MarketingReviewAgent };
 export { buildRec } from "./build-rec";
@@ -101,11 +102,45 @@ export function setOkfDocResolver(fn){ okfDocResolver=fn||defaultFetchOkfDoc; }
 // If the agent's published definition opts into "okf" execution, run it
 // through the generic runtime. Returns the recommendation, or null to
 // signal "not an okf agent / unavailable → use process()".
+// ── oKF tool providers (oKF-7) ───────────────────────────────────────
+// Deterministic context a definition can declare via agent.tools[]. Each
+// returns a text summary the runtime injects as {{tool.<name>}}. Providers
+// live in code (the deterministic work must); the def composes them. They
+// provide CONTEXT — never a gate: an agent whose lookup must BLOCK the
+// action (sanctions hit) stays executionMode "code".
+
+// Extract a likely counterparty / adverse-party name from free text.
+function extractEntityName(desc){
+  const d=String(desc||"");
+  const m=
+    d.match(/(?:[Dd]emand letter|[Cc]ease.{0,3}and.{0,3}desist|[Ss]ubpoena|[Ss]ummons|[Nn]otice of (?:claim|dispute)|[Ll]awsuit|[Cc]omplaint)\s+(?:from|by|filed by)\s+([A-Z][A-Za-z0-9&. -]{2,50}?)(?:\s+(?:regarding|about|concerning|alleging|over|for|in)\b|[,.\n]|$)/)
+    ||d.match(/\b(?:against|versus|vs\.?)\s+([A-Z][A-Za-z0-9&. -]{2,50}?)(?:[,.\n]|\s+(?:regarding|about|concerning|over|for|in)\b|$)/)
+    ||d.match(/(?:vendor|supplier|counterparty|dispute|claim)\s*(?:with|from|:)?\s*([A-Z][A-Za-z0-9&. -]{2,50}?)(?:[,.\n]|$)/);
+  return m?m[1].trim():null;
+}
+
+// "counterparty" tool — resolve the ticket's counterparty against the
+// shared Counterparty entity and return the cited record facts. Same
+// dual-mode lookup the NDA/litigation code uses (server-injected resolver
+// in the worker; API fetch in the browser).
+async function counterpartyTool(ticket){
+  const entity=extractEntityName(ticket&&ticket.desc);
+  const record=await checkCounterpartyRelationship(entity||"");
+  if(record.found){
+    return `Adverse/counterparty "${record.counterpartyName}" IS on the record: ${record.priorMatterCount} prior matter${record.priorMatterCount===1?"":"s"} on file${record.priorNda?`; prior agreement "${record.priorNda.name}" recorded ${String(record.priorNda.uploadedAt).slice(0,10)}`:""}.`;
+  }
+  return entity
+    ?`Adverse/counterparty "${entity}" has NO record in the platform — the record is not the world; absence of documents must not be read as absence of exposure.`
+    :"Counterparty could not be extracted from the description — record pull skipped; identify the counterparty before the conflicts check.";
+}
+
+const OKF_TOOLS={ counterparty:counterpartyTool };
+
 async function tryOkfExecution(agent,ticket){
   let doc=null;
   try{ doc=await okfDocResolver(agent.id); }catch{ return null; }
   if(!doc||!doc.agent||doc.agent.executionMode!=="okf") return null;
-  return runDefinition(ticket,doc,doc.knowledge,{callClaude,callClaudeJSON,buildRec,buildDegradedRec,friendlyAIError});
+  return runDefinition(ticket,doc,doc.knowledge,{callClaude,callClaudeJSON,buildRec,buildDegradedRec,friendlyAIError,tools:OKF_TOOLS});
 }
 
 // Run the router against a ticket and log the result.

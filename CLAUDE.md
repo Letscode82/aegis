@@ -815,15 +815,22 @@ the canonical oKF JSON. The generic runtime
 - **`executionMode` splits pure-prompt from tool-augmented.** Agents
   whose work is a Claude call over knowledge (`contract-review`,
   `trademark`) publish `executionMode: "okf"` and run entirely from
-  their definition. Agents that do deterministic work the prompt-only
-  runtime cannot replicate — counterparty lookups (`nda`,
-  `litigation`), sanctions screening (`vendor`), deadline computation
-  (`notice`), claim/category detection (`marketing`, `privacy`),
-  KB/policy/playbook retrieval that also drives routing (`faq`,
-  `policy-qa`, `contract-specialist`) — stay `"code"` by design and
-  still read their oKF knowledge/config where the code consumes it.
-  Widening the `"okf"` set requires giving the runtime a tool
-  capability, not just flipping the flag.
+  their definition. The runtime also exposes **oKF-7 tool providers**:
+  a definition may declare `agent.tools` (e.g. `["counterparty"]`),
+  which the runtime resolves into `{{tool.*}}` prompt context before
+  the Claude call, plus `output.alwaysConcerns` — deterministic
+  concerns prepended to every recommendation (surviving the degraded
+  path). `litigation` runs `"okf"` this way: its record pull is the
+  `counterparty` tool and its mandatory legal-hold-trigger flag is an
+  `alwaysConcern`. **Tools provide CONTEXT, never a gate.** Agents
+  whose deterministic step must GATE the action — sanctions hit →
+  escalate (`vendor`), deadline math → SLA (`notice`), claim
+  detection that fixes the route (`marketing`, `privacy`), KB/policy/
+  playbook retrieval that also drives routing (`faq`, `policy-qa`,
+  `contract-specialist`), prior-NDA resolution (`nda`) — stay `"code"`
+  by design and still read their oKF knowledge/config where the code
+  consumes it. Widening the `"okf"` set for a gating agent requires a
+  gating primitive in the runtime, not just a context tool.
 
 ---
 

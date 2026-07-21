@@ -46,14 +46,21 @@ describe("oKF-3 corpora migration", () => {
 });
 
 describe("oKF-4 execution mode", () => {
-  it("only the pure-prompt agents opt into okf execution", () => {
+  it("the okf-execution set is contract-review, litigation, trademark", () => {
     const okf = STATIC_AGENT_DEFS.filter((d) => d.agent.executionMode === "okf").map((d) => d.agent.key).sort();
-    expect(okf).toEqual(["contract-review-agent", "trademark-agent"]);
+    expect(okf).toEqual(["contract-review-agent", "litigation-agent", "trademark-agent"]);
   });
 
-  it("tool-augmented agents stay on code execution (default)", () => {
-    for (const key of ["nda-agent", "vendor-intake-agent", "notice-mgmt-agent", "privacy-assessment-agent", "marketing-review-agent", "litigation-agent", "faq-agent", "policy-qa-agent", "contract-specialist-agent"]) {
+  it("agents whose deterministic step gates the action stay on code", () => {
+    for (const key of ["nda-agent", "vendor-intake-agent", "notice-mgmt-agent", "privacy-assessment-agent", "marketing-review-agent", "faq-agent", "policy-qa-agent", "contract-specialist-agent"]) {
       expect(byKey(key).agent.executionMode, key).toBe("code");
     }
+  });
+
+  it("litigation runs okf with the counterparty tool + always-appended hold-trigger concern, never auto-sends", () => {
+    const lit = byKey("litigation-agent").agent;
+    expect(lit.tools).toContain("counterparty");
+    expect(lit.output.alwaysConcerns.some((c) => /legal-hold trigger/i.test(c))).toBe(true);
+    expect(lit.output.autoSendAtConfidence).toBeGreaterThan(1); // impossible → always flag-for-review
   });
 });

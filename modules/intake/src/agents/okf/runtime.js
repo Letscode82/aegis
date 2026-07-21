@@ -102,6 +102,29 @@ export function mapConfidenceToAction(confidence, output) {
   return c >= threshold ? o.autoSendAction || "approve-and-send" : o.defaultAction || "flag-for-review";
 }
 
+/**
+ * Run the agent's declared tool providers and return their outputs as
+ * {{tool.<name>}} context variables. Tools provide deterministic CONTEXT
+ * (a record pull, a lookup) — they never gate the action. A tool that
+ * throws or isn't provided degrades to a short "(unavailable)" note so the
+ * agent still runs. `tools` is the injected provider map (name → fn(ticket)).
+ */
+export async function resolveTools(ticket, doc, tools) {
+  const out = {};
+  const names = (doc.agent && doc.agent.tools) || [];
+  for (const name of names) {
+    const fn = tools && tools[name];
+    if (typeof fn !== "function") { out[`tool.${name}`] = `(${name}: not available)`; continue; }
+    try {
+      const v = await fn(ticket);
+      out[`tool.${name}`] = typeof v === "string" ? v : v == null ? "" : String(v.text != null ? v.text : v);
+    } catch {
+      out[`tool.${name}`] = `(${name}: unavailable)`;
+    }
+  }
+  return out;
+}
+
 /** Build the {{variable}} context for a ticket + resolved knowledge. */
 export function buildPromptContext(ticket, knowledgeText, doc) {
   const from = String((ticket && ticket.from) || "");
@@ -127,7 +150,7 @@ export function buildPromptContext(ticket, knowledgeText, doc) {
  * and unit-testable. `knowledge` is the agent's resolved packs (may be []).
  */
 export async function runDefinition(ticket, doc, knowledge, deps) {
-  const { callClaude, callClaudeJSON, buildRec, buildDegradedRec, friendlyAIError } = deps;
+  const { callClaude, callClaudeJSON, buildRec, buildDegradedRec, friendlyAIError, tools } = deps;
   const agent = doc.agent;
   const output = agent.output || {};
   const model = agent.model || {};
@@ -137,9 +160,13 @@ export async function runDefinition(ticket, doc, knowledge, deps) {
 
   const items = selectItemsForTicket(knowledge, ticket);
   const knowledgeText = renderKnowledge(items);
-  const ctx = buildPromptContext(ticket, knowledgeText, doc);
+  // Resolve declared tool providers into {{tool.*}} context (oKF-7).
+  const toolCtx = await resolveTools(ticket, doc, tools);
+  const ctx = { ...buildPromptContext(ticket, knowledgeText, doc), ...toolCtx };
   const system = renderTemplate(agent.prompt.systemTemplate, ctx);
   const precedentLinks = output.precedentLinks || [];
+  // Deterministic concerns prepended to every rec, whatever Claude returns.
+  const alwaysConcerns = (output.alwaysConcerns || []).map((c) => renderTemplate(c, ctx));
 
   // Path 1 — structured JSON (when the def asks for it).
   if (agent.prompt.mode === "json") {
@@ -154,7 +181,7 @@ export async function runDefinition(ticket, doc, knowledge, deps) {
         suggestedAction: mapConfidenceToAction(confidence, output),
         draftedResponse: result.draftedResponse || "",
         reasoning: result.reasoning || "AI recommendation.",
-        concerns: Array.isArray(result.concerns) ? result.concerns : [],
+        concerns: [...alwaysConcerns, ...(Array.isArray(result.concerns) ? result.concerns : [])],
         precedentLinks,
         alternativeTone: result.alternativeTone || null,
       });
@@ -182,7 +209,7 @@ export async function runDefinition(ticket, doc, knowledge, deps) {
       suggestedAction: mapConfidenceToAction(confidence, output),
       draftedResponse: clean,
       reasoning: agent.prompt.mode === "text" ? "AI recommendation." : "AI recommendation (produced as plain text).",
-      concerns: [],
+      concerns: [...alwaysConcerns],
       precedentLinks,
     });
   } catch (e2) {
@@ -190,7 +217,7 @@ export async function runDefinition(ticket, doc, knowledge, deps) {
     return buildDegradedRec(agent.key, {
       draftedResponse: "",
       reasoning: "Claude unavailable — surfaced for manual review (not auto-send).",
-      concerns: [friendlyAIError ? friendlyAIError(e2) : "AI unavailable", "Manual review required."],
+      concerns: [...alwaysConcerns, friendlyAIError ? friendlyAIError(e2) : "AI unavailable", "Manual review required."],
       precedentLinks,
     });
   }
