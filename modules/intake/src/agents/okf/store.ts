@@ -14,6 +14,7 @@ import {
   serializeDocument,
   canonicalStringify,
 } from "./serialize";
+import { staticDefForKey } from "./static-defs";
 import type { OkfDocument, OkfPack } from "./schema";
 
 interface Actor {
@@ -128,6 +129,32 @@ export async function getAgentDocument(
   const row = await loadDefRow(organizationId, agentKey);
   if (!row) return null;
   return agentFromRow(row, await loadPacks(organizationId, agentKey));
+}
+
+/**
+ * The Designer's read path: return the editable document, LAZY-SEEDING it
+ * from the code-shipped static definition when this org has no row yet
+ * (a fresh / un-seeded org, or one created after the oKF seed landed). This
+ * is why the Agent Designer opens for any of the 11 agents in any org —
+ * the same "fall back to the static def" resilience the client runtime
+ * route has. Subsequent save/publish then persist normally.
+ */
+export async function getOrSeedAgentDocument(
+  organizationId: string,
+  agentKey: string,
+): Promise<OkfDocument | null> {
+  const existing = await getAgentDocument(organizationId, agentKey);
+  if (existing) return existing;
+  const stat = staticDefForKey(agentKey);
+  if (!stat) return null;
+  try {
+    await seedAgentDefinition(organizationId, stat);
+  } catch {
+    // If the lazy seed fails (e.g. read-only replica), still let the
+    // Designer show the static definition so it's never a dead modal.
+    return normalizeDocument(stat);
+  }
+  return (await getAgentDocument(organizationId, agentKey)) ?? normalizeDocument(stat);
 }
 
 export async function listAgentDefinitions(organizationId: string): Promise<AgentDefinitionSummary[]> {
