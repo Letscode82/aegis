@@ -84,19 +84,26 @@ export function routeToAgent(ticket,enabledSettings,preferredAgentId){
   return null;
 }
 
-// Fetch the agent's published oKF definition and, if it opts into "okf"
-// execution, run it through the generic runtime. Returns the recommendation,
-// or null to signal "not an okf agent / unavailable → use process()".
-// Client-side only (relative fetch needs a page origin); server-created
-// tickets run process() directly, which is behaviourally equivalent.
+// Resolve an agent's published oKF document. Default resolver is the
+// client-side fetch (needs a page origin); the server runner overrides it
+// via setOkfDocResolver() with a direct DB read, so server-created tickets
+// take the SAME oKF path as the browser (unified execution). Same
+// injection pattern as setCounterpartyResolver / setSanctionsResolver.
+async function defaultFetchOkfDoc(agentId){
+  const r=await fetch(`/api/intake/agent-def/${agentId}`);
+  if(!r.ok) return null;
+  const d=await r.json();
+  return d&&d.ok?d.document:null;
+}
+let okfDocResolver=defaultFetchOkfDoc;
+export function setOkfDocResolver(fn){ okfDocResolver=fn||defaultFetchOkfDoc; }
+
+// If the agent's published definition opts into "okf" execution, run it
+// through the generic runtime. Returns the recommendation, or null to
+// signal "not an okf agent / unavailable → use process()".
 async function tryOkfExecution(agent,ticket){
   let doc=null;
-  try{
-    const r=await fetch(`/api/intake/agent-def/${agent.id}`);
-    if(!r.ok) return null;
-    const d=await r.json();
-    doc=d&&d.ok?d.document:null;
-  }catch{ return null; }
+  try{ doc=await okfDocResolver(agent.id); }catch{ return null; }
   if(!doc||!doc.agent||doc.agent.executionMode!=="okf") return null;
   return runDefinition(ticket,doc,doc.knowledge,{callClaude,callClaudeJSON,buildRec,buildDegradedRec,friendlyAIError});
 }
