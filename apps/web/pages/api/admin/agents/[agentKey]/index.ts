@@ -11,7 +11,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission } from "@aegis/auth";
 import {
-  getAgentDocument,
+  getOrSeedAgentDocument,
   saveAgentDraft,
   publishAgentDefinition,
   listAgentDefinitionVersions,
@@ -25,7 +25,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!agentKey) return res.status(400).json({ ok: false, error: "agentKey required" });
 
   if (req.method === "GET") {
-    const document = await getAgentDocument(actor.organizationId, agentKey);
+    // Lazy-seeds from the static def when this org has no row yet, so the
+    // Designer always opens (never a stuck "Loading…" modal).
+    const document = await getOrSeedAgentDocument(actor.organizationId, agentKey);
     if (!document) return res.status(404).json({ ok: false, error: "Unknown agent" });
     const versions = await listAgentDefinitionVersions(actor.organizationId, agentKey);
     return res.status(200).json({ ok: true, document, versions });

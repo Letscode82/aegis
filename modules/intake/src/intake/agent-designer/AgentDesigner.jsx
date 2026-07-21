@@ -46,16 +46,22 @@ export function AgentDesigner({ agentKey, agentName, onClose }) {
   const [versions, setVersions] = useState([]);
   const [tab, setTab] = useState("Identity");
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(null);
   const [previewTicket, setPreviewTicket] = useState({ from: "Dana Lee", dept: "Engineering", type: "", desc: "" });
 
   const load = useCallback(() => {
     setLoading(true);
+    setLoadError(null);
     fetch(`/api/admin/agents/${agentKey}`)
-      .then((r) => (r.ok ? r.json() : Promise.reject(new Error("load failed"))))
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok || !d.ok || !d.document) throw new Error(d.error || `Couldn't load (HTTP ${r.status})`);
+        return d;
+      })
       .then((d) => { setDoc(d.document); setVersions(d.versions || []); if (!previewTicket.type) setPreviewTicket((t) => ({ ...t, type: d.document?.agent?.name || "" })); })
-      .catch(() => toast.error("Could not load this agent."))
+      .catch((e) => { setLoadError(String(e.message || e)); toast.error("Could not load this agent."); })
       .finally(() => setLoading(false));
   }, [agentKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -171,8 +177,17 @@ export function AgentDesigner({ agentKey, agentName, onClose }) {
           <button onClick={onClose} style={{ background: "transparent", border: "none", color: C.t3, fontSize: 20, cursor: "pointer", lineHeight: 1 }}>×</button>
         </div>
 
-        {loading || !a ? (
+        {loading ? (
           <div style={{ padding: 40, textAlign: "center", color: C.t3, fontFamily: M, fontSize: 12 }}>Loading…</div>
+        ) : loadError || !a ? (
+          <div style={{ padding: 32, textAlign: "center" }}>
+            <div style={{ fontSize: 12, color: C.rd, fontFamily: M, marginBottom: 6 }}>Couldn't open the Agent Designer</div>
+            <div style={{ fontSize: 11, color: C.t3, fontFamily: F, marginBottom: 16, lineHeight: 1.5 }}>{loadError || "This agent has no definition."} {loadError && /403|denied|permission/i.test(loadError) ? "You may not have the admin:agents:manage permission." : ""}</div>
+            <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+              <button onClick={load} style={{ background: "transparent", border: `1px solid ${C.tl}`, color: C.tl, fontFamily: M, fontSize: 10.5, fontWeight: 700, padding: "7px 14px", borderRadius: 3, cursor: "pointer" }}>Retry</button>
+              <button onClick={onClose} style={{ background: "transparent", border: `1px solid ${C.br}`, color: C.t3, fontFamily: M, fontSize: 10.5, padding: "7px 14px", borderRadius: 3, cursor: "pointer" }}>Close</button>
+            </div>
+          </div>
         ) : (
           <>
             {/* Tabs */}
