@@ -1794,85 +1794,8 @@ function IntakeDetail({req,store,onBack}){
 // ── New Request Form (wired with real AI + persistence) ──
 
 // ══════════════════════════════════════════════════
-// v7.2 Preserved Sub-tabs: Kanban · SLA · Routing · Self-Service
+// Preserved Sub-tabs: SLA · Routing · Self-Service
 // ══════════════════════════════════════════════════
-function KanbanTab({store}){
-  const[dragging,setDragging]=useState(null);
-  const tickets=store.tickets;
-  const stages=[
-    {id:"new",label:"New",c:C.bl,desc:"Just submitted"},
-    {id:"triage",label:"AI Triage",c:C.am,desc:"Being classified"},
-    {id:"assigned",label:"Assigned",c:C.pp,desc:"Owner notified"},
-    {id:"review",label:"In Review",c:C.tl,desc:"Active work"},
-    {id:"complete",label:"Complete",c:C.gn,desc:"Resolved"},
-  ];
-
-  const onDrop=async(stageId)=>{
-    if(!dragging) return;
-    const ticket=tickets.find(t=>t.id===dragging);
-    if(!ticket||ticket.stage===stageId){ setDragging(null); return; }
-    const stageIdx=stages.findIndex(s=>s.id===stageId);
-    const wf=ticket.workflow.map((s,i)=>({
-      ...s,
-      done:i<stageIdx,
-      active:i===stageIdx&&stageId!=="complete",
-    }));
-    if(stageId==="complete") wf.forEach(s=>{s.done=true;s.active=false});
-    const statusMap={new:"Triage",triage:"Triage",assigned:"Assigned",review:"In Review",complete:"Completed"};
-    await store.updateTicket(dragging,{stage:stageId,status:statusMap[stageId],workflow:wf});
-    setDragging(null);
-  };
-
-  return <div>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-      <div style={{fontSize:11,color:C.t3,fontFamily:M,letterSpacing:.5}}>Drag cards between columns — changes persist to the ticket store · {tickets.length} active matters</div>
-      <div style={{display:"flex",gap:8,fontSize:10,fontFamily:M,color:C.t4,letterSpacing:1,textTransform:"uppercase"}}>
-        <span><Dot c={C.gn}/> On Track</span>
-        <span><Dot c={C.am}/> At Risk</span>
-        <span><Dot c={C.rd}/> Breached</span>
-      </div>
-    </div>
-
-    <div style={{overflowX:"auto"}}>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(5,minmax(190px,1fr))",gap:10,height:"calc(100vh - 330px)",minHeight:520,minWidth:990}}>
-      {stages.map((stage,si)=>{
-        const col=tickets.filter(it=>it.stage===stage.id);
-        return <div key={stage.id} onDragOver={e=>e.preventDefault()} onDrop={()=>onDrop(stage.id)} style={{background:C.s1,border:`1px solid ${C.br}`,borderTop:`3px solid ${stage.c}`,borderRadius:"0 0 6px 6px",display:"flex",flexDirection:"column",overflow:"hidden",animation:`fu .25s ease ${si*50}ms both`}}>
-          <div style={{padding:"10px 12px",borderBottom:`1px solid ${C.br}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div>
-              <div style={{fontSize:11,fontWeight:700,color:stage.c,fontFamily:M,letterSpacing:1.2,textTransform:"uppercase"}}>{stage.label}</div>
-              <div style={{fontSize:9,color:C.t4,marginTop:1}}>{stage.desc}</div>
-            </div>
-            <div style={{padding:"2px 8px",background:stage.c+"22",color:stage.c,fontSize:11,fontFamily:M,fontWeight:700,borderRadius:3}}>{col.length}</div>
-          </div>
-          <div style={{flex:1,overflowY:"auto",padding:8,display:"flex",flexDirection:"column",gap:7}}>
-            {col.length===0?<div style={{fontSize:10,color:C.t4,textAlign:"center",padding:"30px 8px",fontFamily:M,letterSpacing:.5}}>— empty —</div>:col.map((it,i)=><div key={it.id} draggable onDragStart={()=>setDragging(it.id)} onDragEnd={()=>setDragging(null)} style={{padding:10,background:C.cd,border:`1px solid ${C.br}`,borderLeft:`3px solid ${pc(it.priority)}`,borderRadius:4,cursor:"grab",opacity:dragging===it.id?.4:1,transition:"opacity .15s,border-color .15s",animation:`fu .2s ease ${i*30}ms both`}} onMouseEnter={e=>e.currentTarget.style.borderColor=C.brL} onMouseLeave={e=>e.currentTarget.style.borderColor=C.br}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:5}}>
-                <span style={{fontSize:9,color:it.seeded?C.cy:C.pp,fontFamily:M,fontWeight:600,letterSpacing:.5}}>{it.id}</span>
-                <Dot c={it.slaStatus==="Overdue"?C.rd:it.slaStatus==="At Risk"?C.am:C.gn} p={it.slaStatus!=="On Track"}/>
-              </div>
-              <div style={{fontSize:10.5,color:C.t1,lineHeight:1.4,marginBottom:6,fontWeight:500,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{it.desc}</div>
-              <div style={{display:"flex",gap:4,marginBottom:5,flexWrap:"wrap"}}>
-                <Pill t={it.priority} c={pc(it.priority)}/>
-                <Pill t={it.type} c={C.pp}/>
-              </div>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:9,color:C.t4,fontFamily:M,borderTop:`1px solid ${C.br}33`,paddingTop:5,marginTop:3}}>
-                <span style={{color:C.t3}}>{it.from.split(",")[0]}</span>
-                <span style={{color:it.slaStatus==="Overdue"?C.rd:it.slaStatus==="At Risk"?C.am:C.gn,fontWeight:600}}>{it.age}</span>
-              </div>
-            </div>)}
-          </div>
-          <div style={{padding:"6px 10px",borderTop:`1px solid ${C.br}`,fontSize:9,color:C.t4,fontFamily:M,display:"flex",justifyContent:"space-between"}}>
-            <span>{col.filter(c=>c.priority==="Critical").length} critical</span>
-            <span>{col.length} total</span>
-          </div>
-        </div>;
-      })}
-    </div>
-    </div>
-  </div>;
-}
-
 // ── SLA Operations panel (P3-lite — server-aggregated) ──────────────
 // Executive read over /api/intake/sla-ops: queue health computed
 // server-side from submittedAt + slaHours (not the lagging client
@@ -2550,9 +2473,9 @@ function SelfServeTab({onFileTicket}){
 }
 
 // ══════════════════════════════════════════════════
-// MAIN MODULE — IntakeView (merged v7.2 + v8)
-// v8 tabs: Cockpit, NewRequest
-// v7.2 tabs preserved: Inbox, Kanban, SLA, Routing, Self-Service
+// MAIN MODULE — IntakeView
+// Tabs: My Work, Inbox, Triage Cockpit, New Request, SLA, Routing,
+// Self-Service, Agents
 // ══════════════════════════════════════════════════
 export function IntakeView(){
   const[tab,setTab]=useState("cockpit"); // default to Cockpit — v8 showcase
@@ -2629,7 +2552,6 @@ export function IntakeView(){
     {id:"mywork",label:"My Work",icon:"☰"},
     {id:"inbox",label:"Inbox",icon:"◉"},
     {id:"cockpit",label:"Triage Cockpit",icon:"⌘"},
-    {id:"kanban",label:"Kanban",icon:"◱"},
     {divider:true},
     {id:"new",label:"New Request",icon:"＋"},
     {id:"myrequests",label:"My Requests",icon:"◍"},
@@ -2705,7 +2627,6 @@ export function IntakeView(){
 
     {/* v7.2 preserved tabs */}
     {tab==="inbox"&&<InboxTab store={store} sel={sel} setSel={setSel}/>}
-    {tab==="kanban"&&<KanbanTab store={store}/>}
     {tab==="sla"&&<SLATab store={store}/>}
     {tab==="poolops"&&<PoolOpsTab/>}
     {tab==="routing"&&<RoutingTab rules={routingRules} loading={routingRules===null&&!routingError} error={routingError} onRuleUpdated={onRuleUpdated} onRuleCreated={onRuleCreated} onRuleDeleted={onRuleDeleted} assignees={routingAssignees} canManage={canManageRouting}/>}

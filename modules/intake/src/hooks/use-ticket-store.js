@@ -61,23 +61,19 @@ export function useTicketStore(agentSettings){
   // Add ticket + run agent + save recommendation (the copilot/form
   // submit end-to-end path).
   //
-  // Phase 1b — visible stage progression on the Kanban:
-  //   1. `addTicket` lands the row at stage="new" (NEW column).
-  //   2. Optimistic local flip to stage="triage" → ticket animates
-  //      to the AI TRIAGE column while the agent call is in flight.
-  //      Not persisted yet — purely a visual frame.
+  // Phase 1b — visible stage progression on the ticket lifecycle:
+  //   1. `addTicket` lands the row at stage="new".
+  //   2. Optimistic local flip to stage="triage" while the agent call
+  //      is in flight. Not persisted yet — purely a visual frame.
   //   3. After the agent returns, patch stage="assigned" together
   //      with the recommendation, persist once. Server emits an
   //      `intake.ticket.stage_advanced` audit row on the new→assigned
   //      transition.
   //
   // The patch in step 3 also syncs `status` and `workflow` so the
-  // ticket detail page agrees with the Kanban — without this, the
-  // detail-view workflow strip stays "Agent Analysis active" forever
-  // because nothing else updates that array post-creation. The same
-  // mapping the Kanban's drag-drop handler uses for stage→status
-  // (`statusMap` in `KanbanTab`) is mirrored here so both code paths
-  // produce identical state.
+  // ticket detail page's workflow strip advances — without this it
+  // stays "Agent Analysis active" forever because nothing else updates
+  // that array post-creation.
   const addTicketAndRunAgent=useCallback(async(ticket,preferredAgentId)=>{
     const created=await addTicket(ticket);
     // Step 2 — optimistic "triage" flash. Functional setState avoids
