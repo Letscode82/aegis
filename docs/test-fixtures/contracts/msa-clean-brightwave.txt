@@ -1,0 +1,51 @@
+Subject: Please review — Brightwave MSA (vendor paper, looks standard)
+
+Requester: Dana Okoro, Procurement
+Counterparty: Brightwave Analytics, Inc.
+Please do a first-pass review of the MSA below before I route it to the
+business owner.
+
+---
+
+MASTER SERVICES AGREEMENT
+
+This Master Services Agreement ("Agreement") is entered into as of the
+Effective Date by and between the Customer and Brightwave Analytics, Inc.
+("Supplier").
+
+1. SERVICES. Supplier will provide the professional services described in
+   each Statement of Work executed under this Agreement.
+
+2. FEES; PAYMENT. Customer will pay undisputed invoices within forty-five
+   (45) days of receipt of a valid invoice (Net 45).
+
+3. TERM; TERMINATION. The initial term is twenty-four (24) months. Either
+   party may terminate for convenience on thirty (30) days' prior written
+   notice. Either party may terminate for material breach uncured after
+   thirty (30) days' notice.
+
+4. LIMITATION OF LIABILITY. Except for the Excluded Claims, each party's
+   aggregate liability is capped at the fees paid or payable in the twelve
+   (12) months preceding the claim. "Excluded Claims" (uncapped) means
+   breaches of confidentiality, indemnification obligations, infringement
+   of intellectual property, and gross negligence or willful misconduct.
+
+5. INDEMNIFICATION. Each party will indemnify the other against third-party
+   claims arising from its own breach or negligence. Indemnity is limited to
+   third-party claims.
+
+6. INTELLECTUAL PROPERTY. Supplier hereby assigns to Customer all right,
+   title, and interest in deliverables created for Customer. Supplier grants
+   Customer a license to any Supplier background IP embedded in the
+   deliverables.
+
+7. WARRANTY. Services carry a ninety (90) day warranty; Customer has a
+   thirty (30) day acceptance period for each deliverable.
+
+8. GOVERNING LAW. This Agreement is governed by the laws of the State of
+   Delaware.
+
+9. ASSIGNMENT. Neither party may assign without the other's consent, except
+   to an affiliate or successor in a merger or acquisition.
+
+IN WITNESS WHEREOF, the parties have executed this Agreement.

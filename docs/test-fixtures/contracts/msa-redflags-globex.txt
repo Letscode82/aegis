@@ -1,0 +1,48 @@
+Subject: Review this Globex MSA — sales wants it signed this week
+
+Requester: Tom Hargreave, Sales Ops
+Counterparty: Globex Corporation
+The customer sent their paper. Can you review before Friday? They say the
+terms are "standard."
+
+---
+
+MASTER SERVICES AGREEMENT
+
+This Master Services Agreement is entered into between the Customer and
+Globex Corporation ("Provider").
+
+1. FEES; PAYMENT. Customer shall pay all invoices within ninety (90) days
+   (Net 90). Provider may charge 2% monthly interest on late amounts.
+
+2. TERM; RENEWAL. The initial term is three (3) years and shall
+   automatically renew for successive three (3) year terms unless Customer
+   gives notice of non-renewal at least one hundred eighty (180) days before
+   the end of the then-current term. Fees may increase each renewal at
+   Provider's then-current list pricing.
+
+3. TERMINATION. Customer may not terminate for convenience. Provider may
+   terminate at any time on ten (10) days' notice.
+
+4. LIMITATION OF LIABILITY. Provider's liability under this Agreement is
+   unlimited for all claims. Customer waives any limitation of its own
+   liability.
+
+5. INDEMNIFICATION. Customer shall indemnify, defend, and hold harmless
+   Provider from any and all claims arising out of or related to this
+   Agreement, including first-party claims and Customer's own losses.
+
+6. INTELLECTUAL PROPERTY. All work product, deliverables, and any
+   derivative works shall be jointly owned by the parties, with each free to
+   exploit without accounting to the other.
+
+7. WARRANTY. The services are provided "AS IS" without warranty of any kind.
+
+8. GOVERNING LAW. This Agreement is governed by the laws of the Cayman
+   Islands, and the parties submit to the exclusive jurisdiction of the
+   courts of the Provider's principal place of business.
+
+9. ASSIGNMENT. Provider may freely assign this Agreement to any third party
+   without notice or consent.
+
+IN WITNESS WHEREOF, the parties have executed this Agreement.

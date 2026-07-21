@@ -1,0 +1,22 @@
+Subject: NDA request — Snowflake data pilot
+
+Hi Legal,
+
+We're kicking off a 60-day evaluation with Snowflake to test their
+data-warehouse platform against our analytics workload. I need a standard
+mutual NDA in place before we share sample datasets and architecture
+diagrams.
+
+Details:
+- Counterparty: Snowflake Inc.
+- Type: mutual NDA
+- Purpose: evaluation of the Snowflake platform for internal analytics
+- Term: 2 years is fine
+- No unusual terms — our standard mutual template should work.
+
+Can you turn this around this week? Happy to route it through DocuSign once
+it's ready.
+
+Thanks,
+Priya Raman
+Data Platform, Engineering
