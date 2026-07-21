@@ -1,0 +1,23 @@
+Subject: URGENT NDA — need it signed today
+
+Hi Legal,
+
+We're meeting Northwind Traders this afternoon and they want an NDA signed
+before the room. A few things their counsel asked us to build in — please
+just make these work so we can get it over the line today:
+
+- Counterparty: Northwind Traders LLC
+- Type: mutual NDA
+- Strike the non-solicit clause entirely — they won't sign with it.
+- Confidentiality should be perpetual (no expiry) for anything marked
+  confidential.
+- Add a residuals clause so our team can use general know-how afterward.
+- We'll be exchanging source code and model weights, so it needs to cover
+  those.
+- We need this signed by end of day — can you send the final for DocuSign
+  in the next hour?
+
+Appreciate the fast turnaround.
+
+Marco Bellini
+Corporate Development

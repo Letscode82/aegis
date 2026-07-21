@@ -1,0 +1,42 @@
+Subject: Review — Data Processing Addendum (Brightwave)
+
+Requester: Dana Okoro, Procurement
+Counterparty: Brightwave Analytics, Inc.
+This DPA accompanies the Brightwave MSA. Please review the data-protection
+terms.
+
+---
+
+DATA PROCESSING ADDENDUM
+
+This Data Processing Addendum ("DPA") forms part of the Master Services
+Agreement between the Customer ("Controller") and Brightwave Analytics, Inc.
+("Processor").
+
+1. SCOPE. Processor processes personal data only on documented instructions
+   from Controller and solely to provide the Services.
+
+2. SUB-PROCESSORS. Processor may engage sub-processors provided it gives
+   Controller thirty (30) days' prior notice of any addition or replacement
+   and a right to object.
+
+3. SECURITY. Processor implements appropriate technical and organisational
+   measures appropriate to the risk, including encryption in transit and at
+   rest.
+
+4. INTERNATIONAL TRANSFERS. Where personal data of EU/UK data subjects is
+   transferred outside the EEA/UK, the parties will rely on the Standard
+   Contractual Clauses, incorporated by reference.
+
+5. DATA-SUBJECT REQUESTS. Processor will assist Controller in responding to
+   data-subject requests within the timelines required by applicable law.
+
+6. AUDIT. Controller may audit Processor's compliance once per year on
+   reasonable notice.
+
+7. DELETION. On termination, Processor will delete or return all personal
+   data at Controller's election.
+
+8. BREACH NOTIFICATION. Processor will notify Controller without undue delay,
+   and in any event within seventy-two (72) hours, of becoming aware of a
+   personal-data breach.
