@@ -191,7 +191,7 @@ export const STATIC_AGENT_DEFS = [
     description: "Selects the right per-contract-type playbook (MSA, DPA, SaaS, supply…) and reviews against it; unmatched types fall through to the generalist reviewer.",
     displayOrder: 3,
     routing: { matchCategory: ["contract"], matchType: ["msa", "dpa", "saas", "supply", "license"], matchKeyword: [], excludeKeyword: ["nda"], requiresDocument: false },
-    model: { maxTokens: 1800, timeout: 45000, maxDocChars: 9000 },
+    model: { maxTokens: 2600, timeout: 45000, maxDocChars: 9000 },
     output: { autoSendAtConfidence: 0.85, degradedConfidence: 0.4, defaultAction: "flag-for-review", autoSendAction: "approve-and-send", precedentLinks: [{ id: "CONTRACT-TYPE-CATALOG", title: "Contract-Type Playbook Catalog" }] },
     prompt: {
       mode: "json",
@@ -211,7 +211,7 @@ export const STATIC_AGENT_DEFS = [
     displayOrder: 4,
     executionMode: "okf",
     routing: { matchCategory: ["contract review", "msa", "sow", "redline"], matchType: ["contract review", "contract"], matchKeyword: [], excludeKeyword: ["nda"], requiresDocument: false },
-    model: { maxTokens: 1800, timeout: 45000, maxDocChars: 9000 },
+    model: { maxTokens: 2600, timeout: 45000, maxDocChars: 9000 },
     output: { autoSendAtConfidence: 0.85, degradedConfidence: 0.4, defaultAction: "flag-for-review", autoSendAction: "approve-and-send", precedentLinks: [{ id: "PLAYBOOK-MSA-v2", title: "MSA / Contract Playbook" }] },
     prompt: {
       mode: "json",
