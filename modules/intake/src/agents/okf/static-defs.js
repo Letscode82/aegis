@@ -36,27 +36,32 @@ import {
 const ATTORNEY_RISK = "Attorney sign-off required before execution — this is a first-pass review.";
 
 // Compact contract playbook → oKF CLAUSE items (real migration of the
-// contract-review agent's inline CONTRACT_PLAYBOOK).
+// contract-review agent's inline CONTRACT_PLAYBOOK). Each tuple is
+// [code, title, standardText, risk, fallbackText, guidance] — fallbackText +
+// guidance carry the richer negotiation positions the Contracts 📖 Playbook
+// screen renders (this pack IS that screen's store now).
 const CONTRACT_CLAUSES = [
-  ["C.LIAB.CAP", "Limitation of liability", "Cap = 12 months' fees; uncapped carve-outs for IP infringement, confidentiality breach, indemnity, gross negligence/willful misconduct. Reject unlimited liability or no cap.", "HIGH"],
-  ["C.INDEMNITY", "Indemnification", "Mutual, third-party claims only. Reject unlimited or first-party indemnities.", "HIGH"],
-  ["C.GOV.LAW", "Governing law", "Delaware preferred; NY/CA acceptable. Avoid counterparty's home jurisdiction for non-US.", "MEDIUM"],
-  ["C.PAYMENT", "Payment terms", "Net 45 (Net 30 only with ≥2% prompt-pay discount).", "LOW"],
-  ["C.AUTORENEW", "Auto-renewal", "Acceptable only if non-renewal notice ≤60 days AND uplift capped.", "MEDIUM"],
-  ["C.TERM.CONV", "Termination for convenience", "We want 30 days' notice. Pure term-lock with no exit = flag.", "MEDIUM"],
-  ["C.PRICE.INC", "Price increases", "Capped at lesser of 5% or CPI.", "MEDIUM"],
-  ["C.ASSIGN", "Assignment", "No assignment without consent (affiliate/M&A successor OK); termination right on change of control to a competitor.", "MEDIUM"],
-  ["C.WARRANTY", "Warranty / acceptance", "90-day warranty + 30-day acceptance. Avoid AS-IS for paid deliverables.", "MEDIUM"],
-  ["C.IP", "Intellectual property", "Present-tense assignment of deliverables; license-back for background IP.", "HIGH"],
+  ["C.LIAB.CAP", "Limitation of liability", "Cap = 12 months' fees; uncapped carve-outs for IP infringement, confidentiality breach, indemnity, gross negligence/willful misconduct. Reject unlimited liability or no cap.", "HIGH", "24 months' fees with the same carve-outs.", "Reject unlimited liability or no cap. Confirm the carve-outs survive the cap."],
+  ["C.INDEMNITY", "Indemnification", "Mutual, third-party claims only. Reject unlimited or first-party indemnities.", "HIGH", "One-way indemnity from the vendor covering third-party IP and data-breach claims.", "Reject unlimited or first-party indemnities."],
+  ["C.GOV.LAW", "Governing law", "Delaware preferred; NY/CA acceptable. Avoid counterparty's home jurisdiction for non-US.", "MEDIUM", "New York or California.", "Avoid the counterparty's home jurisdiction for non-US counterparties."],
+  ["C.PAYMENT", "Payment terms", "Net 45 (Net 30 only with ≥2% prompt-pay discount).", "LOW", "Net 30 with a prompt-pay discount of at least 2%.", "Reject advance / upfront payment for services."],
+  ["C.AUTORENEW", "Auto-renewal", "Acceptable only if non-renewal notice ≤60 days AND uplift capped.", "MEDIUM", "90-day notice window with a CPI-capped uplift.", "Reject evergreen renewal with no notice window or an uncapped uplift."],
+  ["C.TERM.CONV", "Termination for convenience", "We want 30 days' notice. Pure term-lock with no exit = flag.", "MEDIUM", "60 days' written notice.", "Pure term-lock with no exit right is a flag."],
+  ["C.PRICE.INC", "Price increases", "Capped at lesser of 5% or CPI.", "MEDIUM", "CPI-linked with an annual cap of 5%.", "Reject uncapped or vendor-discretion price increases."],
+  ["C.ASSIGN", "Assignment", "No assignment without consent (affiliate/M&A successor OK); termination right on change of control to a competitor.", "MEDIUM", "Consent not to be unreasonably withheld.", "Reject free assignment to any third party."],
+  ["C.WARRANTY", "Warranty / acceptance", "90-day warranty + 30-day acceptance. Avoid AS-IS for paid deliverables.", "MEDIUM", "60-day warranty.", "Avoid AS-IS for paid deliverables."],
+  ["C.IP", "Intellectual property", "Present-tense assignment of deliverables; license-back for background IP.", "HIGH", "Assignment on final payment.", "Reject ambiguous, undefined, or joint ownership of deliverables / derivative works."],
 ];
 
 function clauseItems() {
-  return CONTRACT_CLAUSES.map(([code, title, body, risk], i) => ({
+  return CONTRACT_CLAUSES.map(([code, title, body, risk, fallbackText, guidance], i) => ({
     code,
     kind: "CLAUSE",
     title,
     bodyMarkdown: body,
-    data: { severityIfDeviated: risk },
+    // riskIfDeviated is the field the Contracts playbook editor writes;
+    // severityIfDeviated is kept as the legacy alias the reader also accepts.
+    data: { riskIfDeviated: risk, severityIfDeviated: risk, fallbackText, guidance },
     cohortTags: [],
     sortOrder: i,
   }));
