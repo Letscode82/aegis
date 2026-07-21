@@ -12,7 +12,7 @@
  * from @aegis/intake. ESLint will enforce that once a second module exists.
  */
 
-// Cockpit / Copilot / Inbox / Kanban — the Intake module's React UI.
+// Cockpit / Copilot / Inbox — the Intake module's React UI.
 export { IntakeView } from "./intake/index.jsx";
 
 // AI feature components used by the v8 demo across views.
