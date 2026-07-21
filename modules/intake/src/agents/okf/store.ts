@@ -94,6 +94,7 @@ function agentFromRow(row: DefRow, knowledge: OkfPack[]): OkfDocument {
       risks: row.risks,
       playbook: row.playbookJson,
       approverRole: row.approverRole,
+      executionMode: row.executionMode,
     },
     knowledge,
   });
@@ -169,6 +170,7 @@ async function writeAgentColumns(
     risks: a.risks,
     playbookJson: a.playbook as never,
     approverRole: a.approverRole,
+    executionMode: a.executionMode,
     ...(extra.status ? { status: extra.status } : {}),
     ...(extra.publishedVersion != null ? { publishedVersion: extra.publishedVersion } : {}),
     ...(extra.draftJson !== undefined ? { draftJson: extra.draftJson as never } : {}),

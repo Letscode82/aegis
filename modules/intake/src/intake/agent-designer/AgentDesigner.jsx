@@ -13,7 +13,7 @@ import { useToast } from "@aegis/ui";
 // chain-sealed). It configures WHAT the agent does; the human-approval
 // gate is never one of the knobs.
 
-const TABS = ["Identity", "Routing", "Model", "Prompt", "Knowledge", "Output", "Risks", "Versions"];
+const TABS = ["Identity", "Routing", "Model", "Prompt", "Knowledge", "Output", "Risks", "Governance", "Versions"];
 
 const lbl = { fontSize: 9.5, fontFamily: M, color: C.t3, letterSpacing: 0.6, textTransform: "uppercase", display: "block", marginBottom: 4 };
 const inputStyle = { width: "100%", background: C.bg, border: `1px solid ${C.br}`, borderRadius: 4, color: C.t1, fontFamily: F, fontSize: 12, padding: "7px 9px", boxSizing: "border-box" };
@@ -193,7 +193,6 @@ export function AgentDesigner({ agentKey, agentName, onClose }) {
                     <Field label="Display order"><input type="number" style={inputStyle} value={a.displayOrder} onChange={(e) => set(["agent", "displayOrder"], Number(e.target.value))} /></Field>
                   </div>
                   <Field label="Description"><textarea rows={2} style={inputStyle} value={a.description || ""} onChange={(e) => set(["agent", "description"], e.target.value)} /></Field>
-                  <Field label="Approver role" hint="Optional RBAC hint shown to reviewers."><input style={inputStyle} value={a.approverRole || ""} onChange={(e) => set(["agent", "approverRole"], e.target.value || null)} /></Field>
                   <div style={{ display: "flex", gap: 24, marginTop: 6 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}><Toggle on={a.enabled} onClick={() => set(["agent", "enabled"], !a.enabled)} /><span style={{ fontSize: 11, color: C.t2, fontFamily: M }}>Enabled</span></div>
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}><Toggle on={a.productionReady} onClick={() => set(["agent", "productionReady"], !a.productionReady)} /><span style={{ fontSize: 11, color: C.t2, fontFamily: M }}>Production-ready</span></div>
@@ -295,6 +294,31 @@ export function AgentDesigner({ agentKey, agentName, onClose }) {
                     </div>
                   ))}
                   <button onClick={() => set(["agent", "risks"], [...(a.risks || []), ""])} style={{ background: "transparent", border: `1px dashed ${C.br}`, color: C.t3, fontFamily: M, fontSize: 10, padding: "6px 12px", borderRadius: 4, cursor: "pointer" }}>+ Add risk</button>
+                </>
+              )}
+
+              {tab === "Governance" && (
+                <>
+                  <div style={{ fontSize: 10, color: C.t3, fontFamily: F, marginBottom: 12, lineHeight: 1.5 }}>How this agent runs and who signs off. These do not weaken the human gate — every recommendation still needs a reviewer's approval regardless.</div>
+                  <Field label="Execution engine" hint="Determines whether this agent runs from its definition or its code.">
+                    <select style={inputStyle} value={a.executionMode} onChange={(e) => set(["agent", "executionMode"], e.target.value)}>
+                      <option value="code">code — run the built-in process() (tool-augmented)</option>
+                      <option value="okf">okf — run entirely from this definition (pure-prompt)</option>
+                    </select>
+                  </Field>
+                  {a.executionMode === "okf" ? (
+                    <div style={{ padding: "8px 10px", background: C.cy + "12", border: `1px solid ${C.cy}44`, borderRadius: 4, fontSize: 10, fontFamily: M, color: C.t2, lineHeight: 1.5, marginBottom: 12 }}>
+                      ✓ This agent runs from the definition — your prompt, threshold, and knowledge edits drive its live output on the next request.
+                    </div>
+                  ) : (
+                    <div style={{ padding: "8px 10px", background: C.am + "12", border: `1px solid ${C.am}55`, borderRadius: 4, fontSize: 10, fontFamily: M, color: C.t2, lineHeight: 1.5, marginBottom: 12 }}>
+                      ⚠ Switching to <b>okf</b> makes the agent run <em>prompt-only</em>. Safe only when its work is a Claude call over knowledge. Agents that do deterministic work — counterparty lookups, sanctions screening, deadline computation, or retrieval that drives routing — will LOSE that behavior if run prompt-only. Leave on <b>code</b> unless you know this agent is pure-prompt.
+                    </div>
+                  )}
+                  <Field label="Approver role" hint="RBAC hint for who reviews this agent's recommendations. Optional."><input style={inputStyle} value={a.approverRole || ""} onChange={(e) => set(["agent", "approverRole"], e.target.value || null)} /></Field>
+                  <div style={{ marginTop: 4, padding: "8px 10px", background: C.am + "12", border: `1px solid ${C.am}44`, borderRadius: 4, fontSize: 10, fontFamily: M, color: C.t2, lineHeight: 1.5 }}>
+                    ⚖ The human-approval gate is not configurable. Whatever you set here, every AI recommendation writes a PENDING decision and requires a reviewer's approve keystroke before it can act.
+                  </div>
                 </>
               )}
 
