@@ -17,6 +17,7 @@
 import { prisma, type TrademarkMark } from "@aegis/db";
 import { screenAgainstMarks, normalizeMark, type Conflict } from "./similarity";
 import { getConfiguredRegistries, searchAllRegistries } from "./registries/factory";
+import { seedTrademarkMarksIfEmpty } from "./bootstrap";
 import type { RegistryMark } from "./registries/types";
 
 export type TrademarkStatus = "conflict" | "clear" | "unavailable";
@@ -95,6 +96,15 @@ export async function screenTrademark(mark: string, classes: number[] = []): Pro
   let rows: TrademarkMark[];
   try {
     rows = await prisma.trademarkMark.findMany({ take: 5000, orderBy: { refreshedAt: "desc" } });
+    // Auto-heal: an environment that was never seeded (or seeded before the
+    // trademark table shipped) has an empty index, so every screen returns
+    // "unavailable". Lazily load the code-shipped bootstrap marks the first
+    // time we hit an empty table, then re-read — same pattern as the Agent
+    // Designer lazy-seed. Idempotent (only writes when count === 0).
+    if (rows.length === 0) {
+      await seedTrademarkMarksIfEmpty().catch(() => 0);
+      rows = await prisma.trademarkMark.findMany({ take: 5000, orderBy: { refreshedAt: "desc" } });
+    }
   } catch {
     return { ...UNAVAILABLE("Trademark screening service unreachable — manual search required."), sources };
   }

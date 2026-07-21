@@ -197,7 +197,10 @@ export async function runDefinition(ticket, doc, knowledge, deps) {
   try {
     const textTemplate = agent.prompt.fallbackTemplate || agent.prompt.systemTemplate;
     const prompt = renderTemplate(textTemplate, ctx);
-    const prose = await callClaude(prompt, { maxTokens: Math.min(modelOpts.maxTokens, 1400), timeout: modelOpts.timeout });
+    // Honor the definition's token budget — a hard 1400 cap here truncated
+    // long clause-by-clause contract reviews mid-sentence. The def's maxTokens
+    // (editable in Agent Designer → Model) is the single source of truth.
+    const prose = await callClaude(prompt, { maxTokens: modelOpts.maxTokens, timeout: modelOpts.timeout });
     const clean = (prose || "").trim();
     if (!clean) throw new Error("Empty plain-text response");
     const degraded = typeof output.degradedConfidence === "number" ? output.degradedConfidence : 0.4;
