@@ -21,7 +21,6 @@ const firstLadderAgent = (def) => {
   return s ? ((s.agentConfigJson || s.agentConfig).agentKey) : null;
 };
 const sectionLabel = { fontSize: 10, fontFamily: M, color: C.t3, letterSpacing: 1.5, textTransform: "uppercase", fontWeight: 600, marginBottom: 10 };
-const stepBadge = (on) => ({ display: "flex", alignItems: "center", gap: 6, padding: "6px 12px", borderRadius: 20, fontFamily: M, fontSize: 10, letterSpacing: 1, textTransform: "uppercase", cursor: "pointer", color: on ? C.bg : C.t2, background: on ? C.cy : "transparent", border: `1px solid ${on ? C.cy : C.br}` });
 
 function Toggle({ on, onChange, label }) {
   return (
@@ -46,9 +45,9 @@ export function WorkflowsTab({ canManage }) {
     try { const v = window.localStorage.getItem("aegis:workflows:guided"); return v === null ? true : v === "1"; } catch { return true; }
   });
   useEffect(() => { try { window.localStorage.setItem("aegis:workflows:guided", guided ? "1" : "0"); } catch { /* noop */ } }, [guided]);
-  const [guidedStep, setGuidedStep] = useState(0); // 0 = intake, 1 = governance
   const [intakeTypeId, setIntakeTypeId] = useState(null); // which bound type's fields to edit (shared ladders)
   const [settingUpIntake, setSettingUpIntake] = useState(false);
+  const [intakeOpen, setIntakeOpen] = useState(false); // the optional intake form is collapsed by default
 
   const load = useCallback(async () => {
     try {
@@ -67,7 +66,7 @@ export function WorkflowsTab({ canManage }) {
   const boundTypes = (defKey) => types.filter((t) => t.workflowKey === defKey);
   const sel = defs && selKey ? defs.find((d) => d.key === selKey) : null;
 
-  const openWorkflow = (key) => { setSelKey(key); setCreating(false); setSettingUpIntake(false); setGuidedStep(0); setIntakeTypeId(null); };
+  const openWorkflow = (key) => { setSelKey(key); setCreating(false); setSettingUpIntake(false); setIntakeOpen(false); setIntakeTypeId(null); };
   const afterDefSaved = (savedDef) => { load().then(() => { if (savedDef?.key) openWorkflow(savedDef.key); }); setCreating(false); };
 
   if (error) return <div style={{ padding: 20, background: C.rdG, border: `1px solid ${C.rd}55`, borderRadius: 5, fontSize: 12, color: C.t1 }}>Couldn't load workflows: {error} <span onClick={load} style={{ marginLeft: 8, color: C.cy, cursor: "pointer", fontFamily: M }}>RETRY</span></div>;
@@ -79,7 +78,7 @@ export function WorkflowsTab({ canManage }) {
       <div style={{ fontFamily: F }}>
         <div onClick={() => setCreating(false)} style={{ cursor: "pointer", fontSize: 11, color: C.cy, fontFamily: M, marginBottom: 12 }}>← All workflows</div>
         <div style={sectionLabel}>New workflow · governance steps</div>
-        <div style={{ fontSize: 11, color: C.t3, marginBottom: 12 }}>Name it and lay out the approval / agent steps. Once saved, you'll set up the intake form (who files it and what they fill).</div>
+        <div style={{ fontSize: 11, color: C.t3, marginBottom: 12 }}>Name it and lay out the approval / agent steps — that's the workflow. You can optionally add an intake form afterwards.</div>
         {canManage
           ? <DefinitionEditor def={null} onCancel={() => setCreating(false)} onSaved={afterDefSaved} />
           : <div style={{ fontSize: 12, color: C.t3 }}>You don't have permission to create workflows.</div>}
@@ -92,81 +91,76 @@ export function WorkflowsTab({ canManage }) {
     const bt = bts.find((t) => t.id === intakeTypeId) || bts[0] || null;
     const ladderAgent = firstLadderAgent(sel);
 
-    const IntakeSection = (
-      <Card>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
-          <div style={{ ...sectionLabel, marginBottom: 0 }}>0 · Intake — who files it & what they fill</div>
-          {bts.length > 1 && (
-            <select value={bt?.id || ""} onChange={(e) => setIntakeTypeId(e.target.value)} style={{ background: C.bg, border: `1px solid ${C.br}`, borderRadius: 4, color: C.t1, fontFamily: M, fontSize: 10.5, padding: "5px 7px" }}>
-              {bts.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-            </select>
-          )}
-        </div>
-        {bts.length > 1 && <div style={{ fontSize: 10, color: C.am, fontFamily: M, marginBottom: 8 }}>⚠ {bts.length} request types share this workflow — editing the intake for <b>{bt?.name}</b> only.</div>}
-        {bt ? (
-          <>
-            <div style={{ fontSize: 12, color: C.t1, marginBottom: 4 }}>Request type: <b>{bt.name}</b>{bt.workstream ? <span style={{ color: C.t3 }}> · {bt.workstream}</span> : null}</div>
-            <div style={{ fontSize: 10.5, color: C.t3, marginBottom: 12 }}>These fields render on the New Request form when someone files a <b>{bt.name}</b>. The values flow into the ladder as context (e.g. skip a step when <code style={{ color: C.tl }}>contract_value &lt; 50000</code>).</div>
-            <FieldsEditor type={bt} onCancel={() => {}} onSaved={load} />
-          </>
-        ) : settingUpIntake ? (
-          <TypeForm initialWorkflowKey={sel.key} onCancel={() => setSettingUpIntake(false)} onSaved={() => { setSettingUpIntake(false); load(); }} />
-        ) : (
-          <div>
-            <div style={{ fontSize: 11.5, color: C.t3, lineHeight: 1.6, marginBottom: 10 }}>No intake form yet — right now anyone can file into this workflow by request type, with no structured fields. Add an intake form so requesters answer the right questions up front.</div>
-            {canManage && <button onClick={() => setSettingUpIntake(true)} style={{ padding: "7px 14px", background: C.cy, color: C.bg, border: "none", borderRadius: 4, fontFamily: M, fontSize: 10.5, letterSpacing: 1, fontWeight: 700, textTransform: "uppercase", cursor: "pointer" }}>+ Set up intake form</button>}
-          </div>
-        )}
-      </Card>
-    );
+    const showIntakeBody = intakeOpen || settingUpIntake;
+    const intakeSummary = bt
+      ? `${bt.name}${typeof bt.fields?.length === "number" ? ` · ${bt.fields.length} field${bt.fields.length === 1 ? "" : "s"}` : ""}`
+      : "None — anyone can file into this workflow by request type";
 
+    // Governance ladder — the substance of the workflow. Always primary.
     const GovernanceSection = (
       <div>
-        <div style={{ ...sectionLabel, marginTop: 4 }}>Steps · governance ladder</div>
-        <div style={{ fontSize: 10.5, color: C.t3, marginBottom: 10 }}>How the request is approved: ordered human / agent steps with roles, SLAs, and skip rules. {ladderAgent ? <>The first agent step (<b>{agentName(ladderAgent)}</b>) also processes the ticket automatically.</> : "Add an agent step to have an AI agent process the ticket."}</div>
+        <div style={{ ...sectionLabel, marginTop: 4 }}>Governance ladder · the steps</div>
+        {guided && <div style={{ fontSize: 10.5, color: C.t3, marginBottom: 10 }}>How the request is approved: ordered human / agent steps with roles, SLAs, and skip rules. {ladderAgent ? <>The first agent step (<b>{agentName(ladderAgent)}</b>) also processes the ticket automatically.</> : "Add an agent step to have an AI agent process the ticket."}</div>}
         {canManage
           ? <DefinitionEditor def={sel} onCancel={() => {}} onSaved={afterDefSaved} />
           : <div style={{ fontSize: 12, color: C.t3 }}>You don't have permission to edit steps.</div>}
       </div>
     );
 
+    // Intake form — OPTIONAL and secondary. Collapsed by default; a
+    // one-line summary the admin can expand to configure. The ladder is
+    // what matters; the intake form just captures answers up front.
+    const IntakeCard = (
+      <Card style={{ borderLeft: `3px solid ${C.br}` }}>
+        <div onClick={() => setIntakeOpen((o) => !o)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, cursor: "pointer" }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ ...sectionLabel, marginBottom: 2 }}>Intake form <span style={{ color: C.t4, fontWeight: 400, letterSpacing: 0 }}>· optional</span></div>
+            <div style={{ fontSize: 10.5, color: bt ? C.t2 : C.t4, fontFamily: M }}>{intakeSummary}</div>
+          </div>
+          <div style={{ fontSize: 10.5, color: C.cy, fontFamily: M, whiteSpace: "nowrap" }}>{showIntakeBody ? "▾ Hide" : bt ? "▸ Edit" : "▸ Add"}</div>
+        </div>
+        {showIntakeBody && (
+          <div style={{ marginTop: 12, borderTop: `1px solid ${C.br}`, paddingTop: 12 }}>
+            {bts.length > 1 && (
+              <div style={{ marginBottom: 8 }}>
+                <select value={bt?.id || ""} onChange={(e) => setIntakeTypeId(e.target.value)} style={{ background: C.bg, border: `1px solid ${C.br}`, borderRadius: 4, color: C.t1, fontFamily: M, fontSize: 10.5, padding: "5px 7px" }}>
+                  {bts.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                </select>
+                <div style={{ fontSize: 10, color: C.am, fontFamily: M, marginTop: 6 }}>⚠ {bts.length} request types share this workflow — editing the intake for <b>{bt?.name}</b> only.</div>
+              </div>
+            )}
+            {bt ? (
+              <>
+                {guided && <div style={{ fontSize: 10.5, color: C.t3, marginBottom: 10 }}>These fields render on the New Request form for a <b>{bt.name}</b>. Values flow into the ladder as context (e.g. skip a step when <code style={{ color: C.tl }}>contract_value &lt; 50000</code>).</div>}
+                <FieldsEditor type={bt} onCancel={() => {}} onSaved={load} />
+              </>
+            ) : settingUpIntake ? (
+              <TypeForm initialWorkflowKey={sel.key} onCancel={() => setSettingUpIntake(false)} onSaved={() => { setSettingUpIntake(false); load(); }} />
+            ) : (
+              <div>
+                {guided && <div style={{ fontSize: 11, color: C.t3, lineHeight: 1.6, marginBottom: 10 }}>No structured fields yet — requesters file by request type only. Add a form so they answer the right questions up front.</div>}
+                {canManage && <button onClick={() => setSettingUpIntake(true)} style={{ padding: "7px 14px", background: C.cy, color: C.bg, border: "none", borderRadius: 4, fontFamily: M, fontSize: 10.5, letterSpacing: 1, fontWeight: 700, textTransform: "uppercase", cursor: "pointer" }}>+ Set up intake form</button>}
+              </div>
+            )}
+          </div>
+        )}
+      </Card>
+    );
+
     return (
       <div style={{ fontFamily: F }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10, marginBottom: 6 }}>
           <div onClick={() => setSelKey(null)} style={{ cursor: "pointer", fontSize: 11, color: C.cy, fontFamily: M }}>← All workflows</div>
-          <Toggle on={guided} onChange={setGuided} label="Guided setup" />
+          <Toggle on={guided} onChange={setGuided} label="Show guidance" />
         </div>
         <div style={{ fontSize: 20, fontFamily: SR, color: C.t1, marginBottom: 2 }}>{sel.name}</div>
         <div style={{ fontSize: 10.5, fontFamily: M, color: C.t3, marginBottom: 14 }}>Pipeline · v{sel.version} · {(sel.steps || []).length} step{(sel.steps || []).length === 1 ? "" : "s"}{bt ? ` · intake: ${bt.name}` : " · no intake form"}</div>
 
-        {guided ? (
-          <>
-            <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
-              <div onClick={() => setGuidedStep(0)} style={stepBadge(guidedStep === 0)}>① Intake</div>
-              <div onClick={() => setGuidedStep(1)} style={stepBadge(guidedStep === 1)}>② Governance</div>
-            </div>
-            {guidedStep === 0 ? (
-              <>
-                {IntakeSection}
-                <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 12 }}>
-                  <button onClick={() => setGuidedStep(1)} style={{ padding: "8px 16px", background: C.cy, color: C.bg, border: "none", borderRadius: 4, fontFamily: M, fontSize: 10.5, letterSpacing: 1, fontWeight: 700, textTransform: "uppercase", cursor: "pointer" }}>Next: Governance →</button>
-                </div>
-              </>
-            ) : (
-              <>
-                {GovernanceSection}
-                <div style={{ display: "flex", justifyContent: "flex-start", marginTop: 12 }}>
-                  <button onClick={() => setGuidedStep(0)} style={{ padding: "8px 16px", background: "transparent", color: C.t2, border: `1px solid ${C.br}`, borderRadius: 4, fontFamily: M, fontSize: 10.5, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" }}>← Back: Intake</button>
-                </div>
-              </>
-            )}
-          </>
-        ) : (
-          <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            {IntakeSection}
-            {GovernanceSection}
-          </div>
-        )}
+        {/* Ladder first (the substance), optional intake form below. */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+          {GovernanceSection}
+          {IntakeCard}
+        </div>
       </div>
     );
   }
