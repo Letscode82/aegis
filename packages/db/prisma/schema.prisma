@@ -2684,6 +2684,9 @@ model AgentDefinition {
   playbookJson     Json                  @default("{}")
   /// Role that may approve this agent's recommendations (RBAC hint).
   approverRole     String?
+  /// "okf" = run entirely from this definition via the generic runtime;
+  /// "code" = run the code-shipped process() (tool-augmented agents).
+  executionMode    String                @default("code")
   status           AgentDefinitionStatus @default(DRAFT)
   publishedVersion Int                   @default(0)
   /// Full in-progress oKF document (spec + bound pack refs) for the draft.

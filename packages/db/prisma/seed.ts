@@ -1729,6 +1729,7 @@ async function seedAgentDefinitions(orgId: string): Promise<number> {
       risks: a.risks,
       playbookJson: a.playbook as object,
       approverRole: a.approverRole,
+      executionMode: a.executionMode,
     };
     const existing = await prisma.agentDefinition.findUnique({
       where: { organizationId_agentKey: { organizationId: orgId, agentKey: a.key } },
