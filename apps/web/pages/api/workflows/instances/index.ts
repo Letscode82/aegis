@@ -13,11 +13,14 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
 import {
+  autoRunCurrentAgentStep,
+  getWorkflowInstance,
   listInstancesForEntity,
   ragFor,
   startWorkflow,
   WorkflowError,
 } from "@aegis/workflow";
+import { intakeWorkflowAgentHandler } from "@aegis/intake/agents";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const user = await getResolvedUser(req, res);
@@ -60,6 +63,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         startedById: user.id,
         context: context && typeof context === "object" ? context : {},
       });
+      // If the human dispatched a ladder that OPENS on an agent step, run
+      // the agent now so its work is ready (same as the advance path in
+      // .../act). The agent stores findings; it never advances the ladder —
+      // a human still approves. Best-effort; intake tickets only.
+      if (entityType === "intake_ticket") {
+        await autoRunCurrentAgentStep(instance.id, intakeWorkflowAgentHandler).catch(() => {});
+        const refreshed = await getWorkflowInstance(instance.id);
+        if (refreshed)
+          return res.status(200).json({ ok: true, instance: { ...refreshed, rag: ragFor(refreshed) } });
+      }
       return res.status(200).json({ ok: true, instance });
     } catch (err) {
       if (err instanceof WorkflowError)

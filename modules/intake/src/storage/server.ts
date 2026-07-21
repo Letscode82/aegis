@@ -38,7 +38,6 @@ import { evaluateRoutingRules } from "../routing/rules";
 import { loadEnabledRoutingRules, recordRuleFirings } from "../routing/server";
 import { buildPoolResolver } from "../routing/teams";
 import { deriveComplexity } from "../routing/complexity";
-import { maybeStartWorkflowForTicket } from "../workflow-bridge/server";
 import { maybeSpawnMatterForApprovedTicket } from "../matter-spawn/server";
 import { maybeSpawnContractForApprovedTicket } from "../contract-spawn/server";
 import { syncAgentDecisionForTicket } from "../agent-decision/server";
@@ -574,26 +573,14 @@ async function saveTicketsV8(
         resourceId: t.id,
         afterJson: { status: newStatus, source: t._source ?? "form" },
       });
-      // W-C — request types bound to a ladder start their workflow
-      // instance at creation. Best-effort: a ladder failure never
-      // breaks ticket ingest (the bridge audits failures as SYSTEM).
-      await maybeStartWorkflowForTicket(
-        orgId,
-        {
-          id: t.id,
-          type: t.type ?? null,
-          requestTypeId: common.requestTypeId ?? null,
-          from: t.from ?? null,
-          dept: t.dept ?? null,
-          desc: t.desc ?? null,
-          priority: t.priority ?? null,
-          slaHours: t.slaHours ?? null,
-          submittedTs: t.submittedTs ?? null,
-          requestFieldValues:
-            (common.requestFieldValuesJson as Record<string, unknown> | null) ?? null,
-        },
-        actor,
-      );
+      // Triage-first (Harsha's model): a new ticket does NOT auto-start its
+      // ladder. It lands in the Inbox awaiting dispatch — a human confirms /
+      // starts the governance ladder (or assigns an owner) from the dispatch
+      // desk, and only then does it enter the working queue and the agent
+      // run at the ladder's agent step. Auto-start is retained only for the
+      // admin backfill route (deliberate, human-triggered). This keeps the
+      // request out of the Cockpit and away from the agent until the human
+      // gives it direction.
       // W3-2 — routing may have assigned someone at creation; tell them.
       if (common.assignedToUserId) {
         await notifyTicketEvent({
