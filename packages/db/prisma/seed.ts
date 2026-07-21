@@ -1661,54 +1661,13 @@ async function seedContracts(orgId: string, ownerPersonId: string) {
     },
   });
 
-  // CTR-5: the playbook clause bank — the standard/fallback positions the
-  // contract-review compares extracted clauses against. Mirrors the AEGIS
-  // Contract Playbook the review agent already checks. Upsert on
-  // (org, clauseType).
-  const PLAYBOOK: Array<{
-    clauseType: string; title: string; standardText: string; fallbackText: string;
-    guidance: string; riskIfDeviated: ContractRisk; sortOrder: number;
-  }> = [
-    { clauseType: "LIABILITY_CAP", title: "Limitation of liability", standardText: "Aggregate liability capped at fees paid in the 12 months preceding the claim, with uncapped carve-outs for IP infringement, confidentiality breach, indemnity obligations, and gross negligence / wilful misconduct.", fallbackText: "24 months' fees with the same carve-outs.", guidance: "Reject unlimited liability or no cap. Confirm the carve-outs survive the cap.", riskIfDeviated: ContractRisk.HIGH, sortOrder: 1 },
-    { clauseType: "INDEMNITY", title: "Indemnification", standardText: "Mutual indemnity limited to third-party claims.", fallbackText: "One-way indemnity from the vendor covering third-party IP and data-breach claims.", guidance: "Reject unlimited or first-party indemnities.", riskIfDeviated: ContractRisk.HIGH, sortOrder: 2 },
-    { clauseType: "IP", title: "Intellectual property", standardText: "Present-tense assignment of deliverables to the customer; license-back for the vendor's background IP.", fallbackText: "Assignment on final payment.", guidance: "Reject ambiguous, undefined, or joint ownership of deliverables / derivative works.", riskIfDeviated: ContractRisk.HIGH, sortOrder: 3 },
-    { clauseType: "PAYMENT", title: "Payment terms", standardText: "Net 45 from a valid invoice.", fallbackText: "Net 30 with a prompt-pay discount of at least 2%.", guidance: "Reject advance / upfront payment for services.", riskIfDeviated: ContractRisk.MEDIUM, sortOrder: 4 },
-    { clauseType: "AUTO_RENEWAL", title: "Auto-renewal", standardText: "Renews only if the non-renewal notice window is 60 days or less AND any price uplift is capped.", fallbackText: "90-day notice window with a CPI-capped uplift.", guidance: "Reject evergreen renewal with no notice window or an uncapped uplift.", riskIfDeviated: ContractRisk.MEDIUM, sortOrder: 5 },
-    { clauseType: "TERMINATION", title: "Termination for convenience", standardText: "Either party may terminate for convenience on 30 days' written notice.", fallbackText: "60 days' written notice.", guidance: "Pure term-lock with no exit right is a flag.", riskIfDeviated: ContractRisk.MEDIUM, sortOrder: 6 },
-    { clauseType: "GOVERNING_LAW", title: "Governing law", standardText: "Governed by the laws of the State of Delaware.", fallbackText: "New York or California.", guidance: "Avoid the counterparty's home jurisdiction for non-US counterparties.", riskIfDeviated: ContractRisk.LOW, sortOrder: 7 },
-    { clauseType: "CONFIDENTIALITY", title: "Confidentiality", standardText: "Mutual confidentiality with a defined term and 3-year survival on trade secrets.", fallbackText: "5-year survival on trade secrets.", guidance: "Avoid one-way or indefinite / perpetual confidentiality.", riskIfDeviated: ContractRisk.LOW, sortOrder: 8 },
-    { clauseType: "ASSIGNMENT", title: "Assignment", standardText: "No assignment without consent; affiliate / M&A successor permitted; termination right on a change of control to a competitor.", fallbackText: "Consent not to be unreasonably withheld.", guidance: "Reject free assignment to any third party.", riskIfDeviated: ContractRisk.MEDIUM, sortOrder: 9 },
-    { clauseType: "WARRANTY", title: "Warranty & acceptance", standardText: "90-day warranty plus a 30-day acceptance period.", fallbackText: "60-day warranty.", guidance: "Avoid AS-IS for paid deliverables.", riskIfDeviated: ContractRisk.MEDIUM, sortOrder: 10 },
-  ];
-  let playbookCount = 0;
-  for (const p of PLAYBOOK) {
-    await prisma.clauseLibraryEntry.upsert({
-      where: { organizationId_clauseType: { organizationId: orgId, clauseType: p.clauseType } },
-      update: { title: p.title, standardText: p.standardText, fallbackText: p.fallbackText, guidance: p.guidance, riskIfDeviated: p.riskIfDeviated, sortOrder: p.sortOrder, active: true },
-      create: { organizationId: orgId, clauseType: p.clauseType, title: p.title, standardText: p.standardText, fallbackText: p.fallbackText, guidance: p.guidance, riskIfDeviated: p.riskIfDeviated, sortOrder: p.sortOrder },
-    });
-    playbookCount++;
-  }
+  // The contract clause playbook and draft templates are no longer seeded
+  // here: they moved into the oKF KnowledgePacks the agents read (seeded by
+  // seedAgentDefinitions §12 from static-defs.js). The Contracts 📖 Playbook
+  // and 📄 Templates screens read those same per-agent packs — one store.
+  // The legacy `ClauseLibraryEntry` / `Template` tables were dropped.
 
-  // Templates DB: the editable drafts the agents draft from. MNDA-v4.2
-  // is the NDA agent's default; the rest seed the contract/notice kinds.
-  const TEMPLATES: Array<{ kind: "NDA" | "CONTRACT" | "NOTICE" | "OTHER"; key: string; name: string; description: string; body: string; sortOrder: number }> = [
-    { kind: "NDA", key: "mnda-v4.2", name: "Standard Mutual NDA (MNDA-v4.2)", description: "2-year mutual, standard carve-outs, 12-month no-solicit, Delaware.", sortOrder: 1, body: "MUTUAL NON-DISCLOSURE AGREEMENT (MNDA-v4.2)\n\nThis Mutual Non-Disclosure Agreement is entered into by {{company}} and {{counterparty}} as of {{date}}.\n\n1. Purpose: {{purpose}}.\n2. Term: 2 years from the effective date.\n3. Confidentiality: standard carve-outs (already known, independently developed, publicly available, required by law).\n4. Non-solicit: mutual, 12 months.\n5. Governing law: Delaware; standard venue.\n6. Return/destroy on termination.\n\nSigned: {{company}} __________   {{counterparty}} __________" },
-    { kind: "CONTRACT", key: "msa-v2", name: "Master Services Agreement (MSA-v2)", description: "Playbook-aligned MSA skeleton.", sortOrder: 2, body: "MASTER SERVICES AGREEMENT (MSA-v2)\n\nBetween {{company}} and {{counterparty}}, effective {{date}}.\n\n- Liability: capped at 12 months' fees; uncapped IP/confidentiality/indemnity carve-outs.\n- Payment: Net 45.\n- IP: present-tense assignment of deliverables; license-back for background IP.\n- Term & termination: {{term}}; 30-day termination for convenience.\n- Governing law: Delaware." },
-    { kind: "CONTRACT", key: "dpa-v1", name: "Data Processing Addendum (DPA-v1)", description: "GDPR-aligned DPA.", sortOrder: 3, body: "DATA PROCESSING ADDENDUM (DPA-v1)\n\nProcessor {{counterparty}} processes personal data on behalf of controller {{company}}.\n\n- Sub-processors: 30-day change notice; right to object.\n- Security: appropriate technical + organisational measures.\n- Audit: annual right.\n- Sub-processing + cross-border transfers per applicable law." },
-    { kind: "NOTICE", key: "notice-nonrenewal", name: "Non-renewal Notice", description: "Serve before the notice window closes.", sortOrder: 4, body: "NOTICE OF NON-RENEWAL\n\nTo: {{counterparty}}\nRe: {{contractTitle}}\n\n{{company}} hereby gives notice that it will not renew the above agreement, effective {{expiryDate}}, in accordance with the {{noticeWindowDays}}-day notice provision. This notice is served on {{date}}." },
-  ];
-  let templateCount = 0;
-  for (const t of TEMPLATES) {
-    await prisma.template.upsert({
-      where: { organizationId_key: { organizationId: orgId, key: t.key } },
-      update: { kind: t.kind, name: t.name, description: t.description, body: t.body, sortOrder: t.sortOrder, active: true },
-      create: { organizationId: orgId, kind: t.kind, key: t.key, name: t.name, description: t.description, body: t.body, sortOrder: t.sortOrder },
-    });
-    templateCount++;
-  }
-
-  return { contracts: CONTRACTS.length, clauses: clauseCount, obligations: obligationCount, reviewToken: demoRawToken, playbook: playbookCount, templates: templateCount };
+  return { contracts: CONTRACTS.length, clauses: clauseCount, obligations: obligationCount, reviewToken: demoRawToken };
 }
 
 // §12 — oKF Agent Designer: seed the 11 agents' definitions + knowledge
@@ -1895,7 +1854,7 @@ async function main() {
   const ct = await seedContracts(org.id, alexPerson.id);
   console.log(
     `[seed] contracts=${ct.contracts} clauses=${ct.clauses} contract_obligations=${ct.obligations} ` +
-      `clause_library=${ct.playbook} templates=${ct.templates} review_portal=/contract-review/${ct.reviewToken}`,
+      `review_portal=/contract-review/${ct.reviewToken}`,
   );
 
   const agentDefs = await seedAgentDefinitions(org.id);

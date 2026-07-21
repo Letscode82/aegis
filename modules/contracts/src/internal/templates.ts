@@ -25,7 +25,12 @@
  * chain-sealed and gated at the route.
  */
 import { prisma, logAudit } from "@aegis/db";
-import type { TemplateKind, KnowledgeItem } from "@aegis/db";
+import type { KnowledgeItem } from "@aegis/db";
+
+/** The kinds of draft template. Formerly the `TemplateKind` Prisma enum;
+ *  now a plain union since templates live in oKF KnowledgePacks (the legacy
+ *  `Template` table + enum were retired). */
+export type TemplateKind = "NDA" | "CONTRACT" | "NOTICE" | "OTHER";
 
 export interface TemplateDTO {
   id: string;
