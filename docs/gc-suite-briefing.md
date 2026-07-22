@@ -2,7 +2,7 @@
 ### Agentic AI in Legal Operations: the platform ("one brain") approach vs. point tools
 
 **Purpose:** source material for a client/prospect presentation
-(triggered by the Unilever inquiry: *"looking for inspiration on
+(triggered by a global-FMCG-group inquiry: *"looking for inspiration on
 Agentic AI use cases in legal space… to assess in our legal
 operations"*). Everything here is organized so it can be pasted into a
 deck-preparation session as-is. §10 is the suggested slide outline;
@@ -178,7 +178,7 @@ operating model.** The GC's problems are cross-lane by nature.
 
 ---
 
-## 6 · Agentic AI use-case catalog (the "inspiration" Unilever asked for)
+## 6 · Agentic AI use-case catalog (the "inspiration" the client asked for)
 
 Concrete, demonstrable use cases — each with its governance control
 and its measurable outcome, per the Gartner buying guidance.
@@ -303,7 +303,7 @@ audit trail that regulators can verify independently.
    conflict check, intake→matter, custody-aware SLA, tier/complexity
    correlation. (§4.1)
 7. **Agentic use-case catalog** — the §6 table (this is literally
-   what Unilever asked for).
+   what the client asked for).
 8. **Live demo spine** — Teams message → triage → one-key approve →
    matter + notification + verifiable chain. (§6 close)
 9. **Governance: the 40% survival kit** — gate in schema, custody

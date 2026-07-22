@@ -136,7 +136,7 @@ footer{padding:14px 30px;border-top:1px solid var(--line);font-size:11px;color:v
 </head>
 <body>
 <header>
-  <div class="brand">Legal <em>Brain</em><span class="rule">prepared for Group Legal · Head Office · five systems, one memory</span></div>
+  <div class="brand">Legal <em>Brain</em><span class="rule">prepared for Meridian Consumer Brands · Group Legal · Head Office · five systems, one memory</span></div>
   <div class="perm">Role: <b>Deputy General Counsel — Brands & Commercial</b> · every claim cited · privilege respected</div>
 </header>
 
@@ -217,12 +217,12 @@ footer{padding:14px 30px;border-top:1px solid var(--line);font-size:11px;color:v
 </section>
 
 <section class="catsec">
-  <h2>The wider catalogue — 15 more case studies on the same brain</h2>
+  <h2>The wider catalogue — 23 more case studies on the same brain</h2>
   <div class="sub">Every card is live — click to run the case in the console above. Tags show the systems joined.</div>
   <div class="grid" id="grid"></div>
 </section>
 
-  <span>Demonstration with fictional data · brands, counterparties &amp; figures are illustrative · prepared for Group Legal</span>
+  <span>Demonstration with fictional data · brands, counterparties &amp; figures are illustrative · prepared for Meridian Consumer Brands — Group Legal</span>
   <span class="mono">graph + pgvector · one Postgres · client cloud &amp; client LLM key · human-gated actions</span>
 </footer>
 
@@ -234,11 +234,11 @@ document.querySelectorAll("[data-count]").forEach(el=>{
 });
 const SC={ic:'<span class="sc ic">CLM</span>',rl:'<span class="sc rl">TM</span>',sl:'<span class="sc sl">INT</span>',ev:'<span class="sc ev">LIT</span>',bf:'<span class="sc bf">SPD</span>'};
 const DEMOS={
-s360:{q:"Full exposure on the Verde master licence before Thursday's renewal call?",
+s360:{q:"Full exposure on the Savora master licence before Thursday's renewal call?",
  steps:["entity-link → <b>Solari Foods Distribution BV</b> (5 source records incl. \u2018Solari Consumer Goods NV\u2019)","traversing PARTY_TO · LICENSED_UNDER · DISPUTED_UNDER (permission-filtered)","hybrid search within subgraph → 19 cited facts"],
  srcs:["ic","rl","sl","ev","bf"],nodes:["cp","ct","mt","rq","rw","sp","ob"],edges:["cp-ct","cp-mt","cp-rq","ct-rw","ct-ob","mt-sp","ct-mt"],
- title:"Brand 360 — Solari Foods Distribution (Verde licence)",tag:"7.1s · 19 citations · 5 systems",
- body:`<h5>Relationship</h5><p>Regional distribution licensee since 2018. <b>9 licence agreements</b>${SC.ic} covering the Verde trademark family across 3 territories${SC.rl}.</p>
+ title:"Brand 360 — Solari Foods Distribution (Savora licence)",tag:"7.1s · 19 citations · 5 systems",
+ body:`<h5>Relationship</h5><p>Regional distribution licensee since 2018. <b>9 licence agreements</b>${SC.ic} covering the Savora trademark family across 3 territories${SC.rl}.</p>
  <h5>What no single tool shows</h5><ul>
  <li><b>Trademark renewal for 2 territories falls due in 60 days</b>${SC.rl} — while the master licence renewal is being negotiated in parallel.</li>
  <li>A <b>packaging-claims dispute is live</b>${SC.ev} — the licensee's local "no artificial preservatives" claim isn't covered by our approved-claims library; renewal draft §6.2 (quality-standards clause)${SC.ic} would <b>bind us to defend a claim we never approved</b> if signed as-is.</li>
@@ -246,10 +246,10 @@ s360:{q:"Full exposure on the Verde master licence before Thursday's renewal cal
  <div class="risk"><b>Recommendation:</b> amend §6.2 to require pre-clearance of all claims through the central library before renewal signs; align the 2 trademark renewals to close before the licence renewal, not after.</div>
  <div class="gap"><b>What the record does not contain:</b> the licensee's 2023 local regulatory correspondence on the claim is in no connected system. Request before Thursday.</div>
  <div class="pathline">Brand ⇒ PARTY_TO ⇒ Contract(§6.2) ⇒ GRANTS ⇒ Trademark · Contract ⇒ DISPUTED_UNDER ⇒ Matter ⇒ BILLED_TO ⇒ Spend</div>`},
-window:{q:"Can Marketing run the \u2018Aurora Real Beauty\u2019 refresh claim pan-EU without re-substantiation?",
+window:{q:"Can Marketing run the \u2018Velvra True Skin\u2019 refresh claim pan-EU without re-substantiation?",
  steps:["entity-link → campaign claim <b>\u2018visibly firmer skin in 2 weeks\u2019</b> (3 records resolved)","checking substantiation file: claim × market × expiry","gap found → tracing the underlying test data"],
  srcs:["rl","ic","sl"],nodes:["ct","rw","rq","ob"],edges:["ct-rw","ct-ob","cp-rq"],
- title:"Claims substantiation gap — Aurora campaign refresh",tag:"a week of email, answered in seconds · reused plan",
+ title:"Claims substantiation gap — Velvra campaign refresh",tag:"a week of email, answered in seconds · reused plan",
  body:`<h5>Substantiation check</h5><ul>
  <li>The claim's <b>clinical substantiation file expires in 11 markets</b>${SC.rl} — 4 of them EU member states where the refresh is scheduled to run.</li>
  <li><b>Collision:</b> a 2024 reformulation${SC.ic} changed the actual product tested — the existing substantiation technically covers a <b>different formulation</b> than what ships today.</li>
@@ -268,10 +268,10 @@ rmg:{q:"Which distributors carry overlapping exclusivity territory grants across
  <div class="risk"><b>Recommendation:</b> pause the 3 pending onboardings pending a territory-map review; renegotiate the overlap before the next renewal cycle rather than litigating it later.</div>
  <div class="gap"><b>Gap:</b> sub-distributor arrangements below the primary contract layer are not systematically captured — the true overlap may be larger.</div>
  <div class="pathline">Distributor ⇒ SAME_AS/PARENT_OF ⇒ Group ⇒ PARTY_TO ⇒ Contract(exclusivity) + Request(pending) + Matter(breach)</div>`},
-piracy:{q:"Assemble the opposition evidence pack for the Surf Excel mark in the APAC filing.",
+piracy:{q:"Assemble the opposition evidence pack for the BrightWash mark in the APAC filing.",
  steps:["building the ownership chain: first-use → registration → assignment history","pulling prior opposition/cancellation outcomes across the mark family","per-market filing cost & outcome joined"],
  srcs:["rl","ic","ev","bf"],nodes:["ct","rw","mt","sp"],edges:["ct-rw","ct-mt","mt-sp"],
- title:"Global TM opposition pack — Surf Excel (APAC)",tag:"days of assembly → minutes, fully cited",
+ title:"Global TM opposition pack — BrightWash (APAC)",tag:"days of assembly → minutes, fully cited",
  body:`<h5>Pack contents</h5><ul>
  <li><b>Ownership chain:</b> first use, registration, and 2 historical assignments — assembled with document citations${SC.rl}${SC.ic}; the exact evidentiary set the tribunal expects.</li>
  <li><b>Precedent set:</b> all prior oppositions and cancellations on this mark family, with outcomes${SC.ev} — <b>14 proceedings</b> across 9 markets, deduplicated and outcome-tagged.</li>
@@ -453,7 +453,84 @@ c20:{q:"Clear the \u2018Refill & Win\u2019 sustainability promotion for all mark
  <li>The T&amp;Cs template already carries a <b>market-exclusion clause</b>${SC.ic}; the prize-partner agreement is still unsigned in intake${SC.sl}.</li></ul>
  <div class="risk"><b>Recommendation:</b> geo-exclude the 3 flagged markets, obtain a short local-counsel opinion for the noticed market, and hold marketing until the partner agreement signs.</div>
  <div class="gap"><b>Gap:</b> market-rule updates are tracked manually — a regulatory-feed connector would make this sweep continuous rather than per-launch.</div>
- <div class="pathline">Promotion ⇒ MECHANIC vs MarketRule(×3 flags) · PriorNotice(2023) · T&amp;Cs ⇒ Obligation(exclusion) + Request(partner, unsigned)</div>`}
+ <div class="pathline">Promotion ⇒ MECHANIC vs MarketRule(×3 flags) · PriorNotice(2023) · T&amp;Cs ⇒ Obligation(exclusion) + Request(partner, unsigned)</div>`},
+c21:{q:"Which cross-brand counterparties carry the highest rolled-up exposure?",
+ steps:["resolving counterparty entities across every brand's contracts","joining spend, disputes and contract count per resolved entity","exposure ranked, rolled up across brands"],
+ srcs:["ic","ev","bf"],nodes:["cp","ct","mt","sp"],edges:["cp-ct","cp-mt","mt-sp"],
+ title:"Cross-brand counterparty exposure",tag:"the view no single brand team can see",
+ body:`<h5>Findings</h5><ul>
+ <li>One packaging supplier touches <b>Velvra, Zephyr and Savora</b> under 3 separately-negotiated contracts${SC.ic} — no brand team sees the other two.</li>
+ <li>Rolled up, this counterparty carries <b>2 open disputes and €2.1M</b> of combined spend${SC.ev}${SC.bf} — invisible at the single-brand level where each dispute looks minor.</li></ul>
+ <div class="risk"><b>Recommendation:</b> escalate to a cross-brand relationship owner; renegotiate as one master relationship rather than 3 independent ones.</div>
+ <div class="gap"><b>Gap:</b> brand-level P&amp;L impact isn't in any connected system — this shows legal exposure only, not commercial materiality.</div>
+ <div class="pathline">Counterparty ⇒ SAME_AS ⇒ (multi-brand contracts) ⇒ DISPUTED_UNDER ⇒ Matter ⇒ BILLED_TO ⇒ Spend, rolled up</div>`},
+c22:{q:"Which counterparties are overdue for sanctions re-screening, prioritised by upcoming activity?",
+ steps:["joining screening history against contract renewal and request activity","filtering to overdue (&gt;12mo) counterparties","prioritised by imminent renewal or draft"],
+ srcs:["ic","sl","ev"],nodes:["cp","ct","rq"],edges:["cp-ct","cp-rq"],
+ title:"Sanctions re-screen sweep",tag:"prioritised by what's actually urgent",
+ body:`<h5>Findings</h5><ul>
+ <li><b>9 counterparties</b>${SC.ic} have not been re-screened in over 12 months — 2 have a <b>renewal contract currently in draft</b>${SC.ic}, making re-screening materially cheaper now than after signature.</li>
+ <li>Without cross-system entity resolution, this list would show duplicated entities under different names in each system.</li></ul>
+ <div class="risk"><b>Recommendation:</b> re-screen the 2 in-draft renewals first; set a rolling 12-month trigger on the Counterparty object going forward.</div>
+ <div class="gap"><b>Gap:</b> screening records matched by name only in this pass — an ID-based match is more reliable and worth scoping.</div>
+ <div class="pathline">Counterparty ⇒ SCREENED_ON(&gt;12mo) ⇒ Flag, prioritised by Contract(status=draft)</div>`},
+c23:{q:"Which of our clause templates keep ending up in disputes?",
+ steps:["clustering dispute matters by underlying contract","matching contract clauses to template-library versions","1 significant pattern found"],
+ srcs:["ic","ev","bf"],nodes:["ct","mt","sp"],edges:["ct-mt","mt-sp"],
+ title:"Litigation-informed playbooks",tag:"the feedback loop your CLM can't see alone",
+ body:`<h5>Pattern</h5><p>Limitation-of-liability template <b>v2.3</b> (issued 2022)${SC.ic} appears in <b>5 of the 9 contract disputes</b> opened since${SC.ev} — versus 1 of 14 for v3.0. The five v2.3 disputes account for <b>€1.1M</b> of outside-counsel spend${SC.bf}.</p>
+ <div class="risk"><b>Recommendation:</b> deprecate v2.3 in the CLM playbook; queue amendments for the 12 live contracts still carrying it.</div>
+ <div class="gap"><b>Gap:</b> 2 disputes reference amendments negotiated over email and never uploaded — clause version unverified for those.</div>
+ <div class="pathline">TemplateVersion ⇐ USES ⇐ Contract ⇒ DISPUTED_UNDER ⇒ Matter ⇒ BILLED_TO ⇒ Spend</div>`},
+c24:{q:"Which clauses burn the most negotiation time for the least risk reduction?",
+ steps:["joining intake redline-round counts to clause type","cross-referencing against dispute history for the same clause type","ranked by cycle-time cost vs risk avoided"],
+ srcs:["sl","ic","ev"],nodes:["rq","ct","mt"],edges:["cp-rq","ct-mt"],
+ title:"Negotiation-cost analytics",tag:"simplify what costs days for negligible protection",
+ body:`<h5>Findings</h5><ul>
+ <li>An indemnification carve-out clause${SC.ic} averages <b>3.2 redline rounds</b>${SC.sl} per contract — the highest of any clause type.</li>
+ <li>Cross-referenced against disputes${SC.ev}, this clause type has <b>never once been the basis of a claim</b> in 4 years.</li></ul>
+ <div class="risk"><b>Recommendation:</b> simplify this clause to a standard fallback position; redirect negotiation time to clauses that actually correlate with disputes (see Litigation-informed playbooks).</div>
+ <div class="gap"><b>Gap:</b> redline-round counts are a proxy for negotiation cost, not a direct time measurement — worth validating against actual hours if this becomes a standing metric.</div>
+ <div class="pathline">ClauseType ⇐ NEGOTIATED(rounds) ⇐ Request · ClauseType ⇒ DISPUTED_UNDER ⇒ Matter(count=0)</div>`},
+c25:{q:"Which trademark grants have no matching contract at all?",
+ steps:["scanning trademark grants","left-joining against contract references","19 grants with no contract linkage found"],
+ srcs:["rl","ic"],nodes:["rw","ct"],edges:["ct-rw"],
+ title:"Orphaned trademark grants",tag:"a real gap or a data gap — worth knowing which",
+ body:`<h5>Findings</h5><ul>
+ <li><b>19 trademark grants</b>${SC.rl} have no matching contract reference in the CLM${SC.ic} — either the underlying agreement was never entered, or the two records were never linked.</li></ul>
+ <div class="risk"><b>Recommendation:</b> use this list as a concrete, checkable starting point rather than an abstract data-quality question.</div>
+ <div class="gap"><b>Gap:</b> this query cannot distinguish "no contract exists" from "contract exists but unlinked" — the two have very different risk profiles.</div>
+ <div class="pathline">Trademark ⇐ PARTY_TO ⇐ Contract — absence flagged, not assumed to mean anything specific</div>`},
+c26:{q:"Scope a legal hold in minutes for a new dispute.",
+ steps:["k-hop pull around the new matter","collecting custodians, document families, related contracts","hold scope assembled — over-inclusive by design"],
+ srcs:["ev","ic","sl"],nodes:["mt","cp","ct","rq"],edges:["cp-mt","cp-ct","cp-rq"],
+ title:"Instant legal-hold scoping",tag:"assembled in minutes, defensible by citation",
+ body:`<h5>Proposed scope</h5><ul>
+ <li><b>11 custodians</b> — everyone linked to the relevant contracts and intake requests across systems${SC.ic}${SC.sl}.</li>
+ <li><b>Document families:</b> all related contracts and amendments, all intake artifacts referencing the counterparty.</li>
+ <li>Hold notice drafted; nothing sends until approved.</li></ul>
+ <div class="gap"><b>Gap:</b> data outside the 5 connected systems (e.g. informal email threads) must be extended manually — the Brain says what it cannot see.</div>
+ <div class="pathline">Matter ⇒ CONCERNS ⇒ Counterparty ⇒ * (2-hop, permission-filtered) ⇒ Hold.COVERS</div>`},
+c27:{q:"Which high-volume intake categories should we bring in-house?",
+ steps:["ranking intake request categories by volume","cross-referencing against external spend for the same categories","insource/outsource case computed"],
+ srcs:["sl","bf","ic"],nodes:["rq","sp","ct"],edges:["cp-rq","mt-sp"],
+ title:"Insource / outsource optimiser",tag:"the GCC business case, from real data",
+ body:`<h5>Findings</h5><ul>
+ <li>Standard NDA and vendor-onboarding requests are <b>the highest-volume intake category</b>${SC.sl}, and also generate <b>€680K/yr</b> of external counsel spend on routine review${SC.bf}.</li>
+ <li>These categories show <b>no meaningful complexity variance</b> against the contract templates already in the CLM${SC.ic} — strong standardisation candidates.</li></ul>
+ <div class="risk"><b>Recommendation:</b> this volume × cost × standardisability combination is exactly what should move to an in-house or AI-assisted team first.</div>
+ <div class="gap"><b>Gap:</b> external spend allocation by category relies on matter-type tagging discipline in the spend system — worth a data-quality check before using this for a business case.</div>
+ <div class="pathline">RequestCategory ⇒ VOLUME(intake) × Spend(external, same category) ⇒ Optimiser</div>`},
+c28:{q:"How is the legal function actually performing, across everything?",
+ steps:["aggregating cycle times, volumes, exposure and spend across all systems","no single system exposes this view alone","function-level dashboard assembled"],
+ srcs:["sl","ic","ev","bf"],nodes:["rq","ct","mt","sp"],edges:["cp-rq","ct-mt","mt-sp"],
+ title:"GC command view",tag:"the board pack that generates itself",
+ body:`<h5>What this replaces</h5><ul>
+ <li>Cycle times by request type${SC.sl}, contract volume and renewal pipeline${SC.ic}, exposure by matter type${SC.ev}, and spend trend${SC.bf} — today assembled manually, quarterly, by hand.</li>
+ <li>As a standing query, this becomes a live view instead of a quarterly project.</li></ul>
+ <div class="risk"><b>Recommendation:</b> stand this up as the first thing legal leadership sees each Monday — it's the same data already in the five systems, just never combined before.</div>
+ <div class="gap"><b>Gap:</b> outcome quality (not just volume/speed) needs the outside-counsel scorecard layered in for a complete picture.</div>
+ <div class="pathline">Function ⇒ AGGREGATE(Request, Contract, Matter, Spend) across all 5 systems</div>`}
 };
 // tag each demo with an id (for the teach-the-brain widget) and mark repeat-run scenarios as cached
 Object.keys(DEMOS).forEach(k=>DEMOS[k]._id=k);
@@ -475,6 +552,14 @@ const CARDS=[
  ["c18","18","Co-packer credit × dispute risk","New capacity commitments ranked by group-level credit events and disputes.",["ic","bf","ev"],false],
  ["c19","19","Data-breach notification readiness","Processors, clauses and contacts pre-mapped so the notification clock starts with a plan.",["ic","sl","ev"],false],
  ["c20","20","Promotion compliance","Prize-promotion mechanics vs market rules and past notices — geo-checked before launch.",["sl","ic","ev"],false],
+ ["c21","21","Cross-brand counterparty exposure","One counterparty's risk rolled up across every brand — invisible at the single-brand level.",["ic","ev","bf"],false],
+ ["c22","22","Sanctions re-screen sweep","Overdue counterparties prioritised by imminent renewal, not a flat list.",["ic","sl","ev"],false],
+ ["c23","23","Litigation-informed playbooks","Which clause versions keep causing disputes — fed back into contract templates.",["ic","ev","bf"],false],
+ ["c24","24","Negotiation-cost analytics","The clause that costs the most redline time for zero measured risk reduction.",["sl","ic","ev"],false],
+ ["c25","25","Orphaned trademark grants","Rights with no matching contract — a real gap or a data gap, made concrete.",["rl","ic"],false],
+ ["c26","26","Instant legal-hold scoping","Custodians and document families assembled in minutes, not days.",["ev","ic","sl"],false],
+ ["c27","27","Insource / outsource optimiser","High-volume, low-complexity categories vs what they cost externally.",["sl","bf","ic"],false],
+ ["c28","28","GC command view","Cycle times, exposure and spend across the whole function, live.",["sl","ic","ev","bf"],false],
 ];
 const COLORS={ic:"var(--ic)",rl:"var(--rl)",sl:"var(--sl)",ev:"var(--ev)",bf:"var(--bf)"};
 document.getElementById("grid").innerHTML=CARDS.map(c=>
