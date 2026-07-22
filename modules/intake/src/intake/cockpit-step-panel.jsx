@@ -107,6 +107,11 @@ export function CockpitStepPanel({ ticket, instance, busy, sendBackTo, onSendBac
                 📄 Download .docx
               </a>
             </div>
+          ) : mode === "agent" ? (
+            <div style={{ fontSize: 11, color: C.pp, fontFamily: M, display: "flex", alignItems: "center", gap: 7 }}>
+              <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: C.pp, animation: "pulse 1.1s ease-in-out infinite" }} />
+              Agent is running its pass — its recommendation will appear here. Refresh in a moment if it doesn&apos;t.
+            </div>
           ) : (
             <div style={{ fontSize: 11, color: C.t3 }}>No agent deliverable on this ticket yet — this is a manual review.</div>
           )}
@@ -126,6 +131,7 @@ export function CockpitStepPanel({ ticket, instance, busy, sendBackTo, onSendBac
           </>
         )}
         <div onClick={busy ? undefined : () => onAct("reject")} style={{ padding: "6px 11px", border: `1px solid ${C.rd}`, color: busy ? C.t3 : C.rd, borderRadius: 3, cursor: busy ? "default" : "pointer", fontSize: 9.5, fontFamily: M, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700, opacity: busy ? 0.5 : 1 }}>✕ Reject</div>
+        {busy && <span style={{ fontSize: 10, fontFamily: M, color: C.pp, letterSpacing: 0.5 }}>◎ Working — advancing the ladder{step?.kind === "AGENT" ? " · running the agent" : ""}…</span>}
       </div>
     </div>
   );

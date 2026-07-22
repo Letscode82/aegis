@@ -50,6 +50,8 @@ export function AgentDesigner({ agentKey, agentName, onClose }) {
   const [busy, setBusy] = useState(false);
   const [preview, setPreview] = useState(null);
   const [previewTicket, setPreviewTicket] = useState({ from: "Dana Lee", dept: "Engineering", type: "", desc: "" });
+  // Knowledge-item body edited in a large full-screen editor. Holds {pi, ii}.
+  const [bodyModal, setBodyModal] = useState(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -275,7 +277,10 @@ export function AgentDesigner({ agentKey, agentName, onClose }) {
                               <input value={it.title} onChange={(e) => set(["knowledge", pi, "items", ii, "title"], e.target.value)} placeholder="Title" style={{ ...inputStyle, flex: 1, fontSize: 11, padding: "4px 6px" }} />
                               <button onClick={() => removeItem(pi, ii)} title="Delete item" style={{ background: "transparent", border: `1px solid ${C.rd}44`, color: C.rd, borderRadius: 3, cursor: "pointer", fontSize: 11, padding: "0 7px" }}>×</button>
                             </div>
-                            <textarea rows={2} value={it.bodyMarkdown} onChange={(e) => set(["knowledge", pi, "items", ii, "bodyMarkdown"], e.target.value)} placeholder="Guidance / body" style={{ ...inputStyle, fontSize: 11, padding: "5px 7px" }} />
+                            <div style={{ position: "relative" }}>
+                              <button onClick={() => setBodyModal({ pi, ii })} title="Open large editor" style={{ position: "absolute", top: 4, right: 4, zIndex: 1, background: C.s2, border: `1px solid ${C.br}`, color: C.t2, fontFamily: M, fontSize: 9, fontWeight: 700, padding: "2px 7px", borderRadius: 3, cursor: "pointer" }}>⛶ Expand</button>
+                              <textarea rows={Math.min(16, Math.max(6, (it.bodyMarkdown || "").split("\n").length + 1))} value={it.bodyMarkdown} onChange={(e) => set(["knowledge", pi, "items", ii, "bodyMarkdown"], e.target.value)} placeholder="Guidance / body — click ⛶ Expand for a large editor" style={{ ...mono, resize: "vertical", minHeight: 96 }} />
+                            </div>
                             <input value={csv(it.cohortTags)} onChange={(e) => set(["knowledge", pi, "items", ii, "cohortTags"], fromCsv(e.target.value))} placeholder="cohort tags (comma-separated, optional)" style={{ ...inputStyle, marginTop: 4, fontSize: 9.5, fontFamily: M, padding: "4px 6px", color: C.t3 }} />
                           </div>
                         ))}
@@ -386,6 +391,37 @@ export function AgentDesigner({ agentKey, agentName, onClose }) {
           </>
         )}
       </div>
+
+      {/* Large full-screen editor for a knowledge-item body (templates,
+          long clauses). Edits write straight through to the draft, same
+          as the inline field. */}
+      {bodyModal && doc?.knowledge?.[bodyModal.pi]?.items?.[bodyModal.ii] && (() => {
+        const it = doc.knowledge[bodyModal.pi].items[bodyModal.ii];
+        return (
+          <div onClick={() => setBodyModal(null)} style={{ position: "fixed", inset: 0, background: "rgba(4,7,15,.8)", zIndex: 2000, display: "flex", justifyContent: "center", alignItems: "center", padding: "4vh 4vw" }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ background: C.bg, border: `1px solid ${C.br}`, borderRadius: 8, width: "min(1000px, 100%)", height: "100%", display: "flex", flexDirection: "column" }}>
+              <div style={{ padding: "12px 16px", borderBottom: `1px solid ${C.br}`, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 10, fontFamily: M, letterSpacing: 1.5, color: C.cy, textTransform: "uppercase" }}>Edit body · {it.kind}</div>
+                  <div style={{ fontSize: 15, fontFamily: SR, color: C.t1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.title || it.code}</div>
+                </div>
+                <button onClick={() => setBodyModal(null)} style={{ background: C.gn, border: "none", color: C.bg, fontFamily: M, fontSize: 10, fontWeight: 700, letterSpacing: 0.5, padding: "7px 16px", borderRadius: 4, cursor: "pointer", whiteSpace: "nowrap" }}>✓ Done</button>
+              </div>
+              <textarea
+                autoFocus
+                value={it.bodyMarkdown}
+                onChange={(e) => set(["knowledge", bodyModal.pi, "items", bodyModal.ii, "bodyMarkdown"], e.target.value)}
+                placeholder="Body — full template / clause text. Supports {{variables}}."
+                style={{ flex: 1, width: "100%", background: C.bg, border: "none", outline: "none", color: C.t1, fontFamily: M, fontSize: 13, lineHeight: 1.6, padding: "16px 18px", resize: "none", boxSizing: "border-box" }}
+              />
+              <div style={{ padding: "8px 16px", borderTop: `1px solid ${C.br}`, fontSize: 10, fontFamily: M, color: C.t4, display: "flex", justifyContent: "space-between" }}>
+                <span>{(it.bodyMarkdown || "").length} chars · {(it.bodyMarkdown || "").split("\n").length} lines</span>
+                <span>Changes save to the draft — remember to Publish to go live.</span>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
