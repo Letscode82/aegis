@@ -298,3 +298,32 @@ export function serverTriageRunner(input: {
     requestTypeId: input.requestTypeId ?? null,
   });
 }
+
+/**
+ * Ladder-driven agent run: when a governance ladder advances onto (or
+ * starts on) an AGENT step, run the bound agent and persist its
+ * recommendation onto the ticket — so the Cockpit surfaces it exactly like
+ * any other rec, and the PENDING AgentDecision gate is written. Fetches the
+ * ticket by id (the workflow engine only carries the entityId). Best-effort;
+ * returns null when the ticket can't be resolved.
+ */
+export async function runLadderAgentForTicket(
+  organizationId: string,
+  ticketId: string,
+): Promise<ServerAgentResult | null> {
+  const t = await prisma.intakeTicket.findFirst({
+    where: { id: ticketId, organizationId },
+    select: { id: true, department: true, type: true, priority: true, description: true, slaHours: true, requestTypeId: true, requester: { select: { name: true } } },
+  });
+  if (!t) return null;
+  return runAgentForTicketServer(organizationId, {
+    id: t.id,
+    from: t.requester?.name ?? null,
+    dept: t.department ?? null,
+    type: t.type ?? null,
+    priority: t.priority ?? null,
+    desc: t.description ?? null,
+    slaHours: t.slaHours ?? null,
+    requestTypeId: t.requestTypeId ?? null,
+  });
+}
