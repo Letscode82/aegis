@@ -637,23 +637,22 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,goToMyRequests
 // decide in seconds, move on. All shortcuts mirror Gmail/Linear conventions.
 
 // Agent recommendation panel — the right-side card attorneys spend most time on
-function AgentRecommendationPanel({ticket,rec,agent,editing,draftEdit,onDraftEdit,onApprove,onEdit,onReject,onEscalate,onSaveEdit,onCancelEdit,onRunAgent,running}){
+function AgentRecommendationPanel({ticket,rec,agent,editing,draftEdit,onDraftEdit,onApprove,onEdit,onReject,onEscalate,onSaveEdit,onCancelEdit}){
   if(!rec){
-    // Triage-first: a ticket that hasn't been processed yet gets an explicit
-    // "Run agent" trigger — the agent runs on demand, AFTER the reviewer has
-    // confirmed/changed the workflow ladder + agent. A ticket that WAS
-    // processed but matched no agent shows the manual-triage message.
+    // Human-dispatch-first: the agent runs AUTOMATICALLY when the ladder
+    // reaches its AI step — no "run" button. A ticket that hasn't been
+    // dispatched yet shows the awaiting-triage note; one that was processed
+    // but matched no agent shows the manual-triage message.
     const notTriaged=!ticket?.agentProcessedAt;
     if(notTriaged){
-      return <Card style={{background:C.s1,borderLeft:`3px solid ${C.cy}`}}>
-        <SH icon="▶" title="READY TO RUN" sub="Confirm the workflow ladder + agent, then run the agent on this ticket" c={C.cy}/>
-        <div style={{fontSize:11,color:C.t3,lineHeight:1.6,margin:"10px 0 12px"}}>No recommendation yet — the agent runs on demand so you can set the routing first. The human approval gate is unchanged: the agent drafts, you approve.</div>
-        <button onClick={onRunAgent} disabled={running} style={{padding:"9px 16px",background:running?C.br:C.cy,color:running?C.t4:C.bg,border:"none",borderRadius:4,fontFamily:M,fontSize:10,letterSpacing:1.4,fontWeight:700,textTransform:"uppercase",cursor:running?"default":"pointer"}}>{running?"◎ Running agent…":"▶ Run agent"}</button>
+      return <Card style={{background:C.s1,borderLeft:`3px solid ${C.t4}`}}>
+        <SH icon="◌" title="AWAITING TRIAGE" sub="Dispatch this request; the agent runs automatically at the ladder's AI step" c={C.t3}/>
+        <div style={{fontSize:11,color:C.t3,lineHeight:1.6,marginTop:10}}>No recommendation yet. Give the request direction on the <b style={{color:C.t2}}>Inbox</b> — start a governance ladder or assign an owner. When the ladder reaches an AI step the agent runs on its own and its recommendation appears here; you then approve. The human approval gate is unchanged.</div>
       </Card>;
     }
     return <Card style={{background:C.s1,borderLeft:`3px solid ${C.t4}`}}>
       <SH icon="◌" title="NO AGENT RECOMMENDATION" sub="This ticket has no matching agent — manual triage required" c={C.t3}/>
-      <div style={{fontSize:11,color:C.t3,lineHeight:1.6,marginTop:10}}>No agent in the registry could handle this ticket. Review the description and route manually via Reassign <Kbd k="r"/>.{onRunAgent&&<> Or <span onClick={running?undefined:onRunAgent} style={{color:C.cy,cursor:running?"default":"pointer"}}>{running?"running…":"re-run the agent"}</span>.</>}</div>
+      <div style={{fontSize:11,color:C.t3,lineHeight:1.6,marginTop:10}}>No agent in the registry could handle this ticket. Review the description and route manually via Reassign <Kbd k="r"/>.</div>
     </Card>;
   }
 
@@ -1122,24 +1121,6 @@ function CockpitTab({store,cockpit}){
   // a stale step panel never flashes before WorkflowLadderCard reloads.
   useEffect(()=>{setLadderInstance(null);setLadderSendBack("");},[current?.id]);
 
-  // Triage-first — run the agent on demand for the focused ticket. Honors
-  // the request-type's bound agent captured at intake (current.preferredAgentId)
-  // so the deferred run routes the same way the eager path would have.
-  const [runningAgent,setRunningAgent]=useState(false);
-  const handleRunAgent=useCallback(async()=>{
-    if(!current||runningAgent) return;
-    setRunningAgent(true);
-    try{
-      await store.runAgentForTicket(current.id,current.preferredAgentId||undefined);
-      showToast("Agent completed — review the recommendation below.","gn");
-    }catch(e){
-      showToast("Agent run failed: "+(e.message||e),"rd");
-    }finally{
-      setRunningAgent(false);
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  },[current,runningAgent,store]);
-
   const showToast=useCallback((msg,tone="gn",durationMs=2400)=>{
     setToast({msg,tone});
     setTimeout(()=>setToast(null),durationMs);
@@ -1162,7 +1143,13 @@ function CockpitTab({store,cockpit}){
       });
       const data=await resp.json().catch(()=>({}));
       if(!resp.ok){ showToast(data.error||`Ladder action failed (${resp.status})`,"rd"); }
-      else { showToast(`Ladder · ${String(action).replace(/_/g," ")}`,"gn"); setLadderSendBack(""); setLadderRefresh(x=>x+1); }
+      else {
+        showToast(`Ladder · ${String(action).replace(/_/g," ")}`,"gn"); setLadderSendBack(""); setLadderRefresh(x=>x+1);
+        // Advancing onto an AI step runs the agent server-side and writes its
+        // recommendation onto the ticket — pull the store so the rec shows
+        // without a manual reload.
+        store.refresh?.();
+      }
     }catch(e){ showToast(String(e.message||e),"rd"); }
     finally{ setLadderBusy(false); }
   },[ladderInstance,showToast]);
@@ -1383,8 +1370,6 @@ function CockpitTab({store,cockpit}){
           onEscalate={approve} /* escalate also records as triaged */
           onSaveEdit={saveEdit}
           onCancelEdit={cancelEdit}
-          onRunAgent={handleRunAgent}
-          running={runningAgent}
         />
         {compact?(
           <details style={{background:C.s1,border:`1px solid ${C.br}`,borderRadius:4,padding:"8px 12px"}}>

@@ -13,12 +13,11 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { getResolvedUser } from "@aegis/auth/server";
 import {
   actOnWorkflow,
-  autoRunCurrentAgentStep,
   getWorkflowInstance,
   ragFor,
   WorkflowError,
 } from "@aegis/workflow";
-import { intakeWorkflowAgentHandler } from "@aegis/intake/agents";
+import { runLadderAgentForTicket } from "@aegis/intake/agent-run";
 
 const ACTIONS = new Set(["approve", "reject", "send_back", "cancel"]);
 
@@ -57,10 +56,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       targetStep: typeof targetStep === "number" ? targetStep : null,
       expectedVersion: typeof expectedVersion === "number" ? expectedVersion : null,
     });
-    // If the ladder just advanced onto an AGENT step, run the agent now
-    // so its work is ready when the human returns. Best-effort.
-    await autoRunCurrentAgentStep(after.id, intakeWorkflowAgentHandler).catch(() => {});
     const refreshed = (await getWorkflowInstance(after.id)) ?? after;
+    // If the ladder just advanced onto an AGENT step, run the bound agent
+    // automatically and persist its recommendation onto the ticket, so the
+    // Cockpit surfaces it with no "run" button. Governance unchanged — it
+    // writes a PENDING AgentDecision; the human still approves the step.
+    const nowStep = refreshed.definition?.steps?.find((s) => s.stepOrder === refreshed.currentStepOrder);
+    if (refreshed.status === "IN_PROGRESS" && nowStep?.kind === "AGENT" && instance.entityType === "intake_ticket") {
+      await runLadderAgentForTicket(user.organizationId, instance.entityId).catch(() => {});
+    }
     return res.status(200).json({ ok: true, instance: { ...refreshed, rag: ragFor(refreshed) } });
   } catch (err) {
     if (err instanceof WorkflowError)
