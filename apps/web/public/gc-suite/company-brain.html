@@ -217,7 +217,7 @@ footer{padding:14px 30px;border-top:1px solid var(--line);font-size:11px;color:v
 </section>
 
 <section class="catsec">
-  <h2>The wider catalogue — 23 more case studies on the same brain</h2>
+  <h2>The wider catalogue — 28 more case studies on the same brain</h2>
   <div class="sub">Every card is live — click to run the case in the console above. Tags show the systems joined.</div>
   <div class="grid" id="grid"></div>
 </section>
@@ -530,7 +530,59 @@ c28:{q:"How is the legal function actually performing, across everything?",
  <li>As a standing query, this becomes a live view instead of a quarterly project.</li></ul>
  <div class="risk"><b>Recommendation:</b> stand this up as the first thing legal leadership sees each Monday — it's the same data already in the five systems, just never combined before.</div>
  <div class="gap"><b>Gap:</b> outcome quality (not just volume/speed) needs the outside-counsel scorecard layered in for a complete picture.</div>
- <div class="pathline">Function ⇒ AGGREGATE(Request, Contract, Matter, Spend) across all 5 systems</div>`}
+ <div class="pathline">Function ⇒ AGGREGATE(Request, Contract, Matter, Spend) across all 5 systems</div>`},
+c29:{q:"How did we handle uncapped indemnity with our German suppliers last time?",
+ steps:["retrieving prior negotiations tagged 'indemnity · DE'","joining the agreed cap + fallback language + cycle time","precedent + playbook assembled"],
+ srcs:["ic","bf"],nodes:["ct","mt","sp"],edges:["ct-mt","mt-sp"],
+ title:"Precedent recall — uncapped indemnity (German suppliers)",tag:"institutional memory, cited",
+ body:`<h5>Precedent</h5><ul>
+ <li>Last year we renegotiated uncapped indemnity with <b>Rheinwerk Verpackung GmbH</b> and <b>Aachen Ingredients GmbH</b>${SC.ic} — both capped at <b>2× annual contract value</b> after 3 rounds.</li>
+ <li>Average negotiation time: <b>6 weeks</b>; the agreed fallback language is stored as playbook <b>PB-2025-014</b>.</li></ul>
+ <div class="risk"><b>Recommendation:</b> open at the 2× cap with PB-2025-014 language — both prior counterparties accepted it, so it's a defensible anchor.</div>
+ <div class="gap"><b>Gap:</b> one of the two amendments was agreed over email and only summarised in the CLM — confirm the executed wording before citing it verbatim.</div>
+ <div class="pathline">Clause(indemnity, DE) ⇐ NEGOTIATED ⇐ Contract ⇒ OUTCOME(2× cap) ⇒ Playbook(PB-2025-014)</div>`},
+c30:{q:"What's our standard position on consumer-data localisation in China?",
+ steps:["pulling the current policy + its live regulatory dependencies","joining open filings and the connected-vendor footprint","position + live status assembled"],
+ srcs:["sl","ic","ev"],nodes:["ob","ct","mt","rq"],edges:["ct-ob","ct-mt","cp-rq"],
+ title:"Policy recall — China data localisation",tag:"the standing answer, with live status",
+ body:`<h5>Position</h5><ul>
+ <li>Per policy <b>POL-PRIV-008</b>: personal data of Chinese consumers is stored in-country; cross-border transfer needs a <b>CAC security assessment</b>${SC.ic}.</li>
+ <li>The current assessment is <b>in progress</b> (filing <b>REG-003</b>)${SC.ev}; the loyalty-app and e-commerce vendors in scope are mapped to their DPAs${SC.ic}.</li>
+ <li><b>2 open intake requests</b>${SC.sl} depend on this position being settled before their launches.</li></ul>
+ <div class="risk"><b>Recommendation:</b> hold the 2 dependent launches until REG-003 clears; the position itself is stable — the risk is the pending assessment, not the policy.</div>
+ <div class="gap"><b>Gap:</b> the vendor data-residency inventory is legal's copy, not a live feed — reconfirm with IT before relying on it for a filing.</div>
+ <div class="pathline">Policy(POL-PRIV-008) ⇒ REQUIRES ⇒ Filing(REG-003, open) · Processor ⇒ DPA(residency) · Request(dependent ×2)</div>`},
+c31:{q:"What was the outcome of our last anti-bribery investigation, and what did it cost?",
+ steps:["retrieving the closed investigation matter","joining the outcome, remediation obligations and total spend","precedent summary assembled"],
+ srcs:["ev","bf","sl"],nodes:["mt","sp","ob"],edges:["ct-mt","mt-sp","ct-ob"],
+ title:"Precedent recall — anti-bribery investigation",tag:"outcome, remediation, cost — cited",
+ body:`<h5>Precedent</h5><ul>
+ <li>Prior procurement investigation${SC.ev} (external counsel <b>Harlow &amp; Stern LLP</b>): <b>18 months</b>, ended in a <b>voluntary self-disclosure and declination — no prosecution</b>.</li>
+ <li>Remediation obligations${SC.sl}: enhanced anti-bribery training, high-risk-jurisdiction vendor due-diligence, a 12-month compliance monitor (completed) — <b>all closed</b>.</li>
+ <li>Total spend: <b>€4.8M</b>${SC.bf}.</li></ul>
+ <div class="risk"><b>Recommendation:</b> reuse the remediation package as the template if a similar matter opens; the DD requirements are already codified as standing obligations.</div>
+ <div class="gap"><b>Gap:</b> the external counsel's underlying interview memos are privileged and held by the firm — referenced, not stored in the connected systems.</div>
+ <div class="pathline">Matter(investigation, closed) ⇒ OUTCOME(declination) ⇒ Obligation(remediation, closed) · Matter ⇒ BILLED_TO ⇒ Spend</div>`},
+c32:{q:"Which firms have we used for contested brand disputes, and how did they do?",
+ steps:["retrieving prior brand-dispute matters by firm","joining outcome + settlement delta + rate","precedent comparison assembled"],
+ srcs:["ev","bf"],nodes:["mt","sp"],edges:["mt-sp"],
+ title:"Precedent recall — brand-dispute counsel",tag:"who we've actually used, and the result",
+ body:`<h5>Precedent (since 2022)</h5><ul>
+ <li><b>Marlowe Bexley LLP</b> — won summary judgment (€0 liability) on one contested opposition; currently active on another (€12M exposure, tracking favourable)${SC.ev}. Rate ~<b>€1,450/hr</b>${SC.bf}.</li>
+ <li><b>Corveth IP</b> — settled a passing-off matter at <b>€4.2M</b> against a €15M demand${SC.ev}. Rate ~<b>€1,280/hr</b>.</li></ul>
+ <div class="risk"><b>Recommendation:</b> Marlowe Bexley for contested, bet-the-brand disputes; Corveth for pragmatic early settlements — anchored on these outcomes, not on rate cards alone.</div>
+ <div class="gap"><b>Gap:</b> this is precedent recall on matters we ran; for a forward panel decision pair it with the IP-enforcement scorecard (which weights outcomes by spend).</div>
+ <div class="pathline">Firm ⇐ HANDLED ⇐ Matter(brand dispute) ⇒ OUTCOME · Matter ⇒ BILLED_TO ⇒ Spend</div>`},
+c33:{q:"What's the board's approval authority for a regulatory settlement?",
+ steps:["retrieving the governing board resolution","joining current open matters against the thresholds","authority + live applicability assembled"],
+ srcs:["ev","bf"],nodes:["mt","sp"],edges:["mt-sp"],
+ title:"Governance recall — settlement authority",tag:"who can sign off, and when",
+ body:`<h5>Authority (per Board Resolution BR-2024-009)</h5><ul>
+ <li>Settlements <b>up to €10M</b> — GC + CFO · <b>€10M–€50M</b> — Audit Committee · <b>&gt;€50M</b> — full Board vote (an emergency session can convene within 48 hours).</li>
+ <li>Applied to live matters${SC.ev}${SC.bf}: <b>1 open matter</b> sits in the Audit-Committee band on current exposure — flagged so the approval path is lined up before, not during, a settlement window.</li></ul>
+ <div class="risk"><b>Recommendation:</b> pre-brief the Audit Committee on the one in-band matter now; the last &gt;€50M decision went to litigation over settlement, so precedent favours scrutiny at that tier.</div>
+ <div class="gap"><b>Gap:</b> exposure figures are legal's current estimate — the band can shift, so re-check against the live matter valuation before triggering an approval path.</div>
+ <div class="pathline">BoardResolution(BR-2024-009) ⇒ THRESHOLD(tiers) vs Matter(exposure) ⇒ ApprovalPath</div>`}
 };
 // tag each demo with an id (for the teach-the-brain widget) and mark repeat-run scenarios as cached
 Object.keys(DEMOS).forEach(k=>DEMOS[k]._id=k);
@@ -560,6 +612,11 @@ const CARDS=[
  ["c26","26","Instant legal-hold scoping","Custodians and document families assembled in minutes, not days.",["ev","ic","sl"],false],
  ["c27","27","Insource / outsource optimiser","High-volume, low-complexity categories vs what they cost externally.",["sl","bf","ic"],false],
  ["c28","28","GC command view","Cycle times, exposure and spend across the whole function, live.",["sl","ic","ev","bf"],false],
+ ["c29","29","Precedent — uncapped indemnity (DE suppliers)","How we capped uncapped indemnity last time + the playbook language that settled it.",["ic","bf"],false],
+ ["c30","30","Policy recall — China data localisation","The standing position with its live filing status and dependent launches.",["sl","ic","ev"],false],
+ ["c31","31","Precedent — anti-bribery investigation","Outcome, remediation and total cost of the last investigation, cited.",["ev","bf","sl"],false],
+ ["c32","32","Precedent — brand-dispute counsel","Which firms we've used for contested brand disputes and how they did.",["ev","bf"],false],
+ ["c33","33","Governance — settlement authority","Board approval thresholds, applied to live matters before the window opens.",["ev","bf"],false],
 ];
 const COLORS={ic:"var(--ic)",rl:"var(--rl)",sl:"var(--sl)",ev:"var(--ev)",bf:"var(--bf)"};
 document.getElementById("grid").innerHTML=CARDS.map(c=>
