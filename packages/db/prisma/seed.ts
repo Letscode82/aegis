@@ -64,6 +64,14 @@ import { STATIC_AGENT_DEFS } from "../../../modules/intake/src/agents/okf/static
 // seed writes the knock-out reference marks with its own prisma client.
 import { TRADEMARK_BOOTSTRAP } from "../../../modules/intake/src/trademark/bootstrap-data.ts";
 import { normalizeMark as normalizeTrademark } from "../../../modules/intake/src/trademark/similarity.ts";
+// Dev-only, relative-path import of the workflow engine so the seed can
+// populate the governance-ladder library AND start a few running instances
+// (the Workflows editor is otherwise empty, and nothing runs after the
+// human-dispatch-first change). Package-name import would create the same
+// turbo-detected @aegis/db ↔ @aegis/workflow cycle the auth/intake imports
+// avoid; the relative path skips the package.json edge. Seed-only.
+import { seedWorkflowLibrary } from "../../workflow/src/library";
+import { startWorkflow } from "../../workflow/src/engine";
 
 const prisma = new PrismaClient();
 
@@ -1770,6 +1778,61 @@ async function seedAgentDefinitions(orgId: string): Promise<number> {
   return written;
 }
 
+// §13 — Governance workflows: seed the 10-ladder library (so the Workflows
+// editor is populated) and start a few RUNNING ladders on existing seeded
+// intake tickets. After the human-dispatch-first change nothing auto-starts,
+// so without this the Workflows surface + Cockpit look empty. The running
+// instances sit on the same tickets whose counterparties/matters back the
+// seeded Contracts — demonstrating the modules in sync. Idempotent: each
+// binding skips a ticket that already carries an instance. Requires the
+// agent definitions to exist first (AGENT ladder steps bind agentKeys).
+async function seedWorkflows(orgId: string, startedById: string): Promise<{ definitions: number; instances: number }> {
+  const libKeys = await seedWorkflowLibrary(orgId);
+
+  // Bind a seeded ticket of each type to its governance ladder. contract_value
+  // drives the CLM ladder's finance-review skip rule.
+  const bindings: Array<{ match: string; defKey: string; context?: Record<string, unknown> }> = [
+    { match: "contract", defKey: "clm_contract_approval", context: { contract_value: 2_400_000 } },
+    { match: "nda", defKey: "nda_fasttrack" },
+    { match: "vendor", defKey: "vendor_onboarding" },
+    { match: "notice", defKey: "legal_notice" },
+    { match: "trademark", defKey: "regulatory_response" },
+  ];
+
+  let instances = 0;
+  for (const b of bindings) {
+    const ticket = await prisma.intakeTicket.findFirst({
+      where: {
+        organizationId: orgId,
+        type: { contains: b.match, mode: "insensitive" },
+        stage: { not: "complete" },
+      },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
+    });
+    if (!ticket) continue;
+    const existing = await prisma.workflowInstance.findFirst({
+      where: { organizationId: orgId, entityType: "intake_ticket", entityId: ticket.id },
+      select: { id: true },
+    });
+    if (existing) { instances++; continue; }
+    try {
+      await startWorkflow({
+        organizationId: orgId,
+        definitionKey: b.defKey,
+        entityType: "intake_ticket",
+        entityId: ticket.id,
+        startedById,
+        context: b.context,
+      });
+      instances++;
+    } catch {
+      // best-effort demo seed — a missing binding never fails ingest
+    }
+  }
+  return { definitions: libKeys.length, instances };
+}
+
 async function main() {
   if ((process.env.AEGIS_SEED_PROFILE ?? "").trim().toLowerCase() === "production") {
     await seedProductionFoundation();
@@ -1859,6 +1922,9 @@ async function main() {
 
   const agentDefs = await seedAgentDefinitions(org.id);
   console.log(`[seed] agent_definitions=${agentDefs} (oKF Agent Designer)`);
+
+  const wf = await seedWorkflows(org.id, user.id);
+  console.log(`[seed] workflow_definitions=${wf.definitions} running_instances=${wf.instances}`);
 
   console.log("[seed] done.");
 }
