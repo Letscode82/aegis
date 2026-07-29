@@ -39,6 +39,15 @@ export {
   IllegalObligationTransitionError,
 } from "./src/internal/obligation-state-machine";
 
+// Obligation reminder / escalation engine (Phase 2c) — the pg-boss-ready
+// overdue → BREACHED sweep + its escalation-tier helper.
+export {
+  evaluateObligationBreaches,
+  escalationTierForOverdue,
+  type ObligationBreachResult,
+  type EscalationTier,
+} from "./src/internal/obligation-jobs";
+
 export {
   getContractAlerts,
   type ContractAlerts,
