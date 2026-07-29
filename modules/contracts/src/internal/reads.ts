@@ -10,9 +10,10 @@
  * contract.id), never a module-local table. Pure reads.
  */
 import { prisma } from "@aegis/db";
-import type { ContractStatus } from "@aegis/db";
+import type { ContractStatus, ObligationStatus } from "@aegis/db";
 import { daysToExpiry, obligationOverdue } from "./derive";
 import { allowedContractTransitions } from "./contract-state-machine";
+import { allowedObligationTransitions } from "./obligation-state-machine";
 
 export interface ContractClauseDTO {
   id: string;
@@ -133,6 +134,101 @@ async function loadObligationsByContract(organizationId: string, contractIds: st
     });
   }
   return byContract;
+}
+
+// ── Cross-contract obligation queue (CLM Phase 2) ────────────────────
+// The portfolio-wide obligation ledger — every contract commitment in one
+// list, by owner / due / status / overdue. Backs the Obligations dashboard.
+
+export interface ObligationRow {
+  id: string;
+  contractId: string;
+  contractTitle: string;
+  description: string;
+  dueDate: string | null;
+  /** Days until due; negative = overdue; null if no due date. */
+  daysToDue: number | null;
+  recurrence: string | null;
+  ownerId: string | null;
+  ownerName: string | null;
+  status: ObligationStatus;
+  overdue: boolean;
+  allowedTransitions: ObligationStatus[];
+  createdAt: string;
+}
+
+export interface ObligationQueue {
+  rows: ObligationRow[];
+  totals: { total: number; open: number; overdue: number; dueSoon: number; met: number };
+}
+
+export interface ObligationFilter {
+  status?: ObligationStatus;
+  ownerId?: string;
+  overdueOnly?: boolean;
+  dueWithinDays?: number;
+}
+
+export async function listObligations(
+  organizationId: string,
+  filter?: ObligationFilter,
+): Promise<ObligationQueue> {
+  const now = new Date();
+  const day = 86_400_000;
+  const obligations = await prisma.obligation.findMany({
+    where: {
+      organizationId,
+      sourceType: "CONTRACT",
+      ...(filter?.status ? { status: filter.status } : {}),
+      ...(filter?.ownerId ? { ownerId: filter.ownerId } : {}),
+    },
+    orderBy: [{ dueDate: "asc" }, { createdAt: "asc" }],
+  });
+
+  const contractIds = Array.from(new Set(obligations.map((o) => o.sourceId)));
+  const contracts = contractIds.length
+    ? await prisma.contract.findMany({ where: { id: { in: contractIds }, organizationId }, select: { id: true, title: true } })
+    : [];
+  const title: Record<string, string> = Object.fromEntries(contracts.map((c) => [c.id, c.title]));
+  const ownerIds = Array.from(new Set(obligations.map((o) => o.ownerId).filter((x): x is string => !!x)));
+  const owners = ownerIds.length
+    ? await prisma.person.findMany({ where: { id: { in: ownerIds } }, select: { id: true, name: true } })
+    : [];
+  const ownerName: Record<string, string> = Object.fromEntries(owners.map((p) => [p.id, p.name]));
+
+  let rows: ObligationRow[] = obligations.map((o) => {
+    const daysToDue = o.dueDate ? Math.floor((new Date(o.dueDate).getTime() - now.getTime()) / day) : null;
+    return {
+      id: o.id,
+      contractId: o.sourceId,
+      contractTitle: title[o.sourceId] || "—",
+      description: o.description,
+      dueDate: o.dueDate ? o.dueDate.toISOString() : null,
+      daysToDue,
+      recurrence: o.recurrence,
+      ownerId: o.ownerId,
+      ownerName: o.ownerId ? ownerName[o.ownerId] || null : null,
+      status: o.status,
+      overdue: obligationOverdue(o.dueDate, o.status, now),
+      allowedTransitions: allowedObligationTransitions(o.status),
+      createdAt: o.createdAt.toISOString(),
+    };
+  });
+  if (filter?.overdueOnly) rows = rows.filter((r) => r.overdue);
+  if (filter?.dueWithinDays != null) {
+    const d = filter.dueWithinDays;
+    rows = rows.filter((r) => r.daysToDue != null && r.daysToDue >= 0 && r.daysToDue <= d);
+  }
+
+  const openish = (s: ObligationStatus) => s === "OPEN" || s === "IN_PROGRESS";
+  const totals = {
+    total: rows.length,
+    open: rows.filter((r) => openish(r.status)).length,
+    overdue: rows.filter((r) => r.overdue).length,
+    dueSoon: rows.filter((r) => openish(r.status) && r.daysToDue != null && r.daysToDue >= 0 && r.daysToDue <= 30).length,
+    met: rows.filter((r) => r.status === "MET").length,
+  };
+  return { rows, totals };
 }
 
 function toSummary(

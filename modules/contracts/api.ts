@@ -19,12 +19,25 @@
 export {
   getContractsOverview,
   getContractDetail,
+  listObligations,
   type ContractsOverview,
   type ContractSummary,
   type ContractDetail,
   type ContractClauseDTO,
   type ContractObligationDTO,
+  type ObligationRow,
+  type ObligationQueue,
+  type ObligationFilter,
 } from "./src/internal/reads";
+
+// Obligation lifecycle state machine (Phase 2) — the guard + allowed
+// transitions the obligation routes and dashboard use.
+export {
+  canTransitionObligation,
+  assertObligationTransition,
+  allowedObligationTransitions,
+  IllegalObligationTransitionError,
+} from "./src/internal/obligation-state-machine";
 
 export {
   getContractAlerts,

@@ -8,7 +8,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
-import { updateObligationStatus } from "@aegis/contracts";
+import { updateObligationStatus, IllegalObligationTransitionError } from "@aegis/contracts";
 
 const VALID = new Set(["OPEN", "IN_PROGRESS", "MET", "BREACHED", "WAIVED"]);
 
@@ -25,13 +25,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     assertUserCanDo(user, Permission.ContractsCreate);
+    const reason = typeof req.body?.reason === "string" ? req.body.reason : null;
     const updated = await updateObligationStatus(user.organizationId, obligationId, status as never, {
       id: user.id,
       type: "USER",
-    });
+    }, { reason });
     return res.status(200).json({ ok: true, status: updated.status });
   } catch (err) {
     if (err instanceof AccessDeniedError) return res.status(403).json({ ok: false, error: err.decision.message });
+    if (err instanceof IllegalObligationTransitionError) return res.status(409).json({ ok: false, error: err.message });
     return res.status(400).json({ ok: false, error: String((err as Error).message || err) });
   }
 }
