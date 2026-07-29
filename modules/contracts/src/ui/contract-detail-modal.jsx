@@ -50,6 +50,15 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
   }, [contractId]);
   useEffect(() => { load(); }, [load]);
 
+  // Slide-over presentation (Phase 5e): animate in on mount, close on Escape.
+  const [shown, setShown] = useState(false);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setShown(true));
+    const onKey = (e) => { if (e.key === "Escape") onClose?.(); };
+    window.addEventListener("keydown", onKey);
+    return () => { cancelAnimationFrame(id); window.removeEventListener("keydown", onKey); };
+  }, [onClose]);
+
   // CTR-5 — the playbook, for clause-vs-standard comparison.
   useEffect(() => {
     fetch("/api/contracts/clause-library")
@@ -98,8 +107,16 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
 
   const c = data;
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(4,7,15,.72)", zIndex: 1000, display: "flex", justifyContent: "center", alignItems: "flex-start", padding: "5vh 16px", overflowY: "auto" }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ fontFamily: F, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 8, width: "min(860px, 100%)", boxShadow: "0 24px 80px rgba(0,0,0,.5)" }}>
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 1000, background: shown ? "rgba(4,7,15,.6)" : "rgba(4,7,15,0)", transition: "background .25s ease" }}>
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          position: "fixed", top: 0, right: 0, height: "100vh", width: "min(760px, 100%)",
+          fontFamily: F, background: C.bg, borderLeft: `1px solid ${C.br}`,
+          boxShadow: "-24px 0 80px rgba(0,0,0,.5)", overflowY: "auto",
+          transform: shown ? "translateX(0)" : "translateX(100%)", transition: "transform .25s ease",
+        }}
+      >
         {error && <div style={{ padding: "10px 18px", color: C.rd, fontFamily: M, fontSize: 11, borderBottom: `1px solid ${C.br}` }}>⚠ {error}</div>}
         {!c ? (
           <div style={{ padding: 48, textAlign: "center", color: C.t3, fontFamily: M, fontSize: 12, letterSpacing: 1 }}>◎ Loading contract…</div>
