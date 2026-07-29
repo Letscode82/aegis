@@ -13,6 +13,7 @@
  * clobber them. New/changed obligations are managed explicitly.
  */
 import { prisma, logAudit } from "@aegis/db";
+import type { ContractVersionSource } from "@aegis/db";
 import { extractContractKnowledge } from "./extract";
 import { addClause } from "./service";
 import { snapshotContractVersion } from "./versions";
@@ -22,8 +23,18 @@ type Actor = { id: string | null; type?: "USER" | "AGENT" | "SYSTEM" };
 export interface ReExtractResult {
   clauseCount: number;
   deviationCount: number;
-  /** The new EXTRACTION version; redline it against the prior version. */
+  /** The new version; redline it against the prior version. */
   newVersion: number | null;
+}
+
+export interface ReExtractOptions {
+  /** Label for the "before" snapshot (default "Before re-extraction"). */
+  beforeLabel?: string;
+  /** Label for the resulting snapshot (default "Re-extraction"). */
+  resultLabel?: string;
+  /** Source for the resulting snapshot (default "EXTRACTION"). A negotiation
+   *  turn passes "COUNTERPARTY" so the version history reads as a turn. */
+  resultSource?: ContractVersionSource;
 }
 
 export async function reExtractContractClauses(
@@ -31,6 +42,7 @@ export async function reExtractContractClauses(
   contractId: string,
   sourceText: string,
   actor: Actor,
+  opts?: ReExtractOptions,
 ): Promise<ReExtractResult> {
   const contract = await prisma.contract.findFirst({
     where: { id: contractId, organizationId },
@@ -41,14 +53,19 @@ export async function reExtractContractClauses(
 
   // Snapshot the current clause set first, so the "before" is preserved for
   // the redline even if it was never snapshotted (no-op if unchanged).
-  await snapshotContractVersion(organizationId, contractId, { label: "Before re-extraction", source: "MANUAL" }, actor);
+  await snapshotContractVersion(organizationId, contractId, { label: opts?.beforeLabel ?? "Before re-extraction", source: "MANUAL" }, actor);
 
   // Replace the clause analysis from the amended text.
   await prisma.contractClause.deleteMany({ where: { contractId } });
   const { clauses } = extractContractKnowledge(sourceText, contract.type);
   for (const c of clauses) await addClause(organizationId, contractId, c, actor);
 
-  const after = await snapshotContractVersion(organizationId, contractId, { label: "Re-extraction", source: "EXTRACTION" }, actor);
+  const after = await snapshotContractVersion(
+    organizationId,
+    contractId,
+    { label: opts?.resultLabel ?? "Re-extraction", source: opts?.resultSource ?? "EXTRACTION" },
+    actor,
+  );
 
   const deviationCount = clauses.filter((c) => c.deviation).length;
   await logAudit({

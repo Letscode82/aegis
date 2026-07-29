@@ -250,6 +250,9 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
             {/* Counterparty review round-trip */}
             <ReviewPanel contractId={contractId} canManage={canManage} />
 
+            {/* Turn-based negotiation (CLM Phase 4b) */}
+            <NegotiationPanel contractId={contractId} canManage={canManage} draftText={c.draftText} onApplied={load} />
+
             {/* Version history + redline diff (CTR-5b) */}
             <VersionsPanel contractId={contractId} canManage={canManage} />
           </>
@@ -387,6 +390,123 @@ const btn = (c) => ({
   padding: "4px 10px", borderRadius: 4, border: `1px solid ${c}`, background: "transparent",
   color: c, fontSize: 9.5, fontFamily: M, fontWeight: 600, letterSpacing: .5, cursor: "pointer", textTransform: "uppercase",
 });
+
+// ── Turn-based negotiation (CLM Phase 4b) ────────────────────────────
+//
+// The internal side of the counterparty round-trip: when a counterparty
+// counters, the attorney applies their proposed changes to the working draft
+// here. Each apply re-extracts the clause set into a new COUNTERPARTY version
+// (a "turn"), so the Versions panel's redline — and the AI change summary —
+// show exactly what moved this round. Nothing auto-accepts; the attorney
+// still drives approve/execute through the lifecycle controls.
+function NegotiationPanel({ contractId, canManage, draftText, onApplied }) {
+  const [state, setState] = useState(null);
+  const [err, setErr] = useState(null);
+  const [editing, setEditing] = useState(false);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [applied, setApplied] = useState(null);
+
+  const load = useCallback(() => {
+    fetch(`/api/contracts/${contractId}/negotiation`)
+      .then((r) => (r.ok ? r.json() : r.json().then((d) => Promise.reject(d.error || `HTTP ${r.status}`))))
+      .then((d) => setState(d.state))
+      .catch((e) => setErr(String(e)));
+  }, [contractId]);
+  useEffect(() => { load(); }, [load]);
+
+  const startTurn = () => {
+    setText(state?.draftText || draftText || "");
+    setApplied(null);
+    setEditing(true);
+  };
+
+  const applyTurn = async () => {
+    if (!text.trim()) { setErr("Revised draft text is required."); return; }
+    setBusy(true); setErr(null);
+    try {
+      const r = await fetch(`/api/contracts/${contractId}/negotiation`, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draftText: text }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setApplied(d);
+      setEditing(false);
+      load();
+      onApplied?.();
+    } catch (e) { setErr(String(e.message || e)); } finally { setBusy(false); }
+  };
+
+  const cp = state?.lastCounterparty;
+  const cpCountered = cp && cp.action === "contract.review.countered";
+
+  return (
+    <div style={{ padding: "14px 18px", borderTop: `1px solid ${C.br}` }}>
+      <div style={{ fontSize: 10, fontFamily: M, color: C.t3, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 600, marginBottom: 10 }}>
+        Negotiation {state && <span style={{ color: C.t4 }}>· {state.turnCount} turn{state.turnCount === 1 ? "" : "s"}</span>}
+      </div>
+      {err && <div style={{ fontSize: 10.5, color: C.rd, fontFamily: M, marginBottom: 8 }}>⚠ {err}</div>}
+      {!state ? <div style={{ fontSize: 10.5, color: C.t4, fontFamily: M }}>Loading…</div> : (
+        <>
+          {cp && (
+            <div style={{ padding: "8px 10px", borderRadius: 5, marginBottom: 10, background: C.s1, borderLeft: `2px solid ${cpCountered ? C.am : C.bl}` }}>
+              <div style={{ fontSize: 9, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: cpCountered ? C.am : C.bl, marginBottom: 3 }}>
+                {cpCountered ? "Counterparty proposed changes" : "Counterparty comment"}
+              </div>
+              <div style={{ fontSize: 10.5, color: C.t2, lineHeight: 1.5 }}>
+                <b style={{ color: C.t1 }}>{cp.personName || "Counterparty"}</b>{cp.comment ? ` — “${cp.comment}”` : ""}
+              </div>
+            </div>
+          )}
+
+          {state.turns.length > 0 && (
+            <div style={{ marginBottom: 10 }}>
+              {state.turns.map((t) => (
+                <div key={t.version} style={{ display: "flex", gap: 10, alignItems: "baseline", padding: "3px 0", fontSize: 10.5 }}>
+                  <span style={{ fontFamily: M, color: C.am, minWidth: 28 }}>v{t.version}</span>
+                  <span style={{ color: C.t2, flex: 1 }}>{t.label}</span>
+                  <span style={{ fontFamily: M, fontSize: 9, color: C.t4 }}>{relTime(t.createdAt)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {applied && (
+            <div style={{ fontSize: 10.5, color: C.gn, marginBottom: 8 }}>
+              ✓ Turn {applied.turn} applied — v{applied.newVersion ?? "?"} · {applied.clauseCount} clause{applied.clauseCount === 1 ? "" : "s"}, {applied.deviationCount} deviating. Compare it in Version history below (and generate the AI change summary).
+            </div>
+          )}
+
+          {canManage && !editing && (
+            <button onClick={startTurn} style={btn(cpCountered ? C.am : C.tl)}>
+              {cpCountered ? "Apply counterparty changes →" : "Record a negotiation turn"}
+            </button>
+          )}
+
+          {editing && (
+            <div style={{ marginTop: 6 }}>
+              <div style={{ fontSize: 10, color: C.t3, lineHeight: 1.5, marginBottom: 6 }}>
+                Edit the working draft to incorporate the counterparty's changes, then apply. This re-extracts the clauses into a new turn version — the redline shows what moved.
+              </div>
+              <textarea
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                placeholder="Revised contract draft text…"
+                style={{ width: "100%", minHeight: 150, resize: "vertical", padding: "8px 10px", fontSize: 11, fontFamily: F, lineHeight: 1.5, color: C.t1, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 5, boxSizing: "border-box" }}
+              />
+              <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+                <button disabled={busy || !text.trim()} onClick={applyTurn} style={{ ...btn(C.am), opacity: busy || !text.trim() ? .5 : 1 }}>
+                  {busy ? "Applying…" : "Apply turn"}
+                </button>
+                <button disabled={busy} onClick={() => { setEditing(false); setErr(null); }} style={btn(C.t3)}>Cancel</button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 // ── Live re-extraction on amendment (CLM Phase 3a) ───────────────────
 //
