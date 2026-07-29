@@ -49,6 +49,8 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
   const [openClause, setOpenClause] = useState(null);
   const [remClauseId, setRemClauseId] = useState(null); // clause being remediated (Phase 5b)
   const [editingDetails, setEditingDetails] = useState(false); // header metadata edit (Phase 5c)
+  const [editClauseId, setEditClauseId] = useState(null); // clause being hand-edited (Phase 6c)
+  const [addingClause, setAddingClause] = useState(false); // add-clause form (Phase 6c)
 
   const load = useCallback(() => {
     setError(null);
@@ -236,9 +238,11 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
                     RISK {c.riskScore.score != null ? `${c.riskScore.score}/100` : "—"} · {c.riskScore.band}
                   </span>
                 )}
+                {canManage && !addingClause && <button onClick={() => setAddingClause(true)} style={btn(C.tl)}>+ Add clause</button>}
               </div>
-              {c.clauses.length === 0 ? (
-                <div style={{ fontSize: 11, color: C.t4, fontStyle: "italic" }}>No clauses extracted yet. The contract agent populates these on review (CTR-2).</div>
+              {addingClause && <ClauseEditForm contractId={contractId} onDone={() => { setAddingClause(false); load(); }} onCancel={() => setAddingClause(false)} />}
+              {c.clauses.length === 0 && !addingClause ? (
+                <div style={{ fontSize: 11, color: C.t4, fontStyle: "italic" }}>No clauses yet. Extract them from the draft (✎ Edit draft / scope) or <b style={{ color: C.tl }}>+ Add clause</b> by hand.</div>
               ) : c.clauses.map((cl) => {
                 const pb = playbook[cl.type];
                 const open = openClause === cl.id;
@@ -259,10 +263,21 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
                           {open ? "▾ playbook" : "⚖ vs playbook"}
                         </span>
                       )}
+                      {canManage && (
+                        <span onClick={() => setEditClauseId(editClauseId === cl.id ? null : cl.id)} title="Edit clause" style={{ cursor: "pointer", fontSize: 9, fontFamily: M, letterSpacing: .5, color: C.cy, textTransform: "uppercase" }}>
+                          {editClauseId === cl.id ? "▾ edit" : "✎ edit"}
+                        </span>
+                      )}
                     </span>
                   </div>
-                  {cl.summary && <div style={{ fontSize: 10.5, color: C.tl, marginBottom: 2 }}>{cl.summary}</div>}
-                  <div style={{ fontSize: 10.5, color: C.t2, lineHeight: 1.5 }}>{cl.text}</div>
+                  {editClauseId === cl.id ? (
+                    <ClauseEditForm contractId={contractId} clause={cl} onDone={() => { setEditClauseId(null); load(); }} onCancel={() => setEditClauseId(null)} />
+                  ) : (
+                    <>
+                      {cl.summary && <div style={{ fontSize: 10.5, color: C.tl, marginBottom: 2 }}>{cl.summary}</div>}
+                      <div style={{ fontSize: 10.5, color: C.t2, lineHeight: 1.5 }}>{cl.text}</div>
+                    </>
+                  )}
                   {remClauseId === cl.id && (
                     <ClauseRemediationPanel contractId={contractId} clause={cl} onDone={() => { setRemClauseId(null); load(); }} />
                   )}
@@ -803,11 +818,74 @@ function NegotiationPanel({ contractId, canManage, draftText, onApplied }) {
 // the same type), and an AI redline. Human-gated: the suggestion is a PENDING
 // AgentDecision; Accept applies it (optionally an operator-chosen option),
 // marks the clause non-deviating, downgrades risk, and snapshots a version.
+// ── Human-owned clause add / edit / delete (CLM Phase 6c) ────────────
+// Direct control over the clause set: add a clause by type, edit any clause's
+// text / risk / deviation, or delete it. Chain-sealed; each change snapshots a
+// version and re-scores the contract risk.
+const CLAUSE_TYPES = [
+  "LIABILITY_CAP", "INDEMNITY", "IP", "PAYMENT", "AUTO_RENEWAL", "TERMINATION",
+  "GOVERNING_LAW", "CONFIDENTIALITY", "ASSIGNMENT", "WARRANTY", "OTHER",
+];
+function ClauseEditForm({ contractId, clause, onDone, onCancel }) {
+  const editing = !!clause;
+  const [type, setType] = useState(clause?.type || "CONFIDENTIALITY");
+  const [text, setText] = useState(clause?.text || "");
+  const [risk, setRisk] = useState(clause?.risk || "LOW");
+  const [deviation, setDeviation] = useState(!!clause?.deviation);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const save = async () => {
+    if (!text.trim()) { setErr("Clause text is required."); return; }
+    setBusy(true); setErr(null);
+    try {
+      const url = editing ? `/api/contracts/${contractId}/clauses/${clause.id}` : `/api/contracts/${contractId}/clauses`;
+      const r = await fetch(url, {
+        method: editing ? "PATCH" : "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, text: text.trim(), risk, deviation }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      onDone?.();
+    } catch (e) { setErr(String(e.message || e)); setBusy(false); }
+  };
+  const del = async () => {
+    setBusy(true); setErr(null);
+    try {
+      const r = await fetch(`/api/contracts/${contractId}/clauses/${clause.id}`, { method: "DELETE" });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      onDone?.();
+    } catch (e) { setErr(String(e.message || e)); setBusy(false); }
+  };
+
+  const inp = { background: C.bg, border: `1px solid ${C.br}`, borderRadius: 4, color: C.t1, fontFamily: M, fontSize: 10.5, padding: "5px 7px" };
+  return (
+    <div style={{ marginTop: 6, marginBottom: 6, padding: "10px 12px", background: C.s1, borderRadius: 6, border: `1px solid ${C.cy}44` }}>
+      <div style={{ fontSize: 9, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t3, marginBottom: 8 }}>{editing ? "Edit clause" : "Add clause"}</div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 8 }}>
+        <select value={type} onChange={(e) => setType(e.target.value)} style={inp}>{CLAUSE_TYPES.map((t) => <option key={t} value={t}>{t.replace(/_/g, " ")}</option>)}</select>
+        <select value={risk} onChange={(e) => setRisk(e.target.value)} style={inp}>{["LOW", "MEDIUM", "HIGH"].map((r) => <option key={r} value={r}>{r} risk</option>)}</select>
+        <label style={{ display: "flex", alignItems: "center", gap: 5, fontSize: 10.5, color: C.t2 }}>
+          <input type="checkbox" checked={deviation} onChange={(e) => setDeviation(e.target.checked)} /> Deviates from playbook
+        </label>
+      </div>
+      <textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Clause language…" style={{ width: "100%", minHeight: 80, resize: "vertical", padding: "7px 9px", fontSize: 11, fontFamily: F, lineHeight: 1.5, color: C.t1, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 5, boxSizing: "border-box" }} />
+      {err && <div style={{ fontSize: 10, color: C.rd, fontFamily: M, marginTop: 6 }}>⚠ {err}</div>}
+      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+        <button disabled={busy || !text.trim()} onClick={save} style={btn(C.gn)}>{busy ? "Saving…" : editing ? "Save clause" : "Add clause"}</button>
+        <button disabled={busy} onClick={onCancel} style={btn(C.t3)}>Cancel</button>
+        {editing && <button disabled={busy} onClick={del} style={{ ...btn(C.rd), marginLeft: "auto" }}>🗑 Delete</button>}
+      </div>
+    </div>
+  );
+}
+
 function ClauseRemediationPanel({ contractId, clause, onDone }) {
   const [rem, setRem] = useState(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
-  const [chosen, setChosen] = useState(null); // operator-picked option text (null = AI suggestion)
+  const [text, setText] = useState("");       // editable replacement text (Phase 6c)
 
   const gen = useCallback(async () => {
     setBusy(true); setErr(null);
@@ -815,11 +893,13 @@ function ClauseRemediationPanel({ contractId, clause, onDone }) {
       // Load any existing suggestion first; generate if none.
       let r = await fetch(`/api/contracts/${contractId}/clauses/${clause.id}/remediation`);
       let d = await r.json();
-      if (d?.ok && d.remediation && d.remediation.status === "PENDING") { setRem(d.remediation); return; }
-      r = await fetch(`/api/contracts/${contractId}/clauses/${clause.id}/remediation`, { method: "POST" });
-      d = await r.json();
-      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      if (!(d?.ok && d.remediation && d.remediation.status === "PENDING")) {
+        r = await fetch(`/api/contracts/${contractId}/clauses/${clause.id}/remediation`, { method: "POST" });
+        d = await r.json();
+        if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      }
       setRem(d.remediation);
+      if (d.remediation?.status === "PENDING") setText(d.remediation.suggestedText || "");
     } catch (e) { setErr(String(e.message || e)); } finally { setBusy(false); }
   }, [contractId, clause.id]);
   useEffect(() => { gen(); }, [gen]);
@@ -829,7 +909,7 @@ function ClauseRemediationPanel({ contractId, clause, onDone }) {
     try {
       const r = await fetch(`/api/contracts/${contractId}/clauses/${clause.id}/remediation/resolve`, {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ decisionId: rem.id, action, chosenText: action === "approve" ? chosen : null }),
+        body: JSON.stringify({ decisionId: rem.id, action, chosenText: action === "approve" ? text : null }),
       });
       const d = await r.json();
       if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
@@ -843,7 +923,6 @@ function ClauseRemediationPanel({ contractId, clause, onDone }) {
   if (!rem) return null;
 
   const resolved = rem.status !== "PENDING";
-  const effectiveText = chosen != null ? chosen : rem.suggestedText;
 
   return (
     <div style={box}>
@@ -854,26 +933,31 @@ function ClauseRemediationPanel({ contractId, clause, onDone }) {
         {rem.degraded && <span style={{ fontSize: 8.5, fontFamily: M, color: C.t4 }} title="Claude unavailable — playbook/precedent fallback">⚙ fallback</span>}
         {rem.confidence != null && <span style={{ fontSize: 8.5, fontFamily: M, color: C.t4 }}>{Math.round(rem.confidence * 100)}% conf</span>}
       </div>
-      <div style={{ fontSize: 10.5, color: C.t1, lineHeight: 1.55, padding: "6px 8px", background: C.bg, borderRadius: 4, borderLeft: `2px solid ${C.gn}` }}>{effectiveText}</div>
+      {resolved ? (
+        <div style={{ fontSize: 10.5, color: C.t1, lineHeight: 1.55, padding: "6px 8px", background: C.bg, borderRadius: 4, borderLeft: `2px solid ${C.gn}` }}>{rem.appliedText || rem.suggestedText}</div>
+      ) : (
+        <textarea value={text} onChange={(e) => setText(e.target.value)} style={{ width: "100%", minHeight: 90, resize: "vertical", padding: "6px 8px", fontSize: 10.5, fontFamily: F, lineHeight: 1.55, color: C.t1, background: C.bg, border: `1px solid ${C.br}`, borderLeft: `2px solid ${C.gn}`, borderRadius: 4, boxSizing: "border-box" }} />
+      )}
       {rem.rationale && <div style={{ fontSize: 10, color: C.t3, lineHeight: 1.5, marginTop: 5 }}>{rem.rationale}</div>}
 
       {!resolved && rem.options?.length > 0 && (
         <div style={{ marginTop: 8 }}>
-          <div style={{ fontSize: 8.5, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t4, marginBottom: 4 }}>Or choose an option</div>
+          <div style={{ fontSize: 8.5, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t4, marginBottom: 4 }}>Load an option into the editor</div>
           <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-            <span onClick={() => setChosen(null)} style={{ cursor: "pointer", fontSize: 9, fontFamily: M, padding: "3px 8px", borderRadius: 3, border: `1px solid ${chosen == null ? C.gn : C.br}`, color: chosen == null ? C.gn : C.t3 }}>AI suggestion</span>
+            <span onClick={() => setText(rem.suggestedText || "")} style={{ cursor: "pointer", fontSize: 9, fontFamily: M, padding: "3px 8px", borderRadius: 3, border: `1px solid ${C.br}`, color: C.t3 }}>AI suggestion</span>
             {rem.options.map((o, i) => (
-              <span key={i} onClick={() => setChosen(o.text)} title={o.text} style={{ cursor: "pointer", fontSize: 9, fontFamily: M, padding: "3px 8px", borderRadius: 3, border: `1px solid ${chosen === o.text ? C.gn : C.br}`, color: chosen === o.text ? C.gn : C.t3 }}>{o.label}</span>
+              <span key={i} onClick={() => setText(o.text)} title={o.text} style={{ cursor: "pointer", fontSize: 9, fontFamily: M, padding: "3px 8px", borderRadius: 3, border: `1px solid ${C.br}`, color: C.t3 }}>{o.label}</span>
             ))}
           </div>
         </div>
       )}
 
       {!resolved && (
-        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
-          <button disabled={busy} onClick={() => resolve("approve")} style={btn(C.gn)}>Accept &amp; apply</button>
+        <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
+          <button disabled={busy || !text.trim()} onClick={() => resolve("approve")} style={btn(C.gn)}>Accept &amp; apply</button>
           <button disabled={busy} onClick={() => resolve("reject")} style={btn(C.rd)}>Reject</button>
           <button disabled={busy} onClick={gen} style={btn(C.t3)}>Regenerate</button>
+          <span style={{ fontSize: 8.5, fontFamily: M, color: C.t4 }}>Edit the text before applying — it's yours to change.</span>
         </div>
       )}
     </div>
