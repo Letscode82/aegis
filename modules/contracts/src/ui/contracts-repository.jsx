@@ -4,6 +4,7 @@ import { ContractDetailModal } from "./contract-detail-modal.jsx";
 import { ClauseLibraryModal } from "./clause-library-modal.jsx";
 import { TemplatesModal } from "./templates-modal.jsx";
 import { ObligationsDashboard } from "./obligations-dashboard.jsx";
+import { AuthorContractModal } from "./author-contract-modal.jsx";
 
 // ── Contract repository (CTR-1) ──────────────────────────────────────
 //
@@ -49,6 +50,7 @@ export function ContractsRepository() {
   const [canManage, setCanManage] = useState(false);
   const [showPlaybook, setShowPlaybook] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [showAuthor, setShowAuthor] = useState(false);
   const [tab, setTab] = useState("contracts"); // "contracts" | "obligations"
 
   const load = useCallback(() => {
@@ -98,6 +100,7 @@ export function ContractsRepository() {
         <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
           <button onClick={() => setShowPlaybook(true)} style={{ padding: "7px 13px", background: "transparent", color: C.bl, border: `1px solid ${C.bl}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" }}>📖 Playbook</button>
           <button onClick={() => setShowTemplates(true)} style={{ padding: "7px 13px", background: "transparent", color: C.tl, border: `1px solid ${C.tl}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" }}>📄 Templates</button>
+          {canManage && <button onClick={() => setShowAuthor(true)} style={{ padding: "7px 13px", background: C.bl, color: "#fff", border: `1px solid ${C.bl}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 700, textTransform: "uppercase", cursor: "pointer" }}>✎ New contract</button>}
         </div>
       </div>
 
@@ -194,6 +197,12 @@ export function ContractsRepository() {
       )}
       {showPlaybook && <ClauseLibraryModal canManage={canManage} onClose={() => setShowPlaybook(false)} />}
       {showTemplates && <TemplatesModal canManage={canManage} onClose={() => setShowTemplates(false)} />}
+      {showAuthor && (
+        <AuthorContractModal
+          onClose={() => setShowAuthor(false)}
+          onCreated={(contractId) => { setShowAuthor(false); load(); setOpen(contractId); }}
+        />
+      )}
     </div>
   );
 }

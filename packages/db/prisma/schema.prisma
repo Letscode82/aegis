@@ -1966,6 +1966,11 @@ model Contract {
   /// Days before expiry a non-renewal notice must be given.
   noticeWindowDays     Int?
   governingLaw         String?
+  /// Working draft body (CLM Phase 4 authoring / negotiation) — the prose the
+  /// clause extractor reads. Populated when a contract is authored from a
+  /// template and rewritten on each counterparty negotiation turn. Null for
+  /// contracts spawned from intake (their source text is the ticket).
+  draftText            String?
   /// Source of truth pointer — the intake ticket this spawned from, if any.
   sourceIntakeTicketId String?
   /// CLM lifecycle timestamps — stamped by the guarded status transition
