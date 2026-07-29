@@ -146,6 +146,16 @@ export {
   type AuthorContractResult,
 } from "./src/internal/author";
 
+// Turn-based negotiation (Phase 4b). Applying a counterparty turn re-extracts
+// the draft into a new COUNTERPARTY version; turns derive from that history.
+export {
+  getNegotiationState,
+  applyCounterpartyTurn,
+  type NegotiationState,
+  type NegotiationTurnSummary,
+  type ApplyTurnResult,
+} from "./src/internal/negotiation";
+
 // Live re-extraction on amendment (Phase 3a) — re-runs the deterministic
 // extractor over amended text, replaces the clause set, and snapshots a new
 // EXTRACTION version so the redline shows exactly what the amendment changed.
