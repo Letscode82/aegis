@@ -156,6 +156,19 @@ export {
   type ApplyTurnResult,
 } from "./src/internal/negotiation";
 
+// AI clause remediation (Phase 5b) — suggest a fix for a deviating clause
+// from playbook + agreeable precedent + AI, human-gated via AgentDecision.
+export {
+  suggestClauseRemediation,
+  resolveClauseRemediation,
+  getClauseRemediation,
+  buildRemediationPrompt,
+  type ClauseRemediationDTO,
+  type RemediationOption,
+  type RemediationBasis,
+  type RemediationStatus,
+} from "./src/internal/clause-remediation";
+
 // Live re-extraction on amendment (Phase 3a) — re-runs the deterministic
 // extractor over amended text, replaces the clause set, and snapshots a new
 // EXTRACTION version so the redline shows exactly what the amendment changed.
