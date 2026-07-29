@@ -108,6 +108,17 @@ export {
   type UpdateDraftResult,
 } from "./src/internal/edit";
 
+// Execution & signatures (Phase 5d) — record signatures; both sides + APPROVED
+// auto-executes.
+export {
+  getContractSignatures,
+  recordSignature,
+  removeSignature,
+  type SignatureState,
+  type SignatureDTO,
+  type RecordSignatureInput,
+} from "./src/internal/signatures";
+
 export {
   createContract,
   transitionContractStatus,
