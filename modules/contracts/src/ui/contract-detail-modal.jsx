@@ -20,6 +20,13 @@ const money = (n, ccy) => {
 const fmtDate = (iso) => (iso ? new Date(iso).toISOString().slice(0, 10) : "—");
 const RISK_COLOR = { HIGH: C.rd, MEDIUM: C.am, LOW: C.gn };
 const OBL_COLOR = { OPEN: C.bl, IN_PROGRESS: C.am, MET: C.gn, BREACHED: C.rd, WAIVED: C.t3 };
+// CLM lifecycle labels (Phase 1b).
+const STATUS_LABEL = {
+  DRAFT: "Draft", IN_NEGOTIATION: "In negotiation", IN_REVIEW: "In approval",
+  APPROVED: "Approved", EXECUTED: "Executed", ACTIVE: "Active",
+  EXPIRED: "Expired", TERMINATED: "Terminated",
+};
+const advanceColor = (s) => (s === "TERMINATED" ? C.rd : s === "ACTIVE" || s === "EXECUTED" || s === "APPROVED" ? C.gn : C.cy);
 
 function Pill({ t, c }) {
   return <span style={{ fontSize: 9, fontFamily: M, letterSpacing: .6, padding: "2px 7px", borderRadius: 3, textTransform: "uppercase", color: c, border: `1px solid ${c}55` }}>{t}</span>;
@@ -48,6 +55,26 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
       .then((d) => { if (d?.ok) setPlaybook(Object.fromEntries((d.entries || []).map((e) => [e.clauseType, e]))); })
       .catch(() => {});
   }, []);
+
+  // CLM lifecycle transition — the server guards the state machine + stamps
+  // the timestamps + chain-seals; the UI just requests the target state.
+  const transitionStatus = async (status) => {
+    setBusy("status:" + status);
+    try {
+      const r = await fetch(`/api/contracts/${contractId}/status`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error || `HTTP ${r.status}`);
+      load();
+      onChanged?.();
+    } catch (e) {
+      setError(String(e.message || e));
+    } finally {
+      setBusy(null);
+    }
+  };
 
   const setObligationStatus = async (obligationId, status) => {
     setBusy(obligationId);
@@ -100,6 +127,38 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
                 <span>Expires <span style={{ color: c.daysToExpiry != null && c.daysToExpiry <= 90 ? C.am : C.t1 }}>{fmtDate(c.expiryDate)}</span>{c.daysToExpiry != null && <span style={{ color: c.daysToExpiry < 0 ? C.rd : c.daysToExpiry <= 90 ? C.am : C.t4 }}> ({c.daysToExpiry < 0 ? `${-c.daysToExpiry}d ago` : `${c.daysToExpiry}d`})</span>}</span>
                 {c.autoRenew && <span style={{ color: C.am }}>⟳ Auto-renew{c.noticeWindowDays ? ` · ${c.noticeWindowDays}d notice` : ""}</span>}
               </div>
+            </div>
+
+            {/* CLM lifecycle — advance controls + timeline (Phase 1b) */}
+            <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.br}`, background: C.s1 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <div style={{ fontSize: 10, fontFamily: M, color: C.t3, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 600 }}>
+                  Lifecycle <span style={{ color: C.tl }}>· {STATUS_LABEL[c.status] || c.status}</span>
+                </div>
+                {canManage && (c.allowedTransitions?.length ? (
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    {c.allowedTransitions.map((s) => (
+                      <button key={s} disabled={busy === "status:" + s} onClick={() => transitionStatus(s)} style={btn(advanceColor(s))}>
+                        → {STATUS_LABEL[s] || s}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <span style={{ fontSize: 9.5, fontFamily: M, color: C.t4 }}>Terminal state — no further transitions</span>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 14, marginTop: 10, flexWrap: "wrap", fontSize: 10, fontFamily: M }}>
+                {[["Created", c.createdAt], ["Status changed", c.statusChangedAt], ["Executed", c.executedAt], ["Activated", c.activatedAt], ["Renewed", c.renewedAt], ["Terminated", c.terminatedAt]]
+                  .filter(([, v]) => v)
+                  .map(([k, v]) => (
+                    <span key={k}><span style={{ color: C.t4 }}>{k}</span> <span style={{ color: C.t2 }}>{fmtDate(v)}</span></span>
+                  ))}
+              </div>
+              {c.status === "IN_REVIEW" && (
+                <div style={{ fontSize: 9.5, fontFamily: M, color: C.t4, marginTop: 8, lineHeight: 1.5 }}>
+                  In approval — the Contract Approval ladder (AI risk review → legal → GC sign-off) governs this stage. Approve it there, then advance to <b style={{ color: C.t3 }}>Approved</b>.
+                </div>
+              )}
             </div>
 
             {/* Clauses */}
