@@ -16,6 +16,7 @@ import type {
   ContractRisk,
   ObligationStatus,
 } from "@aegis/db";
+import { assertContractTransition } from "./contract-state-machine";
 
 export interface CreateContractInput {
   title: string;
@@ -96,8 +97,13 @@ export async function createContract(organizationId: string, input: CreateContra
   return contract;
 }
 
-/** Move a contract through its lifecycle; chain-seals the transition. */
-export async function updateContractStatus(
+/**
+ * Move a contract through its lifecycle. Guarded by the contract state
+ * machine (illegal moves throw `IllegalContractTransitionError`), stamps the
+ * lifecycle timestamps for the target state, and chain-seals the transition.
+ * This is the ONLY sanctioned path for a status change.
+ */
+export async function transitionContractStatus(
   organizationId: string,
   contractId: string,
   status: ContractStatus,
@@ -106,7 +112,23 @@ export async function updateContractStatus(
   const existing = await prisma.contract.findFirst({ where: { id: contractId, organizationId } });
   if (!existing) throw new Error("Contract not found");
   if (existing.status === status) return existing;
-  const updated = await prisma.contract.update({ where: { id: contractId }, data: { status } });
+  assertContractTransition(existing.status, status);
+
+  const now = new Date();
+  const stamps: Record<string, Date> = { statusChangedAt: now };
+  if (status === "EXECUTED") stamps.executedAt = now;
+  if (status === "ACTIVE") {
+    stamps.activatedAt = now;
+    // Coming back to ACTIVE from EXPIRED (or an amend/renew round-trip) is a
+    // renewal — record it so the lifecycle timeline shows the renewal event.
+    if (existing.status === "EXPIRED" || existing.activatedAt) stamps.renewedAt = now;
+  }
+  if (status === "TERMINATED") stamps.terminatedAt = now;
+
+  const updated = await prisma.contract.update({
+    where: { id: contractId },
+    data: { status, ...stamps },
+  });
   await logAudit({
     organizationId,
     ...actorFields(actor),
@@ -114,11 +136,15 @@ export async function updateContractStatus(
     resourceType: "Contract",
     resourceId: contractId,
     beforeJson: { status: existing.status } as never,
-    afterJson: { status } as never,
+    afterJson: { status, stamped: Object.keys(stamps) } as never,
     metadata: { source: "contracts" } as never,
   });
   return updated;
 }
+
+/** @deprecated Use `transitionContractStatus` — kept as a guarded alias so
+ *  existing callers get the state-machine guard for free. */
+export const updateContractStatus = transitionContractStatus;
 
 /**
  * Attach an extracted clause to a contract. Shared by the seed and the

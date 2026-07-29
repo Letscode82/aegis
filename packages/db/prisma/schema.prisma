@@ -1968,6 +1968,13 @@ model Contract {
   governingLaw         String?
   /// Source of truth pointer — the intake ticket this spawned from, if any.
   sourceIntakeTicketId String?
+  /// CLM lifecycle timestamps — stamped by the guarded status transition
+  /// (contract-state-machine). Null until the contract reaches that state.
+  statusChangedAt      DateTime? // last status transition
+  executedAt           DateTime? // reached EXECUTED (signed)
+  activatedAt          DateTime? // reached ACTIVE (in force)
+  renewedAt            DateTime? // last renewal back into ACTIVE
+  terminatedAt         DateTime? // reached TERMINATED
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
