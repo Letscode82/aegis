@@ -175,6 +175,15 @@ export {
   type ApplyTurnResult,
 } from "./src/internal/negotiation";
 
+// Human-owned clause editing (Phase 6c) — add / edit / delete clauses by hand.
+export {
+  addClauseManual,
+  updateClause,
+  deleteClause,
+  type ManualClauseInput,
+  type UpdateClauseInput,
+} from "./src/internal/clause-edit";
+
 // AI clause remediation (Phase 5b) — suggest a fix for a deviating clause
 // from playbook + agreeable precedent + AI, human-gated via AgentDecision.
 export {
