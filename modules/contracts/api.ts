@@ -100,6 +100,14 @@ export {
   type SnapshotClause,
 } from "./src/internal/versions";
 
+// Contract editing (Phase 5c) — metadata patch + scope/draft body editor.
+export {
+  updateContract,
+  updateContractDraft,
+  type UpdateContractInput,
+  type UpdateDraftResult,
+} from "./src/internal/edit";
+
 export {
   createContract,
   transitionContractStatus,
