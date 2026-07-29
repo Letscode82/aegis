@@ -455,6 +455,9 @@ function ReExtractPanel({ contractId, onDone }) {
 // ── Version history + redline diff (CTR-5b) ──────────────────────────
 const VSRC_LABEL = { SPAWN: "spawn", EXTRACTION: "re-review", COUNTERPARTY: "counterparty", MANUAL: "manual" };
 const CHANGE_COLOR = { added: C.gn, removed: C.rd, changed: C.am };
+// AI change-narrative (Phase 3b) — directional-risk + decision-status colours.
+const NAR_RISK_COLOR = { HIGHER: C.rd, LOWER: C.gn, MIXED: C.am, UNCHANGED: C.t3 };
+const NAR_RISK_LABEL = { HIGHER: "↑ higher risk", LOWER: "↓ lower risk", MIXED: "↕ mixed", UNCHANGED: "= unchanged" };
 
 function VersionsPanel({ contractId, canManage }) {
   const [versions, setVersions] = useState(null);
@@ -463,6 +466,8 @@ function VersionsPanel({ contractId, canManage }) {
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [diff, setDiff] = useState(null);
+  const [nar, setNar] = useState(null);      // AI change-narrative (Phase 3b)
+  const [narBusy, setNarBusy] = useState(false);
 
   const load = useCallback(() => {
     fetch(`/api/contracts/${contractId}/versions`)
@@ -488,13 +493,49 @@ function VersionsPanel({ contractId, canManage }) {
 
   const runDiff = async () => {
     if (!from || !to || from === to) return;
-    setBusy(true); setErr(null); setDiff(null);
+    setBusy(true); setErr(null); setDiff(null); setNar(null);
     try {
       const r = await fetch(`/api/contracts/${contractId}/versions/diff?from=${from}&to=${to}`);
       const d = await r.json();
       if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
       setDiff(d.diff);
+      // Load any existing AI change-narrative for this version pair (Phase 3b).
+      fetch(`/api/contracts/${contractId}/narrative?from=${d.diff.fromVersion}&to=${d.diff.toVersion}`)
+        .then((rr) => (rr.ok ? rr.json() : null))
+        .then((dd) => { if (dd?.ok) setNar(dd.narrative); })
+        .catch(() => {});
     } catch (e) { setErr(String(e.message || e)); } finally { setBusy(false); }
+  };
+
+  // Phase 3b — generate the AI change-narrative. Writes a PENDING
+  // AgentDecision server-side; it surfaces as "pending review", never as fact.
+  const genNarrative = async () => {
+    if (!diff) return;
+    setNarBusy(true); setErr(null);
+    try {
+      const r = await fetch(`/api/contracts/${contractId}/narrative`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fromVersion: diff.fromVersion, toVersion: diff.toVersion }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setNar(d.narrative);
+    } catch (e) { setErr(String(e.message || e)); } finally { setNarBusy(false); }
+  };
+
+  // Phase 3b — the human gate. Approve/reject is the only path off PENDING.
+  const resolveNar = async (action) => {
+    if (!nar) return;
+    setNarBusy(true); setErr(null);
+    try {
+      const r = await fetch(`/api/contracts/${contractId}/narrative/${nar.id}/resolve`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setNar(d.narrative);
+    } catch (e) { setErr(String(e.message || e)); } finally { setNarBusy(false); }
   };
 
   const sel = { background: C.bg, border: `1px solid ${C.br}`, borderRadius: 4, color: C.t1, fontFamily: M, fontSize: 10.5, padding: "5px 7px" };
@@ -551,6 +592,51 @@ function VersionsPanel({ contractId, canManage }) {
                     )}
                   </div>
                 ))}
+
+              {/* AI change-narrative (Phase 3b) — human-gated via AgentDecision */}
+              <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.br}44` }}>
+                {!nar ? (
+                  <button disabled={narBusy} onClick={genNarrative} style={{ ...btn(C.pu || C.bl), opacity: narBusy ? .5 : 1 }}>
+                    {narBusy ? "Analyzing…" : "✨ Generate AI change summary"}
+                  </button>
+                ) : (
+                  <div style={{ padding: "10px 12px", background: C.bg, borderRadius: 6, border: `1px solid ${nar.status === "PENDING" ? C.am + "66" : nar.status === "REJECTED" ? C.rd + "44" : C.gn + "55"}` }}>
+                    <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6, flexWrap: "wrap" }}>
+                      <span style={{ fontSize: 8.5, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.pu || C.bl }}>AI change summary</span>
+                      <Pill t={NAR_RISK_LABEL[nar.riskAssessment] || nar.riskAssessment} c={NAR_RISK_COLOR[nar.riskAssessment] || C.t3} />
+                      {nar.status === "PENDING" && <Pill t="Pending review" c={C.am} />}
+                      {(nar.status === "APPROVED" || nar.status === "APPROVED_WITH_OVERRIDE") && <Pill t="Accepted" c={C.gn} />}
+                      {nar.status === "REJECTED" && <Pill t="Rejected" c={C.rd} />}
+                      {nar.degraded && <span style={{ fontSize: 8.5, fontFamily: M, color: C.t4 }} title="Claude was unavailable — deterministic fallback">⚙ fallback</span>}
+                      {nar.confidence != null && <span style={{ fontSize: 8.5, fontFamily: M, color: C.t4 }}>{Math.round(nar.confidence * 100)}% conf</span>}
+                    </div>
+                    {nar.headline && <div style={{ fontSize: 11, fontWeight: 600, color: C.t1, marginBottom: 4 }}>{nar.headline}</div>}
+                    <div style={{ fontSize: 10.5, color: C.t2, lineHeight: 1.55, marginBottom: nar.keyPoints?.length ? 6 : 0 }}>{nar.narrative}</div>
+                    {nar.keyPoints?.length > 0 && (
+                      <ul style={{ margin: "0 0 2px", paddingLeft: 16 }}>
+                        {nar.keyPoints.map((p, i) => <li key={i} style={{ fontSize: 10, color: C.tl, lineHeight: 1.5 }}>{p}</li>)}
+                      </ul>
+                    )}
+                    {nar.status === "PENDING" ? (
+                      <div style={{ display: "flex", gap: 6, marginTop: 8, alignItems: "center" }}>
+                        {canManage ? (
+                          <>
+                            <button disabled={narBusy} onClick={() => resolveNar("approve")} style={btn(C.gn)}>Approve</button>
+                            <button disabled={narBusy} onClick={() => resolveNar("reject")} style={btn(C.rd)}>Reject</button>
+                            <button disabled={narBusy} onClick={genNarrative} style={btn(C.t3)}>Regenerate</button>
+                          </>
+                        ) : (
+                          <span style={{ fontSize: 9.5, fontFamily: M, color: C.t4 }}>Awaiting reviewer approval — AI output is advisory until accepted.</span>
+                        )}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 9, fontFamily: M, color: C.t4, marginTop: 6 }}>
+                        {nar.status === "REJECTED" ? "Rejected" : "Accepted"}{nar.approvedByName ? ` · ${nar.approvedByName}` : ""} · chain-sealed
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </>

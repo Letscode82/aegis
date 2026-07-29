@@ -134,6 +134,25 @@ export {
   type ReExtractResult,
 } from "./src/internal/reextract";
 
+// AI change-narrative on a version redline (Phase 3b) — the first live
+// @aegis/ai call in Contracts, human-gated through the AgentDecision
+// lifecycle. Generate writes a PENDING decision; approve/reject is the only
+// path off PENDING and is chain-sealed.
+export {
+  generateChangeNarrative,
+  resolveChangeNarrative,
+  getChangeNarrative,
+  // pure helpers (unit-tested)
+  summarizeDiff,
+  assessRisk,
+  deterministicNarrative,
+  buildNarrativePrompt,
+  type ChangeNarrativeDTO,
+  type NarrativeRisk,
+  type NarrativeStatus,
+  type DiffSummary,
+} from "./src/internal/narrative";
+
 export {
   mintContractReviewToken,
   resolveContractReviewToken,
