@@ -136,6 +136,9 @@ importers:
       '@aegis/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@aegis/workflow':
+        specifier: workspace:*
+        version: link:../../packages/workflow
       react:
         specifier: ^18.3.1
         version: 18.3.1

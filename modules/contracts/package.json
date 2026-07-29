@@ -20,6 +20,7 @@
     "@aegis/ai": "workspace:*",
     "@aegis/db": "workspace:*",
     "@aegis/ui": "workspace:*",
+    "@aegis/workflow": "workspace:*",
     "react": "^18.3.1"
   },
   "devDependencies": {

@@ -1,6 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { C, F, M, SR } from "@aegis/ui";
 import { ContractStageTracker } from "./contract-stage-tracker.jsx";
+import { ApprovalLadderPanel } from "./approval-ladder-panel.jsx";
+import { ApprovalWizard } from "./approval-wizard.jsx";
 
 // ── Contract drill-in (CTR-1) ────────────────────────────────────────
 //
@@ -52,6 +54,7 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
   const [editingDetails, setEditingDetails] = useState(false); // header metadata edit (Phase 5c)
   const [editClauseId, setEditClauseId] = useState(null); // clause being hand-edited (Phase 6c)
   const [addingClause, setAddingClause] = useState(false); // add-clause form (Phase 6c)
+  const [showApprovalWizard, setShowApprovalWizard] = useState(false); // guided approval (CTR-8)
 
   const load = useCallback(() => {
     setError(null);
@@ -196,8 +199,11 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
             {/* CLM lifecycle — advance controls + timeline (Phase 1b) */}
             <div style={{ padding: "12px 18px", borderBottom: `1px solid ${C.br}`, background: C.s1 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <div style={{ fontSize: 10, fontFamily: M, color: C.t3, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 600 }}>
-                  Lifecycle <span style={{ color: C.tl }}>· {STATUS_LABEL[c.status] || c.status}</span>
+                <div style={{ fontSize: 10, fontFamily: M, color: C.t3, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 600, display: "flex", alignItems: "center", gap: 10 }}>
+                  <span>Lifecycle <span style={{ color: C.tl }}>· {STATUS_LABEL[c.status] || c.status}</span></span>
+                  {canManage && (c.status === "DRAFT" || c.status === "IN_NEGOTIATION") && (
+                    <button onClick={() => setShowApprovalWizard(true)} style={{ padding: "5px 11px", background: C.bl, color: "#fff", border: `1px solid ${C.bl}`, borderRadius: 5, fontFamily: M, fontSize: 9.5, fontWeight: 700, letterSpacing: .6, textTransform: "uppercase", cursor: "pointer" }}>▸ Submit for approval (guided)</button>
+                  )}
                 </div>
                 {canManage && (c.allowedTransitions?.length ? (
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -218,10 +224,8 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
                     <span key={k}><span style={{ color: C.t4 }}>{k}</span> <span style={{ color: C.t2 }}>{fmtDate(v)}</span></span>
                   ))}
               </div>
-              {c.status === "IN_REVIEW" && (
-                <div style={{ fontSize: 9.5, fontFamily: M, color: C.t4, marginTop: 8, lineHeight: 1.5 }}>
-                  In approval — the Contract Approval ladder (AI risk review → legal → GC sign-off) governs this stage. Approve it there, then advance to <b style={{ color: C.t3 }}>Approved</b>.
-                </div>
+              {(c.status === "IN_REVIEW" || c.status === "APPROVED") && (
+                <ApprovalLadderPanel contractId={contractId} contractStatus={c.status} onChanged={load} />
               )}
             </div>
 
@@ -348,6 +352,16 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
           </>
         )}
       </div>
+
+      {/* Guided approval wizard (CTR-8) */}
+      {showApprovalWizard && data && (
+        <ApprovalWizard
+          contract={data}
+          contractId={contractId}
+          onClose={() => { setShowApprovalWizard(false); load(); onChanged?.(); }}
+          onSubmitted={() => { load(); onChanged?.(); }}
+        />
+      )}
     </div>
   );
 }
