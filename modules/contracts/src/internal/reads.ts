@@ -10,7 +10,9 @@
  * contract.id), never a module-local table. Pure reads.
  */
 import { prisma } from "@aegis/db";
+import type { ContractStatus } from "@aegis/db";
 import { daysToExpiry, obligationOverdue } from "./derive";
+import { allowedContractTransitions } from "./contract-state-machine";
 
 export interface ContractClauseDTO {
   id: string;
@@ -65,6 +67,15 @@ export interface ContractDetail extends ContractSummary {
   sourceIntakeTicketId: string | null;
   clauses: ContractClauseDTO[];
   obligations: ContractObligationDTO[];
+  // CLM lifecycle (Phase 1).
+  statusChangedAt: string | null;
+  executedAt: string | null;
+  activatedAt: string | null;
+  renewedAt: string | null;
+  terminatedAt: string | null;
+  /** The valid next states from the current status (state-machine driven) —
+   *  the UI renders one advance button per entry. */
+  allowedTransitions: ContractStatus[];
 }
 
 export interface ContractsOverview {
@@ -261,5 +272,11 @@ export async function getContractDetail(organizationId: string, contractId: stri
     sourceIntakeTicketId: c.sourceIntakeTicketId,
     clauses: clauseDTOs,
     obligations,
+    statusChangedAt: c.statusChangedAt ? c.statusChangedAt.toISOString() : null,
+    executedAt: c.executedAt ? c.executedAt.toISOString() : null,
+    activatedAt: c.activatedAt ? c.activatedAt.toISOString() : null,
+    renewedAt: c.renewedAt ? c.renewedAt.toISOString() : null,
+    terminatedAt: c.terminatedAt ? c.terminatedAt.toISOString() : null,
+    allowedTransitions: allowedContractTransitions(c.status),
   };
 }

@@ -69,6 +69,7 @@ export {
 
 export {
   createContract,
+  transitionContractStatus,
   updateContractStatus,
   addClause,
   createObligation,
@@ -78,6 +79,15 @@ export {
   type CreateClauseInput,
   type CreateObligationInput,
 } from "./src/internal/service";
+
+// CLM lifecycle state machine (Phase 1) — the guard + allowed-transitions
+// helper the routes and UI use.
+export {
+  canTransitionContract,
+  assertContractTransition,
+  allowedContractTransitions,
+  IllegalContractTransitionError,
+} from "./src/internal/contract-state-machine";
 
 export {
   extractContractKnowledge,
