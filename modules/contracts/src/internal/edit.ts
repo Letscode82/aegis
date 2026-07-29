@@ -35,11 +35,14 @@ export interface UpdateContractInput {
   autoRenew?: boolean;
   noticeWindowDays?: number | null;
   governingLaw?: string | null;
+  paymentTerms?: string | null;
+  scopeOfServices?: string | null;
 }
 
 const EDITABLE: (keyof UpdateContractInput)[] = [
   "title", "type", "counterpartyId", "matterId", "value", "currency",
   "effectiveDate", "expiryDate", "autoRenew", "noticeWindowDays", "governingLaw",
+  "paymentTerms", "scopeOfServices",
 ];
 
 /**

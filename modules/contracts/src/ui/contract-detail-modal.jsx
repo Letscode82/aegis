@@ -32,6 +32,15 @@ function Pill({ t, c }) {
   return <span style={{ fontSize: 9, fontFamily: M, letterSpacing: .6, padding: "2px 7px", borderRadius: 3, textTransform: "uppercase", color: c, border: `1px solid ${c}55` }}>{t}</span>;
 }
 
+function KeyTerm({ label, children }) {
+  return (
+    <div style={{ padding: "8px 10px", background: C.s1, borderRadius: 6 }}>
+      <div style={{ fontSize: 8.5, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t4, marginBottom: 4 }}>{label}</div>
+      {children}
+    </div>
+  );
+}
+
 export function ContractDetailModal({ contractId, canManage, onClose, onChanged }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -143,6 +152,36 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
                 <span>Effective <span style={{ color: C.t1 }}>{fmtDate(c.effectiveDate)}</span></span>
                 <span>Expires <span style={{ color: c.daysToExpiry != null && c.daysToExpiry <= 90 ? C.am : C.t1 }}>{fmtDate(c.expiryDate)}</span>{c.daysToExpiry != null && <span style={{ color: c.daysToExpiry < 0 ? C.rd : c.daysToExpiry <= 90 ? C.am : C.t4 }}> ({c.daysToExpiry < 0 ? `${-c.daysToExpiry}d ago` : `${c.daysToExpiry}d`})</span>}</span>
                 {c.autoRenew && <span style={{ color: C.am }}>⟳ Auto-renew{c.noticeWindowDays ? ` · ${c.noticeWindowDays}d notice` : ""}</span>}
+              </div>
+            </div>
+
+            {/* Key terms — structured pricing / scope / term / parties (Phase 6b) */}
+            <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.br}` }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                <div style={{ fontSize: 10, fontFamily: M, color: C.t3, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 600 }}>Key terms</div>
+                {canManage && <span onClick={() => setEditingDetails(true)} style={{ marginLeft: "auto", cursor: "pointer", fontSize: 9, fontFamily: M, letterSpacing: .5, color: C.cy, textTransform: "uppercase" }}>✎ Edit key terms</span>}
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
+                <KeyTerm label="Parties">
+                  <div style={{ fontSize: 11, color: C.t1 }}>AEGIS <span style={{ color: C.t4 }}>↔</span> {c.counterpartyName || <span style={{ color: C.am }}>— set counterparty —</span>}</div>
+                </KeyTerm>
+                <KeyTerm label="Pricing">
+                  <div style={{ fontSize: 11, color: C.t1 }}>{money(c.value, c.currency)} <span style={{ color: C.t4, fontFamily: M, fontSize: 9 }}>{c.currency}</span></div>
+                  <div style={{ fontSize: 10, color: c.paymentTerms ? C.t2 : C.t4, marginTop: 2 }}>{c.paymentTerms || "— payment terms —"}</div>
+                </KeyTerm>
+                <KeyTerm label="Term">
+                  <div style={{ fontSize: 10.5, color: C.t2 }}>{fmtDate(c.effectiveDate)} → {fmtDate(c.expiryDate)}</div>
+                  <div style={{ fontSize: 10, color: C.t4, marginTop: 2 }}>{c.autoRenew ? `Auto-renew${c.noticeWindowDays ? ` · ${c.noticeWindowDays}d notice` : ""}` : "No auto-renew"}</div>
+                </KeyTerm>
+                <KeyTerm label="Governing law">
+                  <div style={{ fontSize: 11, color: c.governingLaw ? C.t1 : C.t4 }}>{c.governingLaw || "— not set —"}</div>
+                </KeyTerm>
+              </div>
+              <div style={{ marginTop: 10 }}>
+                <div style={{ fontSize: 8.5, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t4, marginBottom: 3 }}>Scope of services</div>
+                <div style={{ fontSize: 11, color: c.scopeOfServices ? C.t2 : C.t4, lineHeight: 1.55, fontStyle: c.scopeOfServices ? "normal" : "italic" }}>
+                  {c.scopeOfServices || "No scope entered yet — click ✎ Edit key terms to add the scope of services."}
+                </div>
               </div>
             </div>
 
@@ -422,6 +461,7 @@ function EditDetailsPanel({ contract, onSaved, onCancel }) {
     effectiveDate: c.effectiveDate ? c.effectiveDate.slice(0, 10) : "",
     expiryDate: c.expiryDate ? c.expiryDate.slice(0, 10) : "",
     autoRenew: !!c.autoRenew, noticeWindowDays: c.noticeWindowDays ?? "",
+    paymentTerms: c.paymentTerms || "", scopeOfServices: c.scopeOfServices || "",
   });
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -444,6 +484,7 @@ function EditDetailsPanel({ contract, onSaved, onCancel }) {
           currency: f.currency, governingLaw: f.governingLaw.trim() || null,
           effectiveDate: f.effectiveDate || null, expiryDate: f.expiryDate || null,
           autoRenew: f.autoRenew, noticeWindowDays: f.noticeWindowDays === "" ? null : Number(f.noticeWindowDays),
+          paymentTerms: f.paymentTerms.trim() || null, scopeOfServices: f.scopeOfServices.trim() || null,
         }),
       });
       const d = await r.json();
@@ -474,9 +515,13 @@ function EditDetailsPanel({ contract, onSaved, onCancel }) {
         <div><label style={lb}>Expiry date</label><input type="date" value={f.expiryDate} onChange={(e) => set("expiryDate", e.target.value)} style={inp} /></div>
         <div><label style={lb}>Governing law</label><input value={f.governingLaw} onChange={(e) => set("governingLaw", e.target.value)} style={inp} /></div>
         <div><label style={lb}>Notice window (days)</label><input type="number" value={f.noticeWindowDays} onChange={(e) => set("noticeWindowDays", e.target.value)} style={inp} /></div>
+        <div><label style={lb}>Payment terms</label><input value={f.paymentTerms} onChange={(e) => set("paymentTerms", e.target.value)} placeholder="Net 45" style={inp} /></div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, alignSelf: "end" }}>
           <input id="autoRenew" type="checkbox" checked={f.autoRenew} onChange={(e) => set("autoRenew", e.target.checked)} />
           <label htmlFor="autoRenew" style={{ fontSize: 10.5, color: C.t2 }}>Auto-renew</label>
+        </div>
+        <div style={{ gridColumn: "1 / -1" }}><label style={lb}>Scope of services</label>
+          <textarea value={f.scopeOfServices} onChange={(e) => set("scopeOfServices", e.target.value)} placeholder="Concise scope-of-services summary…" style={{ ...inp, minHeight: 70, resize: "vertical", fontFamily: F }} />
         </div>
       </div>
       {err && <div style={{ fontSize: 10, color: C.rd, fontFamily: M, marginTop: 8 }}>⚠ {err}</div>}

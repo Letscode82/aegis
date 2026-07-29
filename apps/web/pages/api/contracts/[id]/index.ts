@@ -40,6 +40,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if ("autoRenew" in b) patch.autoRenew = Boolean(b.autoRenew);
       if ("noticeWindowDays" in b) patch.noticeWindowDays = b.noticeWindowDays === null || b.noticeWindowDays === "" ? null : Number(b.noticeWindowDays);
       if ("governingLaw" in b) patch.governingLaw = b.governingLaw ? String(b.governingLaw) : null;
+      if ("paymentTerms" in b) patch.paymentTerms = b.paymentTerms ? String(b.paymentTerms) : null;
+      if ("scopeOfServices" in b) patch.scopeOfServices = b.scopeOfServices ? String(b.scopeOfServices) : null;
       await updateContract(user.organizationId, contractId, patch, { id: user.id, type: "USER" });
       const contract = await getContractDetail(user.organizationId, contractId);
       return res.status(200).json({ ok: true, contract });

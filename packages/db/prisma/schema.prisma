@@ -1967,6 +1967,10 @@ model Contract {
   /// Days before expiry a non-renewal notice must be given.
   noticeWindowDays     Int?
   governingLaw         String?
+  /// Structured key terms (CLM Phase 6b) — first-class fields surfaced in the
+  /// workspace Key Terms panel, distinct from the raw draft body.
+  paymentTerms         String? // e.g. "Net 45", "Net 30 with 2% prompt-pay"
+  scopeOfServices      String? // concise scope-of-services summary
   /// Working draft body (CLM Phase 4 authoring / negotiation) — the prose the
   /// clause extractor reads. Populated when a contract is authored from a
   /// template and rewritten on each counterparty negotiation turn. Null for
