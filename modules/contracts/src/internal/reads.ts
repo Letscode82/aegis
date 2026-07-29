@@ -14,6 +14,7 @@ import type { ContractStatus, ObligationStatus } from "@aegis/db";
 import { daysToExpiry, obligationOverdue } from "./derive";
 import { allowedContractTransitions } from "./contract-state-machine";
 import { allowedObligationTransitions } from "./obligation-state-machine";
+import { scoreContractClauses, type ClauseRiskScore } from "./risk-score";
 
 export interface ContractClauseDTO {
   id: string;
@@ -56,6 +57,9 @@ export interface ContractSummary {
   governingLaw: string | null;
   clauseCount: number;
   deviationCount: number;
+  /** Deterministic clause-derived risk score (Phase 3c) — 0-100 + band +
+   *  drivers. `score` is null when there are no clauses to score. */
+  riskScore: ClauseRiskScore;
   obligationCount: number;
   openObligationCount: number;
   overdueObligationCount: number;
@@ -237,11 +241,14 @@ function toSummary(
     matter?: { title: string } | null;
     _count?: { clauses: number };
   },
-  clauses: { risk: string; deviation: boolean }[] | null,
+  clauses: { type: string; risk: string; deviation: boolean }[] | null,
   obligations: ContractObligationDTO[],
   now: Date,
 ): ContractSummary {
   const deviationCount = clauses ? clauses.filter((cl) => cl.deviation).length : 0;
+  const riskScore = scoreContractClauses(
+    (clauses ?? []).map((cl) => ({ type: cl.type, risk: cl.risk as "LOW" | "MEDIUM" | "HIGH", deviation: cl.deviation })),
+  );
   const openObligations = obligations.filter((o) => o.status === "OPEN" || o.status === "IN_PROGRESS");
   return {
     id: c.id,
@@ -262,6 +269,7 @@ function toSummary(
     governingLaw: c.governingLaw,
     clauseCount: c._count?.clauses ?? (clauses ? clauses.length : 0),
     deviationCount,
+    riskScore,
     obligationCount: obligations.length,
     openObligationCount: openObligations.length,
     overdueObligationCount: obligations.filter((o) => o.overdue).length,
@@ -277,7 +285,7 @@ export async function getContractsOverview(organizationId: string): Promise<Cont
     include: {
       counterparty: { select: { name: true } },
       matter: { select: { title: true } },
-      clauses: { select: { risk: true, deviation: true } },
+      clauses: { select: { type: true, risk: true, deviation: true } },
       _count: { select: { clauses: true } },
     },
     orderBy: { createdAt: "desc" },
@@ -358,7 +366,7 @@ export async function getContractDetail(organizationId: string, contractId: stri
 
   const summary = toSummary(
     { ...c, _count: { clauses: c.clauses.length } },
-    c.clauses.map((cl) => ({ risk: cl.risk, deviation: cl.deviation })),
+    c.clauses.map((cl) => ({ type: cl.type, risk: cl.risk, deviation: cl.deviation })),
     obligations,
     now,
   );

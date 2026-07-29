@@ -16,6 +16,15 @@
  * spawn a Contract and runs the shared contract agent to extract clauses
  * + obligations, feeding Company Brain.
  */
+// Deterministic clause-derived contract risk score (Phase 3c).
+export {
+  scoreContractClauses,
+  bandForScore,
+  type ClauseRiskScore,
+  type RiskScoreDriver,
+  type RiskBand,
+} from "./src/internal/risk-score";
+
 export {
   getContractsOverview,
   getContractDetail,

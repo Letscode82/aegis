@@ -163,8 +163,20 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
 
             {/* Clauses */}
             <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.br}` }}>
-              <div style={{ fontSize: 10, fontFamily: M, color: C.t3, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 600, marginBottom: 10 }}>
-                Clause analysis <span style={{ color: C.t4 }}>· {c.clauses.length} extracted · {c.deviationCount} deviating</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+                <div style={{ fontSize: 10, fontFamily: M, color: C.t3, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 600 }}>
+                  Clause analysis <span style={{ color: C.t4 }}>· {c.clauses.length} extracted · {c.deviationCount} deviating</span>
+                </div>
+                {c.riskScore && (
+                  <span
+                    title={c.riskScore.score != null
+                      ? `Deterministic clause-derived risk score. Drivers: ${(c.riskScore.drivers || []).map((d) => `${d.type.replace(/_/g, " ")}${d.deviation ? " (deviates)" : ""}`).join(", ") || "none"}`
+                      : "No clauses to score"}
+                    style={{ marginLeft: "auto", fontSize: 9.5, fontFamily: M, fontWeight: 700, letterSpacing: .5, padding: "3px 9px", borderRadius: 4, color: RISK_COLOR[c.riskScore.band] || C.t3, border: `1px solid ${(RISK_COLOR[c.riskScore.band] || C.t3)}55` }}
+                  >
+                    RISK {c.riskScore.score != null ? `${c.riskScore.score}/100` : "—"} · {c.riskScore.band}
+                  </span>
+                )}
               </div>
               {c.clauses.length === 0 ? (
                 <div style={{ fontSize: 11, color: C.t4, fontStyle: "italic" }}>No clauses extracted yet. The contract agent populates these on review (CTR-2).</div>

@@ -159,7 +159,15 @@ export function ContractsRepository() {
             <span style={{ color: C.t2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.counterpartyName || "—"}</span>
             <span style={{ fontFamily: M, color: C.t1 }}>{money(c.value, c.currency)}</span>
             <span style={{ fontFamily: M, fontSize: 9, letterSpacing: .5, color: STATUS_COLOR[c.status] || C.t3 }}>{c.status.replace(/_/g, " ")}</span>
-            <span style={{ fontFamily: M, fontSize: 9.5, fontWeight: 700, color: RISK_COLOR[c.risk] }}>{c.risk}</span>
+            <span
+              title={c.riskScore?.score != null
+                ? `Clause-derived risk ${c.riskScore.score}/100 (${c.riskScore.band}) · ${c.riskScore.deviationCount} deviation${c.riskScore.deviationCount === 1 ? "" : "s"}`
+                : "No clauses extracted yet — unscored"}
+              style={{ fontFamily: M, fontSize: 9.5, fontWeight: 700, color: RISK_COLOR[c.riskScore?.band] || RISK_COLOR[c.risk] || C.t3 }}
+            >
+              {c.riskScore?.score != null ? c.riskScore.score : "—"}
+              <span style={{ fontSize: 8, color: C.t4, marginLeft: 4, fontWeight: 600 }}>{c.riskScore?.band && c.riskScore.band !== "UNSCORED" ? c.riskScore.band : c.risk}</span>
+            </span>
             <span style={{ fontFamily: M, fontSize: 10, color: c.daysToExpiry != null && c.daysToExpiry < 0 ? C.rd : c.daysToExpiry != null && c.daysToExpiry <= 90 ? C.am : C.t3 }}>{fmtDate(c.expiryDate)}</span>
             <span style={{ fontFamily: M, fontSize: 9.5, color: C.t3, display: "flex", gap: 8, flexWrap: "wrap" }}>
               {c.clauseCount > 0 && <span title="clauses">📋 {c.clauseCount}{c.deviationCount > 0 && <span style={{ color: C.rd }}> ⚠{c.deviationCount}</span>}</span>}
