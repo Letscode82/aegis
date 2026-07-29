@@ -39,6 +39,7 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
   const [playbook, setPlaybook] = useState({}); // clauseType -> entry
   const [openClause, setOpenClause] = useState(null);
   const [remClauseId, setRemClauseId] = useState(null); // clause being remediated (Phase 5b)
+  const [editingDetails, setEditingDetails] = useState(false); // header metadata edit (Phase 5c)
 
   const load = useCallback(() => {
     setError(null);
@@ -120,9 +121,13 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 22, fontFamily: SR, color: C.t1, lineHeight: 1 }}>{money(c.value, c.currency)}</div>
                   <div style={{ fontSize: 9, color: C.t4, fontFamily: M }}>contract value</div>
-                  <div onClick={onClose} style={{ marginTop: 8, cursor: "pointer", fontSize: 10, fontFamily: M, color: C.t3, letterSpacing: 1 }}>✕ CLOSE</div>
+                  <div style={{ marginTop: 8, display: "flex", gap: 12, justifyContent: "flex-end" }}>
+                    {canManage && <span onClick={() => setEditingDetails((v) => !v)} style={{ cursor: "pointer", fontSize: 10, fontFamily: M, color: editingDetails ? C.cy : C.t3, letterSpacing: 1 }}>✎ EDIT</span>}
+                    <span onClick={onClose} style={{ cursor: "pointer", fontSize: 10, fontFamily: M, color: C.t3, letterSpacing: 1 }}>✕ CLOSE</span>
+                  </div>
                 </div>
               </div>
+              {editingDetails && <EditDetailsPanel contract={c} onSaved={() => { setEditingDetails(false); load(); }} onCancel={() => setEditingDetails(false)} />}
               <div style={{ display: "flex", gap: 16, marginTop: 10, flexWrap: "wrap", fontSize: 10.5, fontFamily: M, color: C.t3 }}>
                 <span>Effective <span style={{ color: C.t1 }}>{fmtDate(c.effectiveDate)}</span></span>
                 <span>Expires <span style={{ color: c.daysToExpiry != null && c.daysToExpiry <= 90 ? C.am : C.t1 }}>{fmtDate(c.expiryDate)}</span>{c.daysToExpiry != null && <span style={{ color: c.daysToExpiry < 0 ? C.rd : c.daysToExpiry <= 90 ? C.am : C.t4 }}> ({c.daysToExpiry < 0 ? `${-c.daysToExpiry}d ago` : `${c.daysToExpiry}d`})</span>}</span>
@@ -224,7 +229,7 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
                   )}
                 </div>
               );})}
-              {canManage && <ReExtractPanel contractId={contractId} onDone={load} />}
+              {canManage && <ReExtractPanel contractId={contractId} draftText={c.draftText} onDone={load} />}
             </div>
 
             {/* Obligations */}
@@ -289,6 +294,84 @@ const relTime = (iso) => {
   if (d < 86400) return `${Math.round(d / 3600)}h ago`;
   return `${Math.round(d / 86400)}d ago`;
 };
+
+// ── Edit contract metadata (CLM Phase 5c) ────────────────────────────
+// Chain-sealed PATCH of the header fields. Status is NOT here — it moves
+// only through the guarded lifecycle controls.
+function EditDetailsPanel({ contract, onSaved, onCancel }) {
+  const c = contract;
+  const [counterparties, setCounterparties] = useState([]);
+  const [f, setF] = useState({
+    title: c.title || "", type: c.type || "", counterpartyId: c.counterpartyId || "",
+    value: c.value ?? "", currency: c.currency || "USD", governingLaw: c.governingLaw || "",
+    effectiveDate: c.effectiveDate ? c.effectiveDate.slice(0, 10) : "",
+    expiryDate: c.expiryDate ? c.expiryDate.slice(0, 10) : "",
+    autoRenew: !!c.autoRenew, noticeWindowDays: c.noticeWindowDays ?? "",
+  });
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const set = (k, v) => setF((p) => ({ ...p, [k]: v }));
+
+  useEffect(() => {
+    fetch("/api/contracts/counterparties").then((r) => (r.ok ? r.json() : null)).then((d) => { if (d?.ok) setCounterparties(d.counterparties || []); }).catch(() => {});
+  }, []);
+
+  const save = async () => {
+    if (!f.title.trim()) { setErr("Title is required."); return; }
+    setBusy(true); setErr(null);
+    try {
+      const r = await fetch(`/api/contracts/${c.id}`, {
+        method: "PATCH", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: f.title.trim(), type: f.type.trim(),
+          counterpartyId: f.counterpartyId || null,
+          value: f.value === "" ? null : Number(f.value),
+          currency: f.currency, governingLaw: f.governingLaw.trim() || null,
+          effectiveDate: f.effectiveDate || null, expiryDate: f.expiryDate || null,
+          autoRenew: f.autoRenew, noticeWindowDays: f.noticeWindowDays === "" ? null : Number(f.noticeWindowDays),
+        }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      onSaved?.();
+    } catch (e) { setErr(String(e.message || e)); } finally { setBusy(false); }
+  };
+
+  const inp = { width: "100%", padding: "6px 8px", fontSize: 11, fontFamily: F, color: C.t1, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 4, boxSizing: "border-box" };
+  const lb = { fontSize: 8.5, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t4, marginBottom: 3, display: "block" };
+  return (
+    <div style={{ marginTop: 10, padding: "12px 14px", background: C.s1, borderRadius: 6, border: `1px solid ${C.cy}44` }}>
+      <div style={{ fontSize: 9, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t3, marginBottom: 8 }}>Edit contract details</div>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div style={{ gridColumn: "1 / -1" }}><label style={lb}>Title</label><input value={f.title} onChange={(e) => set("title", e.target.value)} style={inp} /></div>
+        <div><label style={lb}>Type</label><input value={f.type} onChange={(e) => set("type", e.target.value)} style={inp} /></div>
+        <div><label style={lb}>Counterparty</label>
+          <select value={f.counterpartyId} onChange={(e) => set("counterpartyId", e.target.value)} style={inp}>
+            <option value="">— None —</option>
+            {counterparties.map((cp) => <option key={cp.id} value={cp.id}>{cp.name}</option>)}
+          </select>
+        </div>
+        <div><label style={lb}>Value</label><input type="number" value={f.value} onChange={(e) => set("value", e.target.value)} style={inp} /></div>
+        <div><label style={lb}>Currency</label>
+          <select value={f.currency} onChange={(e) => set("currency", e.target.value)} style={inp}>{["USD", "EUR", "GBP"].map((x) => <option key={x} value={x}>{x}</option>)}</select>
+        </div>
+        <div><label style={lb}>Effective date</label><input type="date" value={f.effectiveDate} onChange={(e) => set("effectiveDate", e.target.value)} style={inp} /></div>
+        <div><label style={lb}>Expiry date</label><input type="date" value={f.expiryDate} onChange={(e) => set("expiryDate", e.target.value)} style={inp} /></div>
+        <div><label style={lb}>Governing law</label><input value={f.governingLaw} onChange={(e) => set("governingLaw", e.target.value)} style={inp} /></div>
+        <div><label style={lb}>Notice window (days)</label><input type="number" value={f.noticeWindowDays} onChange={(e) => set("noticeWindowDays", e.target.value)} style={inp} /></div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, alignSelf: "end" }}>
+          <input id="autoRenew" type="checkbox" checked={f.autoRenew} onChange={(e) => set("autoRenew", e.target.checked)} />
+          <label htmlFor="autoRenew" style={{ fontSize: 10.5, color: C.t2 }}>Auto-renew</label>
+        </div>
+      </div>
+      {err && <div style={{ fontSize: 10, color: C.rd, fontFamily: M, marginTop: 8 }}>⚠ {err}</div>}
+      <div style={{ display: "flex", gap: 6, marginTop: 10 }}>
+        <button disabled={busy} onClick={save} style={btn(C.gn)}>{busy ? "Saving…" : "Save changes"}</button>
+        <button disabled={busy} onClick={onCancel} style={btn(C.t3)}>Cancel</button>
+      </div>
+    </div>
+  );
+}
 
 function ReviewPanel({ contractId, canManage }) {
   const [act, setAct] = useState(null);
@@ -637,34 +720,34 @@ function ClauseRemediationPanel({ contractId, clause, onDone }) {
   );
 }
 
-// ── Live re-extraction on amendment (CLM Phase 3a) ───────────────────
+// ── Draft / scope-of-services editor (CLM Phase 5c; supersedes the 3a
+//    "re-extract from amended text" box) ──────────────────────────────
 //
-// Contract intelligence is first populated at intake-spawn. When a contract
-// is amended — a new redline, a counter-signed version — paste the amended
-// text here to re-run the deterministic playbook extractor. The server
-// replaces the clause set and snapshots a new EXTRACTION version, so the
-// version panel's redline shows exactly what changed, clause by clause.
-// Obligations are deliberately left intact (they carry human-set owners /
-// due dates / lifecycle status).
-function ReExtractPanel({ contractId, onDone }) {
+// Edit the working draft body — including the scope of services — prefilled
+// with the current draftText. Saving PERSISTS the body (PUT /draft) and
+// re-runs the playbook extractor, snapshotting a new version so the clause
+// analysis + risk score stay in sync with the text. Obligations are left
+// intact (they carry human-set owners / due dates / lifecycle status).
+function ReExtractPanel({ contractId, draftText, onDone }) {
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
   const [result, setResult] = useState(null);
 
+  const start = () => { setText(draftText || ""); setResult(null); setErr(null); setOpen(true); };
+
   const run = async () => {
     setBusy(true); setErr(null); setResult(null);
     try {
-      const r = await fetch(`/api/contracts/${contractId}/extract`, {
-        method: "POST",
+      const r = await fetch(`/api/contracts/${contractId}/draft`, {
+        method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ draftText: text }),
       });
       const d = await r.json();
       if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
       setResult(d);
-      setText("");
       onDone?.();
     } catch (e) {
       setErr(String(e.message || e));
@@ -676,8 +759,8 @@ function ReExtractPanel({ contractId, onDone }) {
   if (!open) {
     return (
       <div style={{ marginTop: 10 }}>
-        <span onClick={() => setOpen(true)} style={{ cursor: "pointer", fontSize: 9.5, fontFamily: M, letterSpacing: .5, color: C.cy, textTransform: "uppercase" }}>
-          ⟳ Re-extract from amended text
+        <span onClick={start} style={{ cursor: "pointer", fontSize: 9.5, fontFamily: M, letterSpacing: .5, color: C.cy, textTransform: "uppercase" }}>
+          ✎ Edit draft / scope of services
         </span>
       </div>
     );
@@ -685,28 +768,28 @@ function ReExtractPanel({ contractId, onDone }) {
   return (
     <div style={{ marginTop: 10, padding: "10px 12px", background: C.s1, borderRadius: 6, border: `1px solid ${C.br}` }}>
       <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
-        <span style={{ fontSize: 9, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t3 }}>Re-extract from amended text</span>
+        <span style={{ fontSize: 9, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t3 }}>Edit draft / scope of services</span>
         <span onClick={() => { setOpen(false); setErr(null); setResult(null); }} style={{ marginLeft: "auto", cursor: "pointer", fontSize: 9.5, fontFamily: M, color: C.t3 }}>✕</span>
       </div>
       <div style={{ fontSize: 10, color: C.t3, lineHeight: 1.5, marginBottom: 8 }}>
-        Paste the amended contract text. The playbook extractor re-runs, the clause set is replaced, and a new version is snapshotted — the redline below shows what changed. Obligations are left untouched.
+        Edit the working draft (add a scope-of-services section, revise terms, paste a counter-signed version). Saving persists the body and re-runs the playbook extractor — a new version is snapshotted and the redline shows what changed. Obligations are left untouched.
       </div>
       <textarea
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Paste the amended / counter-signed contract text…"
-        style={{ width: "100%", minHeight: 110, resize: "vertical", padding: "8px 10px", fontSize: 11, fontFamily: F, lineHeight: 1.5, color: C.t1, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 5, boxSizing: "border-box" }}
+        placeholder="Contract draft body — including scope of services…"
+        style={{ width: "100%", minHeight: 150, resize: "vertical", padding: "8px 10px", fontSize: 11, fontFamily: F, lineHeight: 1.5, color: C.t1, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 5, boxSizing: "border-box" }}
       />
       {err && <div style={{ fontSize: 10, color: C.rd, marginTop: 6 }}>{err}</div>}
       {result && (
         <div style={{ fontSize: 10.5, color: C.gn, marginTop: 6 }}>
-          Re-extracted {result.clauseCount} clause{result.clauseCount === 1 ? "" : "s"} · {result.deviationCount} deviating
+          Saved · re-extracted {result.clauseCount} clause{result.clauseCount === 1 ? "" : "s"} · {result.deviationCount} deviating
           {result.newVersion != null ? ` · new version v${result.newVersion} (see Version history below)` : " · no clause changes — no new version"}
         </div>
       )}
       <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
         <button disabled={busy || !text.trim()} onClick={run} style={{ ...btn(C.cy), opacity: busy || !text.trim() ? 0.5 : 1 }}>
-          {busy ? "Re-extracting…" : "Re-extract"}
+          {busy ? "Saving…" : "Save & re-extract"}
         </button>
       </div>
     </div>
