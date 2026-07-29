@@ -167,6 +167,9 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
               )}
             </div>
 
+            {/* Execution & signatures (Phase 5d) */}
+            <SignaturesPanel contractId={contractId} canManage={canManage} counterpartyName={c.counterpartyName} onChanged={load} />
+
             {/* Clauses */}
             <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.br}` }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
@@ -294,6 +297,107 @@ const relTime = (iso) => {
   if (d < 86400) return `${Math.round(d / 3600)}h ago`;
   return `${Math.round(d / 86400)}d ago`;
 };
+
+// ── Execution & signatures (CLM Phase 5d) ────────────────────────────
+// Record who signed for each side; both sides + APPROVED auto-executes the
+// contract (guarded transition → EXECUTED). Not an e-signature integration —
+// a defensible signature record.
+function SignaturesPanel({ contractId, canManage, counterpartyName, onChanged }) {
+  const [state, setState] = useState(null);
+  const [err, setErr] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [adding, setAdding] = useState(null); // "INTERNAL" | "COUNTERPARTY" | null
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+
+  const load = useCallback(() => {
+    fetch(`/api/contracts/${contractId}/signatures`)
+      .then((r) => (r.ok ? r.json() : r.json().then((d) => Promise.reject(d.error || `HTTP ${r.status}`))))
+      .then((d) => setState(d.state))
+      .catch((e) => setErr(String(e)));
+  }, [contractId]);
+  useEffect(() => { load(); }, [load]);
+
+  const startAdd = (party) => { setAdding(party); setName(party === "COUNTERPARTY" ? "" : ""); setEmail(""); setErr(null); };
+
+  const record = async () => {
+    if (!name.trim()) { setErr("Signer name is required."); return; }
+    setBusy(true); setErr(null);
+    try {
+      const r = await fetch(`/api/contracts/${contractId}/signatures`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ party: adding, signerName: name.trim(), signerEmail: email.trim() || null }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setState(d.state); setAdding(null); setName(""); setEmail("");
+      if (d.state.status === "EXECUTED") onChanged?.(); // executed → refresh the whole contract
+    } catch (e) { setErr(String(e.message || e)); } finally { setBusy(false); }
+  };
+  const remove = async (signatureId) => {
+    setBusy(true); setErr(null);
+    try {
+      const r = await fetch(`/api/contracts/${contractId}/signatures`, {
+        method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ signatureId }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setState(d.state);
+    } catch (e) { setErr(String(e.message || e)); } finally { setBusy(false); }
+  };
+
+  const sigOf = (party) => state?.signatures.find((s) => s.party === party);
+  const Row = ({ party, label }) => {
+    const s = sigOf(party);
+    return (
+      <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "7px 0", borderBottom: `1px solid ${C.br}22` }}>
+        <span style={{ fontSize: 9, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t3, minWidth: 92 }}>{label}</span>
+        {s ? (
+          <>
+            <span style={{ fontSize: 11, color: C.gn }}>✓ {s.signerName}{s.signerEmail ? ` · ${s.signerEmail}` : ""}</span>
+            <span style={{ fontSize: 9, fontFamily: M, color: C.t4 }}>{fmtDate(s.signedAt)} · {s.method}</span>
+            {canManage && state.status !== "EXECUTED" && state.status !== "ACTIVE" && <button disabled={busy} onClick={() => remove(s.id)} style={{ ...btn(C.rd), marginLeft: "auto" }}>Remove</button>}
+          </>
+        ) : canManage ? (
+          adding === party ? (
+            <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", flex: 1 }}>
+              <input value={name} onChange={(e) => setName(e.target.value)} placeholder={`${label} signer name`} style={{ flex: "1 1 120px", minWidth: 0, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 4, color: C.t1, fontFamily: F, fontSize: 11, padding: "5px 7px" }} />
+              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email (opt)" style={{ flex: "1 1 120px", minWidth: 0, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 4, color: C.t1, fontFamily: F, fontSize: 11, padding: "5px 7px" }} />
+              <button disabled={busy || !name.trim()} onClick={record} style={btn(C.gn)}>Sign</button>
+              <button disabled={busy} onClick={() => setAdding(null)} style={btn(C.t3)}>Cancel</button>
+            </div>
+          ) : (
+            <button onClick={() => startAdd(party)} style={{ ...btn(C.tl), marginLeft: "auto" }}>Record signature</button>
+          )
+        ) : <span style={{ fontSize: 10.5, color: C.t4, fontStyle: "italic" }}>Not signed</span>}
+      </div>
+    );
+  };
+
+  return (
+    <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.br}` }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
+        <div style={{ fontSize: 10, fontFamily: M, color: C.t3, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 600 }}>Execution &amp; signatures</div>
+        {state && (state.status === "EXECUTED" || state.status === "ACTIVE"
+          ? <Pill t={`Executed${state.executedAt ? " " + fmtDate(state.executedAt) : ""}`} c={C.gn} />
+          : state.bothSigned ? <Pill t="Both signed" c={C.gn} /> : <Pill t={`${state.signatures.length}/2 signed`} c={C.am} />)}
+      </div>
+      {err && <div style={{ fontSize: 10.5, color: C.rd, fontFamily: M, marginBottom: 6 }}>⚠ {err}</div>}
+      {!state ? <div style={{ fontSize: 10.5, color: C.t4, fontFamily: M }}>Loading…</div> : (
+        <>
+          <Row party="INTERNAL" label="AEGIS / us" />
+          <Row party="COUNTERPARTY" label={counterpartyName || "Counterparty"} />
+          {state.blockedReason && state.status !== "EXECUTED" && state.status !== "ACTIVE" && (
+            <div style={{ fontSize: 9.5, fontFamily: M, color: C.t4, marginTop: 8, lineHeight: 1.5 }}>{state.blockedReason} {state.bothSigned && state.status !== "APPROVED" ? "Advance the lifecycle to Approved, then the final signature executes it." : ""}</div>
+          )}
+          {state.canExecute && (
+            <div style={{ fontSize: 10, color: C.gn, marginTop: 8 }}>Both parties signed and the contract is Approved — recording the final signature executed it automatically.</div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 // ── Edit contract metadata (CLM Phase 5c) ────────────────────────────
 // Chain-sealed PATCH of the header fields. Status is NOT here — it moves

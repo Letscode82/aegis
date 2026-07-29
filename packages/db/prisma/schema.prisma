@@ -75,6 +75,7 @@ model Organization {
   contracts               Contract[]
   contractReviewTokens    ContractReviewToken[]
   contractVersions        ContractVersion[]
+  contractSignatures      ContractSignature[]
   agentDefinitions        AgentDefinition[]
   agentDefinitionVersions AgentDefinitionVersion[]
   knowledgePacks          KnowledgePack[]
@@ -1990,11 +1991,42 @@ model Contract {
   clauses      ContractClause[]
   reviewTokens ContractReviewToken[]
   versions     ContractVersion[]
+  signatures   ContractSignature[]
 
   @@index([organizationId, status])
   @@index([organizationId, expiryDate])
   @@index([counterpartyId])
   @@index([matterId])
+}
+
+/// A recorded signature on a contract (CLM Phase 5d). Both an INTERNAL and a
+/// COUNTERPARTY signature present + the contract APPROVED → EXECUTED. Not an
+/// e-signature integration (that is a future connector) — a defensible record
+/// of who signed on behalf of each side, when, and how.
+enum SignatureParty {
+  INTERNAL
+  COUNTERPARTY
+}
+
+model ContractSignature {
+  id             String         @id @default(cuid())
+  organizationId String
+  contractId     String
+  party          SignatureParty
+  signerName     String
+  signerEmail    String?
+  /// Links a counterparty signer to their COUNTERPARTY_CONTACT Person, when known.
+  signerPersonId String?
+  /// "recorded" (attorney-entered) | "review-accept" (via review link) | future e-sign.
+  method         String         @default("recorded")
+  signedAt       DateTime       @default(now())
+  createdById    String?
+  createdAt      DateTime       @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contract     Contract     @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, contractId])
 }
 
 model ContractClause {
