@@ -285,6 +285,9 @@ function ReviewPanel({ contractId, canManage }) {
   const [personId, setPersonId] = useState("");
   const [busy, setBusy] = useState(false);
   const [freshLink, setFreshLink] = useState(null);
+  const [addingContact, setAddingContact] = useState(false);
+  const [cName, setCName] = useState("");
+  const [cEmail, setCEmail] = useState("");
 
   const load = useCallback(() => {
     fetch(`/api/contracts/${contractId}/review`)
@@ -314,6 +317,21 @@ function ReviewPanel({ contractId, canManage }) {
       });
       const d = await r.json();
       if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      load();
+    } catch (e) { setErr(String(e.message || e)); } finally { setBusy(false); }
+  };
+  const addContact = async () => {
+    if (!cName.trim()) { setErr("Contact name is required."); return; }
+    setBusy(true); setErr(null);
+    try {
+      const r = await fetch(`/api/contracts/${contractId}/contacts`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: cName.trim(), email: cEmail.trim() || null }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setCName(""); setCEmail(""); setAddingContact(false);
+      setPersonId(d.contact.personId); // preselect the new contact for inviting
       load();
     } catch (e) { setErr(String(e.message || e)); } finally { setBusy(false); }
   };
@@ -367,15 +385,31 @@ function ReviewPanel({ contractId, canManage }) {
                   <div style={{ fontSize: 9, color: C.t4, fontFamily: M, marginTop: 4 }}>Shown once. The raw token isn't stored — only its hash.</div>
                 </div>
               )}
-              {act.availableContacts.length === 0 ? (
-                <div style={{ fontSize: 10.5, color: C.t4, fontStyle: "italic" }}>No counterparty contacts on file — add a contact (Person · COUNTERPARTY_CONTACT) for this counterparty to invite them.</div>
-              ) : (
-                <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                  <select value={personId} onChange={(e) => setPersonId(e.target.value)} style={{ background: C.bg, border: `1px solid ${C.br}`, borderRadius: 4, color: C.t1, fontFamily: F, fontSize: 11, padding: "6px 8px" }}>
-                    <option value="">Select a contact…</option>
-                    {act.availableContacts.map((p) => <option key={p.personId} value={p.personId}>{p.name}{p.email ? ` (${p.email})` : ""}</option>)}
-                  </select>
-                  <button disabled={busy || !personId} onClick={invite} style={{ ...btn(C.cy), opacity: !personId ? 0.5 : 1 }}>Invite to review</button>
+              <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+                {act.availableContacts.length === 0 ? (
+                  <span style={{ fontSize: 10.5, color: C.t4, fontStyle: "italic" }}>No counterparty contacts yet.</span>
+                ) : (
+                  <>
+                    <select value={personId} onChange={(e) => setPersonId(e.target.value)} style={{ background: C.bg, border: `1px solid ${C.br}`, borderRadius: 4, color: C.t1, fontFamily: F, fontSize: 11, padding: "6px 8px" }}>
+                      <option value="">Select a contact…</option>
+                      {act.availableContacts.map((p) => <option key={p.personId} value={p.personId}>{p.name}{p.email ? ` (${p.email})` : ""}</option>)}
+                    </select>
+                    <button disabled={busy || !personId} onClick={invite} style={{ ...btn(C.cy), opacity: !personId ? 0.5 : 1 }}>Invite to review</button>
+                  </>
+                )}
+                {!addingContact && <button onClick={() => { setAddingContact(true); setErr(null); }} style={btn(C.tl)}>+ Add contact</button>}
+              </div>
+
+              {addingContact && (
+                <div style={{ marginTop: 8, padding: "10px 12px", background: C.s1, borderRadius: 5 }}>
+                  <div style={{ fontSize: 9, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t3, marginBottom: 6 }}>New counterparty contact</div>
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+                    <input value={cName} onChange={(e) => setCName(e.target.value)} placeholder="Full name" style={{ flex: "1 1 140px", minWidth: 0, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 4, color: C.t1, fontFamily: F, fontSize: 11, padding: "6px 8px" }} />
+                    <input value={cEmail} onChange={(e) => setCEmail(e.target.value)} placeholder="email (optional)" style={{ flex: "1 1 160px", minWidth: 0, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 4, color: C.t1, fontFamily: F, fontSize: 11, padding: "6px 8px" }} />
+                    <button disabled={busy || !cName.trim()} onClick={addContact} style={{ ...btn(C.gn), opacity: !cName.trim() ? .5 : 1 }}>Save</button>
+                    <button disabled={busy} onClick={() => { setAddingContact(false); setErr(null); }} style={btn(C.t3)}>Cancel</button>
+                  </div>
+                  <div style={{ fontSize: 9, color: C.t4, fontFamily: M, marginTop: 5 }}>Linked to this contract's counterparty. Then Invite them to review.</div>
                 </div>
               )}
             </div>
