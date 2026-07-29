@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { C, F, M, SR } from "@aegis/ui";
+import { ContractStageTracker } from "./contract-stage-tracker.jsx";
 
 // ── Contract drill-in (CTR-1) ────────────────────────────────────────
 //
@@ -155,6 +156,11 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
                 <span>Expires <span style={{ color: c.daysToExpiry != null && c.daysToExpiry <= 90 ? C.am : C.t1 }}>{fmtDate(c.expiryDate)}</span>{c.daysToExpiry != null && <span style={{ color: c.daysToExpiry < 0 ? C.rd : c.daysToExpiry <= 90 ? C.am : C.t4 }}> ({c.daysToExpiry < 0 ? `${-c.daysToExpiry}d ago` : `${c.daysToExpiry}d`})</span>}</span>
                 {c.autoRenew && <span style={{ color: C.am }}>⟳ Auto-renew{c.noticeWindowDays ? ` · ${c.noticeWindowDays}d notice` : ""}</span>}
               </div>
+            </div>
+
+            {/* 7-stage CLM lifecycle tracker (Phase CTR-7) */}
+            <div style={{ padding: "14px 22px", borderBottom: `1px solid ${C.br}`, background: C.s1 }}>
+              <ContractStageTracker status={c.status} />
             </div>
 
             {/* Key terms — structured pricing / scope / term / parties (Phase 6b) */}
