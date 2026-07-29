@@ -201,6 +201,7 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
                   )}
                 </div>
               );})}
+              {canManage && <ReExtractPanel contractId={contractId} onDone={load} />}
             </div>
 
             {/* Obligations */}
@@ -374,6 +375,82 @@ const btn = (c) => ({
   padding: "4px 10px", borderRadius: 4, border: `1px solid ${c}`, background: "transparent",
   color: c, fontSize: 9.5, fontFamily: M, fontWeight: 600, letterSpacing: .5, cursor: "pointer", textTransform: "uppercase",
 });
+
+// ── Live re-extraction on amendment (CLM Phase 3a) ───────────────────
+//
+// Contract intelligence is first populated at intake-spawn. When a contract
+// is amended — a new redline, a counter-signed version — paste the amended
+// text here to re-run the deterministic playbook extractor. The server
+// replaces the clause set and snapshots a new EXTRACTION version, so the
+// version panel's redline shows exactly what changed, clause by clause.
+// Obligations are deliberately left intact (they carry human-set owners /
+// due dates / lifecycle status).
+function ReExtractPanel({ contractId, onDone }) {
+  const [open, setOpen] = useState(false);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const [result, setResult] = useState(null);
+
+  const run = async () => {
+    setBusy(true); setErr(null); setResult(null);
+    try {
+      const r = await fetch(`/api/contracts/${contractId}/extract`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setResult(d);
+      setText("");
+      onDone?.();
+    } catch (e) {
+      setErr(String(e.message || e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  if (!open) {
+    return (
+      <div style={{ marginTop: 10 }}>
+        <span onClick={() => setOpen(true)} style={{ cursor: "pointer", fontSize: 9.5, fontFamily: M, letterSpacing: .5, color: C.cy, textTransform: "uppercase" }}>
+          ⟳ Re-extract from amended text
+        </span>
+      </div>
+    );
+  }
+  return (
+    <div style={{ marginTop: 10, padding: "10px 12px", background: C.s1, borderRadius: 6, border: `1px solid ${C.br}` }}>
+      <div style={{ display: "flex", alignItems: "center", marginBottom: 6 }}>
+        <span style={{ fontSize: 9, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t3 }}>Re-extract from amended text</span>
+        <span onClick={() => { setOpen(false); setErr(null); setResult(null); }} style={{ marginLeft: "auto", cursor: "pointer", fontSize: 9.5, fontFamily: M, color: C.t3 }}>✕</span>
+      </div>
+      <div style={{ fontSize: 10, color: C.t3, lineHeight: 1.5, marginBottom: 8 }}>
+        Paste the amended contract text. The playbook extractor re-runs, the clause set is replaced, and a new version is snapshotted — the redline below shows what changed. Obligations are left untouched.
+      </div>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Paste the amended / counter-signed contract text…"
+        style={{ width: "100%", minHeight: 110, resize: "vertical", padding: "8px 10px", fontSize: 11, fontFamily: F, lineHeight: 1.5, color: C.t1, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 5, boxSizing: "border-box" }}
+      />
+      {err && <div style={{ fontSize: 10, color: C.rd, marginTop: 6 }}>{err}</div>}
+      {result && (
+        <div style={{ fontSize: 10.5, color: C.gn, marginTop: 6 }}>
+          Re-extracted {result.clauseCount} clause{result.clauseCount === 1 ? "" : "s"} · {result.deviationCount} deviating
+          {result.newVersion != null ? ` · new version v${result.newVersion} (see Version history below)` : " · no clause changes — no new version"}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+        <button disabled={busy || !text.trim()} onClick={run} style={{ ...btn(C.cy), opacity: busy || !text.trim() ? 0.5 : 1 }}>
+          {busy ? "Re-extracting…" : "Re-extract"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 // ── Version history + redline diff (CTR-5b) ──────────────────────────
 const VSRC_LABEL = { SPAWN: "spawn", EXTRACTION: "re-review", COUNTERPARTY: "counterparty", MANUAL: "manual" };

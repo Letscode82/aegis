@@ -126,6 +126,14 @@ export {
   type ContractExtractionResult,
 } from "./src/internal/intake-spawn";
 
+// Live re-extraction on amendment (Phase 3a) — re-runs the deterministic
+// extractor over amended text, replaces the clause set, and snapshots a new
+// EXTRACTION version so the redline shows exactly what the amendment changed.
+export {
+  reExtractContractClauses,
+  type ReExtractResult,
+} from "./src/internal/reextract";
+
 export {
   mintContractReviewToken,
   resolveContractReviewToken,
