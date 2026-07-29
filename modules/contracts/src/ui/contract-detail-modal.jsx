@@ -50,13 +50,11 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
   }, [contractId]);
   useEffect(() => { load(); }, [load]);
 
-  // Slide-over presentation (Phase 5e): animate in on mount, close on Escape.
-  const [shown, setShown] = useState(false);
+  // Full-page workspace (Phase 6a): Escape returns to the list.
   useEffect(() => {
-    const id = requestAnimationFrame(() => setShown(true));
     const onKey = (e) => { if (e.key === "Escape") onClose?.(); };
     window.addEventListener("keydown", onKey);
-    return () => { cancelAnimationFrame(id); window.removeEventListener("keydown", onKey); };
+    return () => window.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   // CTR-5 — the playbook, for clause-vs-standard comparison.
@@ -107,16 +105,12 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
 
   const c = data;
   return (
-    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 1000, background: shown ? "rgba(4,7,15,.6)" : "rgba(4,7,15,0)", transition: "background .25s ease" }}>
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          position: "fixed", top: 0, right: 0, height: "100vh", width: "min(760px, 100%)",
-          fontFamily: F, background: C.bg, borderLeft: `1px solid ${C.br}`,
-          boxShadow: "-24px 0 80px rgba(0,0,0,.5)", overflowY: "auto",
-          transform: shown ? "translateX(0)" : "translateX(100%)", transition: "transform .25s ease",
-        }}
-      >
+    <div style={{ fontFamily: F, background: C.bg, minHeight: "100%" }}>
+      <div style={{ position: "sticky", top: 0, zIndex: 5, background: C.bg, borderBottom: `1px solid ${C.br}`, padding: "10px 18px", display: "flex", alignItems: "center", gap: 12 }}>
+        <span onClick={onClose} style={{ cursor: "pointer", fontSize: 11, fontFamily: M, letterSpacing: .5, color: C.bl, textTransform: "uppercase", fontWeight: 600 }}>← Back to contracts</span>
+        {c && <span style={{ fontSize: 11, color: C.t4, fontFamily: M, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>· {c.title}</span>}
+      </div>
+      <div style={{ maxWidth: 1120, margin: "0 auto" }}>
         {error && <div style={{ padding: "10px 18px", color: C.rd, fontFamily: M, fontSize: 11, borderBottom: `1px solid ${C.br}` }}>⚠ {error}</div>}
         {!c ? (
           <div style={{ padding: 48, textAlign: "center", color: C.t3, fontFamily: M, fontSize: 12, letterSpacing: 1 }}>◎ Loading contract…</div>
