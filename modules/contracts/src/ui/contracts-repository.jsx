@@ -5,6 +5,7 @@ import { ClauseLibraryModal } from "./clause-library-modal.jsx";
 import { TemplatesModal } from "./templates-modal.jsx";
 import { ObligationsDashboard } from "./obligations-dashboard.jsx";
 import { AuthorContractModal } from "./author-contract-modal.jsx";
+import { ContractStageDots, CONTRACT_STAGES, stageCounts, stageIndexForStatus } from "./contract-stage-tracker.jsx";
 
 // ── Contract repository (CTR-1) ──────────────────────────────────────
 //
@@ -47,6 +48,7 @@ export function ContractsRepository() {
   const [open, setOpen] = useState(null);
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
+  const [stageFilter, setStageFilter] = useState(null); // null = all stages (CTR-7 pipeline strip)
   const [canManage, setCanManage] = useState(false);
   const [showPlaybook, setShowPlaybook] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
@@ -97,6 +99,7 @@ export function ContractsRepository() {
     const needle = q.trim().toLowerCase();
     return data.contracts.filter((c) => {
       if (statusFilter !== "ALL" && c.status !== statusFilter) return false;
+      if (stageFilter != null && stageIndexForStatus(c.status) !== stageFilter) return false;
       if (!needle) return true;
       return (
         c.title.toLowerCase().includes(needle) ||
@@ -104,7 +107,9 @@ export function ContractsRepository() {
         (c.type || "").toLowerCase().includes(needle)
       );
     });
-  }, [data, q, statusFilter]);
+  }, [data, q, statusFilter, stageFilter]);
+
+  const counts = useMemo(() => (data ? stageCounts(data.contracts) : []), [data]);
 
   // Full-page contract workspace (Phase 6a) — takes over the content area with
   // a Back button, instead of a modal/slide-over overlay.
@@ -163,6 +168,33 @@ export function ContractsRepository() {
         <Kpi label="Obligations" value={t.openObligations} sub={t.overdueObligations > 0 ? `${t.overdueObligations} overdue` : "on track"} color={t.overdueObligations > 0 ? C.rd : C.tl} />
       </div>
 
+      {/* 7-stage CLM lifecycle pipeline — Icertis/Ironclad-style journey,
+          visible the moment Contracts opens. Click a stage to filter. (CTR-7) */}
+      <div style={{ marginBottom: 16 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 7 }}>
+          <div style={{ fontSize: 9, fontFamily: M, letterSpacing: 1.4, color: C.t3, textTransform: "uppercase", fontWeight: 600 }}>Lifecycle pipeline · 7 stages</div>
+          {stageFilter != null && <span onClick={() => setStageFilter(null)} style={{ cursor: "pointer", fontSize: 9, fontFamily: M, color: C.bl, textTransform: "uppercase", letterSpacing: .5 }}>✕ clear stage filter</span>}
+        </div>
+        <div style={{ display: "flex", gap: 4, overflowX: "auto" }}>
+          {CONTRACT_STAGES.map((st, i) => {
+            const active = stageFilter === i;
+            const n = counts[i] || 0;
+            return (
+              <div key={st.key} onClick={() => setStageFilter(active ? null : i)} title={st.hint}
+                style={{ flex: "1 1 0", minWidth: 96, cursor: "pointer", padding: "9px 10px", borderRadius: 6,
+                  background: active ? `${C.bl}22` : C.cd, border: `1px solid ${active ? C.bl : C.br}`,
+                  position: "relative" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                  <span style={{ width: 16, height: 16, borderRadius: "50%", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 8.5, fontFamily: M, fontWeight: 700, color: n > 0 ? C.bg : C.t3, background: n > 0 ? C.bl : "transparent", border: `1px solid ${n > 0 ? C.bl : C.br}` }}>{i + 1}</span>
+                  <span style={{ fontSize: 20, fontFamily: SR, color: n > 0 ? C.t1 : C.t4, lineHeight: 1 }}>{n}</span>
+                </div>
+                <div style={{ fontSize: 9.5, fontFamily: M, letterSpacing: .3, color: active ? C.bl : C.t2, marginTop: 5, fontWeight: active ? 700 : 500 }}>{st.label}</div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Search + status filter */}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search title / counterparty / type…"
@@ -182,20 +214,20 @@ export function ContractsRepository() {
 
       {/* Table */}
       <div style={{ background: C.cd, border: `1px solid ${C.br}`, borderRadius: 6, padding: 14 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1.8fr 1.2fr 100px 90px 95px 90px 1fr", gap: 8, fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", padding: "0 4px 8px", borderBottom: `1px solid ${C.br}` }}>
-          <span>Contract</span><span>Counterparty</span><span>Value</span><span>Status</span><span>Risk</span><span>Expiry</span><span>Signals</span>
+        <div style={{ display: "grid", gridTemplateColumns: "1.8fr 1.2fr 132px 90px 95px 90px 1fr", gap: 8, fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", padding: "0 4px 8px", borderBottom: `1px solid ${C.br}` }}>
+          <span>Contract</span><span>Counterparty</span><span>Value</span><span>Stage</span><span>Risk</span><span>Expiry</span><span>Signals</span>
         </div>
         {filtered.length === 0 ? (
           <div style={{ padding: 24, textAlign: "center", color: C.t4, fontFamily: M, fontSize: 11 }}>No contracts match.</div>
         ) : filtered.map((c) => (
-          <div key={c.id} onClick={() => openContract(c.id)} style={{ display: "grid", gridTemplateColumns: "1.8fr 1.2fr 100px 90px 95px 90px 1fr", gap: 8, fontSize: 11, alignItems: "center", padding: "10px 4px", borderBottom: `1px solid ${C.br}33`, cursor: "pointer" }} onMouseEnter={(e) => (e.currentTarget.style.background = C.s1)} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+          <div key={c.id} onClick={() => openContract(c.id)} style={{ display: "grid", gridTemplateColumns: "1.8fr 1.2fr 132px 90px 95px 90px 1fr", gap: 8, fontSize: 11, alignItems: "center", padding: "10px 4px", borderBottom: `1px solid ${C.br}33`, cursor: "pointer" }} onMouseEnter={(e) => (e.currentTarget.style.background = C.s1)} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
             <span style={{ color: C.t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {c.title}
               <span style={{ color: C.t4, fontFamily: M, fontSize: 9, marginLeft: 6 }}>{c.type}</span>
             </span>
             <span style={{ color: C.t2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.counterpartyName || "—"}</span>
             <span style={{ fontFamily: M, color: C.t1 }}>{money(c.value, c.currency)}</span>
-            <span style={{ fontFamily: M, fontSize: 9, letterSpacing: .5, color: STATUS_COLOR[c.status] || C.t3 }}>{c.status.replace(/_/g, " ")}</span>
+            <ContractStageDots status={c.status} />
             <span
               title={c.riskScore?.score != null
                 ? `Clause-derived risk ${c.riskScore.score}/100 (${c.riskScore.band}) · ${c.riskScore.deviationCount} deviation${c.riskScore.deviationCount === 1 ? "" : "s"}`
