@@ -38,6 +38,7 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
   const [busy, setBusy] = useState(null);
   const [playbook, setPlaybook] = useState({}); // clauseType -> entry
   const [openClause, setOpenClause] = useState(null);
+  const [remClauseId, setRemClauseId] = useState(null); // clause being remediated (Phase 5b)
 
   const load = useCallback(() => {
     setError(null);
@@ -189,14 +190,24 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
                     <span style={{ fontSize: 11, fontWeight: 600, color: C.t1 }}>{cl.type.replace(/_/g, " ")}</span>
                     <Pill t={cl.risk} c={RISK_COLOR[cl.risk]} />
                     {cl.deviation && <Pill t="DEVIATES" c={C.rd} />}
-                    {pb && (
-                      <span onClick={() => setOpenClause(open ? null : cl.id)} style={{ marginLeft: "auto", cursor: "pointer", fontSize: 9, fontFamily: M, letterSpacing: .5, color: C.bl, textTransform: "uppercase" }}>
-                        {open ? "▾ playbook" : "⚖ vs playbook"}
-                      </span>
-                    )}
+                    <span style={{ marginLeft: "auto", display: "flex", gap: 10, alignItems: "center" }}>
+                      {canManage && (cl.deviation || cl.risk === "HIGH") && (
+                        <span onClick={() => setRemClauseId(remClauseId === cl.id ? null : cl.id)} style={{ cursor: "pointer", fontSize: 9, fontFamily: M, letterSpacing: .5, color: C.am, textTransform: "uppercase" }}>
+                          {remClauseId === cl.id ? "▾ fix" : "⚡ fix clause"}
+                        </span>
+                      )}
+                      {pb && (
+                        <span onClick={() => setOpenClause(open ? null : cl.id)} style={{ cursor: "pointer", fontSize: 9, fontFamily: M, letterSpacing: .5, color: C.bl, textTransform: "uppercase" }}>
+                          {open ? "▾ playbook" : "⚖ vs playbook"}
+                        </span>
+                      )}
+                    </span>
                   </div>
                   {cl.summary && <div style={{ fontSize: 10.5, color: C.tl, marginBottom: 2 }}>{cl.summary}</div>}
                   <div style={{ fontSize: 10.5, color: C.t2, lineHeight: 1.5 }}>{cl.text}</div>
+                  {remClauseId === cl.id && (
+                    <ClauseRemediationPanel contractId={contractId} clause={cl} onDone={() => { setRemClauseId(null); load(); }} />
+                  )}
                   {pb && open && (
                     <div style={{ marginTop: 8, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
                       <div style={{ padding: "8px 10px", background: C.s1, borderRadius: 5, borderLeft: `2px solid ${cl.deviation ? C.rd : C.gn}` }}>
@@ -537,6 +548,90 @@ function NegotiationPanel({ contractId, canManage, draftText, onApplied }) {
             </div>
           )}
         </>
+      )}
+    </div>
+  );
+}
+
+// ── AI clause remediation (CLM Phase 5b) ─────────────────────────────
+//
+// For a deviating / high-risk clause, generate a fix from the playbook
+// (standard/fallback), agreeable precedent (prior non-deviating clauses of
+// the same type), and an AI redline. Human-gated: the suggestion is a PENDING
+// AgentDecision; Accept applies it (optionally an operator-chosen option),
+// marks the clause non-deviating, downgrades risk, and snapshots a version.
+function ClauseRemediationPanel({ contractId, clause, onDone }) {
+  const [rem, setRem] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const [chosen, setChosen] = useState(null); // operator-picked option text (null = AI suggestion)
+
+  const gen = useCallback(async () => {
+    setBusy(true); setErr(null);
+    try {
+      // Load any existing suggestion first; generate if none.
+      let r = await fetch(`/api/contracts/${contractId}/clauses/${clause.id}/remediation`);
+      let d = await r.json();
+      if (d?.ok && d.remediation && d.remediation.status === "PENDING") { setRem(d.remediation); return; }
+      r = await fetch(`/api/contracts/${contractId}/clauses/${clause.id}/remediation`, { method: "POST" });
+      d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setRem(d.remediation);
+    } catch (e) { setErr(String(e.message || e)); } finally { setBusy(false); }
+  }, [contractId, clause.id]);
+  useEffect(() => { gen(); }, [gen]);
+
+  const resolve = async (action) => {
+    setBusy(true); setErr(null);
+    try {
+      const r = await fetch(`/api/contracts/${contractId}/clauses/${clause.id}/remediation/resolve`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ decisionId: rem.id, action, chosenText: action === "approve" ? chosen : null }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      onDone?.();
+    } catch (e) { setErr(String(e.message || e)); setBusy(false); }
+  };
+
+  const box = { marginTop: 8, padding: "10px 12px", background: C.s1, borderRadius: 6, border: `1px solid ${C.am}44` };
+  if (busy && !rem) return <div style={box}><span style={{ fontSize: 10, fontFamily: M, color: C.t3 }}>⚡ Analyzing clause…</span></div>;
+  if (err) return <div style={box}><span style={{ fontSize: 10, color: C.rd, fontFamily: M }}>⚠ {err}</span></div>;
+  if (!rem) return null;
+
+  const resolved = rem.status !== "PENDING";
+  const effectiveText = chosen != null ? chosen : rem.suggestedText;
+
+  return (
+    <div style={box}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
+        <span style={{ fontSize: 8.5, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.am }}>Suggested fix</span>
+        <Pill t={`basis: ${rem.basis}`} c={C.tl} />
+        {resolved && <Pill t={rem.status === "REJECTED" ? "Rejected" : "Applied"} c={rem.status === "REJECTED" ? C.rd : C.gn} />}
+        {rem.degraded && <span style={{ fontSize: 8.5, fontFamily: M, color: C.t4 }} title="Claude unavailable — playbook/precedent fallback">⚙ fallback</span>}
+        {rem.confidence != null && <span style={{ fontSize: 8.5, fontFamily: M, color: C.t4 }}>{Math.round(rem.confidence * 100)}% conf</span>}
+      </div>
+      <div style={{ fontSize: 10.5, color: C.t1, lineHeight: 1.55, padding: "6px 8px", background: C.bg, borderRadius: 4, borderLeft: `2px solid ${C.gn}` }}>{effectiveText}</div>
+      {rem.rationale && <div style={{ fontSize: 10, color: C.t3, lineHeight: 1.5, marginTop: 5 }}>{rem.rationale}</div>}
+
+      {!resolved && rem.options?.length > 0 && (
+        <div style={{ marginTop: 8 }}>
+          <div style={{ fontSize: 8.5, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t4, marginBottom: 4 }}>Or choose an option</div>
+          <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
+            <span onClick={() => setChosen(null)} style={{ cursor: "pointer", fontSize: 9, fontFamily: M, padding: "3px 8px", borderRadius: 3, border: `1px solid ${chosen == null ? C.gn : C.br}`, color: chosen == null ? C.gn : C.t3 }}>AI suggestion</span>
+            {rem.options.map((o, i) => (
+              <span key={i} onClick={() => setChosen(o.text)} title={o.text} style={{ cursor: "pointer", fontSize: 9, fontFamily: M, padding: "3px 8px", borderRadius: 3, border: `1px solid ${chosen === o.text ? C.gn : C.br}`, color: chosen === o.text ? C.gn : C.t3 }}>{o.label}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!resolved && (
+        <div style={{ display: "flex", gap: 6, marginTop: 8 }}>
+          <button disabled={busy} onClick={() => resolve("approve")} style={btn(C.gn)}>Accept &amp; apply</button>
+          <button disabled={busy} onClick={() => resolve("reject")} style={btn(C.rd)}>Reject</button>
+          <button disabled={busy} onClick={gen} style={btn(C.t3)}>Regenerate</button>
+        </div>
       )}
     </div>
   );
