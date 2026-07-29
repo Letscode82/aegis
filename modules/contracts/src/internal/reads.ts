@@ -70,6 +70,9 @@ export interface ContractSummary {
 
 export interface ContractDetail extends ContractSummary {
   sourceIntakeTicketId: string | null;
+  /** Working draft body (Phase 4 authoring / negotiation); null for
+   *  intake-spawned contracts. */
+  draftText: string | null;
   clauses: ContractClauseDTO[];
   obligations: ContractObligationDTO[];
   // CLM lifecycle (Phase 1).
@@ -278,6 +281,22 @@ function toSummary(
   };
 }
 
+export interface CounterpartyOption {
+  id: string;
+  name: string;
+  type: string | null;
+}
+
+/** Counterparties for the authoring picker (Phase 4a). Lightweight read. */
+export async function listCounterpartiesForPicker(organizationId: string): Promise<CounterpartyOption[]> {
+  const rows = await prisma.counterparty.findMany({
+    where: { organizationId },
+    select: { id: true, name: true, type: true },
+    orderBy: { name: "asc" },
+  });
+  return rows.map((r) => ({ id: r.id, name: r.name, type: (r.type as string | null) ?? null }));
+}
+
 export async function getContractsOverview(organizationId: string): Promise<ContractsOverview> {
   const now = new Date();
   const contracts = await prisma.contract.findMany({
@@ -374,6 +393,7 @@ export async function getContractDetail(organizationId: string, contractId: stri
   return {
     ...summary,
     sourceIntakeTicketId: c.sourceIntakeTicketId,
+    draftText: c.draftText ?? null,
     clauses: clauseDTOs,
     obligations,
     statusChangedAt: c.statusChangedAt ? c.statusChangedAt.toISOString() : null,

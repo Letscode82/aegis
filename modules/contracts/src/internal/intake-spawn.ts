@@ -40,6 +40,7 @@ export async function extractAndPersistContractKnowledge(
   sourceText: string,
   contractType: string,
   actor: Actor = { id: null, type: "AGENT" },
+  opts?: { initialSnapshotLabel?: string },
 ): Promise<ContractExtractionResult> {
   const { clauses, obligations } = extractContractKnowledge(sourceText, contractType);
   const agentActor = { id: actor.id, type: "AGENT" as const };
@@ -68,7 +69,10 @@ export async function extractAndPersistContractKnowledge(
     await snapshotContractVersion(
       organizationId,
       contractId,
-      { label: existing === 0 ? "Initial extraction" : "Re-review", source: existing === 0 ? "SPAWN" : "EXTRACTION" },
+      {
+        label: existing === 0 ? opts?.initialSnapshotLabel ?? "Initial extraction" : "Re-review",
+        source: existing === 0 ? "SPAWN" : "EXTRACTION",
+      },
       { id: actor.id, type: "AGENT" },
     );
   } catch { /* snapshot is non-critical */ }

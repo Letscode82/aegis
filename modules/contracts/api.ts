@@ -29,6 +29,8 @@ export {
   getContractsOverview,
   getContractDetail,
   listObligations,
+  listCounterpartiesForPicker,
+  type CounterpartyOption,
   type ContractsOverview,
   type ContractSummary,
   type ContractDetail,
@@ -134,6 +136,15 @@ export {
   type SpawnContractResult,
   type ContractExtractionResult,
 } from "./src/internal/intake-spawn";
+
+// Contract authoring — draft-from-template (Phase 4a). The originate-inside-
+// Contracts entry point, parallel to intake-spawn.
+export {
+  authorContractFromTemplate,
+  renderTemplateBody,
+  type AuthorContractInput,
+  type AuthorContractResult,
+} from "./src/internal/author";
 
 // Live re-extraction on amendment (Phase 3a) — re-runs the deterministic
 // extractor over amended text, replaces the clause set, and snapshots a new
