@@ -16,6 +16,17 @@
  * spawn a Contract and runs the shared contract agent to extract clauses
  * + obligations, feeding Company Brain.
  */
+// Live contract approval ladder (CTR-8) — drives the shared @aegis/workflow
+// `clm_contract_approval` governance ladder and gates IN_REVIEW → APPROVED.
+export {
+  submitContractForApproval,
+  getContractApprovalState,
+  actOnContractApproval,
+  type ContractApprovalStateDTO,
+  type ApprovalStepDTO,
+  type ContractApprovalActor,
+} from "./src/internal/approval";
+
 // Deterministic clause-derived contract risk score (Phase 3c).
 export {
   scoreContractClauses,
