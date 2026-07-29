@@ -183,6 +183,14 @@ export {
   type DiffSummary,
 } from "./src/internal/narrative";
 
+// Counterparty contacts (Phase 5a) — create the COUNTERPARTY_CONTACT Person
+// the review round-trip invites.
+export {
+  createCounterpartyContact,
+  type CounterpartyContactDTO,
+  type CreateCounterpartyContactInput,
+} from "./src/internal/contacts";
+
 export {
   mintContractReviewToken,
   resolveContractReviewToken,
