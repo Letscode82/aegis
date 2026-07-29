@@ -71,6 +71,27 @@ export function ContractsRepository() {
       .catch(() => {});
   }, []);
 
+  // Deep-link the open contract via ?contract=<id> so refresh + the browser
+  // Back button work (matter-module pattern: window.history, no next/router).
+  useEffect(() => {
+    const sync = () => setOpen(new URLSearchParams(window.location.search).get("contract"));
+    sync();
+    window.addEventListener("popstate", sync);
+    return () => window.removeEventListener("popstate", sync);
+  }, []);
+  const openContract = (id) => {
+    const u = new URL(window.location.href);
+    u.searchParams.set("contract", id);
+    window.history.pushState({}, "", u);
+    setOpen(id);
+  };
+  const backToList = () => {
+    const u = new URL(window.location.href);
+    u.searchParams.delete("contract");
+    window.history.pushState({}, "", u);
+    setOpen(null);
+  };
+
   const filtered = useMemo(() => {
     if (!data) return [];
     const needle = q.trim().toLowerCase();
@@ -84,6 +105,19 @@ export function ContractsRepository() {
       );
     });
   }, [data, q, statusFilter]);
+
+  // Full-page contract workspace (Phase 6a) — takes over the content area with
+  // a Back button, instead of a modal/slide-over overlay.
+  if (open) {
+    return (
+      <ContractDetailModal
+        contractId={open}
+        canManage={canManage}
+        onClose={backToList}
+        onChanged={load}
+      />
+    );
+  }
 
   if (error) return <div style={{ padding: 24, color: C.rd, fontFamily: M, fontSize: 12 }}>⚠ {error}</div>;
   if (!data) return <div style={{ padding: 40, textAlign: "center", color: C.t3, fontFamily: M, fontSize: 12, letterSpacing: 1 }}>◎ Loading contracts…</div>;
@@ -154,7 +188,7 @@ export function ContractsRepository() {
         {filtered.length === 0 ? (
           <div style={{ padding: 24, textAlign: "center", color: C.t4, fontFamily: M, fontSize: 11 }}>No contracts match.</div>
         ) : filtered.map((c) => (
-          <div key={c.id} onClick={() => setOpen(c.id)} style={{ display: "grid", gridTemplateColumns: "1.8fr 1.2fr 100px 90px 95px 90px 1fr", gap: 8, fontSize: 11, alignItems: "center", padding: "10px 4px", borderBottom: `1px solid ${C.br}33`, cursor: "pointer" }} onMouseEnter={(e) => (e.currentTarget.style.background = C.s1)} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+          <div key={c.id} onClick={() => openContract(c.id)} style={{ display: "grid", gridTemplateColumns: "1.8fr 1.2fr 100px 90px 95px 90px 1fr", gap: 8, fontSize: 11, alignItems: "center", padding: "10px 4px", borderBottom: `1px solid ${C.br}33`, cursor: "pointer" }} onMouseEnter={(e) => (e.currentTarget.style.background = C.s1)} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
             <span style={{ color: C.t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {c.title}
               <span style={{ color: C.t4, fontFamily: M, fontSize: 9, marginLeft: 6 }}>{c.type}</span>
@@ -187,20 +221,12 @@ export function ContractsRepository() {
       </>
       )}
 
-      {open && (
-        <ContractDetailModal
-          contractId={open}
-          canManage={canManage}
-          onClose={() => setOpen(null)}
-          onChanged={load}
-        />
-      )}
       {showPlaybook && <ClauseLibraryModal canManage={canManage} onClose={() => setShowPlaybook(false)} />}
       {showTemplates && <TemplatesModal canManage={canManage} onClose={() => setShowTemplates(false)} />}
       {showAuthor && (
         <AuthorContractModal
           onClose={() => setShowAuthor(false)}
-          onCreated={(contractId) => { setShowAuthor(false); load(); setOpen(contractId); }}
+          onCreated={(contractId) => { setShowAuthor(false); load(); openContract(contractId); }}
         />
       )}
     </div>
