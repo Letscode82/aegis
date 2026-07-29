@@ -3,6 +3,7 @@ import { C, F, M, SR } from "@aegis/ui";
 import { ContractDetailModal } from "./contract-detail-modal.jsx";
 import { ClauseLibraryModal } from "./clause-library-modal.jsx";
 import { TemplatesModal } from "./templates-modal.jsx";
+import { ObligationsDashboard } from "./obligations-dashboard.jsx";
 
 // ── Contract repository (CTR-1) ──────────────────────────────────────
 //
@@ -48,6 +49,7 @@ export function ContractsRepository() {
   const [canManage, setCanManage] = useState(false);
   const [showPlaybook, setShowPlaybook] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
+  const [tab, setTab] = useState("contracts"); // "contracts" | "obligations"
 
   const load = useCallback(() => {
     fetch("/api/contracts/overview")
@@ -99,6 +101,22 @@ export function ContractsRepository() {
         </div>
       </div>
 
+      {/* Contracts | Obligations tab toggle (CLM Phase 2b) */}
+      <div style={{ display: "flex", gap: 4, marginBottom: 16, borderBottom: `1px solid ${C.br}` }}>
+        {[["contracts", "▤ Contracts"], ["obligations", "◷ Obligations"]].map(([id, label]) => {
+          const active = tab === id;
+          return (
+            <span key={id} onClick={() => setTab(id)} style={{ cursor: "pointer", fontSize: 11, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", fontWeight: 600, padding: "8px 14px", color: active ? C.bl : C.t3, borderBottom: `2px solid ${active ? C.bl : "transparent"}`, marginBottom: -1 }}>
+              {label}
+            </span>
+          );
+        })}
+      </div>
+
+      {tab === "obligations" ? (
+        <ObligationsDashboard canManage={canManage} />
+      ) : (
+      <>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
         <Kpi label="Total" value={t.total} sub={`${money(t.totalValue)} value`} />
         <Kpi label="Active" value={t.active} sub="executed / live" color={C.gn} />
@@ -155,6 +173,8 @@ export function ContractsRepository() {
       <div style={{ fontSize: 9.5, color: C.t4, fontFamily: M, marginTop: 12, letterSpacing: .3 }}>
         Click a contract to see extracted clauses and obligations. Obligations are the shared entity — the same rows Company Brain, Regulatory, and Governance query. Every obligation transition is chain-sealed.
       </div>
+      </>
+      )}
 
       {open && (
         <ContractDetailModal
