@@ -70,6 +70,9 @@ export interface ContractSummary {
 
 export interface ContractDetail extends ContractSummary {
   sourceIntakeTicketId: string | null;
+  /** Structured key terms (Phase 6b). */
+  paymentTerms: string | null;
+  scopeOfServices: string | null;
   /** Working draft body (Phase 4 authoring / negotiation); null for
    *  intake-spawned contracts. */
   draftText: string | null;
@@ -393,6 +396,8 @@ export async function getContractDetail(organizationId: string, contractId: stri
   return {
     ...summary,
     sourceIntakeTicketId: c.sourceIntakeTicketId,
+    paymentTerms: c.paymentTerms ?? null,
+    scopeOfServices: c.scopeOfServices ?? null,
     draftText: c.draftText ?? null,
     clauses: clauseDTOs,
     obligations,
