@@ -17,6 +17,7 @@ import type {
   ObligationStatus,
 } from "@aegis/db";
 import { assertContractTransition } from "./contract-state-machine";
+import { assertObligationTransition } from "./obligation-state-machine";
 
 export interface CreateContractInput {
   title: string;
@@ -220,20 +221,39 @@ export async function createObligation(
   return obligation;
 }
 
-/** Transition an obligation's status; chain-sealed. Only obligations
- *  sourced from a contract in this org can be moved through this surface. */
+/** Transition an obligation's status; guarded by the obligation state
+ *  machine and chain-sealed. Only obligations sourced from a contract in
+ *  this org can be moved through this surface. The resolution instant is
+ *  stamped into `metadata.resolvedAt` (no schema column needed) when the
+ *  obligation moves to a resolved state (MET / WAIVED / BREACHED).
+ *  `bySystem` marks the reminder/escalation engine as the actor. */
 export async function updateObligationStatus(
   organizationId: string,
   obligationId: string,
   status: ObligationStatus,
   actor: Actor,
+  opts?: { reason?: string | null },
 ) {
   const existing = await prisma.obligation.findFirst({
     where: { id: obligationId, organizationId, sourceType: "CONTRACT" },
   });
   if (!existing) throw new Error("Contract obligation not found");
   if (existing.status === status) return existing;
-  const updated = await prisma.obligation.update({ where: { id: obligationId }, data: { status } });
+  assertObligationTransition(existing.status, status);
+
+  const now = new Date();
+  const resolved = status === "MET" || status === "WAIVED" || status === "BREACHED";
+  const prevMeta = (existing.metadata as Record<string, unknown> | null) ?? {};
+  const metadata = {
+    ...prevMeta,
+    ...(resolved ? { resolvedAt: now.toISOString(), resolvedStatus: status } : { resolvedAt: null }),
+    ...(opts?.reason ? { statusReason: opts.reason } : {}),
+  };
+
+  const updated = await prisma.obligation.update({
+    where: { id: obligationId },
+    data: { status, metadata: metadata as never },
+  });
   await logAudit({
     organizationId,
     ...actorFields(actor),
@@ -241,7 +261,7 @@ export async function updateObligationStatus(
     resourceType: "Obligation",
     resourceId: obligationId,
     beforeJson: { status: existing.status } as never,
-    afterJson: { status, contractId: existing.sourceId } as never,
+    afterJson: { status, contractId: existing.sourceId, reason: opts?.reason ?? null } as never,
     metadata: { source: "contracts" } as never,
   });
   return updated;
