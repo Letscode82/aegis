@@ -56,6 +56,14 @@ export interface DefineWorkflowInput {
   savedById?: string | null;
   /** Optional change note captured on the version snapshot. */
   changeLog?: string | null;
+  /**
+   * Auto-assign dispatch behaviour: "manual" holds a freshly-started
+   * instance on its opening step; "auto" advances the opening HUMAN
+   * intake step once to the first review stage. `undefined` leaves the
+   * stored value untouched on update (so a version revert doesn't reset
+   * an admin's dispatch choice).
+   */
+  dispatchMode?: "manual" | "auto" | null;
   steps: Array<{
     stepOrder: number;
     name: string;
@@ -116,6 +124,9 @@ export async function defineWorkflow(input: DefineWorkflowInput) {
       throw new WorkflowError(`Step orders must be contiguous 1..${input.steps.length}`);
   });
 
+  const dispatchMode =
+    input.dispatchMode === "auto" || input.dispatchMode === "manual" ? input.dispatchMode : undefined;
+
   return prisma.$transaction(async (tx) => {
     const def = await tx.workflowDefinition.upsert({
       where: { organizationId_key: { organizationId: input.organizationId, key: input.key } },
@@ -124,12 +135,17 @@ export async function defineWorkflow(input: DefineWorkflowInput) {
         key: input.key,
         name: input.name,
         description: input.description ?? null,
+        // New definitions default to "manual" unless explicitly "auto".
+        dispatchMode: dispatchMode ?? "manual",
       },
       update: {
         name: input.name,
         description: input.description ?? null,
         isActive: true,
         version: { increment: 1 },
+        // Only overwrite when the caller sent a value — a version revert
+        // (which omits it) must not silently flip an admin's choice.
+        ...(dispatchMode ? { dispatchMode } : {}),
       },
     });
     await tx.workflowStep.deleteMany({ where: { definitionId: def.id } });
@@ -393,6 +409,56 @@ export async function actOnWorkflow(input: {
   if (after && toStep !== null && newStatus === "IN_PROGRESS")
     await maybeQueueAgentTask(after, toStep);
   return after!;
+}
+
+/**
+ * Dispatch-mode "auto": advance a freshly-started instance past its
+ * opening HUMAN intake step exactly once, to the first review stage,
+ * then STOP. This is the ONLY automated ladder movement in the engine,
+ * and it is deliberately bounded so conservative AI governance
+ * (non-negotiable #7) survives:
+ *
+ *   - Fires only on a just-started instance (exactly one transition —
+ *     the START row). It never re-advances a ladder already in motion,
+ *     so it is idempotent and safe to call best-effort.
+ *   - Advances only a HUMAN opening step. An AGENT opening step is left
+ *     alone — its findings run surfaces to the human approver, who still
+ *     acts. No AI recommendation is ever auto-approved.
+ *   - A single hop only. It approves the opening step and lands on the
+ *     next actionable step; it never chains through a gate and never
+ *     auto-completes a workflow (returns null when there is no next
+ *     actionable step).
+ *
+ * The movement is a normal APPROVE transition with a twin-recorded audit
+ * row attributed to `actor` (the dispatching user/system), so the audit
+ * ledger shows exactly what happened and why. Returns the updated
+ * instance, or null when no advance was appropriate.
+ */
+export async function autoAdvanceOpeningStep(
+  instanceId: string,
+  actor: string,
+): Promise<InstanceWithGraph | null> {
+  const instance = await loadInstance(instanceId);
+  if (!instance || instance.status !== "IN_PROGRESS") return null;
+  // Only at the very start: the single START transition, nothing since.
+  if (instance.transitions.length !== 1) return null;
+
+  const openStep = instance.definition.steps.find(
+    (s) => s.stepOrder === instance.currentStepOrder,
+  );
+  if (!openStep || openStep.kind !== "HUMAN") return null;
+
+  // Don't auto-complete: there must be a next actionable step to land on.
+  const next = nextActionable(stepShapes(instance), instance.currentStepOrder, contextOf(instance));
+  if (next === null) return null;
+
+  return actOnWorkflow({
+    instanceId,
+    action: "approve",
+    actor,
+    comment: "Auto-dispatched to review (workflow dispatch mode: auto)",
+    expectedVersion: instance.version,
+  });
 }
 
 export async function getWorkflowInstance(instanceId: string): Promise<

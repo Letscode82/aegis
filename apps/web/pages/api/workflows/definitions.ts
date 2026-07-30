@@ -32,7 +32,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       throw err;
     }
     try {
-      const { key, name, description, steps, changeLog } = req.body ?? {};
+      const { key, name, description, steps, changeLog, dispatchMode } = req.body ?? {};
       if (typeof key !== "string" || typeof name !== "string" || !Array.isArray(steps))
         return res.status(400).json({ ok: false, error: "key, name and steps[] are required" });
       const definition = await defineWorkflow({
@@ -43,6 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         steps,
         savedById: user.id,
         changeLog: typeof changeLog === "string" ? changeLog : null,
+        dispatchMode: dispatchMode === "auto" ? "auto" : dispatchMode === "manual" ? "manual" : undefined,
       });
       return res.status(200).json({ ok: true, definition });
     } catch (err) {

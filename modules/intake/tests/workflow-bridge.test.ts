@@ -12,6 +12,7 @@ const definitionFindUnique = vi.fn();
 const logAuditMock = vi.fn();
 const startWorkflowMock = vi.fn();
 const autoRunMock = vi.fn();
+const autoAdvanceMock = vi.fn();
 
 vi.mock("@aegis/db", () => ({
   prisma: {
@@ -24,6 +25,7 @@ vi.mock("@aegis/db", () => ({
 vi.mock("@aegis/workflow", () => ({
   startWorkflow: startWorkflowMock,
   autoRunCurrentAgentStep: autoRunMock,
+  autoAdvanceOpeningStep: autoAdvanceMock,
 }));
 // Keep the real agent registry out of this unit test.
 vi.mock("../src/agents/index.js", () => ({ intakeWorkflowAgentHandler: vi.fn() }));
@@ -47,10 +49,11 @@ const TICKET = {
 beforeEach(() => {
   typeFindFirst.mockReset();
   instanceFindFirst.mockReset().mockResolvedValue(null);
-  definitionFindUnique.mockReset().mockResolvedValue({ key: "clm_contract_approval", isActive: true });
+  definitionFindUnique.mockReset().mockResolvedValue({ key: "clm_contract_approval", isActive: true, dispatchMode: "manual" });
   logAuditMock.mockReset().mockResolvedValue("a1");
   startWorkflowMock.mockReset().mockResolvedValue({ id: "wf-1" });
   autoRunMock.mockReset().mockResolvedValue(null);
+  autoAdvanceMock.mockReset().mockResolvedValue({ id: "wf-1", currentStepOrder: 2 });
 });
 
 describe("defaultLadderKeyForType", () => {
@@ -102,6 +105,30 @@ describe("maybeStartWorkflowForTicket", () => {
     instanceFindFirst.mockResolvedValue({ id: "wf-existing" });
     expect(await maybeStartWorkflowForTicket("org1", TICKET, "u-1")).toBe("wf-existing");
     expect(startWorkflowMock).not.toHaveBeenCalled();
+  });
+
+  it("dispatchMode 'manual' (default) does NOT auto-advance the opening step", async () => {
+    typeFindFirst.mockResolvedValue({ workflowKey: "clm_contract_approval", key: "contracts" });
+    await maybeStartWorkflowForTicket("org1", TICKET, "u-1");
+    expect(autoAdvanceMock).not.toHaveBeenCalled();
+  });
+
+  it("dispatchMode 'auto' advances the opening step, then re-runs the agent on the new step", async () => {
+    typeFindFirst.mockResolvedValue({ workflowKey: "clm_contract_approval", key: "contracts" });
+    definitionFindUnique.mockResolvedValue({ key: "clm_contract_approval", isActive: true, dispatchMode: "auto" });
+    const id = await maybeStartWorkflowForTicket("org1", TICKET, "u-1");
+    expect(id).toBe("wf-1");
+    expect(autoAdvanceMock).toHaveBeenCalledWith("wf-1", "u-1");
+    // Opening agent-run + post-advance agent-run.
+    expect(autoRunMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("dispatchMode 'auto' but advance is a no-op → does not re-run the agent again", async () => {
+    typeFindFirst.mockResolvedValue({ workflowKey: "clm_contract_approval", key: "contracts" });
+    definitionFindUnique.mockResolvedValue({ key: "clm_contract_approval", isActive: true, dispatchMode: "auto" });
+    autoAdvanceMock.mockResolvedValue(null); // e.g. opening step is AGENT — guardrail holds
+    await maybeStartWorkflowForTicket("org1", TICKET, "u-1");
+    expect(autoRunMock).toHaveBeenCalledTimes(1);
   });
 
   it("best-effort: a start failure audits as SYSTEM and returns null (ingest survives)", async () => {

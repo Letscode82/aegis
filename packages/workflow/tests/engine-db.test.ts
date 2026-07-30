@@ -23,6 +23,7 @@ import {
   revertWorkflowToVersion,
   getWorkflowSlaOverview,
   autoRunCurrentAgentStep,
+  autoAdvanceOpeningStep,
 } from "../src/index";
 
 let orgId = "";
@@ -463,5 +464,82 @@ describe("autoRunCurrentAgentStep (deliverables #2)", () => {
     expect(await autoRunCurrentAgentStep(inst.id, handler)).toBeNull();
     const after = await getWorkflowInstance(inst.id);
     expect(after!.currentStepOrder).toBe(2);
+  });
+});
+
+describe("dispatchMode + autoAdvanceOpeningStep (auto-dispatch)", () => {
+  it("persists dispatchMode on create and only overwrites when provided", async () => {
+    const key = "dispatch_persist";
+    const steps = [
+      { stepOrder: 1, name: "Submit", screenKey: "submit" },
+      { stepOrder: 2, name: "Review", screenKey: "review" },
+    ];
+    // Default is "manual".
+    const d1 = await defineWorkflow({ organizationId: orgId, key, name: "Dispatch", steps });
+    expect(d1.dispatchMode).toBe("manual");
+    // Explicit "auto" persists.
+    const d2 = await defineWorkflow({ organizationId: orgId, key, name: "Dispatch", steps, dispatchMode: "auto" });
+    expect(d2.dispatchMode).toBe("auto");
+    // Omitting it (e.g. a version revert) leaves the stored value intact.
+    const d3 = await defineWorkflow({ organizationId: orgId, key, name: "Dispatch renamed", steps });
+    expect(d3.dispatchMode).toBe("auto");
+  });
+
+  it("advances the opening HUMAN step exactly once, then holds", async () => {
+    await defineWorkflow({
+      organizationId: orgId, key: "dispatch_human_open", name: "Human Open",
+      steps: [
+        { stepOrder: 1, name: "Submit", screenKey: "submit", approverRole: "requester" },
+        { stepOrder: 2, name: "AI Review", screenKey: "agent_review", kind: "AGENT",
+          agentConfigJson: { agentKey: "nda-agent", minConfidence: 0.8 } },
+        { stepOrder: 3, name: "Legal", screenKey: "legal" },
+      ],
+    });
+    const inst = await startWorkflow({
+      organizationId: orgId, definitionKey: "dispatch_human_open",
+      entityType: "intake_ticket", entityId: "DA-1", startedById: userId,
+    });
+    expect(inst.currentStepOrder).toBe(1);
+
+    const advanced = await autoAdvanceOpeningStep(inst.id, userId);
+    expect(advanced!.currentStepOrder).toBe(2);
+
+    // Second call is a no-op — it only fires on a freshly-started instance.
+    expect(await autoAdvanceOpeningStep(inst.id, userId)).toBeNull();
+    const after = await getWorkflowInstance(inst.id);
+    expect(after!.currentStepOrder).toBe(2);
+  });
+
+  it("never advances an AGENT opening step (no AI auto-approval)", async () => {
+    await defineWorkflow({
+      organizationId: orgId, key: "dispatch_agent_open", name: "Agent Open",
+      steps: [
+        { stepOrder: 1, name: "AI Triage", screenKey: "agent_review", kind: "AGENT",
+          agentConfigJson: { agentKey: "nda-agent", minConfidence: 0.8 } },
+        { stepOrder: 2, name: "Legal", screenKey: "legal" },
+      ],
+    });
+    const inst = await startWorkflow({
+      organizationId: orgId, definitionKey: "dispatch_agent_open",
+      entityType: "intake_ticket", entityId: "DA-2", startedById: userId,
+    });
+    expect(await autoAdvanceOpeningStep(inst.id, userId)).toBeNull();
+    const after = await getWorkflowInstance(inst.id);
+    expect(after!.currentStepOrder).toBe(1);
+  });
+
+  it("never auto-completes a single-step ladder", async () => {
+    await defineWorkflow({
+      organizationId: orgId, key: "dispatch_single", name: "Single",
+      steps: [{ stepOrder: 1, name: "Only", screenKey: "only" }],
+    });
+    const inst = await startWorkflow({
+      organizationId: orgId, definitionKey: "dispatch_single",
+      entityType: "intake_ticket", entityId: "DA-3", startedById: userId,
+    });
+    expect(await autoAdvanceOpeningStep(inst.id, userId)).toBeNull();
+    const after = await getWorkflowInstance(inst.id);
+    expect(after!.status).toBe("IN_PROGRESS");
+    expect(after!.currentStepOrder).toBe(1);
   });
 });

@@ -2493,6 +2493,14 @@ model WorkflowDefinition {
   /// edit. Running instances keep their own step rows; the version is
   /// the definition's edit generation, surfaced in the Designer.
   version        Int      @default(1)
+  /// Dispatch behaviour when this ladder is auto-assigned to an inbound
+  /// entity (e.g. a new intake ticket). "manual" (default) leaves the
+  /// instance on its opening step for a human to advance. "auto"
+  /// advances the opening HUMAN intake step ONCE to the first review
+  /// stage, then holds. It never auto-approves an AGENT step or any
+  /// sign-off gate — conservative AI governance (non-negotiable #7) is
+  /// preserved regardless of this setting.
+  dispatchMode   String   @default("manual")
   createdAt      DateTime @default(now())
   updatedAt      DateTime @default(now()) @updatedAt
 

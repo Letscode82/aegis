@@ -12,6 +12,7 @@ export {
   defineWorkflow,
   startWorkflow,
   actOnWorkflow,
+  autoAdvanceOpeningStep,
   getWorkflowInstance,
   listInstancesForEntity,
   listRunningInstanceEntityIds,

@@ -18,7 +18,7 @@
  * client-authored intake fields directly.
  */
 import { prisma, logAudit } from "@aegis/db";
-import { startWorkflow, autoRunCurrentAgentStep } from "@aegis/workflow";
+import { startWorkflow, autoRunCurrentAgentStep, autoAdvanceOpeningStep } from "@aegis/workflow";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- JS agents module
 import { intakeWorkflowAgentHandler } from "../agents/index.js";
 
@@ -89,7 +89,7 @@ export async function maybeStartWorkflowForTicket(
     // org (graceful when the library isn't seeded / no match).
     const def = await prisma.workflowDefinition.findUnique({
       where: { organizationId_key: { organizationId, key: definitionKey } },
-      select: { key: true, isActive: true },
+      select: { key: true, isActive: true, dispatchMode: true },
     });
     if (!def || !def.isActive) return null;
     definitionKey = def.key;
@@ -131,6 +131,18 @@ export async function maybeStartWorkflowForTicket(
     // If the ladder starts on an AGENT step, run it now so the agent's
     // work happens automatically. Best-effort; never blocks ingest.
     await autoRunCurrentAgentStep(instance.id, intakeWorkflowAgentHandler).catch(() => {});
+
+    // Dispatch mode "auto": advance the opening HUMAN intake step once to
+    // the first review stage, then run the agent on that stage if it's an
+    // AGENT step. The helper enforces the governance guardrails (opening
+    // HUMAN step only, single hop, never auto-completes); this stays
+    // best-effort so a dispatch failure never breaks ticket ingest.
+    if (def.dispatchMode === "auto") {
+      const advanced = await autoAdvanceOpeningStep(instance.id, startedById).catch(() => null);
+      if (advanced) {
+        await autoRunCurrentAgentStep(instance.id, intakeWorkflowAgentHandler).catch(() => {});
+      }
+    }
     return instance.id;
   } catch (err) {
     console.error("[intake:workflow-bridge] start failed:", err);
