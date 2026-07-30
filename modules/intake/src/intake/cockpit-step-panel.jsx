@@ -40,7 +40,7 @@ const MODE = {
   none: { icon: "", label: "", color: C.br, hint: "" },
 };
 
-export function CockpitStepPanel({ ticket, instance, busy, sendBackTo, onSendBackToChange, onAct }) {
+export function CockpitStepPanel({ ticket, instance, busy, sendBackTo, onSendBackToChange, onAct, agentElapsed = 0 }) {
   if (!instance) return null;
   const steps = instance.definition?.steps || [];
   const total = steps.length;
@@ -108,9 +108,14 @@ export function CockpitStepPanel({ ticket, instance, busy, sendBackTo, onSendBac
               </a>
             </div>
           ) : mode === "agent" ? (
-            <div style={{ fontSize: 11, color: C.pp, fontFamily: M, display: "flex", alignItems: "center", gap: 7 }}>
-              <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: C.pp, animation: "pulse 1.1s ease-in-out infinite" }} />
-              Agent is running its pass — its recommendation will appear here. Refresh in a moment if it doesn&apos;t.
+            <div>
+              <div style={{ fontSize: 11, color: C.pp, fontFamily: M, display: "flex", alignItems: "center", gap: 7 }}>
+                <span style={{ display: "inline-block", width: 11, height: 11, borderRadius: "50%", border: `2px solid ${C.pp}44`, borderTopColor: C.pp, animation: "sp 0.7s linear infinite" }} />
+                Agent is running its pass{agentElapsed ? ` · ${agentElapsed}s` : ""}… — its recommendation appears here automatically.
+              </div>
+              <div style={{ marginTop: 7, height: 3, background: C.s1, borderRadius: 2, overflow: "hidden" }}>
+                <div style={{ height: "100%", width: `${Math.min(95, (agentElapsed / 45) * 100)}%`, background: C.pp, transition: "width 1s linear" }} />
+              </div>
             </div>
           ) : (
             <div style={{ fontSize: 11, color: C.t3 }}>No agent deliverable on this ticket yet — this is a manual review.</div>
