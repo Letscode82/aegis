@@ -29,6 +29,7 @@ export {
   runAgentTask,
   autoRunCurrentAgentStep,
   listAgentTasks,
+  listAgentTasksForInstance,
   DEFAULT_MIN_CONFIDENCE,
   type AgentTaskHandler,
   type AgentTaskFindings,

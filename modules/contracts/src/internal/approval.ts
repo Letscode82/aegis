@@ -26,17 +26,107 @@ import { prisma, logAudit } from "@aegis/db";
 import {
   startWorkflow,
   actOnWorkflow,
+  autoRunCurrentAgentStep,
   listInstancesForEntity,
+  listAgentTasksForInstance,
   ragFor,
   type WorkflowActionInput,
+  type AgentTaskInput,
+  type AgentTaskFindings,
 } from "@aegis/workflow";
 import { transitionContractStatus } from "./service";
+import { scoreContractClauses, type RiskLevel, type ClauseRiskScore } from "./risk-score";
 
 const DEFINITION_KEY = "clm_contract_approval";
 const ENTITY_TYPE = "Contract";
 const SUBMITTABLE = new Set(["DRAFT", "IN_NEGOTIATION"]);
 
+// ── AI Risk Review agent step (CTR-8b) ───────────────────────────────
+//
+// The ladder's step 2 is an AGENT rung ("AI Risk Review"). Wiring the
+// ladder (CTR-8) started it but never ran it — the rung sat as an inert
+// PENDING task. This handler makes it real: it runs the SAME deterministic
+// clause-derived risk read the repository already trusts (scoreContractClauses)
+// and returns it as advisory findings. Governance is unchanged — the engine
+// stores findings on the task and NEVER advances the ladder; a human reviewer
+// still approves the rung (agent-tasks.ts guarantees this).
+
+/** Turn a deterministic risk score into advisory ladder findings. */
+export function findingsFromRisk(risk: ClauseRiskScore): AgentTaskFindings {
+  if (risk.score == null) {
+    return {
+      confidence: 0.5,
+      suggestedAction: "review-manually",
+      summary: "No extracted clauses to assess — a reviewer should evaluate this contract manually.",
+      detail: { score: null, band: risk.band, clauseCount: 0, deviationCount: 0, drivers: [], breakdown: risk.breakdown },
+    };
+  }
+  // Higher risk ⇒ lower confidence ⇒ the step ESCALATES (below the 0.8 bar)
+  // so the human reviewer scrutinises it; a clean, deviation-free contract
+  // clears the bar (DONE) and the reviewer can rubber-stamp. Either way the
+  // human still approves — DONE/ESCALATED only signals how hard to look.
+  const deviationPenalty = risk.deviationCount > 0 ? 0.1 : 0;
+  const confidence = Math.max(0, Math.min(1, 1 - risk.score / 100 - deviationPenalty));
+  const suggestedAction = risk.band === "LOW" ? "approve" : risk.band === "MEDIUM" ? "review-deviations" : "escalate";
+  const driverText = risk.drivers.slice(0, 3).map((d) => `${d.type}${d.deviation ? " (deviation)" : ""}`).join(", ");
+  const summary =
+    `Clause risk ${risk.band} — score ${risk.score}/100 across ${risk.clauseCount} clause(s), ` +
+    `${risk.deviationCount} deviation(s).${driverText ? ` Top drivers: ${driverText}.` : ""}`;
+  return {
+    confidence,
+    suggestedAction,
+    summary,
+    detail: {
+      score: risk.score,
+      band: risk.band,
+      clauseCount: risk.clauseCount,
+      deviationCount: risk.deviationCount,
+      drivers: risk.drivers,
+      breakdown: risk.breakdown,
+    },
+  };
+}
+
+/**
+ * Ladder AGENT-step handler: score the contract's clauses and return advisory
+ * findings. Resolves the contract from the instance context's `contract_id`
+ * (stored at submit time). Deterministic and total — never throws on a
+ * clause-less contract.
+ */
+export async function contractRiskAgentHandler(input: AgentTaskInput): Promise<AgentTaskFindings> {
+  const ctx = (input?.context ?? {}) as Record<string, unknown>;
+  const contractId = typeof ctx.contract_id === "string" ? ctx.contract_id : null;
+  if (!contractId) throw new Error("No contract_id in approval ladder context");
+  const clauses = await prisma.contractClause.findMany({
+    where: { contractId },
+    select: { type: true, risk: true, deviation: true },
+  });
+  const risk = scoreContractClauses(
+    clauses.map((c) => ({ type: c.type, risk: c.risk as RiskLevel, deviation: c.deviation })),
+  );
+  return findingsFromRisk(risk);
+}
+
+// Run the AI Risk Review step now, if the ladder is sitting on a PENDING
+// AGENT task. Best-effort and idempotent (autoRunCurrentAgentStep only runs a
+// PENDING task at the current step); a run failure never breaks the caller.
+async function autoRunApprovalAgent(instanceId: string): Promise<void> {
+  await autoRunCurrentAgentStep(instanceId, contractRiskAgentHandler).catch(() => {});
+}
+
 export type ContractApprovalActor = { id: string; type?: "USER" | "AGENT" | "SYSTEM" };
+
+export interface ApprovalStepFindingsDTO {
+  status: "PENDING" | "RUNNING" | "DONE" | "ESCALATED" | "FAILED";
+  confidence: number | null;
+  suggestedAction: string | null;
+  summary: string | null;
+  band: string | null;
+  score: number | null;
+  deviationCount: number | null;
+  drivers: Array<{ type: string; risk: string; deviation: boolean; points: number }>;
+  minConfidence: number | null;
+}
 
 export interface ApprovalStepDTO {
   stepOrder: number;
@@ -46,6 +136,27 @@ export interface ApprovalStepDTO {
   slaHours: number | null;
   state: "done" | "current" | "upcoming";
   rag: "GREEN" | "AMBER" | "RED" | null;
+  /** Advisory AI Risk Review output, present only on an AGENT step that ran. */
+  findings: ApprovalStepFindingsDTO | null;
+}
+
+type AgentTaskRow = { stepOrder: number; status: string; outputJson: unknown };
+
+function toFindings(task: AgentTaskRow | undefined): ApprovalStepFindingsDTO | null {
+  if (!task) return null;
+  const out = (task.outputJson ?? {}) as Record<string, unknown>;
+  const detail = (out.detail ?? {}) as Record<string, unknown>;
+  return {
+    status: task.status as ApprovalStepFindingsDTO["status"],
+    confidence: typeof out.confidence === "number" ? out.confidence : null,
+    suggestedAction: typeof out.suggestedAction === "string" ? out.suggestedAction : null,
+    summary: typeof out.summary === "string" ? out.summary : null,
+    band: typeof detail.band === "string" ? detail.band : null,
+    score: typeof detail.score === "number" ? detail.score : null,
+    deviationCount: typeof detail.deviationCount === "number" ? detail.deviationCount : null,
+    drivers: Array.isArray(detail.drivers) ? (detail.drivers as ApprovalStepFindingsDTO["drivers"]) : [],
+    minConfidence: typeof out.minConfidence === "number" ? out.minConfidence : null,
+  };
 }
 
 export interface ContractApprovalStateDTO {
@@ -83,13 +194,19 @@ function ragByStep(instance: unknown): Record<number, "GREEN" | "AMBER" | "RED">
   return out;
 }
 
-export function mapSteps(instance: {
-  status: string;
-  currentStepOrder: number;
-  definition: { steps: Array<{ stepOrder: number; name: string; kind: string; approverRole: string | null; slaHours: number | null }> };
-}): ApprovalStepDTO[] {
+export function mapSteps(
+  instance: {
+    status: string;
+    currentStepOrder: number;
+    definition: { steps: Array<{ stepOrder: number; name: string; kind: string; approverRole: string | null; slaHours: number | null }> };
+  },
+  tasks: AgentTaskRow[] = [],
+): ApprovalStepDTO[] {
   const completed = instance.status === "COMPLETED";
   const rags = ragByStep(instance);
+  // Latest task per step order wins (tasks arrive oldest-first).
+  const latestByStep = new Map<number, AgentTaskRow>();
+  for (const t of tasks) latestByStep.set(t.stepOrder, t);
   return [...instance.definition.steps]
     .sort((a, b) => a.stepOrder - b.stepOrder)
     .map((s) => {
@@ -106,6 +223,7 @@ export function mapSteps(instance: {
         slaHours: s.slaHours,
         state,
         rag: state === "current" ? rags[s.stepOrder] ?? null : null,
+        findings: s.kind === "AGENT" ? toFindings(latestByStep.get(s.stepOrder)) : null,
       };
     });
 }
@@ -137,7 +255,8 @@ export async function getContractApprovalState(
     };
   }
 
-  const steps = mapSteps(active as never);
+  const tasks = (await listAgentTasksForInstance(active.id)) as AgentTaskRow[];
+  const steps = mapSteps(active as never, tasks);
   return {
     contractId,
     contractStatus: contract.status,
@@ -193,6 +312,10 @@ export async function submitContractForApproval(
     /* first step stays current; the panel can advance it */
   }
 
+  // The ladder now sits on the "AI Risk Review" AGENT rung — run it so its
+  // advisory findings are ready the moment the reviewer opens the workspace.
+  await autoRunApprovalAgent(instance.id);
+
   await transitionContractStatus(organizationId, contractId, "IN_REVIEW" as never, {
     id: actor.id,
     type: "USER",
@@ -209,6 +332,22 @@ export async function submitContractForApproval(
     metadata: { source: "guided-wizard" },
   });
 
+  return getContractApprovalState(organizationId, contractId);
+}
+
+/**
+ * Manually (re-)run the AI Risk Review rung — the panel's "Run AI review"
+ * affordance and a robustness path when the submit-time auto-run failed
+ * (e.g. a transient DB hiccup). No-op unless a ladder is running with a
+ * PENDING AGENT task at its current step. Returns the refreshed state.
+ */
+export async function runContractApprovalAgent(
+  organizationId: string,
+  contractId: string,
+): Promise<ContractApprovalStateDTO> {
+  const instances = await listInstancesForEntity(organizationId, ENTITY_TYPE, contractId);
+  const active = instances.find((i) => i.status === "IN_PROGRESS");
+  if (active) await autoRunApprovalAgent(active.id);
   return getContractApprovalState(organizationId, contractId);
 }
 
@@ -229,6 +368,11 @@ export async function actOnContractApproval(
     actor: actor.id,
     comment: comment ?? null,
   })) as { status: string };
+
+  // If the ladder is still running and has landed back on the AI Risk Review
+  // rung (e.g. a send-back to step 1 then re-approve), run it again so fresh
+  // findings are ready. Idempotent + best-effort.
+  if (result.status === "IN_PROGRESS") await autoRunApprovalAgent(active.id);
 
   if (action === "approve" && result.status === "COMPLETED") {
     // The gate: the ladder is complete, so — and only so — the contract

@@ -11,6 +11,49 @@ import { C, F, M } from "@aegis/ui";
 
 const ROLE_LABEL = { requester: "Requester", attorney: "Attorney", legal_ops: "Legal Ops", gc: "General Counsel", paralegal: "Paralegal" };
 const RAG_COLOR = { GREEN: C.gn, AMBER: C.am, RED: C.rd };
+const BAND_COLOR = { LOW: C.gn, MEDIUM: C.am, HIGH: C.rd, UNSCORED: C.t4 };
+const ACTION_LABEL = { approve: "Approve", "review-deviations": "Review deviations", escalate: "Escalate", "review-manually": "Review manually" };
+
+// Advisory AI Risk Review output rendered beneath its ladder rung. Findings
+// never gate the ladder — they inform the human reviewer.
+function FindingsBlock({ f }) {
+  const band = f.band || "UNSCORED";
+  const bandColor = BAND_COLOR[band] || C.t4;
+  const escalated = f.status === "ESCALATED";
+  const failed = f.status === "FAILED";
+  const pendingish = f.status === "PENDING" || f.status === "RUNNING";
+  return (
+    <div style={{ marginTop: 6, padding: "7px 9px", borderRadius: 6, background: C.bg, border: `1px solid ${C.br}` }}>
+      {failed ? (
+        <div style={{ fontSize: 9.5, fontFamily: M, color: C.rd }}>⚠ AI risk read failed — a reviewer should assess manually.</div>
+      ) : pendingish ? (
+        <div style={{ fontSize: 9.5, fontFamily: M, color: C.t4 }}>◎ AI risk read {f.status === "RUNNING" ? "running…" : "queued…"}</div>
+      ) : (
+        <>
+          <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 8.5, fontFamily: M, fontWeight: 700, letterSpacing: .4, color: bandColor, border: `1px solid ${bandColor}`, borderRadius: 3, padding: "1px 6px", textTransform: "uppercase" }}>
+              {band}{typeof f.score === "number" ? ` · ${f.score}/100` : ""}
+            </span>
+            {f.suggestedAction && <span style={{ fontSize: 9, fontFamily: M, color: C.t2 }}>Suggests: <b style={{ color: C.t1 }}>{ACTION_LABEL[f.suggestedAction] || f.suggestedAction}</b></span>}
+            <span style={{ fontSize: 8.5, fontFamily: M, color: escalated ? C.am : C.gn, letterSpacing: .3 }}>
+              {escalated ? "↑ escalated — look closely" : "✓ cleared confidence bar"}
+            </span>
+          </div>
+          {f.summary && <div style={{ fontSize: 9.5, fontFamily: F, color: C.t3, marginTop: 4, lineHeight: 1.4 }}>{f.summary}</div>}
+          {f.drivers && f.drivers.length > 0 && (
+            <div style={{ display: "flex", gap: 5, flexWrap: "wrap", marginTop: 5 }}>
+              {f.drivers.slice(0, 5).map((d, i) => (
+                <span key={i} title={`weight ${d.points}`} style={{ fontSize: 8.5, fontFamily: M, color: BAND_COLOR[d.risk] || C.t3, border: `1px solid ${C.br}`, borderRadius: 3, padding: "1px 5px" }}>
+                  {d.type}{d.deviation ? " ⚠" : ""}
+                </span>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
 
 const actBtn = (color, disabled) => ({
   padding: "6px 12px", background: disabled ? C.cd : color, color: disabled ? C.t4 : C.bg,
@@ -51,6 +94,21 @@ export function ApprovalLadderPanel({ contractId, contractStatus, onChanged }) {
       if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
       setState(d.state);
       onChanged?.();
+    } catch (e) {
+      setErr(String(e.message || e));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const runAgent = async () => {
+    setBusy("run-agent");
+    setErr(null);
+    try {
+      const r = await fetch(`/api/contracts/${contractId}/approval/run-agent`, { method: "POST" });
+      const d = await r.json();
+      if (!r.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setState(d.state);
     } catch (e) {
       setErr(String(e.message || e));
     } finally {
@@ -102,6 +160,7 @@ export function ApprovalLadderPanel({ contractId, contractStatus, onChanged }) {
                 <div style={{ fontSize: 9, fontFamily: M, color: C.t4, marginTop: 2 }}>
                   {ROLE_LABEL[s.approverRole] || s.approverRole || "—"}{s.slaHours ? ` · ${s.slaHours}h SLA` : ""}{cur ? " · awaiting decision" : ""}
                 </div>
+                {s.kind === "AGENT" && s.findings && <FindingsBlock f={s.findings} />}
               </div>
             </div>
           );
@@ -111,8 +170,15 @@ export function ApprovalLadderPanel({ contractId, contractStatus, onChanged }) {
       {state.ladderStatus === "IN_PROGRESS" && state.currentStep && (
         <div style={{ padding: "10px 14px", borderTop: `1px solid ${C.br}`, background: C.s1 }}>
           {state.currentStep.kind === "AGENT" && (
-            <div style={{ fontSize: 9.5, fontFamily: M, color: C.t4, marginBottom: 8, lineHeight: 1.4 }}>
-              AI Risk Review output is advisory — a reviewer approves to advance. Conservative-AI governance: no step is gated by an AI actor.
+            <div style={{ marginBottom: 8 }}>
+              <div style={{ fontSize: 9.5, fontFamily: M, color: C.t4, lineHeight: 1.4 }}>
+                AI Risk Review output is advisory — a reviewer approves to advance. Conservative-AI governance: no step is gated by an AI actor.
+              </div>
+              {canApprove && (
+                <button disabled={!!busy} onClick={runAgent} style={{ ...actBtn(C.bl || C.cy, !!busy), marginTop: 7 }}>
+                  {busy === "run-agent" ? "…" : state.currentStep.findings ? "↻ Re-run AI review" : "🤖 Run AI review"}
+                </button>
+              )}
             </div>
           )}
           {canApprove ? (

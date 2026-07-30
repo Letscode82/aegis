@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { mapSteps } from "../src/internal/approval";
+import { mapSteps, findingsFromRisk } from "../src/internal/approval";
+import { scoreContractClauses } from "../src/internal/risk-score";
 
 // The clm_contract_approval ladder shape (packages/workflow/src/library.ts).
 const steps = [
@@ -39,5 +40,60 @@ describe("mapSteps — ladder step-state derivation", () => {
   it("surfaces RAG only on the current step (null elsewhere)", () => {
     const out = mapSteps(inst("IN_PROGRESS", 3));
     expect(out.filter((s) => s.rag != null).every((s) => s.state === "current")).toBe(true);
+  });
+
+  it("attaches the latest agent task's findings to the AGENT step only", () => {
+    const tasks = [
+      { stepOrder: 2, status: "ESCALATED", outputJson: { confidence: 0.4, suggestedAction: "escalate", summary: "risky", minConfidence: 0.8, detail: { score: 72, band: "HIGH", deviationCount: 2, drivers: [{ type: "INDEMNITY", risk: "HIGH", deviation: true, points: 10 }] } } },
+    ];
+    const out = mapSteps(inst("IN_PROGRESS", 2), tasks);
+    // HUMAN steps carry no findings.
+    expect(out[0].findings).toBeNull();
+    expect(out[2].findings).toBeNull();
+    // The AGENT step reflects the task output.
+    expect(out[1].findings?.status).toBe("ESCALATED");
+    expect(out[1].findings?.band).toBe("HIGH");
+    expect(out[1].findings?.score).toBe(72);
+    expect(out[1].findings?.drivers).toHaveLength(1);
+  });
+
+  it("AGENT step with no task has null findings", () => {
+    const out = mapSteps(inst("IN_PROGRESS", 2), []);
+    expect(out[1].kind).toBe("AGENT");
+    expect(out[1].findings).toBeNull();
+  });
+});
+
+describe("findingsFromRisk — advisory AI Risk Review output", () => {
+  it("clean low-risk contract clears the confidence bar (DONE-eligible)", () => {
+    const risk = scoreContractClauses([{ type: "GOVERNING_LAW", risk: "LOW", deviation: false }]);
+    const f = findingsFromRisk(risk);
+    expect(f.suggestedAction).toBe("approve");
+    expect(f.confidence).toBeGreaterThanOrEqual(0.8);
+    expect(f.detail?.band).toBe("LOW");
+  });
+
+  it("high-risk deviating contract falls below the bar (escalates)", () => {
+    const risk = scoreContractClauses([
+      { type: "INDEMNITY", risk: "HIGH", deviation: true },
+      { type: "LIABILITY_CAP", risk: "HIGH", deviation: true },
+    ]);
+    const f = findingsFromRisk(risk);
+    expect(f.suggestedAction).toBe("escalate");
+    expect(f.confidence).toBeLessThan(0.8);
+  });
+
+  it("no clauses → manual review, mid confidence, unscored band", () => {
+    const f = findingsFromRisk(scoreContractClauses([]));
+    expect(f.suggestedAction).toBe("review-manually");
+    expect(f.confidence).toBe(0.5);
+    expect(f.detail?.band).toBe("UNSCORED");
+  });
+
+  it("confidence is always clamped to [0,1]", () => {
+    const risk = scoreContractClauses(Array.from({ length: 6 }, () => ({ type: "IP", risk: "HIGH" as const, deviation: true })));
+    const f = findingsFromRisk(risk);
+    expect(f.confidence).toBeGreaterThanOrEqual(0);
+    expect(f.confidence).toBeLessThanOrEqual(1);
   });
 });

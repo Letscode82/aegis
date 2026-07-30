@@ -89,6 +89,19 @@ export async function listAgentTasks(
 }
 
 /**
+ * All agent tasks for one instance, oldest first. Host modules use this to
+ * surface an AGENT step's findings (confidence, suggestedAction, summary,
+ * detail) beside its ladder rung — the output row is written by
+ * runAgentTask, this is the read side.
+ */
+export async function listAgentTasksForInstance(instanceId: string) {
+  return prisma.workflowAgentTask.findMany({
+    where: { instanceId },
+    orderBy: { createdAt: "asc" },
+  });
+}
+
+/**
  * Claim and execute one PENDING task with the injected handler.
  * Outcome: DONE (findings stored, confidence ≥ bar) or ESCALATED
  * (findings stored, confidence below bar — the human role must look)
