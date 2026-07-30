@@ -637,8 +637,30 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,goToMyRequests
 // decide in seconds, move on. All shortcuts mirror Gmail/Linear conventions.
 
 // Agent recommendation panel — the right-side card attorneys spend most time on
-function AgentRecommendationPanel({ticket,rec,agent,editing,draftEdit,onDraftEdit,onApprove,onEdit,onReject,onEscalate,onSaveEdit,onCancelEdit}){
+function AgentRecommendationPanel({ticket,rec,agent,agentRunning,agentElapsed,editing,draftEdit,onDraftEdit,onApprove,onEdit,onReject,onEscalate,onSaveEdit,onCancelEdit}){
   if(!rec){
+    // The ladder is dispatched and sitting on its AI step — the agent is
+    // running its pass server-side right now. Show a live working state that
+    // resolves itself (the Cockpit polls until the recommendation lands).
+    if(agentRunning){
+      return <Card style={{background:C.cd,borderLeft:`3px solid ${C.pp}`}}>
+        <SH icon="🤖" title="AGENT RUNNING" sub="The AI step is processing this request — its recommendation will appear here" c={C.pp}/>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginTop:12}}>
+          <span style={{display:"inline-block",width:14,height:14,borderRadius:"50%",border:`2px solid ${C.pp}44`,borderTopColor:C.pp,animation:"sp 0.7s linear infinite"}}/>
+          <span style={{fontSize:12,fontFamily:M,color:C.t1}}>Working{agentElapsed?` · ${agentElapsed}s`:""}…</span>
+        </div>
+        <div style={{marginTop:10,height:3,background:C.s1,borderRadius:2,overflow:"hidden"}}>
+          <div style={{height:"100%",width:`${Math.min(95,(agentElapsed/45)*100)}%`,background:C.pp,transition:"width 1s linear"}}/>
+        </div>
+        <div style={{fontSize:10.5,color:C.t3,lineHeight:1.6,marginTop:12}}>
+          {agentElapsed>=60
+            ?<>The agent hasn&apos;t responded yet. Re-select this ticket to check again, or review the ladder below. The human approval gate is unchanged.</>
+            :agentElapsed>=20
+              ?<>Taking a little longer than usual — still processing. This updates automatically; no need to refresh.</>
+              :<>This updates automatically — no need to refresh. When the agent finishes, its recommendation and deliverable appear here for your approval. The human approval gate is unchanged.</>}
+        </div>
+      </Card>;
+    }
     // Human-dispatch-first: the agent runs AUTOMATICALLY when the ladder
     // reaches its AI step — no "run" button. A ticket that hasn't been
     // dispatched yet shows the awaiting-triage note; one that was processed
@@ -1063,6 +1085,12 @@ function CockpitTab({store,cockpit}){
   const[ladderBusy,setLadderBusy]=useState(false);
   const[ladderSendBack,setLadderSendBack]=useState("");
   const[ladderRefresh,setLadderRefresh]=useState(0);
+  // PR-C3 — live agent progress. When the ladder sits on an AGENT step whose
+  // recommendation hasn't landed yet, the agent is running server-side (a
+  // Claude pass). The Cockpit polls until it lands and shows an animated
+  // "working" state + elapsed seconds, so the result surfaces on its own
+  // instead of only on the next manual action.
+  const[agentElapsed,setAgentElapsed]=useState(0);
   // PR-C2 — dispatch gate. A request is "dispatched" once it has
   // direction: a running ladder OR a named owner OR it's already been
   // worked. `laddered` is the set of ticket ids with an IN_PROGRESS
@@ -1120,6 +1148,26 @@ function CockpitTab({store,cockpit}){
   // Clear the lifted ladder instance when the focused ticket changes so
   // a stale step panel never flashes before WorkflowLadderCard reloads.
   useEffect(()=>{setLadderInstance(null);setLadderSendBack("");},[current?.id]);
+
+  // The ladder's current step, and whether its agent is mid-pass: a running
+  // ladder, sitting on an AGENT step, with no recommendation on the ticket yet.
+  const curLadderStep=ladderInstance?.definition?.steps?.find(s=>s.stepOrder===ladderInstance.currentStepOrder)||null;
+  const agentStepRunning=!!(ladderInstance&&ladderInstance.status==="IN_PROGRESS"&&curLadderStep?.kind==="AGENT"&&current&&!current.agentRecommendation);
+
+  // Poll for the agent result while it's mid-pass (every 2s, capped ~45s).
+  // store.refresh pulls the recommendation onto the ticket; the ladder-refresh
+  // bump re-emits the instance so the step panel tracks the advance. The
+  // effect tears down the moment the rec lands (agentStepRunning → false).
+  useEffect(()=>{
+    if(!agentStepRunning){setAgentElapsed(0);return;}
+    let secs=0;
+    const iv=setInterval(()=>{
+      secs+=1;setAgentElapsed(secs);
+      if(secs%2===0){store.refresh?.();setLadderRefresh(x=>x+1);}
+      if(secs>=60)clearInterval(iv);// cap polling so a dead agent doesn't loop forever
+    },1000);
+    return()=>clearInterval(iv);
+  },[agentStepRunning,current?.id]);// eslint-disable-line react-hooks/exhaustive-deps
 
   const showToast=useCallback((msg,tone="gn",durationMs=2400)=>{
     setToast({msg,tone});
@@ -1351,7 +1399,7 @@ function CockpitTab({store,cockpit}){
             <div style={{fontSize:11,color:C.t2,marginTop:2,lineHeight:1.5}}>This request has no direction — start a governance ladder below, or assign an owner (⌨ <Kbd k="r"/> reassign). Until then it isn&apos;t part of anyone&apos;s working queue.</div>
           </div>
         </div>}
-        <CockpitStepPanel ticket={current} instance={ladderInstance} busy={ladderBusy} sendBackTo={ladderSendBack} onSendBackToChange={setLadderSendBack} onAct={actOnLadder}/>
+        <CockpitStepPanel ticket={current} instance={ladderInstance} busy={ladderBusy} sendBackTo={ladderSendBack} onSendBackToChange={setLadderSendBack} onAct={actOnLadder} agentElapsed={agentStepRunning?agentElapsed:0}/>
         <LitigationSummaryCard ticket={current}/>
         <WorkflowLadderCard ticket={current} hideActions refreshKey={ladderRefresh} onInstance={setLadderInstance}/>
         <TicketDetailPanel ticket={current} compact={compact}/>
@@ -1361,6 +1409,8 @@ function CockpitTab({store,cockpit}){
           ticket={current}
           rec={current.agentRecommendation}
           agent={recAgent}
+          agentRunning={agentStepRunning}
+          agentElapsed={agentElapsed}
           editing={editing}
           draftEdit={draftEdit}
           onDraftEdit={setDraftEdit}
