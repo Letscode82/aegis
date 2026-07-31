@@ -20,6 +20,14 @@ const ACTION = {
   OPEN: { label: "Reopen", c: C.bl },
 };
 const STATUS_FILTERS = ["ALL", "OVERDUE", "DUE_SOON", "OPEN", "IN_PROGRESS", "MET", "BREACHED", "WAIVED"];
+const TYPE_META = {
+  PAYMENT:        { label: "Payment",  c: C.gn },
+  DELIVERABLE:    { label: "Deliver",  c: C.bl },
+  REPORTING:      { label: "Report",   c: C.tl },
+  RENEWAL_NOTICE: { label: "Renewal",  c: C.am },
+  COMPLIANCE:     { label: "Comply",   c: C.rd },
+  OTHER:          { label: "Other",    c: C.t4 },
+};
 
 function Kpi({ label, value, color }) {
   return (
@@ -134,8 +142,10 @@ export function ObligationsDashboard({ canManage }) {
         ) : data.rows.map((o) => (
           <div key={o.id} style={{ display: "grid", gridTemplateColumns: "1.4fr 2fr 120px 120px 95px 1.4fr", gap: 8, fontSize: 11, alignItems: "center", padding: "9px 4px", borderBottom: `1px solid ${C.br}33` }}>
             <span style={{ color: C.t2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.contractTitle}</span>
-            <span style={{ color: C.t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {o.description}{o.recurrence && <span style={{ color: C.tl, fontFamily: M, fontSize: 9, marginLeft: 6 }}>⟳</span>}
+            <span style={{ color: C.t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6 }}>
+              {(() => { const tm = TYPE_META[o.obligationType] || TYPE_META.OTHER; return <span title={`Type: ${tm.label}`} style={{ flexShrink: 0, fontSize: 8, fontFamily: M, letterSpacing: .4, color: tm.c, border: `1px solid ${tm.c}55`, borderRadius: 3, padding: "1px 4px", textTransform: "uppercase" }}>{tm.label}</span>; })()}
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{o.description}</span>
+              {o.recurrence && <span title={o.recurrenceLabel || "Recurring"} style={{ flexShrink: 0, color: C.tl, fontFamily: M, fontSize: 9 }}>⟳</span>}
             </span>
             <span style={{ color: C.t2, fontFamily: M, fontSize: 10 }}>{o.ownerName || "—"}</span>
             <span style={{ fontFamily: M, fontSize: 10, color: o.overdue ? C.rd : C.t2 }}>

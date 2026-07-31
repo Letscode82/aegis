@@ -15,9 +15,11 @@ import type {
   ContractStatus,
   ContractRisk,
   ObligationStatus,
+  ObligationType,
 } from "@aegis/db";
 import { assertContractTransition } from "./contract-state-machine";
 import { assertObligationTransition } from "./obligation-state-machine";
+import { nextOccurrence } from "./recurrence";
 
 export interface CreateContractInput {
   title: string;
@@ -49,6 +51,7 @@ export interface CreateObligationInput {
   dueDate?: Date | null;
   recurrence?: string | null;
   ownerId?: string | null;
+  type?: ObligationType;
 }
 
 type Actor = { id: string | null; type?: "USER" | "AGENT" | "SYSTEM" };
@@ -201,6 +204,7 @@ export async function createObligation(
       dueDate: input.dueDate ?? null,
       recurrence: input.recurrence ?? null,
       ownerId: input.ownerId ?? null,
+      type: input.type ?? "OTHER",
       status: "OPEN",
     },
   });
@@ -215,6 +219,7 @@ export async function createObligation(
       description: obligation.description,
       dueDate: obligation.dueDate?.toISOString() ?? null,
       ownerId: obligation.ownerId,
+      type: obligation.type,
     } as never,
     metadata: { source: "contracts" } as never,
   });
@@ -252,7 +257,9 @@ export async function updateObligationStatus(
 
   const updated = await prisma.obligation.update({
     where: { id: obligationId },
-    data: { status, metadata: metadata as never },
+    // Stamp the queryable resolvedAt column in lock-step with metadata so
+    // on-time / cycle-time analytics don't have to parse JSON.
+    data: { status, resolvedAt: resolved ? now : null, metadata: metadata as never },
   });
   await logAudit({
     organizationId,
@@ -264,6 +271,48 @@ export async function updateObligationStatus(
     afterJson: { status, contractId: existing.sourceId, reason: opts?.reason ?? null } as never,
     metadata: { source: "contracts" } as never,
   });
+
+  // Live recurrence: completing a recurring obligation spawns its next cycle,
+  // anchored to the schedule (the current dueDate), not to the completion
+  // instant. Only on MET — a WAIVED/BREACHED cycle isn't "done", it's excused
+  // or failed, so it shouldn't roll forward. Best-effort: a spawn failure
+  // never unwinds the completion the caller just made.
+  if (status === "MET" && existing.recurrence && existing.dueDate) {
+    const next = nextOccurrence(existing.recurrence, existing.dueDate);
+    if (next) {
+      try {
+        const spawned = await prisma.obligation.create({
+          data: {
+            organizationId,
+            sourceType: "CONTRACT",
+            sourceId: existing.sourceId,
+            description: existing.description,
+            dueDate: next,
+            recurrence: existing.recurrence,
+            ownerId: existing.ownerId,
+            type: existing.type,
+            status: "OPEN",
+          },
+        });
+        await logAudit({
+          organizationId,
+          ...actorFields(actor),
+          action: "contract.obligation.recurrence_spawned",
+          resourceType: "Obligation",
+          resourceId: spawned.id,
+          afterJson: {
+            contractId: existing.sourceId,
+            fromObligationId: obligationId,
+            dueDate: next.toISOString(),
+            recurrence: existing.recurrence,
+          } as never,
+          metadata: { source: "contracts" } as never,
+        });
+      } catch (err) {
+        console.error("[contracts] recurrence spawn failed:", err);
+      }
+    }
+  }
   return updated;
 }
 
