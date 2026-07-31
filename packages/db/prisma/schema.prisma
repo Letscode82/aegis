@@ -368,6 +368,18 @@ enum ObligationStatus {
   WAIVED
 }
 
+/// Category of an obligation — drives filtering, iconography, and the
+/// renewal-notice bridge (RENEWAL_NOTICE obligations are auto-created for
+/// auto-renew contracts inside their notice window).
+enum ObligationType {
+  PAYMENT
+  DELIVERABLE
+  REPORTING
+  RENEWAL_NOTICE
+  COMPLIANCE
+  OTHER
+}
+
 /// "We owe X to Y by Z." Cuts across Contracts, Regulatory, Privacy,
 /// Governance — anyone with commitments to fulfill or attest to.
 model Obligation {
@@ -380,6 +392,11 @@ model Obligation {
   recurrence     String? // RRULE string, or null for one-shot
   ownerId        String? // Person id (responsible party)
   status         ObligationStatus     @default(OPEN)
+  /// Category — payment / deliverable / reporting / renewal-notice / …
+  type           ObligationType       @default(OTHER)
+  /// Promoted from metadata: when the obligation reached MET or WAIVED.
+  /// A queryable column so cycle-time / on-time analytics don't parse JSON.
+  resolvedAt     DateTime?
   metadata       Json                 @default("{}")
   createdAt      DateTime             @default(now())
   updatedAt      DateTime             @updatedAt
@@ -389,6 +406,7 @@ model Obligation {
   @@index([organizationId, status, dueDate])
   @@index([organizationId, sourceType, sourceId])
   @@index([organizationId, ownerId])
+  @@index([organizationId, type, status])
 }
 
 /// Append-only event log — feeds Matter timelines, Audit trails,
@@ -1942,6 +1960,16 @@ enum ContractRisk {
   HIGH
 }
 
+/// The GC's explicit choice for a contract's CURRENT renewal cycle.
+/// UNDECIDED is the resting state; a decision is recorded before the
+/// notice deadline and reset to UNDECIDED when a renewal rolls forward.
+enum RenewalDecision {
+  UNDECIDED
+  RENEW
+  RENEGOTIATE
+  NON_RENEWAL
+}
+
 /// Lifecycle of a login-less counterparty review link (CTR-3).
 enum ContractReviewTokenStatus {
   ACTIVE // link is live; counterparty can view + respond
@@ -1985,6 +2013,17 @@ model Contract {
   activatedAt          DateTime? // reached ACTIVE (in force)
   renewedAt            DateTime? // last renewal back into ACTIVE
   terminatedAt         DateTime? // reached TERMINATED
+  /// Renewals (CLM Obligations & Renewals). renewalDecision is the GC's
+  /// explicit choice for the current cycle; renewalTermMonths is the length
+  /// of each renewal term (used to roll expiryDate forward on RENEW);
+  /// renewalNoticeSentAt stamps when the non-renewal notice was issued;
+  /// renewalCount counts executed renewals. All nullable/defaulted — additive.
+  renewalDecision      RenewalDecision @default(UNDECIDED)
+  renewalDecisionAt    DateTime?
+  renewalDecisionById  String? // User id (app-level ref, AuditLog pattern)
+  renewalTermMonths    Int?
+  renewalNoticeSentAt  DateTime?
+  renewalCount         Int            @default(0)
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 

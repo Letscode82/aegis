@@ -38,6 +38,36 @@ export {
   type RiskBand,
 } from "./src/internal/risk-score";
 
+// Renewals command center (Obligations & Renewals, Phase 1) — auto-renewal-trap
+// prevention: the renewal pipeline, the GC's explicit decision, notice
+// tracking, and the auto-created notice-obligation sweep.
+export {
+  getRenewalPipeline,
+  recordRenewalDecision,
+  markRenewalNoticeSent,
+  ensureRenewalNoticeObligations,
+  classifyRenewalUrgency,
+  inferRenewalTermMonths,
+  RENEWAL_URGENCY_RANK,
+  type RenewalPipeline,
+  type RenewalPipelineRow,
+  type RenewalUrgency,
+  type RenewalUrgencyInput,
+  type RenewalUrgencyResult,
+  type RecordRenewalDecisionInput,
+  type EnsureNoticeObligationsResult,
+} from "./src/internal/renewals";
+
+// Recurrence math for recurring obligations (Phase 1) — the next-cycle
+// computation the obligation completion path uses.
+export {
+  nextOccurrence,
+  parseRecurrence,
+  recurrenceLabel,
+  type ParsedRecurrence,
+  type RecurrenceFreq,
+} from "./src/internal/recurrence";
+
 export {
   getContractsOverview,
   getContractDetail,

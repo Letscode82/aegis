@@ -15,6 +15,7 @@ import { daysToExpiry, obligationOverdue } from "./derive";
 import { allowedContractTransitions } from "./contract-state-machine";
 import { allowedObligationTransitions } from "./obligation-state-machine";
 import { scoreContractClauses, type ClauseRiskScore } from "./risk-score";
+import { recurrenceLabel } from "./recurrence";
 
 export interface ContractClauseDTO {
   id: string;
@@ -31,6 +32,8 @@ export interface ContractObligationDTO {
   description: string;
   dueDate: string | null;
   recurrence: string | null;
+  recurrenceLabel: string | null;
+  obligationType: "PAYMENT" | "DELIVERABLE" | "REPORTING" | "RENEWAL_NOTICE" | "COMPLIANCE" | "OTHER";
   ownerId: string | null;
   ownerName: string | null;
   status: "OPEN" | "IN_PROGRESS" | "MET" | "BREACHED" | "WAIVED";
@@ -136,6 +139,8 @@ async function loadObligationsByContract(organizationId: string, contractIds: st
       description: o.description,
       dueDate: o.dueDate ? o.dueDate.toISOString() : null,
       recurrence: o.recurrence,
+      recurrenceLabel: recurrenceLabel(o.recurrence),
+      obligationType: o.type,
       ownerId: o.ownerId,
       ownerName: o.ownerId ? ownerName[o.ownerId] || null : null,
       status: o.status,
@@ -159,6 +164,8 @@ export interface ObligationRow {
   /** Days until due; negative = overdue; null if no due date. */
   daysToDue: number | null;
   recurrence: string | null;
+  recurrenceLabel: string | null;
+  obligationType: "PAYMENT" | "DELIVERABLE" | "REPORTING" | "RENEWAL_NOTICE" | "COMPLIANCE" | "OTHER";
   ownerId: string | null;
   ownerName: string | null;
   status: ObligationStatus;
@@ -216,6 +223,8 @@ export async function listObligations(
       dueDate: o.dueDate ? o.dueDate.toISOString() : null,
       daysToDue,
       recurrence: o.recurrence,
+      recurrenceLabel: recurrenceLabel(o.recurrence),
+      obligationType: o.type,
       ownerId: o.ownerId,
       ownerName: o.ownerId ? ownerName[o.ownerId] || null : null,
       status: o.status,
