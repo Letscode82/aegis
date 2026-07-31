@@ -43,12 +43,105 @@ const btn = (c) => ({
   color: c, fontSize: 9, fontFamily: M, fontWeight: 600, letterSpacing: .4, cursor: "pointer", textTransform: "uppercase",
 });
 
+const OBL_TYPES = ["PAYMENT", "DELIVERABLE", "REPORTING", "RENEWAL_NOTICE", "COMPLIANCE", "OTHER"];
+const RECURRENCE_OPTS = [["", "One-time"], ["FREQ=WEEKLY", "Weekly"], ["FREQ=MONTHLY", "Monthly"], ["QUARTERLY", "Quarterly"], ["FREQ=YEARLY", "Yearly"]];
+const inp = { width: "100%", background: C.bg, border: `1px solid ${C.br}`, borderRadius: 5, color: C.t1, fontFamily: F, fontSize: 12, padding: "7px 9px", boxSizing: "border-box" };
+const lbl = { fontSize: 9, fontFamily: M, color: C.t3, letterSpacing: 1, textTransform: "uppercase", marginBottom: 4, display: "block" };
+
+// Create / edit an obligation. On create, a contract must be chosen; on edit the
+// contract is fixed. Owner is optional (a Person id from the loaded roster).
+function ObligationDialog({ mode, row, contracts, owners, onClose, onSaved }) {
+  const editing = mode === "edit";
+  const [contractId, setContractId] = useState(editing ? row.contractId : "");
+  const [description, setDescription] = useState(editing ? row.description : "");
+  const [type, setType] = useState(editing ? row.obligationType : "OTHER");
+  const [dueDate, setDueDate] = useState(editing && row.dueDate ? row.dueDate.slice(0, 10) : "");
+  const [recurrence, setRecurrence] = useState(editing ? (row.recurrence || "") : "");
+  const [ownerId, setOwnerId] = useState(editing ? (row.ownerId || "") : "");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+
+  const save = async () => {
+    if (!contractId) { setErr("Pick a contract."); return; }
+    if (!description.trim()) { setErr("Description is required."); return; }
+    setBusy(true); setErr(null);
+    try {
+      const body = { description: description.trim(), type, dueDate: dueDate || null, recurrence: recurrence || null, ownerId: ownerId || null };
+      const url = editing ? `/api/contracts/${contractId}/obligations/${row.id}` : `/api/contracts/${contractId}/obligations`;
+      const r = await fetch(url, { method: editing ? "PUT" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      if (!r.ok) throw new Error((await r.json()).error || `HTTP ${r.status}`);
+      onSaved();
+    } catch (e) { setErr(String(e.message || e)); } finally { setBusy(false); }
+  };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: 460, maxWidth: "100%", background: C.cd, border: `1px solid ${C.br}`, borderRadius: 8, padding: 20 }}>
+        <div style={{ fontSize: 13, fontFamily: SR, color: C.t1, marginBottom: 14 }}>{editing ? "Edit obligation" : "New obligation"}</div>
+        <div style={{ marginBottom: 10 }}>
+          <label style={lbl}>Contract</label>
+          <select value={contractId} onChange={(e) => setContractId(e.target.value)} disabled={editing} style={{ ...inp, opacity: editing ? .6 : 1 }}>
+            <option value="">Select a contract…</option>
+            {contracts.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+          </select>
+        </div>
+        <div style={{ marginBottom: 10 }}>
+          <label style={lbl}>Description</label>
+          <input value={description} onChange={(e) => setDescription(e.target.value)} style={inp} placeholder="e.g. Deliver Q3 compliance report" />
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+          <div><label style={lbl}>Type</label>
+            <select value={type} onChange={(e) => setType(e.target.value)} style={inp}>{OBL_TYPES.map((t) => <option key={t} value={t}>{t.replace(/_/g, " ")}</option>)}</select>
+          </div>
+          <div><label style={lbl}>Due date</label><input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={inp} /></div>
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 14 }}>
+          <div><label style={lbl}>Recurrence</label>
+            <select value={recurrence} onChange={(e) => setRecurrence(e.target.value)} style={inp}>{RECURRENCE_OPTS.map(([v, l]) => <option key={v} value={v}>{l}</option>)}</select>
+          </div>
+          <div><label style={lbl}>Owner</label>
+            <select value={ownerId} onChange={(e) => setOwnerId(e.target.value)} style={inp}>
+              <option value="">Unassigned</option>
+              {owners.map(([id, name]) => <option key={id} value={id}>{name}</option>)}
+            </select>
+          </div>
+        </div>
+        {err && <div style={{ color: C.rd, fontFamily: M, fontSize: 10.5, marginBottom: 10 }}>⚠ {err}</div>}
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button onClick={onClose} style={{ ...btn(C.t3), padding: "7px 13px" }}>Cancel</button>
+          <button onClick={save} disabled={busy} style={{ padding: "7px 14px", background: C.bl, color: "#fff", border: "none", borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 700, textTransform: "uppercase", cursor: "pointer", opacity: busy ? .6 : 1 }}>{busy ? "Saving…" : editing ? "Save" : "Create"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ObligationsDashboard({ canManage }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState("ALL");
   const [owner, setOwner] = useState("");
   const [busy, setBusy] = useState(null);
+  const [dialog, setDialog] = useState(null); // { mode: "create"|"edit", row? }
+  const [contracts, setContracts] = useState([]);
+
+  // Contract list for the create picker (id + title), fetched once.
+  useEffect(() => {
+    fetch("/api/contracts/overview")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setContracts(d?.overview?.contracts?.map((c) => ({ id: c.id, title: c.title })) || []))
+      .catch(() => {});
+  }, []);
+
+  const removeObligation = async (row) => {
+    if (!window.confirm(`Delete obligation "${row.description}"? This is chain-sealed but the obligation row is removed.`)) return;
+    setBusy(row.id);
+    try {
+      const r = await fetch(`/api/contracts/${row.contractId}/obligations/${row.id}`, { method: "DELETE" });
+      if (!r.ok) throw new Error((await r.json()).error || `HTTP ${r.status}`);
+      load();
+    } catch (e) { setError(String(e.message || e)); } finally { setBusy(null); }
+  };
 
   const query = useMemo(() => {
     const p = new URLSearchParams();
@@ -103,6 +196,11 @@ export function ObligationsDashboard({ canManage }) {
   return (
     <div>
       {error && <div style={{ color: C.rd, fontFamily: M, fontSize: 11, marginBottom: 10 }}>⚠ {error}</div>}
+      {canManage && (
+        <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
+          <button onClick={() => setDialog({ mode: "create" })} style={{ padding: "7px 13px", background: C.bl, color: "#fff", border: "none", borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 700, textTransform: "uppercase", cursor: "pointer" }}>+ New obligation</button>
+        </div>
+      )}
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
         <Kpi label="Obligations" value={tt.total} />
         <Kpi label="Open" value={tt.open} color={C.tl} />
@@ -153,18 +251,33 @@ export function ObligationsDashboard({ canManage }) {
             </span>
             <span style={{ fontFamily: M, fontSize: 9, letterSpacing: .5, color: OBL_COLOR[o.status] }}>{o.status.replace(/_/g, " ")}</span>
             <span style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
-              {canManage
-                ? o.allowedTransitions.filter((s) => ACTION[s]).map((s) => (
+              {canManage ? (
+                <>
+                  {o.allowedTransitions.filter((s) => ACTION[s]).map((s) => (
                     <button key={s} disabled={busy === o.id} onClick={() => transition(o, s)} style={btn(ACTION[s].c)}>{ACTION[s].label}</button>
-                  ))
-                : <span style={{ color: C.t4, fontFamily: M, fontSize: 9 }}>read-only</span>}
+                  ))}
+                  <button disabled={busy === o.id} onClick={() => setDialog({ mode: "edit", row: o })} style={btn(C.t2)} title="Edit details">Edit</button>
+                  <button disabled={busy === o.id} onClick={() => removeObligation(o)} style={btn(C.rd)} title="Delete obligation">✕</button>
+                </>
+              ) : <span style={{ color: C.t4, fontFamily: M, fontSize: 9 }}>read-only</span>}
             </span>
           </div>
         ))}
       </div>
       <div style={{ fontSize: 9.5, color: C.t4, fontFamily: M, marginTop: 12, letterSpacing: .3 }}>
-        Every obligation is the shared entity (sourceType = CONTRACT) — the same rows Company Brain, Regulatory and Governance query. Each transition is guarded by the obligation state machine and chain-sealed.
+        Every obligation is the shared entity (sourceType = CONTRACT) — the same rows Company Brain, Regulatory and Governance query. Each create / edit / transition / delete is chain-sealed.
       </div>
+
+      {dialog && (
+        <ObligationDialog
+          mode={dialog.mode}
+          row={dialog.row}
+          contracts={contracts}
+          owners={ownerOptions}
+          onClose={() => setDialog(null)}
+          onSaved={() => { setDialog(null); load(); }}
+        />
+      )}
     </div>
   );
 }
