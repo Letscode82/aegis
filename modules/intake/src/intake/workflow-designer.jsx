@@ -199,6 +199,7 @@ export function DefinitionEditor({ def, onCancel, onSaved }) {
   const [key, setKey] = useState(def?.key || "");
   const [name, setName] = useState(def?.name || "");
   const [description, setDescription] = useState(def?.description || "");
+  const [dispatchMode, setDispatchMode] = useState(def?.dispatchMode === "auto" ? "auto" : "manual");
   const [rows, setRows] = useState(def ? toRows(def) : [emptyHuman(1)]);
   const [busy, setBusy] = useState(false);
 
@@ -214,7 +215,7 @@ export function DefinitionEditor({ def, onCancel, onSaved }) {
     if (rows.length === 0) { toast.error("Add at least one step."); return; }
     setBusy(true);
     try {
-      const body = { key: (key || name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")), name: name.trim(), description: description.trim() || null, steps: toSteps(rows) };
+      const body = { key: (key || name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "")), name: name.trim(), description: description.trim() || null, dispatchMode, steps: toSteps(rows) };
       const r = await fetch("/api/workflows/definitions", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || !d.ok) throw new Error(d.error || `Save failed (HTTP ${r.status})`);
@@ -231,6 +232,28 @@ export function DefinitionEditor({ def, onCancel, onSaved }) {
         <div><div style={labelS}>Key {isNew ? "(auto if blank)" : "(locked)"}</div><input value={key} onChange={(e) => setKey(e.target.value)} disabled={!isNew} style={{ ...inputStyle, opacity: isNew ? 1 : 0.6 }} placeholder="nda_approval_ladder" /></div>
       </div>
       <div style={{ marginBottom: 12 }}><div style={labelS}>Description</div><input value={description} onChange={(e) => setDescription(e.target.value)} style={inputStyle} placeholder="What this workflow governs" /></div>
+
+      <div style={{ marginBottom: 14, padding: "10px 11px", border: `1px solid ${C.br}`, borderRadius: 4, background: C.s1 }}>
+        <div style={labelS}>On auto-assign to a new request</div>
+        <div style={{ display: "flex", gap: 7, marginTop: 4 }}>
+          {[
+            { v: "manual", label: "◧ Hold for review", hint: "Sits on the opening step until a human advances it." },
+            { v: "auto", label: "» Advance to review", hint: "Auto-advances the opening intake step to the first review stage, then holds." },
+          ].map((o) => {
+            const on = dispatchMode === o.v;
+            return (
+              <div key={o.v} onClick={() => setDispatchMode(o.v)} title={o.hint}
+                style={{ flex: 1, padding: "7px 9px", borderRadius: 3, cursor: "pointer", border: `1px solid ${on ? C.pp : C.br}`, background: on ? C.pp + "18" : "transparent" }}>
+                <div style={{ fontSize: 10.5, fontFamily: M, fontWeight: 700, letterSpacing: .5, color: on ? C.pp : C.t2 }}>{o.label}</div>
+                <div style={{ fontSize: 9.5, fontFamily: F, color: C.t3, marginTop: 3, lineHeight: 1.35 }}>{o.hint}</div>
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ fontSize: 9, fontFamily: M, color: C.t4, marginTop: 7, lineHeight: 1.4 }}>
+          Governance is unchanged either way — "Advance to review" never auto-approves an agent recommendation or a sign-off. It only skips the redundant opening confirmation on the requester's own intake step.
+        </div>
+      </div>
 
       <div style={{ fontSize: 10, fontFamily: M, color: C.t2, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>Steps ({rows.length}/15)</div>
       {rows.map((r, i) => <StepRow key={i} row={r} index={i} total={rows.length} onChange={changeRow} onMove={move} onDelete={del} />)}
@@ -323,7 +346,7 @@ export function WorkflowDesignerTab({ canManage }) {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 13, color: C.t1, fontWeight: 600 }}>{d.name}</div>
-                <div style={{ fontSize: 9.5, fontFamily: M, color: C.t3, marginTop: 2 }}>{d.key} · v{d.version} · {d.steps?.length ?? 0} steps</div>
+                <div style={{ fontSize: 9.5, fontFamily: M, color: C.t3, marginTop: 2 }}>{d.key} · v{d.version} · {d.steps?.length ?? 0} steps · {d.dispatchMode === "auto" ? <span style={{ color: C.pp }} title="Auto-advances the opening intake step to review on assignment">» auto-dispatch</span> : <span title="Holds on the opening step for human review">◧ manual</span>}</div>
               </div>
               {canManage && <div onClick={() => setEditing(d)} style={ghostBtn}>Edit</div>}
             </div>

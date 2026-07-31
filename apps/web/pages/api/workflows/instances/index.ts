@@ -17,6 +17,7 @@ import {
   listInstancesForEntity,
   ragFor,
   startWorkflow,
+  autoAdvanceOpeningStep,
   WorkflowError,
 } from "@aegis/workflow";
 import { runLadderAgentForTicket } from "@aegis/intake/agent-run";
@@ -62,15 +63,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         startedById: user.id,
         context: context && typeof context === "object" ? context : {},
       });
-      // If the human dispatched a ladder that OPENS on an agent step, run
-      // the bound agent now and persist its rec onto the ticket (same as the
-      // advance path in .../act) so the Cockpit surfaces it automatically.
-      // Governance unchanged — PENDING AgentDecision; the human approves.
       if (entityType === "intake_ticket") {
-        const refreshed = (await getWorkflowInstance(instance.id)) ?? null;
-        const cur = refreshed?.definition?.steps?.find((s) => s.stepOrder === refreshed.currentStepOrder);
+        let refreshed = (await getWorkflowInstance(instance.id)) ?? null;
+
+        // Dispatch mode "auto" (per-definition, set in the Workflow editor):
+        // when a human dispatches this ticket onto the ladder, advance the
+        // opening HUMAN intake step ONCE to the first review stage, then hold.
+        // "manual" leaves it on the opening step. Governance is bounded by
+        // autoAdvanceOpeningStep (opening HUMAN step only, single hop, never
+        // auto-completes and never touches an AGENT step) — best-effort.
+        if (refreshed?.definition?.dispatchMode === "auto") {
+          await autoAdvanceOpeningStep(instance.id, user.id).catch(() => {});
+          refreshed = (await getWorkflowInstance(instance.id)) ?? refreshed;
+        }
+
+        // If the ladder now sits on an agent step (opened there, or the auto
+        // advance landed there), run the bound agent and persist its rec onto
+        // the ticket so the Cockpit surfaces it automatically. Governance
+        // unchanged — PENDING AgentDecision; the human approves.
+        const curStepOrder = refreshed?.currentStepOrder;
+        const cur = refreshed?.definition?.steps?.find((s) => s.stepOrder === curStepOrder);
         if (refreshed?.status === "IN_PROGRESS" && cur?.kind === "AGENT") {
           await runLadderAgentForTicket(user.organizationId, entityId).catch(() => {});
+          refreshed = (await getWorkflowInstance(instance.id)) ?? refreshed;
         }
         if (refreshed)
           return res.status(200).json({ ok: true, instance: { ...refreshed, rag: ragFor(refreshed) } });

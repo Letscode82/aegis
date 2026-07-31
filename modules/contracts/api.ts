@@ -22,8 +22,10 @@ export {
   submitContractForApproval,
   getContractApprovalState,
   actOnContractApproval,
+  runContractApprovalAgent,
   type ContractApprovalStateDTO,
   type ApprovalStepDTO,
+  type ApprovalStepFindingsDTO,
   type ContractApprovalActor,
 } from "./src/internal/approval";
 
