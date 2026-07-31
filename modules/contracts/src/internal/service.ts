@@ -320,3 +320,91 @@ export async function updateObligationStatus(
 export function completeObligation(organizationId: string, obligationId: string, actor: Actor) {
   return updateObligationStatus(organizationId, obligationId, "MET", actor);
 }
+
+export interface UpdateObligationDetailsInput {
+  description?: string;
+  dueDate?: Date | null;
+  ownerId?: string | null;
+  type?: ObligationType;
+  recurrence?: string | null;
+}
+
+/**
+ * Edit an obligation's non-status details (description, due date, owner, type,
+ * recurrence) — chain-sealed with a before/after diff. Status is NOT edited
+ * here; it moves only through the guarded `updateObligationStatus`. Only
+ * fields present in the patch are touched.
+ */
+export async function updateObligationDetails(
+  organizationId: string,
+  obligationId: string,
+  patch: UpdateObligationDetailsInput,
+  actor: Actor,
+) {
+  const existing = await prisma.obligation.findFirst({
+    where: { id: obligationId, organizationId, sourceType: "CONTRACT" },
+  });
+  if (!existing) throw new Error("Contract obligation not found");
+
+  const data: Record<string, unknown> = {};
+  const before: Record<string, unknown> = {};
+  const after: Record<string, unknown> = {};
+  const track = (key: keyof UpdateObligationDetailsInput, dbValue: unknown, prevValue: unknown) => {
+    data[key] = dbValue;
+    before[key] = prevValue;
+    after[key] = dbValue instanceof Date ? dbValue.toISOString() : dbValue;
+  };
+  if (patch.description !== undefined && patch.description !== existing.description)
+    track("description", patch.description, existing.description);
+  if (patch.dueDate !== undefined)
+    track("dueDate", patch.dueDate, existing.dueDate?.toISOString() ?? null);
+  if (patch.ownerId !== undefined && patch.ownerId !== existing.ownerId)
+    track("ownerId", patch.ownerId, existing.ownerId);
+  if (patch.type !== undefined && patch.type !== existing.type) track("type", patch.type, existing.type);
+  if (patch.recurrence !== undefined && patch.recurrence !== existing.recurrence)
+    track("recurrence", patch.recurrence, existing.recurrence);
+
+  if (Object.keys(data).length === 0) return existing;
+
+  const updated = await prisma.obligation.update({ where: { id: obligationId }, data: data as never });
+  await logAudit({
+    organizationId,
+    ...actorFields(actor),
+    action: "contract.obligation.updated",
+    resourceType: "Obligation",
+    resourceId: obligationId,
+    beforeJson: { contractId: existing.sourceId, ...before } as never,
+    afterJson: after as never,
+    metadata: { source: "contracts" } as never,
+  });
+  return updated;
+}
+
+/**
+ * Delete a contract obligation (e.g. created in error) — chain-sealed. The
+ * AuditLog row survives the delete (resourceId is a string ref, no FK), so the
+ * deletion itself stays on the immutable ledger.
+ */
+export async function deleteObligation(organizationId: string, obligationId: string, actor: Actor) {
+  const existing = await prisma.obligation.findFirst({
+    where: { id: obligationId, organizationId, sourceType: "CONTRACT" },
+  });
+  if (!existing) throw new Error("Contract obligation not found");
+  await prisma.obligation.delete({ where: { id: obligationId } });
+  await logAudit({
+    organizationId,
+    ...actorFields(actor),
+    action: "contract.obligation.deleted",
+    resourceType: "Obligation",
+    resourceId: obligationId,
+    beforeJson: {
+      contractId: existing.sourceId,
+      description: existing.description,
+      status: existing.status,
+      type: existing.type,
+      dueDate: existing.dueDate?.toISOString() ?? null,
+    } as never,
+    metadata: { source: "contracts" } as never,
+  });
+  return { id: obligationId };
+}

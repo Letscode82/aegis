@@ -68,6 +68,17 @@ export {
   type RecurrenceFreq,
 } from "./src/internal/recurrence";
 
+// Key-dates calendar + ICS export (Obligations & Renewals, Phase 2).
+export {
+  getKeyDates,
+  buildKeyDatesICS,
+  escapeICSText,
+  type KeyDate,
+  type KeyDateKind,
+  type KeyDateSeverity,
+  type KeyDatesResult,
+} from "./src/internal/key-dates";
+
 export {
   getContractsOverview,
   getContractDetail,
@@ -169,10 +180,13 @@ export {
   addClause,
   createObligation,
   updateObligationStatus,
+  updateObligationDetails,
+  deleteObligation,
   completeObligation,
   type CreateContractInput,
   type CreateClauseInput,
   type CreateObligationInput,
+  type UpdateObligationDetailsInput,
 } from "./src/internal/service";
 
 // CLM lifecycle state machine (Phase 1) — the guard + allowed-transitions
