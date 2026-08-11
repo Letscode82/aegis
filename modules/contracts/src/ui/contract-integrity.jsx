@@ -31,15 +31,29 @@ function Kpi({ label, value, color }) {
 
 const btn = (c) => ({ padding: "4px 9px", borderRadius: 4, border: `1px solid ${c}`, background: "transparent", color: c, fontSize: 9, fontFamily: M, fontWeight: 600, letterSpacing: .4, cursor: "pointer", textTransform: "uppercase" });
 
-function IntegrityDrillIn({ contractId, onClose, onOpenContract }) {
+function IntegrityDrillIn({ contractId, canAmend, onClose, onOpenContract, onAmended }) {
   const [d, setD] = useState(null);
   const [err, setErr] = useState(null);
+  const [busy, setBusy] = useState(false);
   useEffect(() => {
     fetch(`/api/contracts/${contractId}/integrity`)
       .then((r) => (r.ok ? r.json() : r.json().then((x) => Promise.reject(x.error || `HTTP ${r.status}`))))
       .then((x) => setD(x.integrity))
       .catch((e) => setErr(String(e)));
   }, [contractId]);
+
+  const amendable = d && (d.status === "ACTIVE" || d.status === "EXPIRED");
+  const amend = async () => {
+    const reason = window.prompt("Open an amendment to change the signed terms?\nThis unlocks the contract for editing — it then re-enters approval and re-signature, which re-seals a fresh integrity baseline.\n\nReason (optional):", "");
+    if (reason === null) return; // cancelled
+    setBusy(true); setErr(null);
+    try {
+      const r = await fetch(`/api/contracts/${contractId}/amend`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason }) });
+      if (!r.ok) throw new Error((await r.json()).error || `HTTP ${r.status}`);
+      onAmended?.();
+      onClose();
+    } catch (e) { setErr(String(e.message || e)); } finally { setBusy(false); }
+  };
   const v = d ? (VERDICT[d.integrity] || VERDICT.NOT_EXECUTED) : null;
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.6)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
@@ -105,7 +119,10 @@ function IntegrityDrillIn({ contractId, onClose, onOpenContract }) {
               </div>
             ))}
 
-            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16 }}>
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", marginTop: 16, alignItems: "center" }}>
+              {canAmend && amendable && (
+                <button disabled={busy} onClick={amend} style={{ ...btn(C.am), padding: "7px 12px", marginRight: "auto" }} title="Unlock for a formal amendment (re-approval + re-signature)">⚖ Amend contract</button>
+              )}
               <button onClick={() => onOpenContract?.(contractId)} style={btn(C.bl)}>Open contract</button>
               <button onClick={onClose} style={{ ...btn(C.t3), padding: "7px 13px" }}>Close</button>
             </div>
@@ -121,6 +138,7 @@ export function ContractIntegrityMonitor({ onOpenContract }) {
   const [error, setError] = useState(null);
   const [drill, setDrill] = useState(null);
   const [canSeal, setCanSeal] = useState(false);
+  const [canAmend, setCanAmend] = useState(false);
   const [busy, setBusy] = useState(null);
 
   const load = useCallback(() => {
@@ -132,7 +150,11 @@ export function ContractIntegrityMonitor({ onOpenContract }) {
   }, []);
   useEffect(() => { load(); }, [load]);
   useEffect(() => {
-    fetch("/api/auth/current-user").then((r) => r.json()).then((d) => setCanSeal((d?.user?.permissions || []).includes("contracts:execute"))).catch(() => {});
+    fetch("/api/auth/current-user").then((r) => r.json()).then((d) => {
+      const perms = d?.user?.permissions || [];
+      setCanSeal(perms.includes("contracts:execute"));
+      setCanAmend(perms.includes("contracts:approve"));
+    }).catch(() => {});
   }, []);
 
   const seal = async (row) => {
@@ -195,7 +217,7 @@ export function ContractIntegrityMonitor({ onOpenContract }) {
         Each executed contract's material terms (pricing, term, scope, governing law + clauses) are fingerprinted (SHA-256) at signing. <b style={{ color: C.gn }}>Sealed</b> = live terms match the signed fingerprint; <b style={{ color: C.rd }}>Tampered</b> = they diverged after execution. Executed contracts are also <b>locked</b> — material terms can't be edited without a formal amendment.
       </div>
 
-      {drill && <IntegrityDrillIn contractId={drill} onClose={() => setDrill(null)} onOpenContract={onOpenContract} />}
+      {drill && <IntegrityDrillIn contractId={drill} canAmend={canAmend} onClose={() => setDrill(null)} onOpenContract={onOpenContract} onAmended={load} />}
     </div>
   );
 }
