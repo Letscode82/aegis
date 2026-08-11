@@ -79,6 +79,24 @@ export {
   type KeyDatesResult,
 } from "./src/internal/key-dates";
 
+// Contract integrity / tamper-evidence (CTR-9) — executed-contract lock +
+// terms fingerprint + portfolio integrity monitor.
+export {
+  computeContractTermsHash,
+  contractTermsCanonical,
+  checkContractIntegrity,
+  getContractIntegrityReport,
+  sealContractTerms,
+  ContractLockedError,
+  MATERIAL_TERM_FIELDS,
+  LOCKED_STATUSES,
+  type ContractTermsInput,
+  type IntegrityStatus,
+  type ContractIntegrityResult,
+  type ContractIntegrityReport,
+  type ContractIntegrityReportRow,
+} from "./src/internal/integrity";
+
 export {
   getContractsOverview,
   getContractDetail,

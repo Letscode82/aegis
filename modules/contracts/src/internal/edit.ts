@@ -15,6 +15,7 @@
  */
 import { prisma, logAudit } from "@aegis/db";
 import { reExtractContractClauses } from "./reextract";
+import { MATERIAL_TERM_FIELDS, LOCKED_STATUSES, ContractLockedError } from "./integrity";
 
 type Actor = { id: string | null; type?: "USER" | "AGENT" | "SYSTEM" };
 
@@ -80,6 +81,18 @@ export async function updateContract(
   }
 
   if (Object.keys(data).length === 0) return existing; // nothing changed
+
+  // Integrity lock (CTR-9): once executed, the material terms a signature
+  // attests to (pricing, term, scope, governing law) cannot be edited here —
+  // this is the anti-tamper guard. Non-material header fields (title,
+  // counterparty, renewal admin) stay editable. Changing signed terms requires
+  // a formal amendment (new version → re-approval → re-signature).
+  if (LOCKED_STATUSES.has(existing.status)) {
+    const lockedFields = Object.keys(data).filter((k) =>
+      (MATERIAL_TERM_FIELDS as readonly string[]).includes(k),
+    );
+    if (lockedFields.length > 0) throw new ContractLockedError(contractId, existing.status, lockedFields);
+  }
 
   const updated = await prisma.contract.update({ where: { id: contractId }, data });
   await logAudit({

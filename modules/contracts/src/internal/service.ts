@@ -20,6 +20,7 @@ import type {
 import { assertContractTransition } from "./contract-state-machine";
 import { assertObligationTransition } from "./obligation-state-machine";
 import { nextOccurrence } from "./recurrence";
+import { computeContractTermsHashFromDb } from "./integrity";
 
 export interface CreateContractInput {
   title: string;
@@ -119,8 +120,17 @@ export async function transitionContractStatus(
   assertContractTransition(existing.status, status);
 
   const now = new Date();
-  const stamps: Record<string, Date> = { statusChangedAt: now };
-  if (status === "EXECUTED") stamps.executedAt = now;
+  const stamps: Record<string, Date | string> = { statusChangedAt: now };
+  if (status === "EXECUTED") {
+    stamps.executedAt = now;
+    // Integrity seal (CTR-9): fingerprint the material terms at execution so any
+    // later change is detectable. Only seal on the FIRST execution (don't
+    // overwrite an existing baseline on a re-execution / amendment round-trip).
+    if (!existing.executedTermsHash) {
+      const hash = await computeContractTermsHashFromDb(organizationId, contractId);
+      if (hash) stamps.executedTermsHash = hash;
+    }
+  }
   if (status === "ACTIVE") {
     stamps.activatedAt = now;
     // Coming back to ACTIVE from EXPIRED (or an amend/renew round-trip) is a

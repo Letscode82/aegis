@@ -2024,6 +2024,12 @@ model Contract {
   renewalTermMonths    Int?
   renewalNoticeSentAt  DateTime?
   renewalCount         Int            @default(0)
+  /// Contract integrity (tamper-evidence). Fingerprint (SHA-256) of the
+  /// material terms captured when the contract reached EXECUTED — the sealed
+  /// baseline. A later divergence between this and a recomputed fingerprint
+  /// means the terms were altered after signing. Null until first execution
+  /// (or for contracts executed before the integrity feature shipped).
+  executedTermsHash    String?
   createdAt            DateTime       @default(now())
   updatedAt            DateTime       @updatedAt
 
@@ -2063,6 +2069,10 @@ model ContractSignature {
   /// "recorded" (attorney-entered) | "review-accept" (via review link) | future e-sign.
   method         String         @default("recorded")
   signedAt       DateTime       @default(now())
+  /// Fingerprint (SHA-256) of the material terms at the moment this party
+  /// signed — binds the signature to specific content. If the live terms no
+  /// longer hash to this value, the document was changed after this signature.
+  signedTermsHash String?
   createdById    String?
   createdAt      DateTime       @default(now())
 

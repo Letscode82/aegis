@@ -6,6 +6,7 @@ import { TemplatesModal } from "./templates-modal.jsx";
 import { ObligationsDashboard } from "./obligations-dashboard.jsx";
 import { RenewalsCommandCenter } from "./renewals-command-center.jsx";
 import { KeyDatesCalendar } from "./key-dates-calendar.jsx";
+import { ContractIntegrityMonitor } from "./contract-integrity.jsx";
 import { AuthorContractModal } from "./author-contract-modal.jsx";
 import { ContractStageDots, CONTRACT_STAGES, stageCounts, stageIndexForStatus } from "./contract-stage-tracker.jsx";
 
@@ -147,7 +148,7 @@ export function ContractsRepository() {
 
       {/* Contracts | Obligations tab toggle (CLM Phase 2b) */}
       <div style={{ display: "flex", gap: 4, marginBottom: 16, borderBottom: `1px solid ${C.br}` }}>
-        {[["contracts", "▤ Contracts"], ["obligations", "◷ Obligations"], ["renewals", "⟳ Renewals"], ["keydates", "▦ Key Dates"]].map(([id, label]) => {
+        {[["contracts", "▤ Contracts"], ["obligations", "◷ Obligations"], ["renewals", "⟳ Renewals"], ["keydates", "▦ Key Dates"], ["integrity", "🛡 Integrity"]].map(([id, label]) => {
           const active = tab === id;
           return (
             <span key={id} onClick={() => setTab(id)} style={{ cursor: "pointer", fontSize: 11, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", fontWeight: 600, padding: "8px 14px", color: active ? C.bl : C.t3, borderBottom: `2px solid ${active ? C.bl : "transparent"}`, marginBottom: -1 }}>
@@ -163,6 +164,8 @@ export function ContractsRepository() {
         <RenewalsCommandCenter canManage={canManage} onOpenContract={openContract} />
       ) : tab === "keydates" ? (
         <KeyDatesCalendar onOpenContract={openContract} />
+      ) : tab === "integrity" ? (
+        <ContractIntegrityMonitor onOpenContract={openContract} />
       ) : (
       <>
       <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 16 }}>
