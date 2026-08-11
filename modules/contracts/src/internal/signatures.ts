@@ -14,6 +14,7 @@
  */
 import { prisma, logAudit, type ContractStatus } from "@aegis/db";
 import { transitionContractStatus } from "./service";
+import { computeContractTermsHashFromDb } from "./integrity";
 
 type Actor = { id: string | null; type?: "USER" | "AGENT" | "SYSTEM" };
 type Party = "INTERNAL" | "COUNTERPARTY";
@@ -109,6 +110,11 @@ export async function recordSignature(
   if (contract.status === "EXECUTED" || contract.status === "ACTIVE") throw new Error("Contract is already executed");
   if (contract.status === "TERMINATED") throw new Error("Contract is terminated");
 
+  // Bind the signature to the exact terms present at signing (CTR-9 tamper-
+  // evidence). Best-effort — a hash failure must never block recording a
+  // signature.
+  const signedTermsHash = await computeContractTermsHashFromDb(organizationId, contractId).catch(() => null);
+
   const sig = await prisma.contractSignature.create({
     data: {
       organizationId, contractId,
@@ -117,6 +123,7 @@ export async function recordSignature(
       signerEmail: input.signerEmail?.trim() || null,
       signerPersonId: input.signerPersonId || null,
       method: input.method || "recorded",
+      signedTermsHash,
       createdById: actor.id,
     },
   });
