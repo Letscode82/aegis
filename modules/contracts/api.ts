@@ -79,6 +79,22 @@ export {
   type KeyDatesResult,
 } from "./src/internal/key-dates";
 
+// Contract amendments (CTR-9b) — the sanctioned path to change locked terms.
+export {
+  openContractAmendment,
+  ContractNotAmendableError,
+  AMENDABLE_STATUSES,
+} from "./src/internal/amendments";
+
+// Proactive digest (Phase 3) — one push-ready summary of the week's actions.
+export {
+  getContractDigest,
+  summarizeDigest,
+  type ContractDigest,
+  type DigestCounts,
+  type DigestItem,
+} from "./src/internal/digest";
+
 // Contract integrity / tamper-evidence (CTR-9) — executed-contract lock +
 // terms fingerprint + portfolio integrity monitor.
 export {

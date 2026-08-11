@@ -7,6 +7,7 @@ import { ObligationsDashboard } from "./obligations-dashboard.jsx";
 import { RenewalsCommandCenter } from "./renewals-command-center.jsx";
 import { KeyDatesCalendar } from "./key-dates-calendar.jsx";
 import { ContractIntegrityMonitor } from "./contract-integrity.jsx";
+import { ContractDigestCard } from "./contract-digest-card.jsx";
 import { AuthorContractModal } from "./author-contract-modal.jsx";
 import { ContractStageDots, CONTRACT_STAGES, stageCounts, stageIndexForStatus } from "./contract-stage-tracker.jsx";
 
@@ -161,7 +162,10 @@ export function ContractsRepository() {
       {tab === "obligations" ? (
         <ObligationsDashboard canManage={canManage} />
       ) : tab === "renewals" ? (
-        <RenewalsCommandCenter canManage={canManage} onOpenContract={openContract} />
+        <>
+          <ContractDigestCard onOpenContract={openContract} />
+          <RenewalsCommandCenter canManage={canManage} onOpenContract={openContract} />
+        </>
       ) : tab === "keydates" ? (
         <KeyDatesCalendar onOpenContract={openContract} />
       ) : tab === "integrity" ? (

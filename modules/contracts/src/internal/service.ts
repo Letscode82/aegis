@@ -124,12 +124,12 @@ export async function transitionContractStatus(
   if (status === "EXECUTED") {
     stamps.executedAt = now;
     // Integrity seal (CTR-9): fingerprint the material terms at execution so any
-    // later change is detectable. Only seal on the FIRST execution (don't
-    // overwrite an existing baseline on a re-execution / amendment round-trip).
-    if (!existing.executedTermsHash) {
-      const hash = await computeContractTermsHashFromDb(organizationId, contractId);
-      if (hash) stamps.executedTermsHash = hash;
-    }
+    // later change is detectable. Re-seal on EVERY execution — the only way to
+    // re-enter EXECUTED is an amendment round-trip (ACTIVE → IN_NEGOTIATION →
+    // re-approval → re-signature), so a fresh baseline reflects the amended,
+    // re-signed terms.
+    const hash = await computeContractTermsHashFromDb(organizationId, contractId);
+    if (hash) stamps.executedTermsHash = hash;
   }
   if (status === "ACTIVE") {
     stamps.activatedAt = now;
