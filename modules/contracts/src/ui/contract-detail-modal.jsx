@@ -1206,11 +1206,26 @@ function VersionsPanel({ contractId, canManage }) {
                     </div>
                     {c.kind === "added" && <div style={{ fontSize: 10, color: C.gn, lineHeight: 1.5 }}>+ {c.to.text}</div>}
                     {c.kind === "removed" && <div style={{ fontSize: 10, color: C.rd, lineHeight: 1.5, textDecoration: "line-through", opacity: .8 }}>− {c.from.text}</div>}
-                    {c.kind === "changed" && (
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 3 }}>
-                        <div style={{ fontSize: 10, color: C.rd, lineHeight: 1.5 }}><span style={{ color: C.t4, fontFamily: M, fontSize: 8.5 }}>v{diff.fromVersion} </span>{c.from.text}{c.fields.includes("risk") ? ` · ${c.from.risk}` : ""}</div>
-                        <div style={{ fontSize: 10, color: C.gn, lineHeight: 1.5 }}><span style={{ color: C.t4, fontFamily: M, fontSize: 8.5 }}>v{diff.toVersion} </span>{c.to.text}{c.fields.includes("risk") ? ` · ${c.to.risk}` : ""}</div>
+                    {c.kind === "changed" && c.textDiff && c.textDiff.length > 0 && (
+                      <div style={{ fontSize: 10.5, lineHeight: 1.6, marginTop: 3, padding: "6px 8px", background: C.bg, border: `1px solid ${C.br}`, borderRadius: 4 }}>
+                        <span style={{ fontSize: 8, fontFamily: M, color: C.t4, letterSpacing: .5, textTransform: "uppercase" }}>track changes </span>
+                        {c.textDiff.map((seg, si) => (
+                          <span key={si} style={
+                            seg.type === "insert" ? { color: C.gn, textDecoration: "underline", textDecorationColor: C.gn }
+                              : seg.type === "delete" ? { color: C.rd, textDecoration: "line-through", opacity: .85 }
+                              : { color: C.t2 }
+                          }>{seg.text}</span>
+                        ))}
                       </div>
+                    )}
+                    {c.kind === "changed" && (
+                      <details style={{ marginTop: 4 }}>
+                        <summary style={{ fontSize: 8.5, fontFamily: M, color: C.t4, cursor: "pointer", letterSpacing: .3 }}>side-by-side</summary>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginTop: 3 }}>
+                          <div style={{ fontSize: 10, color: C.rd, lineHeight: 1.5 }}><span style={{ color: C.t4, fontFamily: M, fontSize: 8.5 }}>v{diff.fromVersion} </span>{c.from.text}{c.fields.includes("risk") ? ` · ${c.from.risk}` : ""}</div>
+                          <div style={{ fontSize: 10, color: C.gn, lineHeight: 1.5 }}><span style={{ color: C.t4, fontFamily: M, fontSize: 8.5 }}>v{diff.toVersion} </span>{c.to.text}{c.fields.includes("risk") ? ` · ${c.to.risk}` : ""}</div>
+                        </div>
+                      </details>
                     )}
                   </div>
                 ))}
