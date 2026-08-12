@@ -82,6 +82,14 @@ export {
 // Contract Word (.docx) generation (CTR-11) — a real downloadable document.
 export { generateContractDocx } from "./src/internal/document";
 
+// Third-party paper review workflow (CTR-12) — intake inbound counterparty
+// paper straight into the governance review + signing ladder.
+export {
+  reviewThirdPartyContract,
+  type ReviewThirdPartyInput,
+  type ReviewThirdPartyResult,
+} from "./src/internal/third-party";
+
 // Contract collaboration / comments (CTR-10) — threaded business ↔ legal
 // (INTERNAL) and internal ↔ counterparty (SHARED) discussion.
 export {

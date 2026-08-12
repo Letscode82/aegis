@@ -1971,6 +1971,14 @@ enum RenewalDecision {
   NON_RENEWAL
 }
 
+/// Whose paper the contract is on. OUR_PAPER = authored from an AEGIS template;
+/// THIRD_PARTY = inbound paper the counterparty sent, submitted by the business
+/// for internal-legal review before signing.
+enum ContractOrigin {
+  OUR_PAPER
+  THIRD_PARTY
+}
+
 /// Lifecycle of a login-less counterparty review link (CTR-3).
 enum ContractReviewTokenStatus {
   ACTIVE // link is live; counterparty can view + respond
@@ -1987,6 +1995,9 @@ model Contract {
   title                String
   type                 String // "MSA" | "NDA" | "License" | "Supply" | …
   status               ContractStatus @default(DRAFT)
+  /// Whose paper this is — OUR_PAPER (templated) or THIRD_PARTY (inbound paper
+  /// under review). Drives the 3rd-party review workflow + workspace badge.
+  origin               ContractOrigin @default(OUR_PAPER)
   risk                 ContractRisk   @default(MEDIUM)
   value                Float?
   currency             String         @default("USD")

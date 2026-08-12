@@ -46,6 +46,7 @@ export interface ContractSummary {
   title: string;
   type: string;
   status: string;
+  origin: "OUR_PAPER" | "THIRD_PARTY";
   risk: "LOW" | "MEDIUM" | "HIGH";
   value: number | null;
   currency: string;
@@ -270,6 +271,7 @@ function toSummary(
     title: c.title,
     type: c.type,
     status: c.status,
+    origin: c.origin,
     risk: c.risk,
     value: c.value == null ? null : round2(c.value),
     currency: c.currency,
