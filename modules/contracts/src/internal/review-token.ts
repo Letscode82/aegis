@@ -15,6 +15,7 @@
 import { randomBytes } from "node:crypto";
 import { prisma, logAudit, sha256Hex } from "@aegis/db";
 import { getContractDetail, type ContractDetail } from "./reads";
+import { addExternalContractComment, listContractComments, type ContractCommentDTO } from "./comments";
 
 const DEFAULT_EXPIRY_DAYS = 14;
 
@@ -216,6 +217,35 @@ export async function recordReviewConsent(rawToken: string): Promise<boolean> {
  * further rounds. Never mutates the contract's status — internal review
  * still gates.
  */
+/**
+ * External counterparty posts a durable SHARED comment through the review link
+ * (CTR-10). Requires consent. Unlike the single free-text response note, these
+ * accumulate as a real thread visible to both sides. Returns the comment DTO.
+ */
+export async function submitReviewComment(
+  rawToken: string,
+  input: { body: string; clauseId?: string | null; parentId?: string | null },
+): Promise<{ ok: true; comment: ContractCommentDTO } | { ok: false; error: string }> {
+  const row = await loadToken(rawToken);
+  if (!row) return { ok: false, error: "Invalid or expired link" };
+  if (!tokenUsable(row, new Date()).ok) return { ok: false, error: "This link is no longer active" };
+  if (!row.consentAt) return { ok: false, error: "Consent required before commenting" };
+  if (!input.body?.trim()) return { ok: false, error: "Comment is empty" };
+  const comment = await addExternalContractComment(row.organizationId, row.contractId, row.personId, {
+    body: input.body,
+    clauseId: input.clauseId ?? null,
+    parentId: input.parentId ?? null,
+  });
+  return { ok: true, comment };
+}
+
+/** The SHARED comment thread the counterparty may see for this link. */
+export async function listReviewComments(rawToken: string): Promise<ContractCommentDTO[]> {
+  const row = await loadToken(rawToken);
+  if (!row || !tokenUsable(row, new Date()).ok) return [];
+  return listContractComments(row.organizationId, row.contractId, "external");
+}
+
 export async function submitReviewResponse(
   rawToken: string,
   input: { decision: ReviewDecision; comment?: string | null },

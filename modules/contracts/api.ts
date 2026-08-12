@@ -79,6 +79,19 @@ export {
   type KeyDatesResult,
 } from "./src/internal/key-dates";
 
+// Contract collaboration / comments (CTR-10) — threaded business ↔ legal
+// (INTERNAL) and internal ↔ counterparty (SHARED) discussion.
+export {
+  addContractComment,
+  addExternalContractComment,
+  listContractComments,
+  setContractCommentResolved,
+  type ContractCommentDTO,
+  type CommentVisibility,
+  type CommentAudience,
+  type AddCommentInput,
+} from "./src/internal/comments";
+
 // Contract amendments (CTR-9b) — the sanctioned path to change locked terms.
 export {
   openContractAmendment,
@@ -328,6 +341,8 @@ export {
   resolveContractReviewToken,
   recordReviewConsent,
   submitReviewResponse,
+  submitReviewComment,
+  listReviewComments,
   revokeContractReviewToken,
   getContractReviewActivity,
   // pure helpers (also unit-tested)

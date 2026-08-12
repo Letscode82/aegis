@@ -76,6 +76,7 @@ model Organization {
   contractReviewTokens    ContractReviewToken[]
   contractVersions        ContractVersion[]
   contractSignatures      ContractSignature[]
+  contractComments        ContractComment[]
   agentDefinitions        AgentDefinition[]
   agentDefinitionVersions AgentDefinitionVersion[]
   knowledgePacks          KnowledgePack[]
@@ -2041,11 +2042,48 @@ model Contract {
   reviewTokens ContractReviewToken[]
   versions     ContractVersion[]
   signatures   ContractSignature[]
+  comments     ContractComment[]
 
   @@index([organizationId, status])
   @@index([organizationId, expiryDate])
   @@index([counterpartyId])
   @@index([matterId])
+}
+
+/// Visibility of a contract comment. INTERNAL threads are the back-and-forth
+/// between the business and internal legal — never shown to the counterparty.
+/// SHARED comments are visible to the external counterparty on the review
+/// portal, and are how the internal side and the third party negotiate in the
+/// open.
+enum ContractCommentVisibility {
+  INTERNAL
+  SHARED
+}
+
+/// Threaded collaboration on a contract (CTR-10). Contract-level when
+/// `clauseId` is null, clause-scoped when set; replies chain via `parentId`.
+/// Exactly one of `authorUserId` (internal) / `authorPersonId` (external
+/// COUNTERPARTY_CONTACT) is set. Resolvable to close a discussion.
+model ContractComment {
+  id             String                    @id @default(cuid())
+  organizationId String
+  contractId     String
+  clauseId       String? // clause-scoped when set, else contract-level
+  parentId       String? // reply threading (self-reference by id)
+  authorUserId   String? // internal author (User) — business or legal
+  authorPersonId String? // external author (COUNTERPARTY_CONTACT Person)
+  visibility     ContractCommentVisibility @default(INTERNAL)
+  body           String
+  resolvedAt     DateTime?
+  resolvedById   String?
+  createdAt      DateTime                  @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contract     Contract     @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, contractId, createdAt])
+  @@index([contractId, clauseId])
+  @@index([contractId, visibility])
 }
 
 /// A recorded signature on a contract (CLM Phase 5d). Both an INTERNAL and a

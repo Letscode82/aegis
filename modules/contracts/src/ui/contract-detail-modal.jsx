@@ -3,6 +3,7 @@ import { C, F, M, SR } from "@aegis/ui";
 import { ContractStageTracker } from "./contract-stage-tracker.jsx";
 import { ApprovalLadderPanel } from "./approval-ladder-panel.jsx";
 import { ApprovalWizard } from "./approval-wizard.jsx";
+import { ContractCommentsPanel } from "./contract-comments-panel.jsx";
 
 // ── Contract drill-in (CTR-1) ────────────────────────────────────────
 //
@@ -349,6 +350,9 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
 
             {/* Version history + redline diff (CTR-5b) */}
             <VersionsPanel contractId={contractId} canManage={canManage} />
+
+            {/* Collaboration — business ↔ legal (internal) + ↔ counterparty (shared) (CTR-10) */}
+            <ContractCommentsPanel contractId={contractId} canManage={canManage} />
           </>
         )}
       </div>

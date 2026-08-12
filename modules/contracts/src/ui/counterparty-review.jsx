@@ -146,6 +146,9 @@ export function CounterpartyReviewView({ token }) {
       </div>}
     </div>
 
+    {/* Shared discussion thread with the internal legal team (CTR-10) */}
+    <SharedCommentThread token={token} />
+
     {/* Response */}
     <div style={{ padding: "18px 22px" }}>
       <div style={{ fontSize: 13, fontFamily: SR, marginBottom: 12 }}>Your response</div>
@@ -176,4 +179,44 @@ export function CounterpartyReviewView({ token }) {
       </button>
     </div>
   </div></div>;
+}
+
+// The back-and-forth thread the counterparty shares with the internal legal
+// team. Reads/posts GET|POST /api/contract-review/[token]/comment (SHARED only).
+function SharedCommentThread({ token }) {
+  const [comments, setComments] = useState(null);
+  const [body, setBody] = useState("");
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(() => {
+    fetch(`/api/contract-review/${token}/comment`).then((r) => r.json()).then((d) => setComments(d.comments || [])).catch(() => setComments([]));
+  }, [token]);
+  useEffect(() => { load(); }, [load]);
+  const post = async () => {
+    if (!body.trim()) return;
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/contract-review/${token}/comment`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ body: body.trim() }) });
+      if (r.ok) { setBody(""); load(); }
+    } finally { setBusy(false); }
+  };
+  return (
+    <div style={{ padding: "18px 22px", borderTop: `1px solid ${C.br}` }}>
+      <div style={{ fontSize: 13, fontFamily: SR, marginBottom: 4 }}>Discussion with the legal team</div>
+      <div style={{ fontSize: 11, color: C.t3, marginBottom: 12, lineHeight: 1.5 }}>A shared thread — post questions or proposed wording here and the internal team replies. (Internal-only notes are not shown.)</div>
+      {(comments || []).length > 0 && <div style={{ marginBottom: 12 }}>
+        {comments.map((c) => (
+          <div key={c.id} style={{ padding: "8px 10px", background: c.authorKind === "EXTERNAL" ? C.s1 : C.bg, border: `1px solid ${C.br}`, borderRadius: 6, marginBottom: 6 }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 3 }}>
+              <span style={{ fontSize: 11, fontWeight: 600, color: C.t1 }}>{c.authorName}</span>
+              <span style={{ fontSize: 8, fontFamily: M, color: c.authorKind === "EXTERNAL" ? C.am : C.bl, border: `1px solid ${(c.authorKind === "EXTERNAL" ? C.am : C.bl)}66`, borderRadius: 3, padding: "0 4px", textTransform: "uppercase" }}>{c.authorKind === "EXTERNAL" ? "You" : "Legal team"}</span>
+              <span style={{ fontSize: 9, fontFamily: M, color: C.t4, marginLeft: "auto" }}>{fmtDate(c.createdAt)}</span>
+            </div>
+            <div style={{ fontSize: 12, color: C.t1, lineHeight: 1.5, whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{c.body}</div>
+          </div>
+        ))}
+      </div>}
+      <textarea value={body} onChange={(e) => setBody(e.target.value)} placeholder="Add to the discussion…" rows={3} style={{ width: "100%", boxSizing: "border-box", background: C.bg, border: `1px solid ${C.br}`, borderRadius: 5, color: C.t1, fontFamily: F, fontSize: 12, padding: "9px 11px", resize: "vertical" }} />
+      <button onClick={post} disabled={busy || !body.trim()} style={{ ...btn(body.trim() ? C.bl : C.br), marginTop: 8, opacity: busy || !body.trim() ? .5 : 1 }}>{busy ? "Posting…" : "Post comment"}</button>
+    </div>
+  );
 }
