@@ -90,6 +90,14 @@ export {
   type ReviewThirdPartyResult,
 } from "./src/internal/third-party";
 
+// AI contract drafting (CTR-14) — draft a full contract from a plain-language
+// brief; degrades to a deterministic skeleton offline.
+export {
+  draftContractWithAI,
+  type AiDraftInput,
+  type AiDraftResult,
+} from "./src/internal/ai-draft";
+
 // Third-party review assessment (CTR-13) — "what to sign / which clauses are we
 // not comfortable with", deterministic baseline + robust AI deep read.
 export {
