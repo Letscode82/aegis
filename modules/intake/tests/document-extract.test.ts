@@ -12,7 +12,7 @@ import {
   extractPdfText,
   UnsupportedDocumentFormatError,
   DocumentParseError,
-} from "../src/documents/extract";
+} from "@aegis/documents";
 
 /** A minimal single-page PDF whose content stream shows `lines` via text
  * operators. `compress` wraps the content stream in FlateDecode (zlib) so

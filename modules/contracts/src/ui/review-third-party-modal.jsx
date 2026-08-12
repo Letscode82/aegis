@@ -19,6 +19,7 @@ export function ReviewThirdPartyModal({ onClose, onCreated }) {
   const [text, setText] = useState("");
   const [governingLaw, setGoverningLaw] = useState("");
   const [counterparties, setCounterparties] = useState([]);
+  const [file, setFile] = useState(null); // { name, mimeType, dataBase64 }
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
 
@@ -26,15 +27,27 @@ export function ReviewThirdPartyModal({ onClose, onCreated }) {
     fetch("/api/contracts/counterparties").then((r) => (r.ok ? r.json() : null)).then((d) => setCounterparties(d?.counterparties || d?.options || [])).catch(() => {});
   }, []);
 
+  const onFile = (f) => {
+    if (!f) { setFile(null); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const res = String(reader.result || "");
+      const dataBase64 = res.includes(",") ? res.slice(res.indexOf(",") + 1) : res;
+      setFile({ name: f.name, mimeType: f.type || "", dataBase64 });
+      if (!title.trim()) setTitle(f.name.replace(/\.[^.]+$/, ""));
+    };
+    reader.readAsDataURL(f);
+  };
+
   const submit = async () => {
     if (!title.trim()) { setErr("Give it a title."); return; }
-    if (!text.trim()) { setErr("Paste the third-party contract text."); return; }
+    if (!file && !text.trim()) { setErr("Upload a file or paste the contract text."); return; }
     setBusy(true); setErr(null);
     try {
-      const r = await fetch("/api/contracts/review-third-party", {
-        method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title: title.trim(), type, counterpartyId: counterpartyId || null, text, governingLaw: governingLaw || null }),
-      });
+      const common = { title: title.trim(), type, counterpartyId: counterpartyId || null, governingLaw: governingLaw || null };
+      const r = file
+        ? await fetch("/api/contracts/review-third-party/upload", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...common, filename: file.name, mimeType: file.mimeType, dataBase64: file.dataBase64 }) })
+        : await fetch("/api/contracts/review-third-party", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...common, text }) });
       const d = await r.json();
       if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
       onCreated?.(d.contractId, d);
@@ -59,9 +72,17 @@ export function ReviewThirdPartyModal({ onClose, onCreated }) {
           </div>
           <div><label style={lbl}>Governing law</label><input value={governingLaw} onChange={(e) => setGoverningLaw(e.target.value)} style={inp} placeholder="e.g. Delaware" /></div>
         </div>
+        <div style={{ marginBottom: 12 }}>
+          <label style={lbl}>Upload the contract file</label>
+          <label style={{ display: "block", border: `1px dashed ${file ? C.gn : C.br}`, borderRadius: 6, padding: "14px 12px", textAlign: "center", cursor: "pointer", background: C.bg }}>
+            <input type="file" accept=".pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain" onChange={(e) => onFile(e.target.files?.[0])} style={{ display: "none" }} />
+            {file ? <span style={{ fontSize: 12, fontFamily: M, color: C.gn }}>✓ {file.name} <span style={{ color: C.t4 }}>· click to replace</span></span>
+              : <span style={{ fontSize: 11.5, fontFamily: M, color: C.t3 }}>⬆ Choose a PDF, Word (.docx), or text (.txt) file — no copy-paste needed</span>}
+          </label>
+        </div>
         <div style={{ marginBottom: 14 }}>
-          <label style={lbl}>Third-party contract text</label>
-          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={11} style={{ ...inp, resize: "vertical", fontFamily: F }} placeholder="Paste the full contract text the counterparty sent…" />
+          <label style={lbl}>…or paste the text {file && <span style={{ color: C.t4, textTransform: "none", letterSpacing: 0 }}>(ignored — using the uploaded file)</span>}</label>
+          <textarea value={text} onChange={(e) => setText(e.target.value)} rows={file ? 3 : 9} disabled={!!file} style={{ ...inp, resize: "vertical", fontFamily: F, opacity: file ? .5 : 1 }} placeholder="Paste the full contract text the counterparty sent…" />
         </div>
         {err && <div style={{ color: C.rd, fontFamily: M, fontSize: 10.5, marginBottom: 10 }}>⚠ {err}</div>}
         <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>

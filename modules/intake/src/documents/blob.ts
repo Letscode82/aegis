@@ -23,7 +23,7 @@ import {
   getCurrentUser,
   DocumentOwnerType,
 } from "@aegis/db";
-import { extractDocumentText, type DocumentFormat } from "./extract";
+import { extractDocumentText, type DocumentFormat } from "@aegis/documents";
 import { DocumentParseError, DocumentTooLargeError } from "./server";
 import type { IngestDocumentResult } from "./server";
 
