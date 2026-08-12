@@ -79,6 +79,9 @@ export {
   type KeyDatesResult,
 } from "./src/internal/key-dates";
 
+// Contract Word (.docx) generation (CTR-11) — a real downloadable document.
+export { generateContractDocx } from "./src/internal/document";
+
 // Contract collaboration / comments (CTR-10) — threaded business ↔ legal
 // (INTERNAL) and internal ↔ counterparty (SHARED) discussion.
 export {

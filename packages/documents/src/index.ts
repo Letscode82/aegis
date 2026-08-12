@@ -11,3 +11,9 @@ export {
   deliverableFilename,
   type DeliverableInput,
 } from "./deliverable";
+
+export {
+  renderContractDocx,
+  contractDocxFilename,
+  type ContractDocInput,
+} from "./contract-docx";

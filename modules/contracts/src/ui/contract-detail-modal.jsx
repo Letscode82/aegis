@@ -148,7 +148,8 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 22, fontFamily: SR, color: C.t1, lineHeight: 1 }}>{money(c.value, c.currency)}</div>
                   <div style={{ fontSize: 9, color: C.t4, fontFamily: M }}>contract value</div>
-                  <div style={{ marginTop: 8, display: "flex", gap: 12, justifyContent: "flex-end" }}>
+                  <div style={{ marginTop: 8, display: "flex", gap: 12, justifyContent: "flex-end", alignItems: "center" }}>
+                    <a href={`/api/contracts/${contractId}/document`} title="Download this contract as a Word (.docx) document" style={{ fontSize: 10, fontFamily: M, color: C.bl, letterSpacing: 1, textDecoration: "none" }}>⬇ WORD</a>
                     {canManage && <span onClick={() => setEditingDetails((v) => !v)} style={{ cursor: "pointer", fontSize: 10, fontFamily: M, color: editingDetails ? C.cy : C.t3, letterSpacing: 1 }}>✎ EDIT</span>}
                     <span onClick={onClose} style={{ cursor: "pointer", fontSize: 10, fontFamily: M, color: C.t3, letterSpacing: 1 }}>✕ CLOSE</span>
                   </div>
