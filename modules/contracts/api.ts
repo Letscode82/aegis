@@ -90,6 +90,17 @@ export {
   type ReviewThirdPartyResult,
 } from "./src/internal/third-party";
 
+// Third-party review assessment (CTR-13) — "what to sign / which clauses are we
+// not comfortable with", deterministic baseline + robust AI deep read.
+export {
+  assessContractDeterministic,
+  assessContractWithAI,
+  type ContractAssessmentDTO,
+  type AssessmentIssue,
+  type AssessmentVerdict,
+  type ClausePosition,
+} from "./src/internal/assessment";
+
 // Contract collaboration / comments (CTR-10) — threaded business ↔ legal
 // (INTERNAL) and internal ↔ counterparty (SHARED) discussion.
 export {
