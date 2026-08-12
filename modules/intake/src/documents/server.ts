@@ -28,7 +28,7 @@ import {
   UnsupportedDocumentFormatError,
   DocumentParseError,
   type DocumentFormat,
-} from "./extract";
+} from "@aegis/documents";
 
 export { UnsupportedDocumentFormatError, DocumentParseError };
 
