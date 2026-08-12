@@ -10,6 +10,7 @@ import { ContractIntegrityMonitor } from "./contract-integrity.jsx";
 import { ContractDigestCard } from "./contract-digest-card.jsx";
 import { AuthorContractModal } from "./author-contract-modal.jsx";
 import { ReviewThirdPartyModal } from "./review-third-party-modal.jsx";
+import { AiDraftModal } from "./ai-draft-modal.jsx";
 import { ContractStageDots, CONTRACT_STAGES, stageCounts, stageIndexForStatus } from "./contract-stage-tracker.jsx";
 
 // ── Contract repository (CTR-1) ──────────────────────────────────────
@@ -59,6 +60,7 @@ export function ContractsRepository() {
   const [showTemplates, setShowTemplates] = useState(false);
   const [showAuthor, setShowAuthor] = useState(false);
   const [showReview, setShowReview] = useState(false);
+  const [showAiDraft, setShowAiDraft] = useState(false);
   const [tab, setTab] = useState("contracts"); // "contracts" | "obligations"
 
   const load = useCallback(() => {
@@ -145,6 +147,7 @@ export function ContractsRepository() {
         <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
           <button onClick={() => setShowPlaybook(true)} style={{ padding: "7px 13px", background: "transparent", color: C.bl, border: `1px solid ${C.bl}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" }}>📖 Playbook</button>
           <button onClick={() => setShowTemplates(true)} style={{ padding: "7px 13px", background: "transparent", color: C.tl, border: `1px solid ${C.tl}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" }}>📄 Templates</button>
+          {canManage && <button onClick={() => setShowAiDraft(true)} style={{ padding: "7px 13px", background: "transparent", color: C.pp || C.bl, border: `1px solid ${C.pp || C.bl}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" }}>✨ Draft with AI</button>}
           {canManage && <button onClick={() => setShowReview(true)} style={{ padding: "7px 13px", background: "transparent", color: C.am, border: `1px solid ${C.am}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" }}>⇤ Review 3rd-party</button>}
           {canManage && <button onClick={() => setShowAuthor(true)} style={{ padding: "7px 13px", background: C.bl, color: "#fff", border: `1px solid ${C.bl}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 700, textTransform: "uppercase", cursor: "pointer" }}>✎ New contract</button>}
         </div>
@@ -281,6 +284,12 @@ export function ContractsRepository() {
         <ReviewThirdPartyModal
           onClose={() => setShowReview(false)}
           onCreated={(contractId) => { setShowReview(false); load(); openContract(contractId); }}
+        />
+      )}
+      {showAiDraft && (
+        <AiDraftModal
+          onClose={() => setShowAiDraft(false)}
+          onCreated={(contractId) => { setShowAiDraft(false); load(); openContract(contractId); }}
         />
       )}
     </div>
