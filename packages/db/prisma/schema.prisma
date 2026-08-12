@@ -73,10 +73,11 @@ model Organization {
   vendors                 Vendor[]
   budgets                 Budget[]
   contracts               Contract[]
-  contractReviewTokens    ContractReviewToken[]
-  contractVersions        ContractVersion[]
-  contractSignatures      ContractSignature[]
-  contractComments        ContractComment[]
+  contractReviewTokens      ContractReviewToken[]
+  contractVersions          ContractVersion[]
+  contractSignatures        ContractSignature[]
+  contractSignatureRequests ContractSignatureRequest[]
+  contractComments          ContractComment[]
   agentDefinitions        AgentDefinition[]
   agentDefinitionVersions AgentDefinitionVersion[]
   knowledgePacks          KnowledgePack[]
@@ -2049,11 +2050,12 @@ model Contract {
   counterparty Counterparty? @relation(fields: [counterpartyId], references: [id], onDelete: SetNull)
   matter       Matter?       @relation(fields: [matterId], references: [id], onDelete: SetNull)
 
-  clauses      ContractClause[]
-  reviewTokens ContractReviewToken[]
-  versions     ContractVersion[]
-  signatures   ContractSignature[]
-  comments     ContractComment[]
+  clauses           ContractClause[]
+  reviewTokens      ContractReviewToken[]
+  versions          ContractVersion[]
+  signatures        ContractSignature[]
+  signatureRequests ContractSignatureRequest[]
+  comments          ContractComment[]
 
   @@index([organizationId, status])
   @@index([organizationId, expiryDate])
@@ -2104,6 +2106,50 @@ model ContractComment {
 enum SignatureParty {
   INTERNAL
   COUNTERPARTY
+}
+
+/// Lifecycle of a native e-signature request sent to a signer via a tokenised
+/// link. SENT → VIEWED → SIGNED (or DECLINED / REVOKED / EXPIRED).
+enum ContractSignatureRequestStatus {
+  SENT
+  VIEWED
+  SIGNED
+  DECLINED
+  REVOKED
+  EXPIRED
+}
+
+/// A native e-signature request (CTR-15). A signer receives a tokenised link,
+/// reviews the contract, and applies their signature — a real signing ceremony
+/// with signer identity, consent, IP/UA capture, and content-hash binding (the
+/// resulting ContractSignature carries signedTermsHash). Provider-swap ready:
+/// a DocuSign/Adobe envelope id would live alongside `tokenHash`.
+model ContractSignatureRequest {
+  id                   String                         @id @default(cuid())
+  organizationId       String
+  contractId           String
+  party                SignatureParty
+  signerName           String
+  signerEmail          String?
+  signerPersonId       String?
+  tokenHash            String                         @unique // SHA-256 of the raw signing token
+  status               ContractSignatureRequestStatus @default(SENT)
+  signingOrder         Int                            @default(1)
+  expiresAt            DateTime
+  viewedAt             DateTime?
+  signedAt             DateTime?
+  declinedReason       String?
+  resultingSignatureId String? // the ContractSignature created on sign
+  signerIp             String?
+  signerUserAgent      String?
+  createdById          String
+  createdAt            DateTime                       @default(now())
+  updatedAt            DateTime                       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  contract     Contract     @relation(fields: [contractId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, contractId])
 }
 
 model ContractSignature {
