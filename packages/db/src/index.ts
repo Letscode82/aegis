@@ -56,6 +56,7 @@ export {
   ContractStatus,
   ContractRisk,
   RenewalDecision,
+  ContractOrigin,
   ContractReviewTokenStatus,
   ContractVersionSource,
   AgentDefinitionStatus,

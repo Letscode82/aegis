@@ -137,6 +137,7 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
                 <div>
                   <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 5 }}>
                     <Pill t={c.status.replace(/_/g, " ")} c={C.tl} />
+                    {c.origin === "THIRD_PARTY" && <Pill t="3rd-party paper" c={C.am} />}
                     <Pill t={`${c.risk} RISK`} c={RISK_COLOR[c.risk]} />
                     {c.type && <span style={{ fontSize: 10, fontFamily: M, color: C.t3 }}>{c.type}</span>}
                   </div>

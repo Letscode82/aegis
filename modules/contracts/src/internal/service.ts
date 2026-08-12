@@ -14,6 +14,7 @@ import { prisma, logAudit } from "@aegis/db";
 import type {
   ContractStatus,
   ContractRisk,
+  ContractOrigin,
   ObligationStatus,
   ObligationType,
 } from "@aegis/db";
@@ -37,6 +38,8 @@ export interface CreateContractInput {
   noticeWindowDays?: number | null;
   governingLaw?: string | null;
   sourceIntakeTicketId?: string | null;
+  origin?: ContractOrigin;
+  draftText?: string | null;
 }
 
 export interface CreateClauseInput {
@@ -81,6 +84,8 @@ export async function createContract(organizationId: string, input: CreateContra
       noticeWindowDays: input.noticeWindowDays ?? null,
       governingLaw: input.governingLaw ?? null,
       sourceIntakeTicketId: input.sourceIntakeTicketId ?? null,
+      origin: input.origin ?? "OUR_PAPER",
+      draftText: input.draftText ?? null,
     },
   });
   await logAudit({
