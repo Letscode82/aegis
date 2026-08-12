@@ -4,6 +4,7 @@ import { ContractStageTracker } from "./contract-stage-tracker.jsx";
 import { ApprovalLadderPanel } from "./approval-ladder-panel.jsx";
 import { ApprovalWizard } from "./approval-wizard.jsx";
 import { ContractCommentsPanel } from "./contract-comments-panel.jsx";
+import { ReviewAssessmentPanel } from "./review-assessment-panel.jsx";
 
 // ── Contract drill-in (CTR-1) ────────────────────────────────────────
 //
@@ -234,6 +235,9 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
 
             {/* Execution & signatures (Phase 5d) */}
             <SignaturesPanel contractId={contractId} canManage={canManage} counterpartyName={c.counterpartyName} onChanged={load} />
+
+            {/* Review assessment — what to sign / clauses we're not comfortable with (CTR-13) */}
+            <ReviewAssessmentPanel contractId={contractId} isThirdParty={c.origin === "THIRD_PARTY"} />
 
             {/* Clauses */}
             <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.br}` }}>
