@@ -90,6 +90,21 @@ export {
   type ReviewThirdPartyResult,
 } from "./src/internal/third-party";
 
+// Native e-signature (CTR-15) — tokenised signing links, real signing ceremony,
+// content-hash-bound signatures, auto-execute on completion.
+export {
+  requestSignature,
+  resolveSignatureRequest,
+  submitSignature,
+  declineSignature,
+  listSignatureRequests,
+  revokeSignatureRequest,
+  type SignatureRequestInput,
+  type SignatureRequestDTO,
+  type MintedSignatureRequest,
+  type SigningContext,
+} from "./src/internal/signature-request";
+
 // AI contract drafting (CTR-14) — draft a full contract from a plain-language
 // brief; degrades to a deterministic skeleton offline.
 export {
