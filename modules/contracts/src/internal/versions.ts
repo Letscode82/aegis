@@ -9,6 +9,7 @@
  */
 import { prisma, logAudit } from "@aegis/db";
 import type { ContractVersionSource } from "@aegis/db";
+import { diffWords, type WordDiffSegment } from "./word-diff";
 
 export interface SnapshotClause {
   type: string;
@@ -34,7 +35,7 @@ export interface ContractVersionDetail extends ContractVersionSummary {
 export type ClauseChange =
   | { kind: "added"; key: string; type: string; to: SnapshotClause }
   | { kind: "removed"; key: string; type: string; from: SnapshotClause }
-  | { kind: "changed"; key: string; type: string; from: SnapshotClause; to: SnapshotClause; fields: string[] };
+  | { kind: "changed"; key: string; type: string; from: SnapshotClause; to: SnapshotClause; fields: string[]; textDiff?: WordDiffSegment[] };
 
 export interface ContractDiff {
   fromVersion: number;
@@ -74,7 +75,11 @@ export function diffClauseSets(from: SnapshotClause[], to: SnapshotClause[]): Co
     if (fc.risk !== tc.risk) fields.push("risk");
     if (fc.deviation !== tc.deviation) fields.push("deviation");
     if ((fc.summary || "") !== (tc.summary || "")) fields.push("summary");
-    if (fields.length) changes.push({ kind: "changed", key, type: fc.type, from: fc, to: tc, fields });
+    if (fields.length) {
+      // Word-level track-changes diff for a text change (CTR-16).
+      const textDiff = fields.includes("text") ? diffWords(fc.text, tc.text) : undefined;
+      changes.push({ kind: "changed", key, type: fc.type, from: fc, to: tc, fields, textDiff });
+    }
   }
   for (const [key, tc] of b) {
     if (!a.has(key)) changes.push({ kind: "added", key, type: tc.type, to: tc });

@@ -246,6 +246,14 @@ export {
   type SnapshotClause,
 } from "./src/internal/versions";
 
+// Word-level track-changes diff (CTR-16) — intra-clause insertions/deletions.
+export {
+  diffWords,
+  wordDiffStats,
+  type WordDiffSegment,
+  type WordDiffType,
+} from "./src/internal/word-diff";
+
 // Contract editing (Phase 5c) — metadata patch + scope/draft body editor.
 export {
   updateContract,
