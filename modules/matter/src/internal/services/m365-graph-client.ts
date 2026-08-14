@@ -18,6 +18,10 @@ import type { DataSourceType, Matter, PreservationAction } from "@aegis/db";
 import type {
   ApplyPreservationInput,
   CandidateCustodian,
+  DataSubjectSearchInput,
+  DataSubjectSearchResult,
+  DataSubjectHit,
+  DataSubjectSourceType,
   EnumerateSharePointSitesInput,
   EnumeratedDataSource,
   HoldScopeQuery,
@@ -840,6 +844,60 @@ export class M365GraphClient implements M365Client {
     };
   }
 
+  /**
+   * DSAR collection — Microsoft Search (`POST /search/query`) across message +
+   * driveItem entity types for the subject's identifiers. App-only permissions
+   * are honored by Microsoft Search, so this stays on the app-only client. On
+   * any Graph failure it degrades to an empty (non-simulated) result rather
+   * than throwing — a failed sweep must not sink the DSAR workflow.
+   */
+  async searchForDataSubject(
+    input: DataSubjectSearchInput,
+  ): Promise<DataSubjectSearchResult> {
+    const terms = [...input.identifiers, input.displayName]
+      .map((t) => (t || "").trim())
+      .filter(Boolean);
+    const queryString = terms.map((t) => `"${t}"`).join(" OR ") || "*";
+    const sources = input.sources ?? ["MAILBOX", "ONEDRIVE", "TEAMS"];
+    const entityTypes: string[] = [];
+    if (sources.includes("MAILBOX")) entityTypes.push("message");
+    if (sources.includes("ONEDRIVE") || sources.includes("SHAREPOINT")) entityTypes.push("driveItem");
+    if (sources.includes("TEAMS")) entityTypes.push("chatMessage");
+
+    try {
+      const body = {
+        requests: [
+          {
+            entityTypes,
+            query: { queryString },
+            from: 0,
+            size: Math.min(input.top ?? 25, 100),
+          },
+        ],
+      };
+      const res = (await withGraphAudit(
+        {
+          organizationId: this.organizationId,
+          endpoint: "/search/query",
+          method: "POST",
+          tenantId: this.tenantId,
+          actor: null,
+          actorType: "SYSTEM",
+        },
+        () => this.graph.api("/search/query").post(body),
+      )) as { value?: Array<{ hitsContainers?: Array<{ hits?: RawSearchHit[] }> }> };
+
+      const rawHits: RawSearchHit[] = (res.value ?? [])
+        .flatMap((v) => v.hitsContainers ?? [])
+        .flatMap((c) => c.hits ?? []);
+      const hits = rawHits.map((h) => mapSearchHit(h)).filter((h): h is DataSubjectHit => h != null);
+      return { hits, simulated: false, searchedAt: new Date().toISOString() };
+    } catch (err) {
+      console.error("[m365-graph] searchForDataSubject failed:", err);
+      return { hits: [], simulated: false, searchedAt: new Date().toISOString() };
+    }
+  }
+
   // Surface for the contract tests; not part of the public M365Client
   // interface.
   /** @internal */
@@ -851,6 +909,45 @@ export class M365GraphClient implements M365Client {
   public _organizationId(): string {
     return this.organizationId;
   }
+}
+
+/** Raw Microsoft Search hit shape (subset we consume). */
+interface RawSearchHit {
+  summary?: string;
+  resource?: {
+    "@odata.type"?: string;
+    subject?: string;
+    name?: string;
+    webUrl?: string;
+    id?: string;
+    from?: { emailAddress?: { address?: string } };
+    createdBy?: { user?: { displayName?: string } };
+  };
+}
+
+/** Map a Microsoft Search hit to a typed DataSubjectHit (null = skip). */
+function mapSearchHit(h: RawSearchHit): DataSubjectHit | null {
+  const r = h.resource ?? {};
+  const odata = (r["@odata.type"] ?? "").toLowerCase();
+  let sourceType: DataSubjectSourceType;
+  let sourceSystem: string;
+  let title: string;
+  if (odata.includes("message")) {
+    sourceType = "MAILBOX";
+    sourceSystem = `Exchange · ${r.from?.emailAddress?.address ?? "mailbox"}`;
+    title = r.subject || "(no subject)";
+  } else if (odata.includes("chatmessage")) {
+    sourceType = "TEAMS";
+    sourceSystem = "Teams";
+    title = h.summary?.slice(0, 80) || "Chat message";
+  } else if (odata.includes("driveitem")) {
+    sourceType = "ONEDRIVE";
+    sourceSystem = `OneDrive/SharePoint`;
+    title = r.name || "File";
+  } else {
+    return null;
+  }
+  return { sourceType, sourceSystem, title, excerpt: h.summary ?? null, graphId: r.id ?? null, webUrl: r.webUrl ?? null };
 }
 
 /** Re-export typed errors for caller convenience (legal-hold callers). */

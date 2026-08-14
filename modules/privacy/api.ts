@@ -87,6 +87,15 @@ export {
   type ReviewProgress,
 } from "./src/internal/review";
 
+// M365 / Purview collection (connect to your E5 tenant + search the subject)
+export {
+  collectFromM365,
+  getDsarM365Status,
+  collectionKey,
+  type CollectFromM365Input,
+  type CollectFromM365Result,
+} from "./src/internal/collection";
+
 // Deterministic relevance scorer (pure)
 export { scoreRelevanceDeterministic, verdictFromScore, tokenize, type RelevanceInput, type RelevanceResult } from "./src/internal/relevance";
 

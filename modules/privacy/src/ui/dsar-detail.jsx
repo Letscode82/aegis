@@ -146,6 +146,35 @@ function InventoryTab({ req, reload, toast }) {
   );
 }
 
+function M365CollectPanel({ req, onCollected, toast }) {
+  const [status, setStatus] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { fetch(`/api/privacy/dsar/${req.id}/collect`).then((r) => r.json()).then((d) => d.ok && setStatus(d.status)).catch(() => {}); }, [req.id]);
+  const collect = async () => {
+    setBusy(true);
+    try {
+      const d = await api(`/api/privacy/dsar/${req.id}/collect`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+      toast(`Collected ${d.added} record(s)${d.duplicates ? `, ${d.duplicates} already present` : ""}${d.simulated ? " (simulated — no tenant connected)" : " from Microsoft 365"}`);
+      onCollected();
+    } catch (e) { toast(String(e.message || e), true); } finally { setBusy(false); }
+  };
+  const connected = status?.mode === "real" && status?.configured;
+  return (
+    <div style={{ ...card, borderLeft: `3px solid ${connected ? C.gn : C.am}` }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
+        <div>
+          <div style={{ fontSize: 12.5, color: C.t1, fontWeight: 600 }}>⚡ Search Microsoft 365 (E5 / Purview)</div>
+          <div style={{ fontSize: 10.5, fontFamily: M, color: connected ? C.gn : C.am, marginTop: 3 }}>
+            {status == null ? "Checking connection…" : connected ? `Connected · tenant ${status.tenantIdMasked || "—"}` : "No tenant connected — search runs in simulation. Connect at /admin/m365."}
+          </div>
+        </div>
+        <button disabled={busy} onClick={collect} style={btn(C.tl)}>{busy ? "Searching…" : "Search & collect"}</button>
+      </div>
+      <div style={{ fontSize: 10, color: C.t4, fontFamily: M, marginTop: 8 }}>Sweeps the data subject's identifiers across mailboxes, OneDrive and Teams; hits land in the review queue below for AI relevance + human validation.</div>
+    </div>
+  );
+}
+
 function ReviewTab({ req, reload, toast }) {
   const [items, setItems] = useState(null);
   const [text, setText] = useState("");
@@ -163,8 +192,9 @@ function ReviewTab({ req, reload, toast }) {
   const pending = (items || []).filter((i) => i.reviewDecision === "PENDING").length;
   return (
     <div>
+      <M365CollectPanel req={req} onCollected={load} toast={toast} />
       <div style={{ ...card, padding: "10px 12px" }}>
-        <div style={lbl}>Add collected records (one per line — optionally "System | Title")</div>
+        <div style={lbl}>Or add records manually (one per line — optionally "System | Title")</div>
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} style={{ ...input, resize: "vertical", fontFamily: M, fontSize: 11 }} placeholder={"Salesforce CRM | Account note mentioning the data subject\nHRIS | Employment record"} />
         <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
           <button onClick={addItems} style={btn(C.cy)}>Add to queue</button>
