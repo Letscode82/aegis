@@ -97,6 +97,7 @@ model Organization {
   m365DeviceCodeSessions M365DeviceCodeSession[]
   workflowDefinitions    WorkflowDefinition[]
   workflowInstances      WorkflowInstance[]
+  reviewSets             ReviewSet[]
 
   @@index([name])
 }
@@ -2520,6 +2521,87 @@ model PrivacyIncident {
   @@index([organizationId, status])
   @@index([organizationId, severity])
   @@index([organizationId, discoveredAt(sort: Desc)])
+}
+
+// ════════════════════════════════════════════════════════════════════
+// 7b. Review sets — persisted eDiscovery / DSAR collections
+// ════════════════════════════════════════════════════════════════════
+//
+// A ReviewSet is a frozen-able collection of records produced by a Purview
+// content collection (from a legal hold, a DSAR, or manual). It feeds the
+// keyboard-first reviewer console: each ReviewSetItem is coded for
+// responsiveness + privilege behind the human gate, then produced. The
+// legalHoldId / dataSubjectRequestId links are plain scalars (optional
+// provenance) — cascade flows through organizationId / the reviewSet FK, so
+// the migration stays localized.
+
+enum ReviewSetOrigin {
+  LEGAL_HOLD
+  DSAR
+  MANUAL
+}
+
+enum ReviewSetStatus {
+  OPEN
+  FROZEN
+  PRODUCED
+}
+
+model ReviewSet {
+  id                    String          @id @default(cuid())
+  organizationId        String
+  origin                ReviewSetOrigin
+  status                ReviewSetStatus @default(OPEN)
+  name                  String
+  queryString           String
+  sources               String[]        @default([])
+  /// Optional provenance links (plain scalars — no back-relation churn).
+  legalHoldId           String?
+  matterId              String?
+  dataSubjectRequestId  String?
+  custodianCount        Int             @default(0)
+  simulated             Boolean         @default(false)
+  frozenAt              DateTime?
+  producedAt            DateTime?
+  createdById           String?
+  createdAt             DateTime        @default(now())
+  updatedAt             DateTime        @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items        ReviewSetItem[]
+
+  @@index([organizationId, origin])
+  @@index([legalHoldId])
+  @@index([dataSubjectRequestId])
+}
+
+model ReviewSetItem {
+  id             String             @id @default(cuid())
+  organizationId String
+  reviewSetId    String
+  sourceType     String // MAILBOX | ONEDRIVE | TEAMS | SHAREPOINT | OTHER
+  sourceSystem   String
+  title          String
+  excerpt        String?
+  graphId        String?
+  webUrl         String?
+  aiVerdict      DSARReviewVerdict?
+  aiScore        Float?
+  aiRationale    String?
+  reviewDecision DSARReviewDecision @default(PENDING)
+  codedResponsive Boolean?
+  codedPrivileged Boolean          @default(false)
+  redact         Boolean            @default(false)
+  reviewNote     String?
+  reviewedById   String?
+  reviewedAt     DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  reviewSet ReviewSet @relation(fields: [reviewSetId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, reviewSetId])
+  @@index([reviewSetId, reviewDecision])
 }
 
 // ════════════════════════════════════════════════════════════════════

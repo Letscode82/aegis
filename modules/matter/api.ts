@@ -736,6 +736,16 @@ export type {
   PreviewHoldCollectionInput,
 } from "./src/internal/legal-hold";
 
+// Review sets — persist a collection into a durable, codeable review set.
+export {
+  commitHoldCollection,
+  listReviewSets,
+  getReviewSetSummary,
+  type ReviewSetSummary,
+  type CommitHoldCollectionInput,
+  type ListReviewSetsFilter,
+} from "./src/internal/services/review-set";
+
 // ── M365 connection management (sub-PR 4c) ─────────────────────────
 
 export {
