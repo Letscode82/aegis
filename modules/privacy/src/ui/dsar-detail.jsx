@@ -232,6 +232,33 @@ function M365CollectPanel({ req, onCollected, toast }) {
   );
 }
 
+function ValidationStrip({ requestId, refreshKey }) {
+  const [v, setV] = useState(null);
+  useEffect(() => { fetch(`/api/privacy/dsar/${requestId}/validation`).then((r) => r.json()).then((d) => d.ok && setV(d.validation)).catch(() => {}); }, [requestId, refreshKey]);
+  if (!v || v.coded === 0) return null;
+  const pct = (x) => (x == null ? "—" : `${Math.round(x * 100)}%`);
+  const m = v.metrics;
+  const cell = (label, val, ci) => (
+    <div style={{ flex: 1 }}>
+      <div style={{ fontSize: 16, fontFamily: SR, color: C.t1 }}>{val}</div>
+      <div style={{ fontSize: 8.5, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t3 }}>{label}</div>
+      {ci && <div style={{ fontSize: 8.5, fontFamily: M, color: C.t4 }}>95% {pct(ci.low)}–{pct(ci.high)}</div>}
+    </div>
+  );
+  return (
+    <div style={{ ...card, display: "flex", gap: 14, alignItems: "flex-start" }}>
+      <div style={{ flex: "0 0 auto", paddingRight: 8 }}>
+        <div style={{ fontSize: 12.5, color: C.t1, fontWeight: 600 }}>Review validation</div>
+        <div style={{ fontSize: 9.5, color: C.t4, fontFamily: M, marginTop: 2 }}>AI vs human · {v.coded} coded</div>
+      </div>
+      {cell("Recall", pct(m.recall), m.recallCI)}
+      {cell("Precision", pct(m.precision), m.precisionCI)}
+      {cell("F1", pct(m.f1))}
+      {cell("Overturn", pct(v.overturn.rate))}
+    </div>
+  );
+}
+
 function ReviewTab({ req, reload, toast }) {
   const [items, setItems] = useState(null);
   const [text, setText] = useState("");
@@ -247,9 +274,11 @@ function ReviewTab({ req, reload, toast }) {
   const runAI = async () => { setBusy(true); try { const d = await api(`/api/privacy/dsar/${req.id}/review/run`, { method: "POST" }); toast(`Scored ${d.scored} item(s) · ${d.relevant} relevant${d.degraded ? " (deterministic)" : " (AI)"}`); load(); } catch (e) { toast(String(e.message || e), true); } finally { setBusy(false); } };
   const validate = async (itemId, body) => { try { await api(`/api/privacy/dsar/${req.id}/review/${itemId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); load(); } catch (e) { toast(String(e.message || e), true); } };
   const pending = (items || []).filter((i) => i.reviewDecision === "PENDING").length;
+  const validatedCount = (items || []).filter((i) => i.reviewDecision !== "PENDING" && i.aiVerdict).length;
   return (
     <div>
       <M365CollectPanel req={req} onCollected={load} toast={toast} />
+      <ValidationStrip requestId={req.id} refreshKey={validatedCount} />
       <div style={{ ...card, padding: "10px 12px" }}>
         <div style={lbl}>Or add records manually (one per line — optionally "System | Title")</div>
         <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} style={{ ...input, resize: "vertical", fontFamily: M, fontSize: 11 }} placeholder={"Salesforce CRM | Account note mentioning the data subject\nHRIS | Employment record"} />

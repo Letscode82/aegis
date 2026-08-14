@@ -136,5 +136,8 @@ export { getDsarDashboard, aggregateDashboard, type DsarDashboard, type Dashboar
 // SLA breach sweep (cron)
 export { evaluateDsarSlaBreaches, runAllOrgDsarSlaSweeps, type DsarSlaSweepResult, type AllOrgDsarSweepResult } from "./src/internal/worker";
 
+// Review validation (recall/precision/overturn vs human decisions)
+export { getDsarValidation, type DsarValidation } from "./src/internal/validation";
+
 // Defensibility export
 export { getDsarDefensibilityExport, type DsarDefensibilityExport } from "./src/internal/export";

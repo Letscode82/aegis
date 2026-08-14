@@ -21,6 +21,7 @@
     "@aegis/db": "workspace:*",
     "@aegis/email": "workspace:*",
     "@aegis/matter": "workspace:*",
+    "@aegis/validation": "workspace:*",
     "@aegis/ui": "workspace:*",
     "react": "^18.3.1"
   },
