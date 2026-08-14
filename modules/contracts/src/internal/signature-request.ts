@@ -7,17 +7,28 @@
  * bind the signature to the exact terms (the resulting ContractSignature carries
  * `signedTermsHash`). When both required signatures are in and the contract is
  * APPROVED, it auto-executes (existing recordSignature path). Provider-swap
- * ready: a DocuSign/Adobe envelope id would sit alongside `tokenHash`; email
- * delivery of the link is stubbed (documented) like notice sending.
+ * ready: a DocuSign/Adobe envelope id would sit alongside `tokenHash`. The
+ * signing link is delivered by email through the shared `@aegis/email` mailer
+ * (see notify.ts) — best-effort and chain-sealed; it degrades to a logged
+ * no-op when no mail provider is configured, and the link is always returned
+ * for manual sharing.
  */
 import { prisma, logAudit } from "@aegis/db";
 import type { SignatureParty } from "@aegis/db";
 import { hashToken, generateRawToken } from "./review-token";
 import { recordSignature } from "./signatures";
 import { getContractDetail, type ContractDetail } from "./reads";
+import { sendContractSignatureInvite } from "./notify";
 
 type Actor = { id: string | null; type?: "USER" | "AGENT" | "SYSTEM" };
 const DEFAULT_EXPIRY_DAYS = 14;
+
+/** Absolute signing URL. Relative when no base is configured (email links
+ *  need an absolute URL — set APP_BASE_URL / NEXT_PUBLIC_APP_URL in prod). */
+export function signUrl(rawToken: string): string {
+  const base = (process.env.APP_BASE_URL || process.env.NEXT_PUBLIC_APP_URL || "").replace(/\/$/, "");
+  return `${base}/sign/${rawToken}`;
+}
 
 export interface SignatureRequestInput {
   party: SignatureParty;
@@ -66,7 +77,7 @@ export async function requestSignature(
   input: SignatureRequestInput,
   actor: Actor,
 ): Promise<MintedSignatureRequest> {
-  const contract = await prisma.contract.findFirst({ where: { id: contractId, organizationId }, select: { status: true } });
+  const contract = await prisma.contract.findFirst({ where: { id: contractId, organizationId }, select: { status: true, title: true } });
   if (!contract) throw new Error("Contract not found");
   if (["EXECUTED", "ACTIVE", "TERMINATED", "EXPIRED"].includes(contract.status)) {
     throw new Error(`Cannot request a signature on a ${contract.status} contract.`);
@@ -97,8 +108,23 @@ export async function requestSignature(
     resourceType: "Contract",
     resourceId: contractId,
     afterJson: { requestId: row.id, party: row.party, signerName: row.signerName, expiresAt: expiresAt.toISOString() } as never,
-    metadata: { source: "contracts", deliveryStubbed: true } as never,
+    metadata: { source: "contracts" } as never,
   });
+
+  // Real delivery — best-effort, chain-sealed inside notify. A mail failure
+  // (or no configured provider) never fails the request; the signing link is
+  // still returned for the attorney to share manually.
+  await sendContractSignatureInvite({
+    organizationId,
+    contractId,
+    to: row.signerEmail,
+    contractTitle: contract.title,
+    signerName: row.signerName,
+    url: signUrl(rawToken),
+    expiresAt: expiresAt.toISOString(),
+    actor,
+  }).catch(() => {});
+
   return { requestId: row.id, signingPath: `/sign/${rawToken}` };
 }
 
