@@ -221,6 +221,22 @@ export {
   type AlertSeverity,
 } from "./src/internal/alerts";
 
+// Scheduled worker (CTR-20) — cron entry points that sweep / digest across
+// every org. Behind /api/cron/*; pg-boss-ready.
+export {
+  runContractSweepsForOrg,
+  runAllOrgContractSweeps,
+  runContractDigestForOrg,
+  runAllOrgContractDigests,
+  resolveDigestRecipients,
+  parseDigestRecipients,
+  mergeRecipients,
+  DIGEST_ROLE_NAMES,
+  type OrgSweepResult,
+  type OrgDigestResult,
+  type AllOrgResult,
+} from "./src/internal/worker";
+
 export {
   listClauseLibrary,
   getClauseLibraryByType,
