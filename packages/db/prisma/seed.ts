@@ -2742,10 +2742,20 @@ async function seedPrivacy(orgId: string) {
     },
   });
 
-  // DSAR — access request, in progress.
+  // Resolve the demo admin as the DSAR handler (DPO) so the workspace shows a
+  // real assignee. Best-effort — falls back to unassigned if not seeded yet.
+  const dpo = await prisma.user.findFirst({ where: { organizationId: orgId }, orderBy: { createdAt: "asc" }, select: { id: true } });
+
+  // DSAR — access request, in progress, with an aiR relevance definition.
   const dsar = await prisma.dataSubjectRequest.upsert({
     where: { id: "dsar-2026-001" },
-    update: { status: "IN_PROGRESS" },
+    update: {
+      status: "IN_PROGRESS",
+      assignedToUserId: dpo?.id ?? null,
+      relevanceCriteria:
+        "Records concerning the processing of J. Doe's personal data by the organization — categories of data, purposes, recipients, retention periods, and sources. Exclude records unrelated to J. Doe or not concerning personal data under GDPR.",
+      subjectSummary: "Access request from an EU data subject; verify identity, map data locations, review for relevance, then deliver.",
+    },
     create: {
       id: "dsar-2026-001",
       organizationId: orgId,
@@ -2755,8 +2765,29 @@ async function seedPrivacy(orgId: string) {
       status: "IN_PROGRESS",
       slaDeadline: new Date(Date.now() + 18 * 24 * 60 * 60 * 1000),
       verificationStatus: "VERIFIED",
+      verifiedAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000),
+      verificationMethod: "passport",
+      assignedToUserId: dpo?.id ?? null,
+      relevanceCriteria:
+        "Records concerning the processing of J. Doe's personal data by the organization — categories of data, purposes, recipients, retention periods, and sources. Exclude records unrelated to J. Doe or not concerning personal data under GDPR.",
+      subjectSummary: "Access request from an EU data subject; verify identity, map data locations, review for relevance, then deliver.",
     },
   });
+
+  // A few collected records in the AI relevance-review queue: two pre-scored,
+  // one pending so "Run AI relevance review" has something to do in the demo.
+  const reviewItems = [
+    { id: "dsar-ri-001", sourceSystem: "Salesforce CRM", title: "Account note referencing jdoe@external.example", excerpt: "Contact jdoe@external.example opted into the product newsletter on 2026-01-15.", aiVerdict: "RELEVANT" as const, aiScore: 0.92, aiRationale: "AI: the data subject's email appears; concerns marketing consent in scope.", reviewDecision: "CONFIRMED" as const, finalRelevant: true },
+    { id: "dsar-ri-002", sourceSystem: "Marketing-DB", title: "Email engagement events", excerpt: "Open/click events for the newsletter campaign, keyed by hashed email.", aiVerdict: "UNCLEAR" as const, aiScore: 0.34, aiRationale: "AI: relates to marketing but the subject link is via a hash — needs a human decision.", reviewDecision: "PENDING" as const, finalRelevant: null },
+    { id: "dsar-ri-003", sourceSystem: "HRIS", title: "Nightly backup manifest", excerpt: "Cluster 7 backup completed; 4.2TB across 118 tables.", aiVerdict: null, aiScore: null, aiRationale: null, reviewDecision: "PENDING" as const, finalRelevant: null },
+  ];
+  for (const ri of reviewItems) {
+    await prisma.dSARReviewItem.upsert({
+      where: { id: ri.id },
+      update: {},
+      create: { id: ri.id, organizationId: orgId, requestId: dsar.id, sourceSystem: ri.sourceSystem, title: ri.title, excerpt: ri.excerpt, aiVerdict: ri.aiVerdict, aiScore: ri.aiScore, aiRationale: ri.aiRationale, reviewDecision: ri.reviewDecision, finalRelevant: ri.finalRelevant, redact: false, reviewedById: ri.reviewDecision === "CONFIRMED" ? dpo?.id ?? null : null, reviewedAt: ri.reviewDecision === "CONFIRMED" ? new Date() : null },
+    });
+  }
 
   // Data location lookups across systems — found in two, not in one.
   const locations = [
@@ -2858,7 +2889,7 @@ async function seedPrivacy(orgId: string) {
     },
   });
 
-  return { dsar: 1, locations: locations.length, consents: 1, ropas: 2, incidents: 1 };
+  return { dsar: 1, locations: locations.length, reviewItems: reviewItems.length, consents: 1, ropas: 2, incidents: 1 };
 }
 
 // ───────────────────────────────────────────────────────────────────

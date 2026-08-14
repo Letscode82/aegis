@@ -1,0 +1,302 @@
+import { useState, useEffect, useCallback } from "react";
+import { C, F, M, SR } from "@aegis/ui";
+
+// ── DSAR workspace (per-request) ─────────────────────────────────────
+// The end-to-end case-handling surface: lifecycle stepper + tabs for
+// Identity, Data inventory, AI relevance review, and Delivery.
+
+const STAGES = [
+  { status: "RECEIVED", label: "Intake" },
+  { status: "VERIFYING", label: "Identity" },
+  { status: "IN_PROGRESS", label: "Collect" },
+  { status: "AWAITING_REVIEW", label: "Review" },
+  { status: "FULFILLED", label: "Deliver" },
+];
+const NEXT = {
+  RECEIVED: ["VERIFYING", "IN_PROGRESS", "REJECTED", "WITHDRAWN"],
+  VERIFYING: ["IN_PROGRESS", "REJECTED", "WITHDRAWN"],
+  IN_PROGRESS: ["AWAITING_REVIEW", "REJECTED", "WITHDRAWN"],
+  AWAITING_REVIEW: ["IN_PROGRESS", "REJECTED", "WITHDRAWN"],
+  FULFILLED: [], REJECTED: [], WITHDRAWN: [],
+};
+const STATUS_COLOR = { RECEIVED: C.t3, VERIFYING: C.am, IN_PROGRESS: C.bl, AWAITING_REVIEW: C.pp, FULFILLED: C.gn, REJECTED: C.rd, WITHDRAWN: C.t4 };
+const VERDICT_COLOR = { RELEVANT: C.gn, NOT_RELEVANT: C.t4, UNCLEAR: C.am };
+
+const btn = (bg, fg) => ({ padding: "6px 12px", background: bg, color: fg || C.bg, border: "none", borderRadius: 5, fontFamily: M, fontSize: 9.5, letterSpacing: .8, fontWeight: 700, textTransform: "uppercase", cursor: "pointer" });
+const ghost = (col) => ({ padding: "6px 12px", background: "transparent", color: col, border: `1px solid ${col}`, borderRadius: 5, fontFamily: M, fontSize: 9.5, letterSpacing: .8, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" });
+const input = { width: "100%", background: C.bg, border: `1px solid ${C.br}`, borderRadius: 5, color: C.t1, fontFamily: F, fontSize: 12, padding: "7px 9px", outline: "none", boxSizing: "border-box" };
+const lbl = { fontSize: 8.5, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t3, marginBottom: 3 };
+const card = { padding: "12px 14px", background: C.cd, border: `1px solid ${C.br}`, borderRadius: 8, marginBottom: 10 };
+
+async function api(url, opts) {
+  const r = await fetch(url, opts);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok || d.ok === false) throw new Error(d.error || `HTTP ${r.status}`);
+  return d;
+}
+
+function Stepper({ status }) {
+  const idx = STAGES.findIndex((s) => s.status === status);
+  const terminal = ["REJECTED", "WITHDRAWN"].includes(status);
+  return (
+    <div style={{ display: "flex", gap: 4, margin: "0 0 14px" }}>
+      {STAGES.map((s, i) => {
+        const done = idx >= 0 && i < idx, cur = i === idx;
+        const col = terminal ? C.t4 : done ? C.gn : cur ? C.cy : C.br;
+        return (
+          <div key={s.status} style={{ flex: 1, textAlign: "center" }}>
+            <div style={{ height: 4, background: col, borderRadius: 2 }} />
+            <div style={{ fontSize: 9, fontFamily: M, letterSpacing: .5, textTransform: "uppercase", color: cur ? C.cy : done ? C.gn : C.t4, marginTop: 4 }}>{s.label}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function OverviewTab({ req, me, reload, toast }) {
+  const [crit, setCrit] = useState(req.relevanceCriteria || "");
+  const [summary, setSummary] = useState(req.subjectSummary || "");
+  const patch = async (body, msg) => { try { await api(`/api/privacy/dsar/${req.id}`, { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); toast(msg); reload(); } catch (e) { toast(String(e.message || e), true); } };
+  const transition = async (toStatus) => { try { await api(`/api/privacy/dsar/${req.id}/transition`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ toStatus }) }); toast(`Moved to ${toStatus.replace(/_/g, " ")}`); reload(); } catch (e) { toast(String(e.message || e), true); } };
+  const extend = async () => { try { await api(`/api/privacy/dsar/${req.id}/extend`, { method: "POST" }); toast("Deadline extended"); reload(); } catch (e) { toast(String(e.message || e), true); } };
+  return (
+    <div>
+      <div style={card}>
+        <div style={lbl}>Handler (DPO)</div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <span style={{ fontSize: 12, color: req.assignedToName ? C.t1 : C.t4 }}>{req.assignedToName || "Unassigned"}</span>
+          {me && req.assignedToUserId !== me.id && <button onClick={() => patch({ assignedToUserId: me.id }, "Assigned to you")} style={ghost(C.bl)}>Assign to me</button>}
+          {req.assignedToUserId && <button onClick={() => patch({ assignedToUserId: "" }, "Unassigned")} style={ghost(C.t3)}>Unassign</button>}
+        </div>
+      </div>
+      <div style={card}>
+        <div style={lbl}>Relevance criteria (drives AI review)</div>
+        <textarea value={crit} onChange={(e) => setCrit(e.target.value)} rows={3} style={{ ...input, resize: "vertical" }} />
+        <div style={{ marginTop: 6 }}><button onClick={() => patch({ relevanceCriteria: crit }, "Criteria saved")} style={btn(C.gn)}>Save criteria</button></div>
+      </div>
+      <div style={card}>
+        <div style={lbl}>Case summary</div>
+        <textarea value={summary} onChange={(e) => setSummary(e.target.value)} rows={2} style={{ ...input, resize: "vertical" }} />
+        <div style={{ marginTop: 6 }}><button onClick={() => patch({ subjectSummary: summary }, "Summary saved")} style={btn(C.gn)}>Save summary</button></div>
+      </div>
+      <div style={card}>
+        <div style={lbl}>Lifecycle</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+          {(NEXT[req.status] || []).map((s) => <button key={s} onClick={() => transition(s)} style={ghost(STATUS_COLOR[s] || C.t2)}>{s === "IN_PROGRESS" && req.status === "AWAITING_REVIEW" ? "← Back to collect" : "→ " + s.replace(/_/g, " ")}</button>)}
+          {!req.extended && !["FULFILLED", "REJECTED", "WITHDRAWN"].includes(req.status) && <button onClick={extend} style={ghost(C.am)}>Extend deadline</button>}
+          {(NEXT[req.status] || []).length === 0 && <span style={{ fontSize: 11, color: C.t4, fontStyle: "italic" }}>Terminal — no further transitions.</span>}
+        </div>
+        <div style={{ fontSize: 10, color: C.t4, fontFamily: M, marginTop: 8 }}>Fulfilment happens on the Delivery tab (assembles + delivers the package).</div>
+      </div>
+    </div>
+  );
+}
+
+function IdentityTab({ req, reload, toast }) {
+  const [method, setMethod] = useState(req.verificationMethod || "");
+  const record = async (outcome) => { try { await api(`/api/privacy/dsar/${req.id}/verify`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ outcome, method }) }); toast(`Identity ${outcome.toLowerCase()}`); reload(); } catch (e) { toast(String(e.message || e), true); } };
+  return (
+    <div style={card}>
+      <div style={lbl}>Verification status</div>
+      <div style={{ fontSize: 14, color: req.verificationStatus === "VERIFIED" ? C.gn : req.verificationStatus === "FAILED" ? C.rd : C.am, marginBottom: 10 }}>{req.verificationStatus}{req.verifiedAt ? ` · ${new Date(req.verifiedAt).toLocaleDateString()}` : ""}</div>
+      <div style={lbl}>Method</div>
+      <input value={method} onChange={(e) => setMethod(e.target.value)} placeholder="passport / knowledge-based / portal-login" style={{ ...input, marginBottom: 10 }} />
+      <div style={{ display: "flex", gap: 8 }}>
+        <button onClick={() => record("VERIFIED")} style={btn(C.gn)}>Mark verified</button>
+        <button onClick={() => record("IN_PROGRESS")} style={ghost(C.am)}>In progress</button>
+        <button onClick={() => record("FAILED")} style={ghost(C.rd)}>Failed</button>
+      </div>
+      <div style={{ fontSize: 10, color: C.t4, fontFamily: M, marginTop: 8 }}>Identity must be VERIFIED before collection can start — the request cannot leave the Identity stage otherwise.</div>
+    </div>
+  );
+}
+
+function InventoryTab({ req, reload, toast }) {
+  const [locs, setLocs] = useState(null);
+  const [add, setAdd] = useState({ system: "", dataType: "" });
+  const load = useCallback(() => { fetch(`/api/privacy/dsar/${req.id}/inventory`).then((r) => r.json()).then((d) => d.ok && setLocs(d.locations)).catch(() => {}); }, [req.id]);
+  useEffect(() => { load(); }, [load]);
+  const seed = async () => { try { const d = await api(`/api/privacy/dsar/${req.id}/inventory`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ seed: true }) }); toast(`Seeded ${d.seeded.created} location(s) from ROPA`); setLocs(d.locations); } catch (e) { toast(String(e.message || e), true); } };
+  const addLoc = async () => { try { await api(`/api/privacy/dsar/${req.id}/inventory`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(add) }); setAdd({ system: "", dataType: "" }); load(); } catch (e) { toast(String(e.message || e), true); } };
+  const upd = async (locationId, body) => { try { await api(`/api/privacy/dsar/${req.id}/inventory`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ locationId, ...body }) }); load(); } catch (e) { toast(String(e.message || e), true); } };
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+        <button onClick={seed} style={ghost(C.tl)}>⤵ Seed from ROPA</button>
+      </div>
+      <div style={{ ...card, padding: "10px 12px" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr auto", gap: 8, alignItems: "end" }}>
+          <div><div style={lbl}>System</div><input value={add.system} onChange={(e) => setAdd((s) => ({ ...s, system: e.target.value }))} style={input} /></div>
+          <div><div style={lbl}>Data type</div><input value={add.dataType} onChange={(e) => setAdd((s) => ({ ...s, dataType: e.target.value }))} style={input} /></div>
+          <button disabled={!add.system.trim() || !add.dataType.trim()} onClick={addLoc} style={btn(C.cy)}>Add</button>
+        </div>
+      </div>
+      {!locs ? <div style={{ fontSize: 11, color: C.t4, fontFamily: M }}>Loading…</div>
+        : locs.length === 0 ? <div style={{ fontSize: 11, color: C.t4, fontStyle: "italic" }}>No data locations mapped. Seed from ROPA or add one.</div>
+        : locs.map((l) => (
+          <div key={l.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderBottom: `1px solid ${C.br}22` }}>
+            <div style={{ flex: 1 }}><span style={{ fontSize: 12, color: C.t1 }}>{l.system}</span> <span style={{ fontSize: 10, color: C.t4, fontFamily: M }}>· {l.dataType}</span></div>
+            <button onClick={() => upd(l.id, { found: !l.found })} style={ghost(l.found ? C.gn : C.t4)}>{l.found ? "✓ Found" : "Found?"}</button>
+            <button onClick={() => upd(l.id, { redactionsRequired: !l.redactionsRequired })} style={ghost(l.redactionsRequired ? C.am : C.t4)}>{l.redactionsRequired ? "Redact" : "No redact"}</button>
+            <button onClick={() => upd(l.id, { retrieved: !l.retrievedAt })} style={ghost(l.retrievedAt ? C.bl : C.t4)}>{l.retrievedAt ? "Retrieved" : "Retrieve"}</button>
+          </div>
+        ))}
+    </div>
+  );
+}
+
+function ReviewTab({ req, reload, toast }) {
+  const [items, setItems] = useState(null);
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(() => { fetch(`/api/privacy/dsar/${req.id}/review`).then((r) => r.json()).then((d) => d.ok && setItems(d.items)).catch(() => {}); }, [req.id]);
+  useEffect(() => { load(); }, [load]);
+  const addItems = async () => {
+    const lines = text.split("\n").map((l) => l.trim()).filter(Boolean);
+    if (lines.length === 0) return;
+    const parsed = lines.map((l) => { const [system, ...rest] = l.split("|"); return rest.length ? { sourceSystem: system.trim(), title: rest.join("|").trim() } : { sourceSystem: "manual", title: l }; });
+    try { await api(`/api/privacy/dsar/${req.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items: parsed }) }); setText(""); load(); } catch (e) { toast(String(e.message || e), true); }
+  };
+  const runAI = async () => { setBusy(true); try { const d = await api(`/api/privacy/dsar/${req.id}/review/run`, { method: "POST" }); toast(`Scored ${d.scored} item(s) · ${d.relevant} relevant${d.degraded ? " (deterministic)" : " (AI)"}`); load(); } catch (e) { toast(String(e.message || e), true); } finally { setBusy(false); } };
+  const validate = async (itemId, body) => { try { await api(`/api/privacy/dsar/${req.id}/review/${itemId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); load(); } catch (e) { toast(String(e.message || e), true); } };
+  const pending = (items || []).filter((i) => i.reviewDecision === "PENDING").length;
+  return (
+    <div>
+      <div style={{ ...card, padding: "10px 12px" }}>
+        <div style={lbl}>Add collected records (one per line — optionally "System | Title")</div>
+        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} style={{ ...input, resize: "vertical", fontFamily: M, fontSize: 11 }} placeholder={"Salesforce CRM | Account note mentioning the data subject\nHRIS | Employment record"} />
+        <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
+          <button onClick={addItems} style={btn(C.cy)}>Add to queue</button>
+          <button disabled={busy || pending === 0} onClick={runAI} style={btn(C.pp)}>{busy ? "Scoring…" : `✨ Run AI relevance review (${pending})`}</button>
+        </div>
+      </div>
+      {!items ? <div style={{ fontSize: 11, color: C.t4, fontFamily: M }}>Loading…</div>
+        : items.length === 0 ? <div style={{ fontSize: 11, color: C.t4, fontStyle: "italic" }}>No records collected yet.</div>
+        : items.map((it) => (
+          <div key={it.id} style={{ ...card, marginBottom: 8, borderLeft: `3px solid ${it.reviewDecision !== "PENDING" ? (it.finalRelevant ? C.gn : C.t4) : (VERDICT_COLOR[it.aiVerdict] || C.br)}` }}>
+            <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12, color: C.t1 }}>{it.title}</div>
+                <div style={{ fontSize: 9.5, color: C.t4, fontFamily: M }}>{it.sourceSystem}</div>
+              </div>
+              <div style={{ textAlign: "right", flexShrink: 0 }}>
+                {it.aiVerdict && <div style={{ fontSize: 10, fontFamily: M, color: VERDICT_COLOR[it.aiVerdict] }}>{it.aiVerdict}{it.aiScore != null ? ` ${Math.round(it.aiScore * 100)}%` : ""}</div>}
+                <div style={{ fontSize: 9, fontFamily: M, color: it.reviewDecision === "PENDING" ? C.am : C.gn }}>{it.reviewDecision}</div>
+              </div>
+            </div>
+            {it.aiRationale && <div style={{ fontSize: 10.5, color: C.t3, marginTop: 5, fontStyle: "italic" }}>{it.aiRationale}</div>}
+            <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
+              <button onClick={() => validate(it.id, { decision: "CONFIRMED" })} style={ghost(C.gn)}>✓ Confirm</button>
+              <button onClick={() => validate(it.id, { decision: "OVERRIDDEN", finalRelevant: true })} style={ghost(C.bl)}>Mark relevant</button>
+              <button onClick={() => validate(it.id, { decision: "OVERRIDDEN", finalRelevant: false })} style={ghost(C.t3)}>Exclude</button>
+              <button onClick={() => validate(it.id, { decision: it.reviewDecision === "PENDING" ? "CONFIRMED" : it.reviewDecision, redact: !it.redact })} style={ghost(it.redact ? C.am : C.t4)}>{it.redact ? "Redacted" : "Redact"}</button>
+            </div>
+          </div>
+        ))}
+    </div>
+  );
+}
+
+function DeliveryTab({ req, reload, toast }) {
+  const [pkg, setPkg] = useState(null);
+  const [conflict, setConflict] = useState(null);
+  const [result, setResult] = useState(null);
+  const isErasure = req.requestType === "ERASURE";
+  const loadPkg = useCallback(() => { fetch(`/api/privacy/dsar/${req.id}/deliver`).then((r) => r.json()).then((d) => d.ok && setPkg(d.package)).catch(() => {}); if (isErasure) fetch(`/api/privacy/dsar/${req.id}/hold-conflict`).then((r) => r.json()).then((d) => d.ok && setConflict(d.conflict)).catch(() => {}); }, [req.id, isErasure]);
+  useEffect(() => { loadPkg(); }, [loadPkg]);
+  const override = async () => { const reason = window.prompt("Reason for overriding the legal-hold conflict:"); if (!reason) return; try { const d = await api(`/api/privacy/dsar/${req.id}/hold-conflict`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reason }) }); setConflict(d.conflict); toast("Override recorded"); } catch (e) { toast(String(e.message || e), true); } };
+  const deliver = async () => { try { const d = await api(`/api/privacy/dsar/${req.id}/deliver`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ channel: "portal" }) }); setResult(d); toast(d.emailDelivered ? "Delivered — email sent" : "Delivered (email not configured)"); reload(); } catch (e) { toast(String(e.message || e), true); } };
+  return (
+    <div>
+      {isErasure && conflict && (
+        <div style={{ ...card, borderLeft: `3px solid ${conflict.count > 0 && !conflict.overridden ? C.rd : C.gn}` }}>
+          <div style={lbl}>Legal-hold conflict (erasure)</div>
+          {conflict.count === 0 ? <div style={{ fontSize: 12, color: C.gn }}>✓ No active legal hold preserves this data subject's data.</div>
+            : <div>
+                <div style={{ fontSize: 12, color: conflict.overridden ? C.am : C.rd }}>{conflict.count} active hold(s) preserve this data — erasure {conflict.overridden ? "overridden" : "blocked"}.</div>
+                {conflict.holds.map((h) => <div key={h.holdId} style={{ fontSize: 10.5, color: C.t3, fontFamily: M, marginTop: 3 }}>· {h.title} ({h.holdNumber || h.holdId.slice(0, 8)}) — {h.status}</div>)}
+                {conflict.overridden ? <div style={{ fontSize: 10.5, color: C.am, marginTop: 5 }}>Override: {conflict.overrideReason}</div> : <button onClick={override} style={{ ...ghost(C.rd), marginTop: 8 }}>Override with reason</button>}
+              </div>}
+        </div>
+      )}
+      <div style={card}>
+        <div style={lbl}>Response package (from validated, relevant records)</div>
+        {!pkg ? <div style={{ fontSize: 11, color: C.t4 }}>Loading…</div>
+          : <div style={{ display: "flex", gap: 14, marginTop: 4 }}>
+              <div><div style={{ fontSize: 20, fontFamily: SR, color: C.gn }}>{pkg.includedCount}</div><div style={lbl}>Included</div></div>
+              <div><div style={{ fontSize: 20, fontFamily: SR, color: C.am }}>{pkg.redactedCount}</div><div style={lbl}>Redacted</div></div>
+              <div><div style={{ fontSize: 20, fontFamily: SR, color: C.t3 }}>{pkg.excludedCount}</div><div style={lbl}>Excluded</div></div>
+              <div><div style={{ fontSize: 20, fontFamily: SR, color: C.bl }}>{pkg.dataLocationsWithData}</div><div style={lbl}>Systems w/ data</div></div>
+            </div>}
+      </div>
+      {req.status === "FULFILLED" || result ? (
+        <div style={{ ...card, borderLeft: `3px solid ${C.gn}` }}>
+          <div style={{ fontSize: 13, color: C.gn }}>✓ Fulfilled{req.deliveredAt ? ` · ${new Date(req.deliveredAt).toLocaleDateString()}` : ""}</div>
+          {result?.portalUrl && <div style={{ fontSize: 10.5, color: C.t3, fontFamily: M, marginTop: 6, wordBreak: "break-all" }}>Secure link: {result.portalUrl}</div>}
+        </div>
+      ) : (
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={deliver} style={btn(C.gn)}>Assemble &amp; deliver</button>
+          <a href={`/api/privacy/dsar/${req.id}/export?download=1`} target="_blank" rel="noreferrer" style={{ ...ghost(C.bl), textDecoration: "none", display: "inline-block" }}>⬇ Defensibility export</a>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const TABS = [
+  ["overview", "Overview"], ["identity", "Identity"], ["inventory", "Data inventory"], ["review", "Review"], ["delivery", "Delivery"],
+];
+
+export function DsarDetail({ requestId, onClose, onChanged }) {
+  const [req, setReq] = useState(null);
+  const [tab, setTab] = useState("overview");
+  const [me, setMe] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  const reload = useCallback(() => {
+    fetch(`/api/privacy/dsar/${requestId}`).then((r) => r.json()).then((d) => d.ok && setReq(d.request)).catch(() => {});
+    onChanged && onChanged();
+  }, [requestId, onChanged]);
+  useEffect(() => { reload(); fetch("/api/auth/current-user").then((r) => r.json()).then((d) => setMe(d.user || d)).catch(() => {}); }, [reload]);
+
+  const showToast = (msg, err) => { setToast({ msg, err }); setTimeout(() => setToast(null), 3500); };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(4,7,15,.72)", zIndex: 1100, display: "flex", justifyContent: "center", alignItems: "flex-start", padding: "4vh 16px", overflowY: "auto" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ fontFamily: F, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 10, width: "min(760px,100%)" }}>
+        {!req ? <div style={{ padding: 30, color: C.t4, fontFamily: M }}>Loading…</div> : (
+          <>
+            <div style={{ padding: "16px 20px", borderBottom: `1px solid ${C.br}` }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                <div>
+                  <div style={{ fontSize: 9.5, fontFamily: M, letterSpacing: 1.5, color: C.tl, textTransform: "uppercase" }}>{req.requestType} · {req.jurisdiction} · {req.regime}</div>
+                  <div style={{ fontSize: 19, fontFamily: SR, color: C.t1 }}>{req.requesterName}</div>
+                  {req.requesterEmail && <div style={{ fontSize: 11, color: C.t4, fontFamily: M }}>{req.requesterEmail}</div>}
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <span style={{ fontSize: 9, fontFamily: M, padding: "2px 8px", borderRadius: 4, color: STATUS_COLOR[req.status], border: `1px solid ${STATUS_COLOR[req.status]}55` }}>{req.status.replace(/_/g, " ")}</span>
+                  <div style={{ fontSize: 11, fontFamily: M, marginTop: 6, color: req.daysRemaining < 0 ? C.rd : C.t2 }}>{req.daysRemaining < 0 ? `${Math.abs(req.daysRemaining)}d overdue` : `${req.daysRemaining}d left`}{req.extended ? " ⤴" : ""}</div>
+                  <div onClick={onClose} style={{ cursor: "pointer", fontSize: 10, fontFamily: M, color: C.t3, marginTop: 6 }}>✕ CLOSE</div>
+                </div>
+              </div>
+              <div style={{ marginTop: 12 }}><Stepper status={req.status} /></div>
+              <div style={{ display: "flex", gap: 4 }}>
+                {TABS.map(([id, label]) => <div key={id} onClick={() => setTab(id)} style={{ padding: "6px 12px", fontSize: 10.5, fontFamily: M, letterSpacing: .5, cursor: "pointer", color: tab === id ? C.cy : C.t3, borderBottom: `2px solid ${tab === id ? C.cy : "transparent"}` }}>{label}</div>)}
+              </div>
+            </div>
+            <div style={{ padding: "16px 20px" }}>
+              {toast && <div style={{ marginBottom: 10, fontSize: 11, fontFamily: M, color: toast.err ? C.rd : C.gn }}>{toast.err ? "⚠ " : "✓ "}{toast.msg}</div>}
+              {tab === "overview" && <OverviewTab req={req} me={me} reload={reload} toast={showToast} />}
+              {tab === "identity" && <IdentityTab req={req} reload={reload} toast={showToast} />}
+              {tab === "inventory" && <InventoryTab req={req} reload={reload} toast={showToast} />}
+              {tab === "review" && <ReviewTab req={req} reload={reload} toast={showToast} />}
+              {tab === "delivery" && <DeliveryTab req={req} reload={reload} toast={showToast} />}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}

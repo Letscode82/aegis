@@ -483,6 +483,12 @@ export async function listHoldEvents(holdId: string, limit?: number) {
 export async function getCustodianHoldView(holdId: string, personId: string) {
   return LegalHoldServices.getCustodianHoldViewService(holdId, personId);
 }
+/** Active preservation obligations on one person — the cross-module check the
+ *  Privacy module's DSAR erasure-conflict guard calls. */
+export async function listActiveHoldsForPerson(organizationId: string, personId: string) {
+  return LegalHoldServices.listActiveHoldsForPersonService(organizationId, personId);
+}
+export type { ActiveHoldForPerson } from "./src/internal/legal-hold/services/reads";
 export async function getHoldWorkspaceSummary(holdId: string) {
   return LegalHoldServices.getHoldWorkspaceSummaryService(holdId);
 }
