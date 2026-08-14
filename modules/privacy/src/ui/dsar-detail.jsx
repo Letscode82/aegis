@@ -146,31 +146,64 @@ function InventoryTab({ req, reload, toast }) {
   );
 }
 
+const SOURCE_LABEL = { MAILBOX: "Mailbox", ONEDRIVE: "OneDrive", TEAMS: "Teams", SHAREPOINT: "SharePoint" };
+
 function M365CollectPanel({ req, onCollected, toast }) {
   const [status, setStatus] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [sources, setSources] = useState({ MAILBOX: true, ONEDRIVE: true, TEAMS: true, SHAREPOINT: false });
+  const [preview, setPreview] = useState(null);
   useEffect(() => { fetch(`/api/privacy/dsar/${req.id}/collect`).then((r) => r.json()).then((d) => d.ok && setStatus(d.status)).catch(() => {}); }, [req.id]);
+  const selected = Object.keys(sources).filter((k) => sources[k]);
+  const toggle = (k) => setSources((s) => ({ ...s, [k]: !s[k] }));
+
+  const runPreview = async () => {
+    setBusy(true); setPreview(null);
+    try {
+      const d = await api(`/api/privacy/dsar/${req.id}/collect`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ preview: true, sources: selected }) });
+      setPreview(d.preview);
+    } catch (e) { toast(String(e.message || e), true); } finally { setBusy(false); }
+  };
   const collect = async () => {
     setBusy(true);
     try {
-      const d = await api(`/api/privacy/dsar/${req.id}/collect`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
-      toast(`Collected ${d.added} record(s)${d.duplicates ? `, ${d.duplicates} already present` : ""}${d.simulated ? " (simulated — no tenant connected)" : " from Microsoft 365"}`);
-      onCollected();
+      const d = await api(`/api/privacy/dsar/${req.id}/collect`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sources: selected }) });
+      toast(`Collected ${d.added} record(s)${d.duplicates ? `, ${d.duplicates} already present` : ""}${d.simulated ? " (simulated)" : " from Microsoft 365"}`);
+      setPreview(null); onCollected();
     } catch (e) { toast(String(e.message || e), true); } finally { setBusy(false); }
   };
   const connected = status?.mode === "real" && status?.configured;
   return (
     <div style={{ ...card, borderLeft: `3px solid ${connected ? C.gn : C.am}` }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-        <div>
-          <div style={{ fontSize: 12.5, color: C.t1, fontWeight: 600 }}>⚡ Search Microsoft 365 (E5 / Purview)</div>
-          <div style={{ fontSize: 10.5, fontFamily: M, color: connected ? C.gn : C.am, marginTop: 3 }}>
-            {status == null ? "Checking connection…" : connected ? `Connected · tenant ${status.tenantIdMasked || "—"}` : "No tenant connected — search runs in simulation. Connect at /admin/m365."}
-          </div>
-        </div>
-        <button disabled={busy} onClick={collect} style={btn(C.tl)}>{busy ? "Searching…" : "Search & collect"}</button>
+      <div style={{ fontSize: 12.5, color: C.t1, fontWeight: 600 }}>⚡ Search Microsoft 365 (E5 / Purview)</div>
+      <div style={{ fontSize: 10.5, fontFamily: M, color: connected ? C.gn : C.am, marginTop: 3, marginBottom: 8 }}>
+        {status == null ? "Checking connection…" : connected ? `Connected · tenant ${status.tenantIdMasked || "—"}` : "No tenant connected — search runs in simulation. Connect at /admin/m365."}
       </div>
-      <div style={{ fontSize: 10, color: C.t4, fontFamily: M, marginTop: 8 }}>Sweeps the data subject's identifiers across mailboxes, OneDrive and Teams; hits land in the review queue below for AI relevance + human validation.</div>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+        {Object.keys(SOURCE_LABEL).map((k) => (
+          <button key={k} onClick={() => toggle(k)} style={sources[k] ? btn(C.tl) : ghost(C.t3)}>{SOURCE_LABEL[k]}</button>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 8 }}>
+        <button disabled={busy || selected.length === 0} onClick={runPreview} style={ghost(C.bl)}>{busy && !preview ? "Searching…" : "Preview"}</button>
+        <button disabled={busy || selected.length === 0} onClick={collect} style={btn(C.tl)}>{busy ? "…" : "Search & collect"}</button>
+      </div>
+      {preview && (
+        <div style={{ marginTop: 10, padding: "10px 12px", background: C.bg, border: `1px solid ${C.br}`, borderRadius: 6 }}>
+          <div style={{ fontSize: 11, fontFamily: M, color: C.t2 }}>{preview.total} hit(s) · <b style={{ color: C.gn }}>{preview.fresh} new</b>{preview.duplicates ? ` · ${preview.duplicates} already in queue` : ""}{preview.simulated ? " · simulated" : ""}</div>
+          <div style={{ marginTop: 6 }}>
+            {preview.bySource.length === 0 ? <div style={{ fontSize: 11, color: C.t4 }}>No hits for the selected sources.</div>
+              : preview.bySource.map((b) => (
+                <div key={b.sourceType} style={{ padding: "5px 0", borderTop: `1px solid ${C.br}22` }}>
+                  <div style={{ fontSize: 11, color: C.t1 }}><b>{SOURCE_LABEL[b.sourceType]}</b> — {b.total} hit(s), {b.fresh} new</div>
+                  {b.samples.map((s, i) => <div key={i} style={{ fontSize: 10, color: C.t4, fontFamily: M, paddingLeft: 8 }}>· {s}</div>)}
+                </div>
+              ))}
+          </div>
+          {preview.fresh > 0 && <button disabled={busy} onClick={collect} style={{ ...btn(C.gn), marginTop: 8 }}>Collect {preview.fresh} new →</button>}
+        </div>
+      )}
+      <div style={{ fontSize: 10, color: C.t4, fontFamily: M, marginTop: 8 }}>Sweeps the data subject's identifiers across the selected sources; hits land in the review queue below for AI relevance + human validation.</div>
     </div>
   );
 }

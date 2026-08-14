@@ -32,6 +32,53 @@ export function collectionKey(sourceSystem: string, title: string): string {
   return `${sourceSystem} ${title}`.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+export const ALL_SOURCE_TYPES: DataSubjectSourceType[] = ["MAILBOX", "ONEDRIVE", "TEAMS", "SHAREPOINT"];
+
+interface HitLike { sourceType: DataSubjectSourceType; sourceSystem: string; title: string; excerpt?: string | null }
+
+export interface SourceBucket {
+  sourceType: DataSubjectSourceType;
+  total: number;
+  fresh: number; // not already in the review queue
+  samples: string[];
+}
+
+export interface CollectionPreview {
+  total: number;
+  fresh: number;
+  duplicates: number;
+  bySource: SourceBucket[];
+  simulated: boolean;
+  searchedAt: string;
+}
+
+/**
+ * Pure "Collect & Cull" tally — buckets hits by source and marks how many are
+ * new vs. already in the queue, so the reviewer can preview before committing.
+ */
+export function summarizeHits(hits: HitLike[], existingKeys: Set<string>, simulated: boolean, searchedAt: string): CollectionPreview {
+  const buckets = new Map<DataSubjectSourceType, SourceBucket>();
+  let fresh = 0;
+  const seen = new Set(existingKeys);
+  for (const h of hits) {
+    let b = buckets.get(h.sourceType);
+    if (!b) { b = { sourceType: h.sourceType, total: 0, fresh: 0, samples: [] }; buckets.set(h.sourceType, b); }
+    b.total += 1;
+    const key = collectionKey(h.sourceSystem, h.title);
+    const isNew = !seen.has(key);
+    if (isNew) { seen.add(key); b.fresh += 1; fresh += 1; }
+    if (b.samples.length < 3) b.samples.push(h.title);
+  }
+  return {
+    total: hits.length,
+    fresh,
+    duplicates: hits.length - fresh,
+    bySource: ALL_SOURCE_TYPES.map((t) => buckets.get(t)).filter((b): b is SourceBucket => !!b),
+    simulated,
+    searchedAt,
+  };
+}
+
 /**
  * Run an M365 content search for the request's data subject and add the hits
  * to the review queue. Identifiers come from the requester Person (email +
@@ -84,6 +131,27 @@ export async function collectFromM365(organizationId: string, requestId: string,
   });
 
   return { searched: result.hits.length, added, duplicates, simulated: result.simulated };
+}
+
+/**
+ * Preview a collection without writing — runs the M365 search for the selected
+ * sources and returns per-source counts (total + how many are new), so the
+ * reviewer can cull before committing to the review queue.
+ */
+export async function previewM365Collection(organizationId: string, requestId: string, input: CollectFromM365Input): Promise<CollectionPreview> {
+  const req = await prisma.dataSubjectRequest.findFirst({
+    where: { id: requestId, organizationId },
+    include: { requesterPerson: { select: { name: true, email: true } } },
+  });
+  if (!req) throw new Error("Request not found");
+  const identifiers = [req.requesterPerson?.email].filter((s): s is string => !!s);
+  const displayName = req.requesterPerson?.name ?? null;
+  if (identifiers.length === 0 && !displayName) throw new Error("The data subject has no email or name to search on.");
+
+  const result = await searchM365ForDataSubject(organizationId, { identifiers, displayName, sources: input.sources, top: input.top });
+  const existing = await prisma.dSARReviewItem.findMany({ where: { requestId }, select: { sourceSystem: true, title: true } });
+  const keys = new Set(existing.map((e) => collectionKey(e.sourceSystem, e.title)));
+  return summarizeHits(result.hits, keys, result.simulated, result.searchedAt);
 }
 
 /** M365 connection status for the DSAR collection panel (passthrough). */

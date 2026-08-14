@@ -90,10 +90,15 @@ export {
 // M365 / Purview collection (connect to your E5 tenant + search the subject)
 export {
   collectFromM365,
+  previewM365Collection,
   getDsarM365Status,
   collectionKey,
+  summarizeHits,
+  ALL_SOURCE_TYPES,
   type CollectFromM365Input,
   type CollectFromM365Result,
+  type CollectionPreview,
+  type SourceBucket,
 } from "./src/internal/collection";
 
 // Deterministic relevance scorer (pure)
