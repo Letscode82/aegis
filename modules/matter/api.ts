@@ -719,6 +719,23 @@ export type {
 // AI mock client (sunset 4d)
 export { getHoldAIClient } from "./src/internal/legal-hold";
 
+// Hold → eDiscovery collection bridge (custodian-scoped Purview collection)
+export async function draftHoldCollectionQuery(holdId: string, naturalLanguage: string) {
+  return LegalHoldServices.draftHoldCollectionQuery(holdId, naturalLanguage);
+}
+export async function previewHoldCollection(
+  holdId: string,
+  input: LegalHoldServices.PreviewHoldCollectionInput,
+) {
+  return LegalHoldServices.previewHoldCollection(holdId, input);
+}
+export type {
+  HoldCollectionPreview,
+  HoldCollectionSourceBucket,
+  DraftHoldCollectionResult,
+  PreviewHoldCollectionInput,
+} from "./src/internal/legal-hold";
+
 // ── M365 connection management (sub-PR 4c) ─────────────────────────
 
 export {

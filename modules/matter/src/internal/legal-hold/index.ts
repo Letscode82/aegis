@@ -238,3 +238,14 @@ export type {
   ScoreComponent,
   UpdateNoticeTemplateInput,
 } from "./types";
+
+// Hold → eDiscovery collection bridge
+export {
+  draftHoldCollectionQuery,
+  previewHoldCollection,
+  summarizeCollectionBySource,
+  type DraftHoldCollectionResult,
+  type HoldCollectionPreview,
+  type HoldCollectionSourceBucket,
+  type PreviewHoldCollectionInput,
+} from "./services/hold-collection";

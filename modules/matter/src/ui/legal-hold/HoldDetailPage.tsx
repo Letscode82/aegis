@@ -27,6 +27,7 @@ import { DefensibilityRailCard } from "./DefensibilityRailCard";
 import { TimelineRailCard } from "./TimelineRailCard";
 import { TimelineFullStreamModal } from "./TimelineFullStreamModal";
 import { NoticesRailCard } from "./NoticesRailCard";
+import { CollectionRailCard } from "./CollectionRailCard";
 import { NoticeViewerModal } from "./NoticeViewerModal";
 import { TriggerEventDialog } from "./TriggerEventDialog";
 import { IssueHoldConfirmDialog } from "./IssueHoldConfirmDialog";
@@ -241,6 +242,11 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
         holdId={holdId}
         canMutate={canIssue}
         onOpenViewer={() => setNoticeViewerOpen(true)}
+      />
+      <CollectionRailCard
+        matterId={matterId}
+        holdId={holdId}
+        canMutate={canIssue}
       />
     </>
   );
