@@ -6,6 +6,7 @@ import { ApprovalWizard } from "./approval-wizard.jsx";
 import { ContractCommentsPanel } from "./contract-comments-panel.jsx";
 import { ReviewAssessmentPanel } from "./review-assessment-panel.jsx";
 import { ESignaturePanel } from "./esignature-panel.jsx";
+import { ContractGuidePanel } from "./contract-guide-panel.jsx";
 
 // ── Contract drill-in (CTR-1) ────────────────────────────────────────
 //
@@ -169,6 +170,11 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
             {/* 7-stage CLM lifecycle tracker (Phase CTR-7) */}
             <div style={{ padding: "14px 22px", borderBottom: `1px solid ${C.br}`, background: C.s1 }}>
               <ContractStageTracker status={c.status} />
+            </div>
+
+            {/* Guided execution checklist — what to do next to sign (CTR-17) */}
+            <div style={{ padding: "12px 18px 0" }}>
+              <ContractGuidePanel contractId={contractId} refreshKey={c.status} />
             </div>
 
             {/* Key terms — structured pricing / scope / term / parties (Phase 6b) */}

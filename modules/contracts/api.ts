@@ -90,6 +90,14 @@ export {
   type ReviewThirdPartyResult,
 } from "./src/internal/third-party";
 
+// Contract execution guide (CTR-17) — a live "what to do next to execute" checklist.
+export {
+  getContractGuide,
+  type ContractGuide,
+  type GuideStep,
+  type GuideStepState,
+} from "./src/internal/contract-guide";
+
 // Native e-signature (CTR-15) — tokenised signing links, real signing ceremony,
 // content-hash-bound signatures, auto-execute on completion.
 export {
