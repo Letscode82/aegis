@@ -54,21 +54,26 @@ like Legal Hold does:
   Purview)"** panel showing connection status (Connected / simulated) and a
   one-click **Search & collect** — mirroring the legal-hold M365 status UX.
 
-## Next phases (proposed order)
+## Next phases (progress)
 
-1. **DSAR polish (near-term).** Per-source scoping in the collect panel
-   (mailbox/OneDrive/Teams toggles), collection statistics preview before
-   commit, and "retrieve full item" from a hit's `graphId`/`webUrl`.
-2. **Legal Hold ↔ eDiscovery bridge.** Promote a hold's custodians into a
-   Purview eDiscovery (Premium) case + collection; reuse `searchForDataSubject`
-   generalized to `searchCollection(scope, kql)` (NL→KQL draft via `@aegis/ai`,
-   attorney-edited before it fires — the concept's "collection" gate).
-3. **Shared validation service.** Stratified sampling + recall/precision +
+1. ✅ **DSAR polish** — data-subject picker from the live M365/Entra directory
+   (#284), per-source toggles + collect-&-cull preview (#285), advanced NL→KeyQL
+   collection scope (#287). *("Retrieve full item" from a hit's `graphId` /
+   `webUrl` still open.)*
+2. ✅ **NL→KQL collection primitive** (#286) — `searchContent` + deterministic
+   `draftCollectionQuery`, the shared spine under DSAR and hold collections.
+3. ✅ **Legal Hold ↔ eDiscovery bridge** (#288) — a hold's custodians become the
+   `participants:` scope of a Purview content collection; NL→KeyQL draft +
+   preview counts in the hold-workspace Collection card. Preview-only so far.
+4. ⏳ **Shared validation service.** Stratified sampling + recall/precision +
    overturn tracking as a package both DSAR review and eDiscovery review call —
    the "meet-and-confer binder" / DSAR defensibility pack from one code path.
-4. **eDiscovery review console + production.** The keyboard-first reviewer
-   console and load-file/Bates production — the Investigations/Matter surface,
-   built on the same review-item + AgentDecision spine.
+5. ⏳ **Persisted review sets + eDiscovery review console + production.** A
+   collection persists a review set (schema), the keyboard-first reviewer
+   console codes it (agentic first pass + human gate), and load-file/Bates
+   production + AI-drafted privilege log close it — the Investigations surface,
+   on the same review-item + AgentDecision spine. AI drafting for NL→KQL and
+   first-pass tagging unfreezes with 4d.
 
 Every phase keeps the non-negotiables: attorney gates (`AgentDecision`),
 chain-sealed audit, AI-degrades-to-deterministic, and data staying in Purview
