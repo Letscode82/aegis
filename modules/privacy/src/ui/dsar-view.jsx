@@ -24,6 +24,43 @@ function Stat({ label, value, color }) {
   );
 }
 
+function DirectoryPicker({ onPick }) {
+  const [q, setQ] = useState("");
+  const [rows, setRows] = useState(null);
+  const [sim, setSim] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const search = async () => {
+    if (!q.trim()) return;
+    setBusy(true);
+    try {
+      const r = await fetch(`/api/privacy/dsar/directory?q=${encodeURIComponent(q)}`);
+      const d = await r.json();
+      if (d.ok) { setRows(d.users); setSim(d.simulated); }
+    } catch { /* ignore */ } finally { setBusy(false); }
+  };
+  return (
+    <div style={{ marginBottom: 12, padding: "9px 11px", background: C.s1, borderRadius: 6, border: `1px solid ${C.tl}44` }}>
+      <div style={{ ...lbl, color: C.tl }}>🔍 Search your Microsoft 365 directory</div>
+      <div style={{ display: "flex", gap: 6 }}>
+        <input value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), search())} placeholder="Name or email…" style={{ ...input, flex: 1 }} />
+        <button type="button" disabled={busy} onClick={search} style={btn(C.tl)}>{busy ? "…" : "Search"}</button>
+      </div>
+      {rows && (
+        <div style={{ marginTop: 8, maxHeight: 160, overflowY: "auto" }}>
+          {rows.length === 0 ? <div style={{ fontSize: 11, color: C.t4, fontFamily: M }}>No matching users.</div>
+            : rows.map((u) => (
+              <div key={u.id} onClick={() => onPick(u)} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "6px 8px", borderRadius: 5, cursor: "pointer", alignItems: "center" }} onMouseEnter={(e) => (e.currentTarget.style.background = C.cd)} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+                <div style={{ minWidth: 0 }}><div style={{ fontSize: 12, color: C.t1 }}>{u.name}</div><div style={{ fontSize: 9.5, color: C.t4, fontFamily: M }}>{u.email}{u.title ? ` · ${u.title}` : ""}</div></div>
+                <span style={{ fontSize: 9, fontFamily: M, color: C.tl }}>Use →</span>
+              </div>
+            ))}
+          {sim && <div style={{ fontSize: 9, color: C.am, fontFamily: M, marginTop: 4 }}>⚠ Simulated — no tenant connected. Connect at /admin/m365 to search live users.</div>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CreateDialog({ onClose, onCreated }) {
   const [f, setF] = useState({ requestType: "ACCESS", jurisdiction: "EU", requesterName: "", requesterEmail: "", relevanceCriteria: "", subjectSummary: "" });
   const [busy, setBusy] = useState(false); const [error, setError] = useState(null);
@@ -42,6 +79,7 @@ function CreateDialog({ onClose, onCreated }) {
         <div style={{ fontSize: 10, fontFamily: M, letterSpacing: 2, color: C.tl, textTransform: "uppercase" }}>New DSAR</div>
         <div style={{ fontSize: 18, fontFamily: SR, color: C.t1, marginBottom: 14 }}>File a data subject request</div>
         {error && <div style={{ color: C.rd, fontFamily: M, fontSize: 11, marginBottom: 10 }}>⚠ {error}</div>}
+        <DirectoryPicker onPick={(u) => setF((s) => ({ ...s, requesterName: u.name, requesterEmail: u.email }))} />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
           <div><div style={lbl}>Request type</div><select value={f.requestType} onChange={upd("requestType")} style={input}>{Object.keys(TYPE_LABEL).map((k) => <option key={k} value={k}>{TYPE_LABEL[k]}</option>)}</select></div>
           <div><div style={lbl}>Jurisdiction</div><input value={f.jurisdiction} onChange={upd("jurisdiction")} placeholder="EU / US-CA / …" style={input} /></div>
