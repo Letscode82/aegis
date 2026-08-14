@@ -298,6 +298,9 @@ importers:
       '@aegis/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@aegis/validation':
+        specifier: workspace:*
+        version: link:../../packages/validation
       react:
         specifier: ^18.3.1
         version: 18.3.1
@@ -554,6 +557,24 @@ importers:
       typescript:
         specifier: 5.6.3
         version: 5.6.3
+
+  packages/validation:
+    devDependencies:
+      '@aegis/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@types/node':
+        specifier: ^20.17.9
+        version: 20.19.39
+      eslint:
+        specifier: ^8.57.1
+        version: 8.57.1
+      typescript:
+        specifier: 5.6.3
+        version: 5.6.3
+      vitest:
+        specifier: 1.6.1
+        version: 1.6.1(@types/node@20.19.39)
 
   packages/workflow:
     dependencies:
