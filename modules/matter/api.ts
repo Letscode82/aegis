@@ -780,11 +780,31 @@ export async function searchM365ForDataSubject(
   return client.searchForDataSubject(input);
 }
 export type {
+  ContentSearchInput,
   DataSubjectSearchInput,
   DataSubjectSearchResult,
   DataSubjectHit,
   DataSubjectSourceType,
 } from "./src/internal/services/m365";
+
+// Scoped content collection — the shared eDiscovery/DSAR primitive. Run a
+// KQL/KeyQL query across the tenant through the same per-org factory.
+export async function searchM365Content(
+  organizationId: string,
+  input: import("./src/internal/services/m365").ContentSearchInput,
+) {
+  const client = await resolveM365Client(organizationId);
+  return client.searchContent(input);
+}
+
+// NL → KQL/KeyQL query drafting (deterministic; attorney edits before firing).
+export {
+  draftCollectionQuery,
+  buildKql,
+  extractKeywords,
+  type DraftCollectionQueryInput,
+  type DraftedCollectionQuery,
+} from "./src/internal/services/collection-query";
 
 // Live M365 / Entra directory user search — the same Graph `/users` lookup the
 // legal-hold custodian picker uses, exposed so other modules (Privacy's DSAR
