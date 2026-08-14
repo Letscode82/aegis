@@ -28,6 +28,19 @@ export function TemplatesModal({ canManage, onClose }) {
   const [expanded, setExpanded] = useState(null);
   const [aiInstr, setAiInstr] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
+  const [seedBusy, setSeedBusy] = useState(false);
+  const [notice, setNotice] = useState(null);
+
+  const seedSamples = async () => {
+    setSeedBusy(true); setError(null); setNotice(null);
+    try {
+      const r = await fetch("/api/contracts/seed-templates", { method: "POST" });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setNotice(`Seeded ${d.seeded} sample template${d.seeded === 1 ? "" : "s"} (${(d.templates || []).map((t) => t.name).join(", ")}).`);
+      load();
+    } catch (e) { setError(String(e.message || e)); } finally { setSeedBusy(false); }
+  };
 
   const generate = async () => {
     setAiBusy(true); setError(null);
@@ -82,6 +95,7 @@ export function TemplatesModal({ canManage, onClose }) {
             <div style={{ fontSize: 17, fontFamily: SR, color: C.t1 }}>Template store</div>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
+            {canManage && editing === null && <button disabled={seedBusy} onClick={seedSamples} title="Add the built-in MSA + mutual-NDA templates (idempotent)" style={{ ...ghost(C.tl), opacity: seedBusy ? .6 : 1 }}>{seedBusy ? "Seeding…" : "⤵ Seed samples"}</button>}
             {canManage && editing === null && <button onClick={startNew} style={btn(C.cy)}>+ Template</button>}
             <div onClick={onClose} style={{ cursor: "pointer", fontSize: 10, fontFamily: M, color: C.t3, letterSpacing: 1, alignSelf: "center" }}>✕ CLOSE</div>
           </div>
@@ -89,6 +103,7 @@ export function TemplatesModal({ canManage, onClose }) {
 
         <div style={{ padding: "14px 18px" }}>
           {error && <div style={{ color: C.rd, fontFamily: M, fontSize: 11, marginBottom: 10 }}>⚠ {error}</div>}
+          {notice && <div style={{ color: C.gn, fontFamily: M, fontSize: 11, marginBottom: 10 }}>✓ {notice}</div>}
           <div style={{ fontSize: 10, color: C.t4, fontFamily: M, marginBottom: 12 }}>Use <b style={{ color: C.t3 }}>{"{{variable}}"}</b> placeholders (e.g. {"{{counterparty}}"}, {"{{term}}"}) — the agents fill them when drafting.</div>
 
           {editing !== null && (
