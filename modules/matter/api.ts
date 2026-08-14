@@ -253,6 +253,7 @@ export async function getWorkloadReport(
 
 import * as LegalHoldServices from "./src/internal/legal-hold";
 import { getM365ClientForOrg as resolveM365Client } from "./src/internal/services/m365-factory";
+import { getM365ConnectionStatus as resolveM365Status } from "./src/internal/services/m365-graph-auth";
 
 export type {
   AcknowledgeHoldInput,
@@ -784,6 +785,33 @@ export type {
   DataSubjectHit,
   DataSubjectSourceType,
 } from "./src/internal/services/m365";
+
+// Live M365 / Entra directory user search — the same Graph `/users` lookup the
+// legal-hold custodian picker uses, exposed so other modules (Privacy's DSAR
+// data-subject picker) can select a real tenant user. Reuses discoverCustodians.
+export interface M365DirectoryUser {
+  id: string;
+  name: string;
+  email: string;
+  department: string | null;
+  title: string | null;
+}
+export async function searchM365DirectoryUsers(
+  organizationId: string,
+  input: { query: string; matterId?: string },
+): Promise<{ users: M365DirectoryUser[]; simulated: boolean }> {
+  const query = (input.query || "").trim();
+  if (!query) return { users: [], simulated: true };
+  const client = await resolveM365Client(organizationId);
+  const [candidates, status] = await Promise.all([
+    client.discoverCustodians({ description: query, matterId: input.matterId }),
+    resolveM365Status(organizationId).catch(() => ({ mode: "mock" as const })),
+  ]);
+  // Real mode: discoverCustodians already applied a Graph startswith filter on
+  // the query. Mock mode: returns a representative roster so the picker demos.
+  const users = candidates.map((c) => ({ id: c.externalIdentifier, name: c.name, email: c.email, department: c.department ?? null, title: c.title ?? null }));
+  return { users, simulated: status.mode !== "real" };
+}
 
 // ── M365 mailbox access (Intake P4b) ──────────────────────────────
 // Intake reaches Graph mail through these (never its own client).
