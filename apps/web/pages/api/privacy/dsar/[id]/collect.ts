@@ -7,7 +7,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
-import { collectFromM365, previewM365Collection, getDsarM365Status } from "@aegis/privacy";
+import { collectFromM365, previewM365Collection, draftDsarCollectionQuery, getDsarM365Status } from "@aegis/privacy";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const user = await getResolvedUser(req, res);
@@ -21,13 +21,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
     if (req.method === "POST") {
       const b = req.body ?? {};
+      if (b.draft) {
+        assertUserCanDo(user, Permission.PrivacyDsarRead);
+        const drafted = await draftDsarCollectionQuery(user.organizationId, id, String(b.naturalLanguage || ""));
+        return res.status(200).json({ ok: true, ...drafted });
+      }
       if (b.preview) {
         assertUserCanDo(user, Permission.PrivacyDsarRead);
-        const preview = await previewM365Collection(user.organizationId, id, { sources: b.sources, top: b.top });
+        const preview = await previewM365Collection(user.organizationId, id, { sources: b.sources, top: b.top, queryString: b.queryString });
         return res.status(200).json({ ok: true, preview });
       }
       assertUserCanDo(user, Permission.PrivacyDsarFulfill);
-      const result = await collectFromM365(user.organizationId, id, { sources: b.sources, top: b.top }, { id: user.id, type: "USER" });
+      const result = await collectFromM365(user.organizationId, id, { sources: b.sources, top: b.top, queryString: b.queryString }, { id: user.id, type: "USER" });
       return res.status(200).json({ ok: true, ...result });
     }
     res.setHeader("Allow", "GET, POST");
