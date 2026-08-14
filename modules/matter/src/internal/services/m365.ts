@@ -115,6 +115,43 @@ export interface EnumerateSharePointSitesInput {
   recommendKeywords?: readonly string[];
 }
 
+/**
+ * Purview / Microsoft 365 content search for a data subject (DSAR collection).
+ * Mirrors the eDiscovery search step — an identifier-scoped sweep across the
+ * tenant's mailboxes, drives, and chats that returns candidate records for
+ * review. The Privacy module feeds each hit into its AI relevance review.
+ */
+export interface DataSubjectSearchInput {
+  /** Subject identifiers to search on (emails / UPNs / names). */
+  identifiers: string[];
+  /** Display name, used for name-match hits when no email is present. */
+  displayName?: string | null;
+  /** Which source types to sweep. Defaults to mailbox + onedrive + teams. */
+  sources?: DataSubjectSourceType[];
+  /** Max hits to return (best-effort). */
+  top?: number;
+}
+
+export type DataSubjectSourceType = "MAILBOX" | "ONEDRIVE" | "TEAMS" | "SHAREPOINT";
+
+export interface DataSubjectHit {
+  sourceType: DataSubjectSourceType;
+  /** Human-readable source label, e.g. "Exchange · alex@contoso.com". */
+  sourceSystem: string;
+  title: string;
+  excerpt: string | null;
+  /** Native Graph id + web URL when available (for later retrieval). */
+  graphId: string | null;
+  webUrl: string | null;
+}
+
+export interface DataSubjectSearchResult {
+  hits: DataSubjectHit[];
+  /** True when the sweep ran against the mock (no tenant connected). */
+  simulated: boolean;
+  searchedAt: string;
+}
+
 export interface ApplyPreservationInput {
   custodianExternalIdentifier: string;
   dataSourceExternalIdentifier: string;
@@ -178,6 +215,13 @@ export interface M365Client {
   enumerateSharePointSitesForUser(
     input: EnumerateSharePointSitesInput,
   ): Promise<SharePointSiteCandidate[]>;
+
+  /** DSAR collection — Purview/Graph content search for a data subject across
+   *  the tenant. App-only (Microsoft Search honors application permissions).
+   *  Returns candidate records for the Privacy module's relevance review. */
+  searchForDataSubject(
+    input: DataSubjectSearchInput,
+  ): Promise<DataSubjectSearchResult>;
 }
 
 /**
@@ -351,4 +395,31 @@ export class MockM365Client implements M365Client {
       },
     ];
   }
+
+  async searchForDataSubject(
+    input: DataSubjectSearchInput,
+  ): Promise<DataSubjectSearchResult> {
+    // Deterministic mock — a representative cross-source hit set derived from
+    // the subject's identifiers, so the DSAR review queue has realistic
+    // content in CI / no-tenant dev. The real client runs Microsoft Search.
+    const id = (input.identifiers[0] || input.displayName || "subject").trim();
+    const name = (input.displayName || id).trim();
+    const sources = input.sources ?? ["MAILBOX", "ONEDRIVE", "TEAMS"];
+    const all: DataSubjectHit[] = [
+      { sourceType: "MAILBOX", sourceSystem: `Exchange · ${id}`, title: `Re: account update — ${name}`, excerpt: `Message thread referencing ${id}; contains contact details and preferences.`, graphId: `msg-${hashish(id)}-1`, webUrl: null },
+      { sourceType: "MAILBOX", sourceSystem: `Exchange · ${id}`, title: `Marketing consent confirmation`, excerpt: `${id} confirmed opt-in to the product newsletter.`, graphId: `msg-${hashish(id)}-2`, webUrl: null },
+      { sourceType: "ONEDRIVE", sourceSystem: `OneDrive · ${id}`, title: `Customer_profile_${name.replace(/\s+/g, "_")}.xlsx`, excerpt: `Spreadsheet row for ${name} with address and order history.`, graphId: `drv-${hashish(id)}-1`, webUrl: `https://contoso-my.sharepoint.com/personal/${encodeURIComponent(id)}` },
+      { sourceType: "TEAMS", sourceSystem: `Teams · Support`, title: `Support chat mentioning ${name}`, excerpt: `Agent discussed a ticket raised by ${name}.`, graphId: `tm-${hashish(id)}-1`, webUrl: null },
+      { sourceType: "SHAREPOINT", sourceSystem: `SharePoint · CRM`, title: `Nightly backup manifest`, excerpt: `System log — no personal data of ${name}.`, graphId: `sp-${hashish(id)}-1`, webUrl: null },
+    ];
+    const hits = all.filter((h) => sources.includes(h.sourceType)).slice(0, input.top ?? 25);
+    return { hits, simulated: true, searchedAt: new Date().toISOString() };
+  }
+}
+
+/** Tiny deterministic id suffix so mock hits are stable across runs. */
+function hashish(s: string): string {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) & 0xffff;
+  return h.toString(16).padStart(4, "0");
 }

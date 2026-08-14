@@ -252,6 +252,7 @@ export async function getWorkloadReport(
 // ── Legal Hold (sub-PR 4b) ─────────────────────────────────────────
 
 import * as LegalHoldServices from "./src/internal/legal-hold";
+import { getM365ClientForOrg as resolveM365Client } from "./src/internal/services/m365-factory";
 
 export type {
   AcknowledgeHoldInput,
@@ -766,6 +767,23 @@ export type {
 } from "./src/internal/services/m365-graph-types";
 
 export { getM365ClientForOrg } from "./src/internal/services/m365-factory";
+
+// DSAR collection — Purview/Graph content search for a data subject, routed
+// through the same per-org factory the legal-hold flow uses. The Privacy
+// module calls this (never the internals) to populate its review queue.
+export async function searchM365ForDataSubject(
+  organizationId: string,
+  input: import("./src/internal/services/m365").DataSubjectSearchInput,
+) {
+  const client = await resolveM365Client(organizationId);
+  return client.searchForDataSubject(input);
+}
+export type {
+  DataSubjectSearchInput,
+  DataSubjectSearchResult,
+  DataSubjectHit,
+  DataSubjectSourceType,
+} from "./src/internal/services/m365";
 
 // ── M365 mailbox access (Intake P4b) ──────────────────────────────
 // Intake reaches Graph mail through these (never its own client).
