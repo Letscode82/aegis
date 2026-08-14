@@ -26,6 +26,7 @@ import { prisma, logAudit } from "@aegis/db";
 import type { RenewalDecision } from "@aegis/db";
 import { addMonths } from "./recurrence";
 import { createObligation, updateObligationStatus } from "./service";
+import { sendContractRenewalNotice } from "./notify";
 
 const DAY_MS = 86_400_000;
 const LIVE_STATUSES = ["ACTIVE", "EXECUTED"] as const;
@@ -335,7 +336,10 @@ export async function recordRenewalDecision(
  * separate surface — this records the defensible fact that notice was given.
  */
 export async function markRenewalNoticeSent(organizationId: string, contractId: string, actor: Actor) {
-  const existing = await prisma.contract.findFirst({ where: { id: contractId, organizationId }, select: { id: true } });
+  const existing = await prisma.contract.findFirst({
+    where: { id: contractId, organizationId },
+    select: { id: true, title: true, expiryDate: true, counterpartyId: true, counterparty: { select: { name: true } } },
+  });
   if (!existing) throw new Error("Contract not found");
   const now = new Date();
 
@@ -343,6 +347,31 @@ export async function markRenewalNoticeSent(organizationId: string, contractId: 
     where: { id: contractId },
     data: { renewalNoticeSentAt: now },
   });
+
+  // Real delivery to the counterparty's contacts — best-effort, chain-sealed
+  // inside notify. Recording the notice fact (below) is independent of whether
+  // email is configured, so defensibility holds even with no mailer.
+  const contacts = existing.counterpartyId
+    ? await prisma.person.findMany({
+        where: { organizationId, type: "COUNTERPARTY_CONTACT", email: { not: null } },
+        select: { email: true, metadata: true },
+      })
+    : [];
+  const to = contacts
+    .filter((p) => (p.metadata as { counterpartyId?: string } | null)?.counterpartyId === existing.counterpartyId)
+    .map((p) => p.email)
+    .filter((e): e is string => !!e);
+  if (to.length > 0) {
+    await sendContractRenewalNotice({
+      organizationId,
+      contractId,
+      to,
+      contractTitle: existing.title,
+      counterpartyName: existing.counterparty?.name ?? null,
+      expiryDate: existing.expiryDate?.toISOString() ?? null,
+      actor,
+    }).catch(() => {});
+  }
 
   await logAudit({
     organizationId,

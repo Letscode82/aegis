@@ -16,6 +16,7 @@ import { randomBytes } from "node:crypto";
 import { prisma, logAudit, sha256Hex } from "@aegis/db";
 import { getContractDetail, type ContractDetail } from "./reads";
 import { addExternalContractComment, listContractComments, type ContractCommentDTO } from "./comments";
+import { sendContractReviewInvite } from "./notify";
 
 const DEFAULT_EXPIRY_DAYS = 14;
 
@@ -116,9 +117,12 @@ export async function mintContractReviewToken(
   opts: { expiresInDays?: number },
   actor: Actor,
 ): Promise<MintedReviewToken> {
-  const contract = await prisma.contract.findFirst({ where: { id: contractId, organizationId }, select: { id: true, title: true } });
+  const contract = await prisma.contract.findFirst({
+    where: { id: contractId, organizationId },
+    select: { id: true, title: true, counterparty: { select: { name: true } } },
+  });
   if (!contract) throw new Error("Contract not found");
-  const person = await prisma.person.findFirst({ where: { id: personId, organizationId }, select: { id: true, name: true } });
+  const person = await prisma.person.findFirst({ where: { id: personId, organizationId }, select: { id: true, name: true, email: true } });
   if (!person) throw new Error("Counterparty contact not found");
 
   const rawToken = generateRawToken();
@@ -141,7 +145,24 @@ export async function mintContractReviewToken(
     metadata: { source: "contracts", tokenId: row.id } as never,
   });
 
-  return { id: row.id, rawToken, url: reviewUrl(rawToken), expiresAt: expiresAt.toISOString() };
+  const url = reviewUrl(rawToken);
+
+  // Real delivery — best-effort, chain-sealed inside notify. A mail failure
+  // (or no configured provider) never fails the mint; the link is still
+  // returned for the attorney to share manually.
+  await sendContractReviewInvite({
+    organizationId,
+    contractId,
+    to: person.email,
+    contractTitle: contract.title,
+    counterpartyName: contract.counterparty?.name ?? null,
+    reviewerName: person.name,
+    url,
+    expiresAt: expiresAt.toISOString(),
+    actor,
+  }).catch(() => {});
+
+  return { id: row.id, rawToken, url, expiresAt: expiresAt.toISOString() };
 }
 
 // ── Resolve (external, token-scoped) ─────────────────────────────────
