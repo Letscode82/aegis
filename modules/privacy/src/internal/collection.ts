@@ -12,12 +12,29 @@
  * real Microsoft Search runs. `simulated` tells the UI which happened.
  */
 import { prisma, logAudit } from "@aegis/db";
-import { searchM365ForDataSubject, getM365ConnectionStatus, type DataSubjectSourceType } from "@aegis/matter";
+import { searchM365ForDataSubject, searchM365Content, getM365ConnectionStatus, draftCollectionQuery, type DataSubjectSourceType } from "@aegis/matter";
 import type { Actor } from "./requests";
 
 export interface CollectFromM365Input {
   sources?: DataSubjectSourceType[];
   top?: number;
+  /** Optional attorney-supplied KQL/KeyQL override — widens beyond the
+   *  identity search (the "advanced collection" scope). */
+  queryString?: string | null;
+}
+
+/**
+ * Resolve the search for a request: an attorney KQL override runs a scoped
+ * content collection; otherwise the subject's identifiers drive the sweep.
+ */
+async function runSearch(
+  organizationId: string,
+  subject: { identifiers: string[]; displayName: string | null },
+  input: CollectFromM365Input,
+) {
+  const qs = (input.queryString || "").trim();
+  if (qs) return searchM365Content(organizationId, { queryString: qs, sources: input.sources, top: input.top });
+  return searchM365ForDataSubject(organizationId, { identifiers: subject.identifiers, displayName: subject.displayName, sources: input.sources, top: input.top });
 }
 
 export interface CollectFromM365Result {
@@ -93,14 +110,9 @@ export async function collectFromM365(organizationId: string, requestId: string,
 
   const identifiers = [req.requesterPerson?.email].filter((s): s is string => !!s);
   const displayName = req.requesterPerson?.name ?? null;
-  if (identifiers.length === 0 && !displayName) throw new Error("The data subject has no email or name to search on.");
+  if (identifiers.length === 0 && !displayName && !(input.queryString || "").trim()) throw new Error("The data subject has no email or name to search on.");
 
-  const result = await searchM365ForDataSubject(organizationId, {
-    identifiers,
-    displayName,
-    sources: input.sources,
-    top: input.top,
-  });
+  const result = await runSearch(organizationId, { identifiers, displayName }, input);
 
   // Dedupe against existing review items for this request.
   const existing = await prisma.dSARReviewItem.findMany({ where: { requestId }, select: { sourceSystem: true, title: true } });
@@ -146,12 +158,30 @@ export async function previewM365Collection(organizationId: string, requestId: s
   if (!req) throw new Error("Request not found");
   const identifiers = [req.requesterPerson?.email].filter((s): s is string => !!s);
   const displayName = req.requesterPerson?.name ?? null;
-  if (identifiers.length === 0 && !displayName) throw new Error("The data subject has no email or name to search on.");
+  if (identifiers.length === 0 && !displayName && !(input.queryString || "").trim()) throw new Error("The data subject has no email or name to search on.");
 
-  const result = await searchM365ForDataSubject(organizationId, { identifiers, displayName, sources: input.sources, top: input.top });
+  const result = await runSearch(organizationId, { identifiers, displayName }, input);
   const existing = await prisma.dSARReviewItem.findMany({ where: { requestId }, select: { sourceSystem: true, title: true } });
   const keys = new Set(existing.map((e) => collectionKey(e.sourceSystem, e.title)));
   return summarizeHits(result.hits, keys, result.simulated, result.searchedAt);
+}
+
+export interface DraftDsarQueryResult {
+  queryString: string;
+  rationale: string;
+}
+
+/**
+ * Draft a KQL/KeyQL collection query for a DSAR from a plain-language ask,
+ * seeded with the data subject's email as a participant scope. Deterministic
+ * (the matter drafter); the attorney edits before running.
+ */
+export async function draftDsarCollectionQuery(organizationId: string, requestId: string, naturalLanguage: string): Promise<DraftDsarQueryResult> {
+  const req = await prisma.dataSubjectRequest.findFirst({ where: { id: requestId, organizationId }, include: { requesterPerson: { select: { email: true } } } });
+  if (!req) throw new Error("Request not found");
+  const email = req.requesterPerson?.email ?? null;
+  const drafted = draftCollectionQuery({ naturalLanguage, custodianEmails: email ? [email] : [] });
+  return { queryString: drafted.queryString, rationale: drafted.rationale };
 }
 
 /** M365 connection status for the DSAR collection panel (passthrough). */

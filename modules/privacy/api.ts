@@ -91,6 +91,7 @@ export {
 export {
   collectFromM365,
   previewM365Collection,
+  draftDsarCollectionQuery,
   getDsarM365Status,
   collectionKey,
   summarizeHits,
@@ -99,6 +100,7 @@ export {
   type CollectFromM365Result,
   type CollectionPreview,
   type SourceBucket,
+  type DraftDsarQueryResult,
 } from "./src/internal/collection";
 
 // Deterministic relevance scorer (pure)

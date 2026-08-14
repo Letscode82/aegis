@@ -153,21 +153,33 @@ function M365CollectPanel({ req, onCollected, toast }) {
   const [busy, setBusy] = useState(false);
   const [sources, setSources] = useState({ MAILBOX: true, ONEDRIVE: true, TEAMS: true, SHAREPOINT: false });
   const [preview, setPreview] = useState(null);
+  const [adv, setAdv] = useState(false);
+  const [nl, setNl] = useState("");
+  const [kql, setKql] = useState("");
   useEffect(() => { fetch(`/api/privacy/dsar/${req.id}/collect`).then((r) => r.json()).then((d) => d.ok && setStatus(d.status)).catch(() => {}); }, [req.id]);
   const selected = Object.keys(sources).filter((k) => sources[k]);
   const toggle = (k) => setSources((s) => ({ ...s, [k]: !s[k] }));
+  const queryString = adv && kql.trim() ? kql.trim() : undefined;
 
+  const draft = async () => {
+    if (!nl.trim()) return;
+    setBusy(true);
+    try {
+      const d = await api(`/api/privacy/dsar/${req.id}/collect`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ draft: true, naturalLanguage: nl }) });
+      setKql(d.queryString); toast(d.rationale);
+    } catch (e) { toast(String(e.message || e), true); } finally { setBusy(false); }
+  };
   const runPreview = async () => {
     setBusy(true); setPreview(null);
     try {
-      const d = await api(`/api/privacy/dsar/${req.id}/collect`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ preview: true, sources: selected }) });
+      const d = await api(`/api/privacy/dsar/${req.id}/collect`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ preview: true, sources: selected, queryString }) });
       setPreview(d.preview);
     } catch (e) { toast(String(e.message || e), true); } finally { setBusy(false); }
   };
   const collect = async () => {
     setBusy(true);
     try {
-      const d = await api(`/api/privacy/dsar/${req.id}/collect`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sources: selected }) });
+      const d = await api(`/api/privacy/dsar/${req.id}/collect`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sources: selected, queryString }) });
       toast(`Collected ${d.added} record(s)${d.duplicates ? `, ${d.duplicates} already present` : ""}${d.simulated ? " (simulated)" : " from Microsoft 365"}`);
       setPreview(null); onCollected();
     } catch (e) { toast(String(e.message || e), true); } finally { setBusy(false); }
@@ -179,11 +191,23 @@ function M365CollectPanel({ req, onCollected, toast }) {
       <div style={{ fontSize: 10.5, fontFamily: M, color: connected ? C.gn : C.am, marginTop: 3, marginBottom: 8 }}>
         {status == null ? "Checking connection…" : connected ? `Connected · tenant ${status.tenantIdMasked || "—"}` : "No tenant connected — search runs in simulation. Connect at /admin/m365."}
       </div>
-      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8, alignItems: "center" }}>
         {Object.keys(SOURCE_LABEL).map((k) => (
           <button key={k} onClick={() => toggle(k)} style={sources[k] ? btn(C.tl) : ghost(C.t3)}>{SOURCE_LABEL[k]}</button>
         ))}
+        <span onClick={() => setAdv((a) => !a)} style={{ marginLeft: "auto", cursor: "pointer", fontSize: 10, fontFamily: M, color: adv ? C.cy : C.t3 }}>{adv ? "▾" : "▸"} Advanced (KQL)</span>
       </div>
+      {adv && (
+        <div style={{ marginBottom: 8, padding: "9px 11px", background: C.bg, borderRadius: 6, border: `1px solid ${C.br}` }}>
+          <div style={{ ...lbl, color: C.pp }}>Natural language → KeyQL (attorney edits before running)</div>
+          <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+            <input value={nl} onChange={(e) => setNl(e.target.value)} placeholder='e.g. invoices and approvals mentioning "vendorx" since Jan 2026' style={{ ...input, flex: 1 }} />
+            <button disabled={busy || !nl.trim()} onClick={draft} style={btn(C.pp)}>Draft</button>
+          </div>
+          <textarea value={kql} onChange={(e) => setKql(e.target.value)} rows={2} placeholder="KeyQL query — leave blank to search by the subject's identity" style={{ ...input, resize: "vertical", fontFamily: M, fontSize: 11 }} />
+          <div style={{ fontSize: 9.5, color: C.t4, fontFamily: M, marginTop: 4 }}>When set, Preview/Collect run this scoped query instead of the identity search.</div>
+        </div>
+      )}
       <div style={{ display: "flex", gap: 8 }}>
         <button disabled={busy || selected.length === 0} onClick={runPreview} style={ghost(C.bl)}>{busy && !preview ? "Searching…" : "Preview"}</button>
         <button disabled={busy || selected.length === 0} onClick={collect} style={btn(C.tl)}>{busy ? "…" : "Search & collect"}</button>
