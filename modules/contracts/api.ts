@@ -242,6 +242,12 @@ export {
 } from "./src/internal/templates";
 
 export {
+  seedSampleTemplates,
+  SAMPLE_CONTRACT_TEMPLATES,
+  type SampleTemplateSpec,
+} from "./src/internal/sample-templates";
+
+export {
   snapshotContractVersion,
   listContractVersions,
   diffContractVersions,
