@@ -88,6 +88,9 @@ class RoutedM365Client implements M365Client {
   ) {
     return this.appOnly.searchForDataSubject(input);
   }
+  searchContent(input: Parameters<M365Client["searchContent"]>[0]) {
+    return this.appOnly.searchContent(input);
+  }
 
   // ── Delegated methods — eDiscovery surface ──────────────────────
 

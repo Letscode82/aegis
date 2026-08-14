@@ -18,6 +18,7 @@ import type { DataSourceType, Matter, PreservationAction } from "@aegis/db";
 import type {
   ApplyPreservationInput,
   CandidateCustodian,
+  ContentSearchInput,
   DataSubjectSearchInput,
   DataSubjectSearchResult,
   DataSubjectHit,
@@ -858,7 +859,27 @@ export class M365GraphClient implements M365Client {
       .map((t) => (t || "").trim())
       .filter(Boolean);
     const queryString = terms.map((t) => `"${t}"`).join(" OR ") || "*";
-    const sources = input.sources ?? ["MAILBOX", "ONEDRIVE", "TEAMS"];
+    return this.runContentSearch(queryString, input.sources, input.top);
+  }
+
+  /** Scoped content collection with a caller-supplied KQL/KeyQL query. */
+  async searchContent(input: ContentSearchInput): Promise<DataSubjectSearchResult> {
+    return this.runContentSearch(input.queryString?.trim() || "*", input.sources, input.top);
+  }
+
+  /**
+   * The shared Microsoft Search (`POST /search/query`) core across message +
+   * driveItem + chatMessage entity types. App-only permissions are honored by
+   * Microsoft Search. On any Graph failure it degrades to an empty
+   * (non-simulated) result rather than throwing — a failed sweep must not sink
+   * the collection workflow.
+   */
+  private async runContentSearch(
+    queryString: string,
+    sourcesInput: DataSubjectSourceType[] | undefined,
+    top: number | undefined,
+  ): Promise<DataSubjectSearchResult> {
+    const sources = sourcesInput ?? ["MAILBOX", "ONEDRIVE", "TEAMS"];
     const entityTypes: string[] = [];
     if (sources.includes("MAILBOX")) entityTypes.push("message");
     if (sources.includes("ONEDRIVE") || sources.includes("SHAREPOINT")) entityTypes.push("driveItem");
@@ -871,7 +892,7 @@ export class M365GraphClient implements M365Client {
             entityTypes,
             query: { queryString },
             from: 0,
-            size: Math.min(input.top ?? 25, 100),
+            size: Math.min(top ?? 25, 100),
           },
         ],
       };
@@ -893,7 +914,7 @@ export class M365GraphClient implements M365Client {
       const hits = rawHits.map((h) => mapSearchHit(h)).filter((h): h is DataSubjectHit => h != null);
       return { hits, simulated: false, searchedAt: new Date().toISOString() };
     } catch (err) {
-      console.error("[m365-graph] searchForDataSubject failed:", err);
+      console.error("[m365-graph] content search failed:", err);
       return { hits: [], simulated: false, searchedAt: new Date().toISOString() };
     }
   }

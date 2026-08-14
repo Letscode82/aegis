@@ -152,6 +152,18 @@ export interface DataSubjectSearchResult {
   searchedAt: string;
 }
 
+/**
+ * A scoped content collection — the generalization of a data-subject search to
+ * an arbitrary Purview/KeyQL query. Legal Hold (custodian-scoped) and DSAR
+ * (identity-scoped, but attorney can widen with KQL) both compose this.
+ */
+export interface ContentSearchInput {
+  /** KQL / KeyQL query string (e.g. `participants:"x@y.com" AND subject:invoice`). */
+  queryString: string;
+  sources?: DataSubjectSourceType[];
+  top?: number;
+}
+
 export interface ApplyPreservationInput {
   custodianExternalIdentifier: string;
   dataSourceExternalIdentifier: string;
@@ -222,6 +234,11 @@ export interface M365Client {
   searchForDataSubject(
     input: DataSubjectSearchInput,
   ): Promise<DataSubjectSearchResult>;
+
+  /** Scoped content collection — run an arbitrary KQL/KeyQL query across the
+   *  selected sources. The shared collection primitive behind eDiscovery /
+   *  legal-hold collections and DSAR advanced search. */
+  searchContent(input: ContentSearchInput): Promise<DataSubjectSearchResult>;
 }
 
 /**
@@ -411,6 +428,22 @@ export class MockM365Client implements M365Client {
       { sourceType: "ONEDRIVE", sourceSystem: `OneDrive · ${id}`, title: `Customer_profile_${name.replace(/\s+/g, "_")}.xlsx`, excerpt: `Spreadsheet row for ${name} with address and order history.`, graphId: `drv-${hashish(id)}-1`, webUrl: `https://contoso-my.sharepoint.com/personal/${encodeURIComponent(id)}` },
       { sourceType: "TEAMS", sourceSystem: `Teams · Support`, title: `Support chat mentioning ${name}`, excerpt: `Agent discussed a ticket raised by ${name}.`, graphId: `tm-${hashish(id)}-1`, webUrl: null },
       { sourceType: "SHAREPOINT", sourceSystem: `SharePoint · CRM`, title: `Nightly backup manifest`, excerpt: `System log — no personal data of ${name}.`, graphId: `sp-${hashish(id)}-1`, webUrl: null },
+    ];
+    const hits = all.filter((h) => sources.includes(h.sourceType)).slice(0, input.top ?? 25);
+    return { hits, simulated: true, searchedAt: new Date().toISOString() };
+  }
+
+  async searchContent(input: ContentSearchInput): Promise<DataSubjectSearchResult> {
+    // Deterministic mock — derive a term from the query so the demo shows
+    // query-shaped results. The real client runs Microsoft Search with the KQL.
+    const term = (input.queryString.match(/"([^"]+)"/)?.[1] || input.queryString.split(/\s+/)[0] || "records").slice(0, 40);
+    const sources = input.sources ?? ["MAILBOX", "ONEDRIVE", "TEAMS"];
+    const all: DataSubjectHit[] = [
+      { sourceType: "MAILBOX", sourceSystem: "Exchange", title: `Message matching ${term}`, excerpt: `Email hit for query: ${input.queryString.slice(0, 120)}`, graphId: `q-${hashish(input.queryString)}-1`, webUrl: null },
+      { sourceType: "MAILBOX", sourceSystem: "Exchange", title: `Thread referencing ${term}`, excerpt: `Second email hit for the collection query.`, graphId: `q-${hashish(input.queryString)}-2`, webUrl: null },
+      { sourceType: "ONEDRIVE", sourceSystem: "OneDrive/SharePoint", title: `${term}_summary.docx`, excerpt: `Document hit for the collection query.`, graphId: `q-${hashish(input.queryString)}-3`, webUrl: null },
+      { sourceType: "TEAMS", sourceSystem: "Teams", title: `Chat matching ${term}`, excerpt: `Teams message hit for the collection query.`, graphId: `q-${hashish(input.queryString)}-4`, webUrl: null },
+      { sourceType: "SHAREPOINT", sourceSystem: "SharePoint", title: `${term} site page`, excerpt: `SharePoint hit for the collection query.`, graphId: `q-${hashish(input.queryString)}-5`, webUrl: null },
     ];
     const hits = all.filter((h) => sources.includes(h.sourceType)).slice(0, input.top ?? 25);
     return { hits, simulated: true, searchedAt: new Date().toISOString() };
