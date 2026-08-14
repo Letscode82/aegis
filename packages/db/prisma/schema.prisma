@@ -2321,14 +2321,107 @@ model DataSubjectRequest {
   createdAt          DateTime               @default(now())
   updatedAt          DateTime               @updatedAt
 
+  // DSAR case-handling (Privacy module — "DSAR command center"). The handler
+  // (DPO) is a User (plain scalar; name resolved via the actor resolver so
+  // no back-relation churn on User). relevanceCriteria is the aiR "what is in
+  // scope" definition the AI relevance review reads.
+  assignedToUserId           String?
+  relevanceCriteria          String? // the "in scope" definition for AI review
+  subjectSummary             String? // case summary shown on the workspace
+  source                     String    @default("internal") // internal | portal
+  verificationMethod         String?
+  verifiedAt                 DateTime?
+  extendedDeadline           DateTime? // Art. 12(3) extension (+2 months)
+  holdConflictCheckedAt      DateTime?
+  holdConflictCount          Int       @default(0)
+  holdConflictOverrideReason String?
+  deliveredAt                DateTime?
+  deliveryChannel            String?
+  closureReason              String?
+
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   requesterPerson Person       @relation(fields: [requesterPersonId], references: [id], onDelete: Cascade)
 
   dataLocations DSARDataLocation[]
+  reviewItems   DSARReviewItem[]
+  accessTokens  DSARAccessToken[]
 
   @@index([organizationId, status])
   @@index([organizationId, slaDeadline])
+  @@index([organizationId, assignedToUserId])
   @@index([requesterPersonId])
+}
+
+/// aiR-style relevance review verdict (AI's read of one collected item).
+enum DSARReviewVerdict {
+  RELEVANT
+  NOT_RELEVANT
+  UNCLEAR
+}
+
+/// Human validation state over the AI verdict — the governance gate. AI never
+/// finalises relevance; a reviewer CONFIRMs or OVERRIDEs before an item can
+/// enter the response package.
+enum DSARReviewDecision {
+  PENDING
+  CONFIRMED
+  OVERRIDDEN
+}
+
+/// One collected record/document under review for a DSAR — the unit the
+/// AI relevance pass scores and a human validates (the aiR analog). Plain
+/// `organizationId` scalar (no Organization relation) — cascade flows through
+/// `request`. reviewedById is a plain scalar resolved via the actor resolver.
+model DSARReviewItem {
+  id             String              @id @default(cuid())
+  organizationId String
+  requestId      String
+  sourceSystem   String
+  title          String
+  excerpt        String? // representative content the AI + human read
+  aiVerdict      DSARReviewVerdict?
+  aiScore        Float? // 0..1 relevance confidence (null = deterministic pass)
+  aiRationale    String?
+  reviewDecision DSARReviewDecision  @default(PENDING)
+  finalRelevant  Boolean? // resolved relevance after human validation
+  redact         Boolean             @default(false)
+  redactionNote  String?
+  reviewedById   String?
+  reviewedAt     DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  request DataSubjectRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, requestId])
+  @@index([requestId, reviewDecision])
+}
+
+enum DSARAccessTokenPurpose {
+  STATUS
+  DELIVERY
+}
+
+/// Login-less data-subject access — a tokenised link to track a request's
+/// status or receive the delivered package. Only the SHA-256 hash is stored;
+/// the raw token lives once in the emailed URL (same posture as the contract
+/// review + custodian tokens). Plain `organizationId` scalar; cascade via
+/// `request`.
+model DSARAccessToken {
+  id             String                 @id @default(cuid())
+  organizationId String
+  requestId      String
+  tokenHash      String                 @unique
+  purpose        DSARAccessTokenPurpose @default(STATUS)
+  status         String                 @default("ACTIVE") // ACTIVE | REVOKED | EXPIRED | USED
+  expiresAt      DateTime
+  viewedAt       DateTime?
+  createdById    String?
+  createdAt      DateTime               @default(now())
+
+  request DataSubjectRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, requestId])
 }
 
 model DSARDataLocation {

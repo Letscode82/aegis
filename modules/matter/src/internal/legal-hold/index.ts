@@ -181,7 +181,9 @@ export {
   getLegalHoldByIdService,
   listHoldEventsService,
   listLegalHoldsService,
+  listActiveHoldsForPersonService,
   type HoldWorkspaceSummary,
+  type ActiveHoldForPerson,
 } from "./services/reads";
 
 // Actor resolution (timeline + audit + notice "issued by")

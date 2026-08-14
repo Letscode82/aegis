@@ -14,6 +14,7 @@ export const NAV=[
   {id:"spend",label:"Legal Spend",icon:"▧",c:C.am,group:"OPERATIONS"},
   {id:"governance",label:"Governance",icon:"▨",c:C.cy,group:"OPERATIONS"},
   {id:"cyber",label:"Cyber Response",icon:"▩",c:C.rd,group:"OPERATIONS"},
+  {id:"dsar",label:"Privacy · DSAR",icon:"◍",c:C.tl,group:"OPERATIONS",permission:"privacy:dsar:read"},
   {id:"divider2"},
   {id:"graph",label:"Risk Graph",icon:"◈",c:C.em,group:"INTELLIGENCE"},
   {id:"scenarios",label:"Scenarios",icon:"◉",c:C.em,group:"INTELLIGENCE"},

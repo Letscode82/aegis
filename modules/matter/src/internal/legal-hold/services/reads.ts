@@ -25,6 +25,48 @@ export async function getLegalHoldByIdService(
   return prisma.legalHold.findUnique({ where: { id: holdId } });
 }
 
+/** A live preservation obligation on one person, surfaced to other modules
+ *  (e.g. Privacy's erasure-conflict guard) so a DSAR erasure can't delete data
+ *  a legal hold requires us to preserve. */
+export interface ActiveHoldForPerson {
+  holdId: string;
+  matterId: string;
+  holdNumber: string | null;
+  title: string;
+  status: string;
+  custodianId: string;
+}
+
+/**
+ * Every ACTIVE / ISSUED / PARTIALLY_RELEASED hold on which this person is a
+ * non-released custodian. The "one brain" check behind DSAR erasure: if this
+ * returns rows, erasing the subject's data would spoliate preserved evidence.
+ */
+export async function listActiveHoldsForPersonService(
+  organizationId: string,
+  personId: string,
+): Promise<ActiveHoldForPerson[]> {
+  const custodianRows = await prisma.legalHoldCustodian.findMany({
+    where: {
+      personId,
+      releasedAt: null,
+      legalHold: {
+        organizationId,
+        status: { in: ["ISSUED", "ACTIVE", "PARTIALLY_RELEASED"] },
+      },
+    },
+    include: { legalHold: { select: { id: true, matterId: true, holdNumber: true, title: true, status: true } } },
+  });
+  return custodianRows.map((c) => ({
+    holdId: c.legalHold.id,
+    matterId: c.legalHold.matterId,
+    holdNumber: c.legalHold.holdNumber,
+    title: c.legalHold.title,
+    status: c.legalHold.status,
+    custodianId: c.id,
+  }));
+}
+
 export async function listHoldEventsService(
   holdId: string,
   limit = 200,

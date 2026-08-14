@@ -904,6 +904,72 @@ the silent-downgrade footgun. Both stay through the swap.
 
 ---
 
+## What's new in PRIV-1 (Privacy module — DSAR case handling)
+
+The 10th of the 11 locked modules ships its first surface. `modules/privacy`
+is created with the day-one `internal/` + `ui/` + `api.ts` layout and delivers
+DSAR (Data Subject Access Request) case handling end-to-end — the AEGIS-native
+equivalent of a Relativity-style DSAR + aiR workflow, every capability mapped
+onto existing platform patterns (chain-sealed audit, AI-degrades-to-
+deterministic, tokenised login-less portals, cron sweeps, the "one brain"
+cross-module join). **DSAR is NOT a new module** — Privacy (#10) owns DSAR,
+ROPA, consent, and incidents; ROPA/consent/incidents extend this same module
+later.
+
+- **Schema (additive migration `20260805120000_privacy_dsar_case_handling`).**
+  Extends `DataSubjectRequest` with handler (`assignedToUserId`),
+  `relevanceCriteria`, identity-verification detail, statutory-extension,
+  legal-hold-conflict bookkeeping, and delivery fields. Adds `DSARReviewItem`
+  (the aiR relevance-review unit) + `DSARAccessToken` (login-less access) and
+  three enums. New tables keep `organizationId` as a plain scalar — cascade
+  flows through the `request` FK, so the migration stays localized to the
+  privacy section (no edits to Organization/User).
+- **Lifecycle** (`state-machine.ts`, pure + tested): RECEIVED → VERIFYING →
+  IN_PROGRESS → AWAITING_REVIEW → FULFILLED/REJECTED/WITHDRAWN, mapping the
+  Gather → Authenticate → Collect → Review → Deliver flow. Every transition is
+  guarded and chain-sealed (`privacy.dsar.*`); nothing auto-advances.
+- **SLA** (`sla.ts`, pure + tested): statutory windows per regime (GDPR 30+60,
+  US-state 45+45), plus a daily cron breach sweep (`/api/cron/dsar-sla`,
+  all-orgs, idempotent) registered in `vercel.json`.
+- **Identity verification** — the Authenticate gate; a request can't leave
+  VERIFYING for collection until VERIFIED.
+- **Personal-data inventory** (`data-inventory.ts`) — the `DSARDataLocation`
+  checklist, seedable from the org's ROPA (`DataProcessingActivity.systems`) —
+  the Article-30 record joined to the live request.
+- **AI relevance review** (`review.ts`) — the aiR analog. Collected records are
+  scored against the request's relevance criteria via `@aegis/ai`, degrading to
+  a deterministic keyword/identity scorer (`relevance.ts`, pure + tested) so the
+  queue never stalls and every item carries an explanation. **The AI never
+  finalises relevance** — a human CONFIRMs or OVERRIDEs each item and sets
+  redaction before it can enter the response package.
+- **Erasure ↔ legal-hold conflict guard** (`hold-guard.ts`) — the "one brain"
+  differentiator. Calls the new Matter public export
+  `listActiveHoldsForPerson(orgId, personId)` (never Matter internals) so an
+  ERASURE can't spoliate data a legal hold preserves; fulfilment is blocked
+  unless a privacy officer records an explicit override reason.
+- **Delivery** (`delivery.ts`) — assembles the package from validated/relevant
+  items (pure `buildResponsePackage`, tested), mints a login-less DELIVERY
+  token, emails the subject via `@aegis/email` (best-effort, chain-sealed),
+  and closes the case.
+- **Self-service portal** (`portal.ts`) — public `/dsar-portal` intake +
+  `/dsar-portal/[token]` status/delivery tracker (tokenised, same posture as
+  the contract-review + custodian links).
+- **Operations dashboard** (`dashboard.ts`, pure aggregation + tested) — volume
+  by type/status/handler, queue health, six-month trend.
+- **Defensibility export** (`export.ts`) — self-contained JSON: case + review
+  provenance + package + verbatim chain-sealed audit trail.
+- **Surface.** `modules/privacy/api.ts` is the only import surface. Routes under
+  `/api/privacy/dsar/*` (all `assertUserCanDo` on `privacy:dsar:read` /
+  `privacy:dsar:fulfill` — permissions already existed), public
+  `/api/portal/dsar/*`, and the cron route. New nav entry **Privacy · DSAR**
+  (gated `privacy:dsar:read`) mounts `DsarView` in the AppShell. Seed §6
+  enriched: the demo DSAR gets a handler, relevance criteria, and three review
+  items (one pre-confirmed, two pending) so "Run AI relevance review" has work.
+- No new documented-exception entries. Tests: 22 pure unit tests
+  (state machine, SLA, relevance scorer, dashboard aggregation, package
+  assembly). Matter public surface grew by one read
+  (`listActiveHoldsForPerson`).
+
 ## What's new in sub-PR 4d.0 (counsel-driven Hold Wizard)
 
 Five-step guided creation flow that closes the visible UX gap from

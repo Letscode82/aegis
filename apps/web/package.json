@@ -22,6 +22,7 @@
     "@aegis/spend": "workspace:*",
     "@aegis/matter": "workspace:*",
     "@aegis/observability": "workspace:*",
+    "@aegis/privacy": "workspace:*",
     "@aegis/ui": "workspace:*",
     "@aegis/workflow": "workspace:*",
     "@auth0/nextjs-auth0": "3.5.0",
