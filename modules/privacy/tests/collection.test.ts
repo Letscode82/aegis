@@ -36,3 +36,17 @@ describe("summarizeHits", () => {
     expect(p.simulated).toBe(true);
   });
 });
+
+import { mapEnumeratedSource } from "../src/internal/data-inventory";
+
+describe("mapEnumeratedSource", () => {
+  it("maps M365 source types to friendly (system, dataType)", () => {
+    expect(mapEnumeratedSource({ type: "EMAIL_MAILBOX", displayLabel: "Exchange mailbox" })).toEqual({ system: "Exchange Online", dataType: "email" });
+    expect(mapEnumeratedSource({ type: "ONEDRIVE", displayLabel: "OneDrive" })).toEqual({ system: "OneDrive", dataType: "files" });
+    expect(mapEnumeratedSource({ type: "TEAMS_DM", displayLabel: "Teams DM" })).toEqual({ system: "Microsoft Teams", dataType: "chats" });
+    expect(mapEnumeratedSource({ type: "SHAREPOINT_SITE", displayLabel: "SP" })).toEqual({ system: "SharePoint", dataType: "documents" });
+  });
+  it("falls back to the label + normalized type", () => {
+    expect(mapEnumeratedSource({ type: "OTHER_SOURCE", displayLabel: "Custom" })).toEqual({ system: "Custom", dataType: "other-source" });
+  });
+});

@@ -67,10 +67,13 @@ export {
   addDataLocation,
   updateDataLocation,
   seedInventoryFromRopa,
+  discoverM365DataLocations,
+  mapEnumeratedSource,
   type DataLocationDTO,
   type AddDataLocationInput,
   type UpdateDataLocationInput,
   type SeedInventoryResult,
+  type DiscoverM365Result,
 } from "./src/internal/data-inventory";
 
 // AI relevance review

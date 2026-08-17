@@ -7,7 +7,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
-import { listDataLocations, addDataLocation, updateDataLocation, seedInventoryFromRopa } from "@aegis/privacy";
+import { listDataLocations, addDataLocation, updateDataLocation, seedInventoryFromRopa, discoverM365DataLocations } from "@aegis/privacy";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const user = await getResolvedUser(req, res);
@@ -24,6 +24,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       if (req.body?.seed) {
         const result = await seedInventoryFromRopa(user.organizationId, id, actor);
         return res.status(200).json({ ok: true, seeded: result, locations: await listDataLocations(user.organizationId, id) });
+      }
+      if (req.body?.discover) {
+        const result = await discoverM365DataLocations(user.organizationId, id, actor);
+        return res.status(200).json({ ok: true, discovered: result, locations: result.locations });
       }
       const location = await addDataLocation(user.organizationId, id, { system: req.body?.system, dataType: req.body?.dataType, found: req.body?.found, redactionsRequired: req.body?.redactionsRequired }, actor);
       return res.status(200).json({ ok: true, location });
