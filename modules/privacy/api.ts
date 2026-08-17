@@ -146,5 +146,8 @@ export { evaluateDsarSlaBreaches, runAllOrgDsarSlaSweeps, type DsarSlaSweepResul
 // Review validation (recall/precision/overturn vs human decisions)
 export { getDsarValidation, type DsarValidation } from "./src/internal/validation";
 
+// Controlled demo dataset
+export { seedDemoDsar, type SeedDemoDsarResult } from "./src/internal/demo-seed";
+
 // Defensibility export
 export { getDsarDefensibilityExport, type DsarDefensibilityExport } from "./src/internal/export";

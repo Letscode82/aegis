@@ -276,7 +276,7 @@ function ValidationStrip({ requestId, refreshKey }) {
   );
 }
 
-function ReviewTab({ req, reload, toast }) {
+function ReviewTab({ req, reload, toast, goTab }) {
   const [items, setItems] = useState(null);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
@@ -321,6 +321,7 @@ function ReviewTab({ req, reload, toast }) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <button disabled={busy || pending === 0} onClick={runAI} style={btn(C.pp)}>{busy ? "Scoring…" : `✨ Run AI review (${pending})`}</button>
           <button disabled={busy || aiPending === 0} onClick={acceptAll} title="Confirm every pending item at the AI verdict — the reviewer applies the model at scale after validating a sample." style={aiPending > 0 ? btn(C.gn) : ghost(C.t4)}>✓ Accept all AI ({aiPending})</button>
+          {total > 0 && pending === 0 && <button onClick={() => goTab && goTab("delivery")} style={btn(C.cy)}>Proceed to delivery →</button>}
           <span style={{ marginLeft: "auto", fontSize: 10, fontFamily: M, color: C.t3, alignSelf: "center" }}>{validated}/{total} coded</span>
         </div>
       </div>
@@ -342,11 +343,12 @@ function ReviewTab({ req, reload, toast }) {
                 <div style={{ fontSize: 9.5, color: C.t4, fontFamily: M }}>{it.sourceSystem}</div>
               </div>
               <div style={{ textAlign: "right", flexShrink: 0 }}>
-                {it.aiVerdict && <div style={{ fontSize: 10, fontFamily: M, color: VERDICT_COLOR[it.aiVerdict] }}>{it.aiVerdict}{it.aiScore != null ? ` ${Math.round(it.aiScore * 100)}%` : ""}</div>}
-                <div style={{ fontSize: 9, fontFamily: M, color: it.reviewDecision === "PENDING" ? C.am : C.gn }}>{it.reviewDecision}</div>
+                {it.aiVerdict && <div style={{ fontSize: 10, fontFamily: M, color: VERDICT_COLOR[it.aiVerdict] }} title="AI verdict and its relevance confidence">{it.aiVerdict.replace(/_/g, " ")}{it.aiScore != null ? ` · ${Math.round(it.aiScore * 100)}% rel.` : ""}</div>}
+                <div style={{ fontSize: 9, fontFamily: M, color: it.reviewDecision === "PENDING" ? C.am : it.finalRelevant ? C.gn : C.t4 }}>{it.reviewDecision === "PENDING" ? "PENDING" : it.reviewDecision === "CONFIRMED" ? "✓ CONFIRMED" : "OVERRIDDEN"}{it.reviewDecision !== "PENDING" ? (it.finalRelevant ? " · relevant" : " · excluded") : ""}</div>
               </div>
             </div>
-            {it.aiRationale && <div style={{ fontSize: 10.5, color: C.t3, marginTop: 5, fontStyle: "italic" }}>{it.aiRationale}</div>}
+            {it.excerpt && <div style={{ fontSize: 11, color: C.t2, marginTop: 6, padding: "8px 10px", background: C.bg, border: `1px solid ${C.br}`, borderRadius: 5, lineHeight: 1.5, maxHeight: 88, overflow: "auto" }}>{it.excerpt}</div>}
+            {it.aiRationale && <div style={{ fontSize: 10.5, color: C.t3, marginTop: 5, fontStyle: "italic" }}>🤖 {it.aiRationale}</div>}
             <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
               <button onClick={() => validate(it.id, { decision: "CONFIRMED" })} style={ghost(C.gn)}>✓ Confirm</button>
               <button onClick={() => validate(it.id, { decision: "OVERRIDDEN", finalRelevant: true })} style={ghost(C.bl)}>Mark relevant</button>
@@ -461,7 +463,7 @@ export function DsarDetail({ requestId, onClose, onChanged }) {
               {tab === "overview" && <OverviewTab req={req} me={me} reload={reload} toast={showToast} />}
               {tab === "identity" && <IdentityTab req={req} reload={reload} toast={showToast} />}
               {tab === "inventory" && <InventoryTab req={req} reload={reload} toast={showToast} />}
-              {tab === "review" && <ReviewTab req={req} reload={reload} toast={showToast} />}
+              {tab === "review" && <ReviewTab req={req} reload={reload} toast={showToast} goTab={setTab} />}
               {tab === "delivery" && <DeliveryTab req={req} reload={reload} toast={showToast} />}
             </div>
           </>
