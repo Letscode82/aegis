@@ -27,7 +27,15 @@ Two modes:
   mail/chat app-only, which is why AEGIS reads the per-user endpoints instead.
   If a source returns 0 while "Connected", the server log names the missing
   scope; grant it + admin-consent and retry.
-- Data subject exists in the tenant with content (you've seeded Marcus Reid).
+- **Seed the subject's mailbox** with a controlled DSAR record set (run once):
+  ```powershell
+  ./scripts/seed-priya-dsar-mailbox.ps1 -UserUpn priya.kulkarni@<tenant>.onmicrosoft.com
+  ```
+  App-only (same auth as helper 05); needs `Mail.ReadWrite` + `User.Read.All`
+  app permissions + `AEGIS_M365_CLIENT_SECRET`. Idempotent — re-run to reset.
+  Seeds 6 messages with her personal data + 6 noise, so the AI review shows a
+  real mix. Marcus Reid (or any user your `05/06/07` helpers populated) works
+  the same — just pick that user in the flow below.
 - Optional for real email delivery: `RESEND_API_KEY` (or `SENDGRID_API_KEY`) +
   `MAIL_FROM` + `APP_BASE_URL` set on the deployment.
 - Sign in as a user with `privacy:dsar:read` + `privacy:dsar:fulfill` (admin/gc/
