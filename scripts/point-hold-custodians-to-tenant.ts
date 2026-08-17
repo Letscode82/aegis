@@ -5,8 +5,8 @@
  * custodian's own mailbox / OneDrive via the per-user Graph endpoints) returns
  * real seeded mail instead of zero hits.
  *
- * Run:
- *   pnpm --filter @aegis/db exec tsx scripts/point-hold-custodians-to-tenant.ts --tenant 6bs6wq.onmicrosoft.com
+ * Run (from the repo root — note the ../../ because --filter runs in packages/db):
+ *   pnpm --filter @aegis/db exec tsx ../../scripts/point-hold-custodians-to-tenant.ts --tenant 6bs6wq.onmicrosoft.com
  *   # optionally map a demo custodian with no matching tenant user:
  *   #   --map "rhea.malhotra=lena.perez"
  *   # preview without writing:
@@ -27,7 +27,21 @@ import { fileURLToPath } from "node:url";
 import { PrismaClient, PersonType } from "@prisma/client";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = join(__dirname, "..");
 const DEMO_DOMAIN = "aegis-demo.example";
+
+// A raw tsx script does not auto-load .env the way the Prisma CLI does, and
+// --filter runs us from packages/db, so load DATABASE_URL explicitly. Try the
+// repo-root .env first (where `prisma migrate` found it), then packages/db/.env.
+if (!process.env.DATABASE_URL && typeof (process as { loadEnvFile?: (p?: string) => void }).loadEnvFile === "function") {
+  for (const candidate of [join(REPO_ROOT, ".env"), join(REPO_ROOT, "packages", "db", ".env")]) {
+    try { (process as { loadEnvFile: (p?: string) => void }).loadEnvFile(candidate); if (process.env.DATABASE_URL) break; } catch { /* not there — try next */ }
+  }
+}
+if (!process.env.DATABASE_URL) {
+  console.error("DATABASE_URL is not set and no .env was found at the repo root or packages/db. Set it, or run from a shell where it is exported.");
+  process.exit(1);
+}
 
 // ── argv ──────────────────────────────────────────────────────────
 const argv = process.argv.slice(2);
