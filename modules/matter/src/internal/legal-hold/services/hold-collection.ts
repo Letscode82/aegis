@@ -87,8 +87,14 @@ export async function previewHoldCollection(legalHoldId: string, input: PreviewH
     queryString = draftCollectionQuery({ naturalLanguage: input.naturalLanguage || "", custodianEmails: emails }).queryString;
   }
 
+  // Custodian-scoped collection uses the per-user resource endpoints
+  // (`/users/{id}/messages`, `/users/{id}/drive/...`) which DO honor
+  // application permissions — unlike the unified `/search/query` endpoint,
+  // which returns no message/chat hits app-only. Each custodian's own
+  // mailbox / OneDrive IS the collection surface for a legal hold, so we
+  // enumerate per custodian and let the reviewer console + AI review cull.
   const client = await getM365ClientForOrg(hold.organizationId);
-  const res = await client.searchContent({ queryString, sources: input.sources, top: input.top });
+  const res = await client.searchForDataSubject({ identifiers: emails, sources: input.sources, top: input.top ?? 200 });
   return {
     queryString,
     total: res.hits.length,
