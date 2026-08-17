@@ -12,12 +12,25 @@
  */
 import { prisma, logAudit } from "@aegis/db";
 import type { DSARReviewVerdict, DSARReviewDecision } from "@aegis/db";
-import { callClaudeJSON, parseJSONLoose } from "@aegis/ai";
+import { callClaudeJSON } from "@aegis/ai";
 import { ensureServerClaudeTransport } from "@aegis/ai/server";
+import { buildReviewPrompt, parseAiReview, reviewDeterministic, type ReviewInstruction, type ReviewItem, type ReviewItemResult } from "@aegis/ai-review";
 import type { Actor } from "./requests";
-import { scoreRelevanceDeterministic, verdictFromScore } from "./relevance";
+import { verdictFromScore } from "./relevance";
 
-const VALID_VERDICT = new Set(["RELEVANT", "NOT_RELEVANT", "UNCLEAR"]);
+/** Map the shared engine's RESPONSIVE tag → the DSAR 3-valued verdict. */
+function verdictFromResult(result: ReviewItemResult): { verdict: DSARReviewVerdict; score: number; rationale: string } {
+  const resp = result.tags.find((t) => t.kind === "RESPONSIVE");
+  const verdict: DSARReviewVerdict = !resp
+    ? "UNCLEAR"
+    : resp.value
+      ? "RELEVANT"
+      : resp.confidence >= 0.6
+        ? "NOT_RELEVANT"
+        : "UNCLEAR";
+  const rationale = (resp?.rationale ?? "Relevance screen.") + (resp?.citation ? ` [cite: ${resp.citation}]` : "");
+  return { verdict, score: resp?.confidence ?? 0.5, rationale };
+}
 
 export interface ReviewItemDTO {
   id: string;
@@ -98,65 +111,45 @@ export interface RelevanceReviewResult {
   items: ReviewItemDTO[];
 }
 
-interface AiVerdict { verdict: DSARReviewVerdict; score: number; rationale: string }
-
-function buildPrompt(criteria: string, subject: { name: string; email: string | null }, items: { i: number; title: string; excerpt: string | null; system: string }[]): string {
-  return [
-    "You are a privacy analyst screening records for relevance to a Data Subject Access Request (DSAR).",
-    `Data subject: ${subject.name}${subject.email ? ` <${subject.email}>` : ""}.`,
-    "Relevance criteria (what is IN SCOPE):",
-    criteria || "(none provided — treat records mentioning the data subject's personal data as relevant)",
-    "",
-    "For EACH item below, decide relevance. Respond with STRICT JSON:",
-    '{"results":[{"i":<index>,"verdict":"RELEVANT|NOT_RELEVANT|UNCLEAR","score":<0..1>,"rationale":"<one sentence>"}]}',
-    "",
-    "Items:",
-    ...items.map((it) => `#${it.i} [${it.system}] ${it.title}${it.excerpt ? ` — ${it.excerpt.slice(0, 400)}` : ""}`),
-  ].join("\n");
-}
-
-/** Score every PENDING item. AI when available; deterministic otherwise. */
+/**
+ * Score every PENDING item through the shared @aegis/ai-review engine
+ * (RESPONSIVE dimension), mapping its cited, confidence-scored tag onto the
+ * DSAR verdict. AI when configured; the engine's deterministic screen otherwise.
+ */
 export async function runRelevanceReview(organizationId: string, requestId: string, actor: Actor): Promise<RelevanceReviewResult> {
   const req = await loadRequest(organizationId, requestId);
   const pending = await prisma.dSARReviewItem.findMany({ where: { requestId, reviewDecision: "PENDING" }, orderBy: [{ createdAt: "asc" }] });
   if (pending.length === 0) return { scored: 0, relevant: 0, degraded: false, items: [] };
 
-  const subject = { name: req.requesterPerson?.name ?? "the data subject", email: req.requesterPerson?.email ?? null };
-  const criteria = req.relevanceCriteria ?? "";
+  const instruction: ReviewInstruction = {
+    criteria: req.relevanceCriteria ?? "",
+    subject: { name: req.requesterPerson?.name ?? null, email: req.requesterPerson?.email ?? null },
+    dimensions: ["RESPONSIVE"],
+  };
+  const reviewItems: ReviewItem[] = pending.map((p) => ({ id: p.id, title: p.title, text: p.excerpt, sourceSystem: p.sourceSystem }));
 
-  const byIndex = new Map<number, AiVerdict>();
   let degraded = false;
+  let results: ReviewItemResult[];
   try {
     ensureServerClaudeTransport();
-    const prompt = buildPrompt(criteria, subject, pending.map((p, i) => ({ i, title: p.title, excerpt: p.excerpt, system: p.sourceSystem })));
-    const raw = (await callClaudeJSON(prompt, { maxTokens: 1600, timeout: 60000 })) as unknown;
-    const parsed = (typeof raw === "string" ? parseJSONLoose(raw as string) : raw) as { results?: unknown };
-    const results = Array.isArray(parsed?.results) ? parsed.results : [];
-    for (const r of results as Record<string, unknown>[]) {
-      const i = Number(r.i);
-      if (!Number.isInteger(i)) continue;
-      const verdict = (VALID_VERDICT.has(String(r.verdict)) ? String(r.verdict) : "UNCLEAR") as DSARReviewVerdict;
-      const score = Math.max(0, Math.min(1, Number(r.score)));
-      byIndex.set(i, { verdict, score: Number.isFinite(score) ? Math.round(score * 100) / 100 : 0.5, rationale: String(r.rationale ?? "").slice(0, 400) || "AI relevance screen." });
-    }
-    if (byIndex.size === 0) throw new Error("Empty AI relevance result");
+    const raw = (await callClaudeJSON(buildReviewPrompt(instruction, reviewItems), { maxTokens: 1800, timeout: 60000 })) as unknown;
+    results = parseAiReview(raw, instruction, reviewItems);
+    if (results.every((r) => r.degraded)) throw new Error("Empty AI relevance result");
   } catch (e) {
     console.error("[dsar-review] AI relevance failed, using deterministic screen:", e);
+    results = reviewDeterministic(instruction, reviewItems);
     degraded = true;
   }
 
+  const byId = new Map(results.map((r) => [r.itemId, verdictFromResult(r)]));
   let relevant = 0;
   const updated = await prisma.$transaction(
-    pending.map((p, i) => {
-      const ai = byIndex.get(i);
-      const verdict: AiVerdict = ai ?? scoreRelevanceDeterministic({
-        criteria, subjectName: subject.name, subjectEmail: subject.email,
-        item: { title: p.title, excerpt: p.excerpt, sourceSystem: p.sourceSystem },
-      });
-      if (verdict.verdict === "RELEVANT") relevant += 1;
+    pending.map((p) => {
+      const v = byId.get(p.id) ?? { verdict: "UNCLEAR" as DSARReviewVerdict, score: 0.5, rationale: "Relevance screen." };
+      if (v.verdict === "RELEVANT") relevant += 1;
       return prisma.dSARReviewItem.update({
         where: { id: p.id },
-        data: { aiVerdict: verdict.verdict, aiScore: verdict.score, aiRationale: (degraded ? "" : "AI: ") + verdict.rationale },
+        data: { aiVerdict: v.verdict, aiScore: v.score, aiRationale: (degraded ? "" : "AI: ") + v.rationale },
       });
     }),
   );
