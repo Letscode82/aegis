@@ -6,7 +6,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
-import { getDsarDetail, updateDsarFields, assignDsar } from "@aegis/privacy";
+import { getDsarDetail, updateDsarFields, assignDsar, deleteDsarRequest } from "@aegis/privacy";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const user = await getResolvedUser(req, res);
@@ -32,7 +32,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }, actor);
       return res.status(200).json({ ok: true, request });
     }
-    res.setHeader("Allow", "GET, PATCH");
+    if (req.method === "DELETE") {
+      assertUserCanDo(user, Permission.PrivacyDsarFulfill);
+      await deleteDsarRequest(user.organizationId, id, { id: user.id, type: "USER" });
+      return res.status(200).json({ ok: true });
+    }
+    res.setHeader("Allow", "GET, PATCH, DELETE");
     return res.status(405).json({ ok: false, error: "Method not allowed" });
   } catch (err) {
     if (err instanceof AccessDeniedError) return res.status(403).json({ ok: false, error: err.decision.message });

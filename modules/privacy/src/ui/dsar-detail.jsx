@@ -421,6 +421,17 @@ export function DsarDetail({ requestId, onClose, onChanged }) {
 
   const showToast = (msg, err) => { setToast({ msg, err }); setTimeout(() => setToast(null), 3500); };
 
+  const resetReq = async () => {
+    if (!window.confirm("Reset this request? Collected records, data locations, verification and delivery are cleared; the subject stays so you can re-run the demo.")) return;
+    try { const r = await fetch(`/api/privacy/dsar/${requestId}/reset`, { method: "POST" }); const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error); setTab("overview"); reload(); showToast("Request reset to intake"); }
+    catch (e) { showToast(String(e.message || e), true); }
+  };
+  const deleteReq = async () => {
+    if (!window.confirm("Delete this DSAR permanently? This removes the request and all its records.")) return;
+    try { const r = await fetch(`/api/privacy/dsar/${requestId}`, { method: "DELETE" }); const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error); onChanged && onChanged(); onClose(); }
+    catch (e) { showToast(String(e.message || e), true); }
+  };
+
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(4,7,15,.72)", zIndex: 1100, display: "flex", justifyContent: "center", alignItems: "flex-start", padding: "4vh 16px", overflowY: "auto" }}>
       <div onClick={(e) => e.stopPropagation()} style={{ fontFamily: F, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 10, width: "min(760px,100%)" }}>
@@ -436,7 +447,11 @@ export function DsarDetail({ requestId, onClose, onChanged }) {
                 <div style={{ textAlign: "right" }}>
                   <span style={{ fontSize: 9, fontFamily: M, padding: "2px 8px", borderRadius: 4, color: STATUS_COLOR[req.status], border: `1px solid ${STATUS_COLOR[req.status]}55` }}>{req.status.replace(/_/g, " ")}</span>
                   <div style={{ fontSize: 11, fontFamily: M, marginTop: 6, color: req.daysRemaining < 0 ? C.rd : C.t2 }}>{req.daysRemaining < 0 ? `${Math.abs(req.daysRemaining)}d overdue` : `${req.daysRemaining}d left`}{req.extended ? " ⤴" : ""}</div>
-                  <div onClick={onClose} style={{ cursor: "pointer", fontSize: 10, fontFamily: M, color: C.t3, marginTop: 6 }}>✕ CLOSE</div>
+                  <div style={{ display: "flex", gap: 10, justifyContent: "flex-end", marginTop: 6 }}>
+                    <span onClick={resetReq} title="Reset for a fresh demo run" style={{ cursor: "pointer", fontSize: 10, fontFamily: M, color: C.am }}>↺ RESET</span>
+                    <span onClick={deleteReq} title="Delete this request" style={{ cursor: "pointer", fontSize: 10, fontFamily: M, color: C.rd }}>🗑 DELETE</span>
+                    <span onClick={onClose} style={{ cursor: "pointer", fontSize: 10, fontFamily: M, color: C.t3 }}>✕ CLOSE</span>
+                  </div>
                 </div>
               </div>
               <PhaseNav status={req.status} activeTab={tab} onTab={setTab} />
