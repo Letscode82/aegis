@@ -7,6 +7,7 @@
  */
 import React, { useEffect, useState } from "react";
 import { Card, SH, C, F, M, useToast } from "@aegis/ui";
+import { ReviewSetConsole } from "./ReviewSetConsole";
 
 export interface CollectionRailCardProps {
   matterId: string;
@@ -33,6 +34,7 @@ export const CollectionRailCard: React.FC<CollectionRailCardProps> = ({ matterId
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState(false);
   const [sets, setSets] = useState<Array<{ id: string; name: string; itemCount: number; status: string }>>([]);
+  const [consoleId, setConsoleId] = useState<string | null>(null);
   const selected = SOURCES.filter((s) => sources[s]);
 
   const loadSets = () => {
@@ -99,15 +101,16 @@ export const CollectionRailCard: React.FC<CollectionRailCardProps> = ({ matterId
             <div style={{ marginTop: 10, borderTop: `1px solid ${C.br}`, paddingTop: 8 }}>
               <div style={{ fontSize: 9, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t3, marginBottom: 4 }}>Review sets</div>
               {sets.map((s) => (
-                <div key={s.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.t2, padding: "3px 0" }}>
+                <div key={s.id} onClick={() => setConsoleId(s.id)} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.t2, padding: "4px 0", cursor: "pointer" }}>
                   <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
-                  <span style={{ fontFamily: M, color: C.t3, flexShrink: 0, marginLeft: 8 }}>{s.itemCount} · {s.status}</span>
+                  <span style={{ fontFamily: M, color: C.cy, flexShrink: 0, marginLeft: 8 }}>{s.itemCount} · {s.status} →</span>
                 </div>
               ))}
             </div>
           )}
         </div>
       )}
+      {consoleId && <ReviewSetConsole reviewSetId={consoleId} canMutate={canMutate} onClose={() => { setConsoleId(null); loadSets(); }} />}
     </Card>
   );
 };

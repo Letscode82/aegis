@@ -746,6 +746,22 @@ export {
   type ListReviewSetsFilter,
 } from "./src/internal/services/review-set";
 
+// Reviewer console + production (code items, freeze, produce Bates + priv log).
+export {
+  getReviewSetDetail,
+  codeReviewItem,
+  freezeReviewSet,
+  produceReviewSet,
+  buildProductionManifest,
+  type ReviewSetDetail,
+  type ReviewSetItemDTO,
+  type CodeReviewItemInput,
+  type ProduceReviewSetResult,
+  type ProductionManifest,
+  type ProductionItem,
+  type PrivilegeLogEntry,
+} from "./src/internal/services/review-set-coding";
+
 // ── M365 connection management (sub-PR 4c) ─────────────────────────
 
 export {

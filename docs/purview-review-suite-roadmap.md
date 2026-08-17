@@ -65,15 +65,22 @@ like Legal Hold does:
 3. ✅ **Legal Hold ↔ eDiscovery bridge** (#288) — a hold's custodians become the
    `participants:` scope of a Purview content collection; NL→KeyQL draft +
    preview counts in the hold-workspace Collection card. Preview-only so far.
-4. ⏳ **Shared validation service.** Stratified sampling + recall/precision +
-   overturn tracking as a package both DSAR review and eDiscovery review call —
-   the "meet-and-confer binder" / DSAR defensibility pack from one code path.
-5. ⏳ **Persisted review sets + eDiscovery review console + production.** A
-   collection persists a review set (schema), the keyboard-first reviewer
-   console codes it (agentic first pass + human gate), and load-file/Bates
-   production + AI-drafted privilege log close it — the Investigations surface,
-   on the same review-item + AgentDecision spine. AI drafting for NL→KQL and
-   first-pass tagging unfreezes with 4d.
+4. ✅ **Shared validation service** (#290) — `@aegis/validation` (recall/precision
+   with Wilson CI, overturn rate, stratified sample), surfaced in DSAR review +
+   the defensibility export. Both DSAR and eDiscovery review use one code path.
+5. ✅ **Persisted review sets + reviewer console + production** (#291 schema/commit,
+   #2b console) — a hold collection commits to a durable `ReviewSet`; the
+   keyboard-first **reviewer console** codes each item for responsiveness +
+   privilege behind the human gate (R/N/P/X shortcuts, AI-overturn count);
+   **freeze** snapshots it and **produce** assembles a Bates-numbered production
+   + drafted privilege log with a downloadable load file. AI drafting for NL→KQL
+   and first-pass tagging still layers on with 4d.
+
+**The Docket spine is complete end-to-end** for the hold path: connect →
+collect (NL→KeyQL) → commit review set → code (human-gated) → validate →
+freeze → produce (Bates + privilege log). Open follow-ups: DSAR-origin review
+sets (commit a DSAR collection the same way), AI-drafted NL→KQL + first-pass
+tagging (with 4d), and full family/thread expansion on production.
 
 Every phase keeps the non-negotiables: attorney gates (`AgentDecision`),
 chain-sealed audit, AI-degrades-to-deterministic, and data staying in Purview
