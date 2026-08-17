@@ -88,8 +88,11 @@ export async function commitHoldCollection(legalHoldId: string, input: CommitHol
   let queryString = (input.queryString || "").trim();
   if (!queryString) queryString = draftCollectionQuery({ naturalLanguage: input.naturalLanguage || "", custodianEmails: emails }).queryString;
 
+  // Per-custodian enumeration (per-user endpoints honor app-only permissions;
+  // the unified /search/query does not return mail/chat app-only). Mirrors
+  // previewHoldCollection so commit persists exactly what preview showed.
   const client = await getM365ClientForOrg(hold.organizationId);
-  const res = await client.searchContent({ queryString, sources: input.sources, top: input.top ?? 100 });
+  const res = await client.searchForDataSubject({ identifiers: emails, sources: input.sources, top: input.top ?? 200 });
   const name = (input.name || "").trim() || `${hold.holdNumber || hold.title} — collection`;
 
   return persistSet(
