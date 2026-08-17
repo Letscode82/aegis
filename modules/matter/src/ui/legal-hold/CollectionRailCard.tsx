@@ -5,7 +5,7 @@
  * to custodian participants) that they edit, then Preview shows candidate hit
  * counts by source. Preview-only for now (no review-set persistence).
  */
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Card, SH, C, F, M, useToast } from "@aegis/ui";
 
 export interface CollectionRailCardProps {
@@ -32,7 +32,13 @@ export const CollectionRailCard: React.FC<CollectionRailCardProps> = ({ matterId
   const [sources, setSources] = useState<Record<string, boolean>>({ MAILBOX: true, ONEDRIVE: true, TEAMS: true, SHAREPOINT: false });
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState(false);
+  const [sets, setSets] = useState<Array<{ id: string; name: string; itemCount: number; status: string }>>([]);
   const selected = SOURCES.filter((s) => sources[s]);
+
+  const loadSets = () => {
+    fetch(`/api/matter/${matterId}/holds/${holdId}/collection`).then((r) => r.json()).then((d) => { if (d.ok) setSets(d.reviewSets); }).catch(() => {});
+  };
+  useEffect(() => { if (open) loadSets(); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const post = async (body: Record<string, unknown>) => {
     const r = await fetch(`/api/matter/${matterId}/holds/${holdId}/collection`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -49,6 +55,11 @@ export const CollectionRailCard: React.FC<CollectionRailCardProps> = ({ matterId
   const runPreview = async () => {
     setBusy(true); setPreview(null);
     try { const d = await post({ preview: true, queryString: kql.trim() || undefined, naturalLanguage: nl, sources: selected }); setPreview(d.preview); if (!kql.trim()) setKql(d.preview.queryString); }
+    catch (e) { toast.error(String((e as Error).message || e)); } finally { setBusy(false); }
+  };
+  const commit = async () => {
+    setBusy(true);
+    try { const d = await post({ commit: true, queryString: kql.trim() || undefined, naturalLanguage: nl, sources: selected }); toast.success(`Committed ${d.reviewSet.itemCount} item(s) to "${d.reviewSet.name}"`); setPreview(null); loadSets(); }
     catch (e) { toast.error(String((e as Error).message || e)); } finally { setBusy(false); }
   };
 
@@ -81,6 +92,18 @@ export const CollectionRailCard: React.FC<CollectionRailCardProps> = ({ matterId
                 </div>
               ))}
               <div style={{ fontSize: 9, color: C.t4, fontFamily: M, marginTop: 6 }}>Query: <span style={{ color: C.t3 }}>{preview.queryString}</span></div>
+              {preview.total > 0 && <button disabled={busy || !canMutate} onClick={commit} style={{ ...btn(C.gn), marginTop: 8 }}>Commit {preview.total} to review set →</button>}
+            </div>
+          )}
+          {sets.length > 0 && (
+            <div style={{ marginTop: 10, borderTop: `1px solid ${C.br}`, paddingTop: 8 }}>
+              <div style={{ fontSize: 9, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t3, marginBottom: 4 }}>Review sets</div>
+              {sets.map((s) => (
+                <div key={s.id} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.t2, padding: "3px 0" }}>
+                  <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
+                  <span style={{ fontFamily: M, color: C.t3, flexShrink: 0, marginLeft: 8 }}>{s.itemCount} · {s.status}</span>
+                </div>
+              ))}
             </div>
           )}
         </div>

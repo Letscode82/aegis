@@ -12,6 +12,10 @@ import { getM365ClientForOrg } from "../../services/m365-factory";
 import { draftCollectionQuery } from "../../services/collection-query";
 import type { DataSubjectSourceType, DataSubjectHit } from "../../services/m365";
 
+export async function holdCustodianEmails(legalHoldId: string): Promise<string[]> {
+  return custodianEmails(legalHoldId);
+}
+
 async function custodianEmails(legalHoldId: string): Promise<string[]> {
   const custodians = await prisma.legalHoldCustodian.findMany({ where: { legalHoldId }, select: { personId: true } });
   if (custodians.length === 0) return [];
