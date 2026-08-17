@@ -69,7 +69,7 @@ export async function seedDemoDsar(organizationId: string, actor: Actor): Promis
   // Reset the record set so the demo starts clean (all PENDING, no AI verdict).
   await prisma.dSARReviewItem.deleteMany({ where: { requestId: REQUEST_ID } });
   await prisma.dSARReviewItem.createMany({
-    data: RECORDS.map((r) => ({ organizationId, requestId: REQUEST_ID, sourceType: r.type, sourceSystem: r.system, title: r.title, excerpt: r.excerpt })),
+    data: RECORDS.map((r) => ({ organizationId, requestId: REQUEST_ID, sourceSystem: r.system, title: r.title, excerpt: r.excerpt })),
   });
 
   for (const l of LOCATIONS) {
