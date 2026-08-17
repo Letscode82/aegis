@@ -24,6 +24,8 @@ export {
   updateDsarFields,
   transitionDsar,
   extendDsarDeadline,
+  deleteDsarRequest,
+  resetDsarRequest,
   DsarErasureHoldConflictError,
   type Actor,
   type CreateDsarInput,

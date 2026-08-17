@@ -314,6 +314,50 @@ export async function transitionDsar(organizationId: string, requestId: string, 
   return (await getDsarDetail(organizationId, requestId))!;
 }
 
+/** Hard-delete a request and everything under it (review items, data
+ *  locations, access tokens cascade via FK). For demo cleanup. Chain-sealed. */
+export async function deleteDsarRequest(organizationId: string, requestId: string, actor: Actor): Promise<{ ok: true }> {
+  const before = await loadOrThrow(organizationId, requestId);
+  await prisma.dataSubjectRequest.delete({ where: { id: requestId } });
+  await dsarAudit(organizationId, actor, "privacy.dsar.deleted", requestId, { requestType: before.requestType, status: before.status }, null, { requestType: before.requestType });
+  return { ok: true };
+}
+
+/**
+ * Reset a request to a clean pre-collection state — clears collected review
+ * items, data locations, access tokens, verification, and delivery, and
+ * returns the case to RECEIVED. Keeps the request + data subject so the demo
+ * can be re-run against the same person. Chain-sealed.
+ */
+export async function resetDsarRequest(organizationId: string, requestId: string, actor: Actor): Promise<DsarDetailDTO> {
+  const before = await loadOrThrow(organizationId, requestId);
+  await prisma.$transaction([
+    prisma.dSARReviewItem.deleteMany({ where: { requestId } }),
+    prisma.dSARDataLocation.deleteMany({ where: { requestId } }),
+    prisma.dSARAccessToken.deleteMany({ where: { requestId } }),
+    prisma.dataSubjectRequest.update({
+      where: { id: requestId },
+      data: {
+        status: "RECEIVED",
+        verificationStatus: "UNVERIFIED",
+        verifiedAt: null,
+        verificationMethod: null,
+        completedAt: null,
+        deliveredAt: null,
+        deliveryChannel: null,
+        response: undefined,
+        closureReason: null,
+        extendedDeadline: null,
+        holdConflictCheckedAt: null,
+        holdConflictCount: 0,
+        holdConflictOverrideReason: null,
+      },
+    }),
+  ]);
+  await dsarAudit(organizationId, actor, "privacy.dsar.reset", requestId, { status: before.status }, { status: "RECEIVED" }, { requestType: before.requestType });
+  return (await getDsarDetail(organizationId, requestId))!;
+}
+
 export async function extendDsarDeadline(organizationId: string, requestId: string, input: { reason?: string | null }, actor: Actor): Promise<DsarDetailDTO> {
   const before = await loadOrThrow(organizationId, requestId);
   if (before.extendedDeadline) throw new Error("This request's deadline has already been extended once.");
