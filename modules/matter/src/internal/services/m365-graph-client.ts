@@ -852,14 +852,65 @@ export class M365GraphClient implements M365Client {
    * any Graph failure it degrades to an empty (non-simulated) result rather
    * than throwing — a failed sweep must not sink the DSAR workflow.
    */
+  /**
+   * DSAR collection — pull the data subject's own content directly from their
+   * mailbox + OneDrive. This uses the per-user resource endpoints
+   * (`/users/{id}/messages`, `/users/{id}/drive/root/children`), which DO work
+   * with application permissions (`Mail.Read`, `Files.Read.All`) — unlike the
+   * unified `/search/query` endpoint, which does not return message/chat hits
+   * app-only. The subject's own mailbox IS their personal data, so for an
+   * access request we return their records for the relevance review to score.
+   */
   async searchForDataSubject(
     input: DataSubjectSearchInput,
   ): Promise<DataSubjectSearchResult> {
-    const terms = [...input.identifiers, input.displayName]
-      .map((t) => (t || "").trim())
-      .filter(Boolean);
-    const queryString = terms.map((t) => `"${t}"`).join(" OR ") || "*";
-    return this.runContentSearch(queryString, input.sources, input.top);
+    const sources = input.sources ?? ["MAILBOX", "ONEDRIVE", "TEAMS"];
+    const top = Math.min(Math.max(input.top ?? 25, 1), 50);
+    const ids = [...new Set(input.identifiers.map((s) => (s || "").trim()).filter(Boolean))];
+    const hits: DataSubjectHit[] = [];
+
+    for (const idInput of ids) {
+      const userId = await this.resolveGraphUserIdentifier(idInput).catch(() => idInput);
+      const label = idInput.includes("@") ? idInput : userId;
+
+      if (sources.includes("MAILBOX")) {
+        const messages = await this.safeUserGet<{ value?: Array<{ id?: string; subject?: string; bodyPreview?: string; webLink?: string }> }>(
+          `/users/${userId}/messages?$top=${top}&$select=subject,bodyPreview,webLink,receivedDateTime&$orderby=receivedDateTime desc`,
+          "Mail.Read",
+        );
+        for (const m of messages?.value ?? []) {
+          hits.push({ sourceType: "MAILBOX", sourceSystem: `Exchange · ${label}`, title: m.subject || "(no subject)", excerpt: m.bodyPreview ?? null, graphId: m.id ?? null, webUrl: m.webLink ?? null });
+        }
+      }
+
+      if (sources.includes("ONEDRIVE") || sources.includes("SHAREPOINT")) {
+        const files = await this.safeUserGet<{ value?: Array<{ id?: string; name?: string; webUrl?: string; file?: unknown }> }>(
+          `/users/${userId}/drive/root/children?$top=${top}&$select=name,webUrl,id,file`,
+          "Files.Read.All",
+        );
+        for (const f of files?.value ?? []) {
+          hits.push({ sourceType: "ONEDRIVE", sourceSystem: `OneDrive · ${label}`, title: f.name || "(file)", excerpt: null, graphId: f.id ?? null, webUrl: f.webUrl ?? null });
+        }
+      }
+      // TEAMS chat content is not collectable app-only; the delegated
+      // eDiscovery path (RoutedM365Client) covers chats for legal holds.
+    }
+
+    return { hits: hits.slice(0, top * Math.max(1, ids.length)), simulated: false, searchedAt: new Date().toISOString() };
+  }
+
+  /** Audited GET that swallows ALL errors (permission / throttle / 404) and
+   *  logs the reason, so a missing scope yields "no hits" not a crash. */
+  private async safeUserGet<T>(endpoint: string, requiredScope: string): Promise<T | null> {
+    try {
+      return (await withGraphAudit(
+        { organizationId: this.organizationId, endpoint: endpoint.split("?")[0]!, method: "GET", tenantId: this.tenantId, actor: null, actorType: "SYSTEM" },
+        () => this.graph.api(endpoint).get() as Promise<T>,
+      )) as T;
+    } catch (err) {
+      console.error(`[m365-graph] ${endpoint.split("?")[0]} failed (needs ${requiredScope} app permission with admin consent):`, (err as Error)?.message || err);
+      return null;
+    }
   }
 
   /** Scoped content collection with a caller-supplied KQL/KeyQL query. */

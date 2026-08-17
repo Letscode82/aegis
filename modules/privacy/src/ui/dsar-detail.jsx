@@ -35,7 +35,11 @@ async function api(url, opts) {
   return d;
 }
 
-function Stepper({ status }) {
+// Each lifecycle stage maps to the tab where that work happens, so the stepper
+// doubles as navigation (not redundant with the tab row).
+const STAGE_TAB = { RECEIVED: "overview", VERIFYING: "identity", IN_PROGRESS: "inventory", AWAITING_REVIEW: "review", FULFILLED: "delivery" };
+
+function Stepper({ status, onJump }) {
   const idx = STAGES.findIndex((s) => s.status === status);
   const terminal = ["REJECTED", "WITHDRAWN"].includes(status);
   return (
@@ -44,7 +48,7 @@ function Stepper({ status }) {
         const done = idx >= 0 && i < idx, cur = i === idx;
         const col = terminal ? C.t4 : done ? C.gn : cur ? C.cy : C.br;
         return (
-          <div key={s.status} style={{ flex: 1, textAlign: "center" }}>
+          <div key={s.status} onClick={() => onJump && onJump(STAGE_TAB[s.status])} title={`Go to ${s.label}`} style={{ flex: 1, textAlign: "center", cursor: onJump ? "pointer" : "default" }}>
             <div style={{ height: 4, background: col, borderRadius: 2 }} />
             <div style={{ fontSize: 9, fontFamily: M, letterSpacing: .5, textTransform: "uppercase", color: cur ? C.cy : done ? C.gn : C.t4, marginTop: 4 }}>{s.label}</div>
           </div>
@@ -218,7 +222,7 @@ function M365CollectPanel({ req, onCollected, toast }) {
         <div style={{ marginTop: 10, padding: "10px 12px", background: C.bg, border: `1px solid ${C.br}`, borderRadius: 6 }}>
           <div style={{ fontSize: 11, fontFamily: M, color: C.t2 }}>{preview.total} hit(s) · <b style={{ color: C.gn }}>{preview.fresh} new</b>{preview.duplicates ? ` · ${preview.duplicates} already in queue` : ""}{preview.simulated ? " · simulated" : ""}</div>
           <div style={{ marginTop: 6 }}>
-            {preview.bySource.length === 0 ? <div style={{ fontSize: 11, color: C.t4 }}>No hits for the selected sources.</div>
+            {preview.bySource.length === 0 ? <div style={{ fontSize: 11, color: C.t4 }}>No hits for the selected sources.{connected && !preview.simulated ? " Connected, but Graph returned nothing — confirm the app registration has Mail.Read + Files.Read.All application permissions with admin consent, and that the data subject's mailbox/OneDrive has content." : ""}</div>
               : preview.bySource.map((b) => (
                 <div key={b.sourceType} style={{ padding: "5px 0", borderTop: `1px solid ${C.br}22` }}>
                   <div style={{ fontSize: 11, color: C.t1 }}><b>{SOURCE_LABEL[b.sourceType]}</b> — {b.total} hit(s), {b.fresh} new</div>
@@ -399,7 +403,7 @@ export function DsarDetail({ requestId, onClose, onChanged }) {
                   <div onClick={onClose} style={{ cursor: "pointer", fontSize: 10, fontFamily: M, color: C.t3, marginTop: 6 }}>✕ CLOSE</div>
                 </div>
               </div>
-              <div style={{ marginTop: 12 }}><Stepper status={req.status} /></div>
+              <div style={{ marginTop: 12 }}><Stepper status={req.status} onJump={setTab} /></div>
               <div style={{ display: "flex", gap: 4 }}>
                 {TABS.map(([id, label]) => <div key={id} onClick={() => setTab(id)} style={{ padding: "6px 12px", fontSize: 10.5, fontFamily: M, letterSpacing: .5, cursor: "pointer", color: tab === id ? C.cy : C.t3, borderBottom: `2px solid ${tab === id ? C.cy : "transparent"}` }}>{label}</div>)}
               </div>

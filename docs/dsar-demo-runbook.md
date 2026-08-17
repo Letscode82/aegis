@@ -14,8 +14,19 @@ Two modes:
 
 ## 0 · Prerequisites (once)
 
-- **M365 connected** at `/admin/m365` (app-only credentials for search/discovery;
-  eDiscovery delegated auth optional). Verify shows a green "Connected · tenant …".
+- **M365 connected** at `/admin/m365` (app-only credentials). Verify shows a
+  green "Connected · tenant …".
+- **App-registration permissions (critical for pulling documents).** DSAR
+  collection reads the subject's own mailbox + OneDrive via the per-user Graph
+  endpoints (`/users/{id}/messages`, `/users/{id}/drive/root/children`), which
+  need these **Application** permissions with **admin consent** granted:
+  - `Mail.Read` — mailbox content
+  - `Files.Read.All` — OneDrive / SharePoint files
+  - `User.Read.All` — resolve email/UPN → user
+  Note: the unified Microsoft Search (`/search/query`) does **not** return
+  mail/chat app-only, which is why AEGIS reads the per-user endpoints instead.
+  If a source returns 0 while "Connected", the server log names the missing
+  scope; grant it + admin-consent and retry.
 - Data subject exists in the tenant with content (you've seeded Marcus Reid).
 - Optional for real email delivery: `RESEND_API_KEY` (or `SENDGRID_API_KEY`) +
   `MAIL_FROM` + `APP_BASE_URL` set on the deployment.
