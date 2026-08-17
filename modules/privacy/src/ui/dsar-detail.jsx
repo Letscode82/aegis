@@ -35,22 +35,33 @@ async function api(url, opts) {
   return d;
 }
 
-// Each lifecycle stage maps to the tab where that work happens, so the stepper
-// doubles as navigation (not redundant with the tab row).
-const STAGE_TAB = { RECEIVED: "overview", VERIFYING: "identity", IN_PROGRESS: "inventory", AWAITING_REVIEW: "review", FULFILLED: "delivery" };
+// ONE navigation row that is both progress and tabs. Each phase maps 1:1 to
+// the lifecycle stage AND the work tab, so there's a single row (no redundant
+// stepper + tab-strip). The bar shows case progress; the label is the tab.
+const PHASES = [
+  { tab: "overview", label: "Overview", stageIdx: 0 },
+  { tab: "identity", label: "Identity", stageIdx: 1 },
+  { tab: "inventory", label: "Data inventory", stageIdx: 2 },
+  { tab: "review", label: "Review", stageIdx: 3 },
+  { tab: "delivery", label: "Delivery", stageIdx: 4 },
+];
 
-function Stepper({ status, onJump }) {
-  const idx = STAGES.findIndex((s) => s.status === status);
+function PhaseNav({ status, activeTab, onTab }) {
+  const caseIdx = STAGES.findIndex((s) => s.status === status);
   const terminal = ["REJECTED", "WITHDRAWN"].includes(status);
   return (
-    <div style={{ display: "flex", gap: 4, margin: "0 0 14px" }}>
-      {STAGES.map((s, i) => {
-        const done = idx >= 0 && i < idx, cur = i === idx;
-        const col = terminal ? C.t4 : done ? C.gn : cur ? C.cy : C.br;
+    <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
+      {PHASES.map((p) => {
+        const done = !terminal && caseIdx >= 0 && p.stageIdx < caseIdx;
+        const cur = !terminal && p.stageIdx === caseIdx;
+        const barCol = terminal ? C.t4 : done ? C.gn : cur ? C.cy : C.br;
+        const active = activeTab === p.tab;
         return (
-          <div key={s.status} onClick={() => onJump && onJump(STAGE_TAB[s.status])} title={`Go to ${s.label}`} style={{ flex: 1, textAlign: "center", cursor: onJump ? "pointer" : "default" }}>
-            <div style={{ height: 4, background: col, borderRadius: 2 }} />
-            <div style={{ fontSize: 9, fontFamily: M, letterSpacing: .5, textTransform: "uppercase", color: cur ? C.cy : done ? C.gn : C.t4, marginTop: 4 }}>{s.label}</div>
+          <div key={p.tab} onClick={() => onTab(p.tab)} style={{ flex: 1, textAlign: "center", cursor: "pointer", paddingBottom: 5, borderBottom: `2px solid ${active ? C.cy : "transparent"}` }}>
+            <div style={{ height: 4, background: barCol, borderRadius: 2 }} />
+            <div style={{ fontSize: 9.5, fontFamily: M, letterSpacing: .4, marginTop: 5, color: active ? C.cy : cur ? C.t1 : C.t3 }}>
+              {done ? "✓ " : ""}{p.label}
+            </div>
           </div>
         );
       })}
@@ -277,21 +288,49 @@ function ReviewTab({ req, reload, toast }) {
     const parsed = lines.map((l) => { const [system, ...rest] = l.split("|"); return rest.length ? { sourceSystem: system.trim(), title: rest.join("|").trim() } : { sourceSystem: "manual", title: l }; });
     try { await api(`/api/privacy/dsar/${req.id}/review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ items: parsed }) }); setText(""); load(); } catch (e) { toast(String(e.message || e), true); }
   };
-  const runAI = async () => { setBusy(true); try { const d = await api(`/api/privacy/dsar/${req.id}/review/run`, { method: "POST" }); toast(`Scored ${d.scored} item(s) · ${d.relevant} relevant${d.degraded ? " (deterministic)" : " (AI)"}`); load(); } catch (e) { toast(String(e.message || e), true); } finally { setBusy(false); } };
+  const runAI = async () => { setBusy(true); try { const d = await api(`/api/privacy/dsar/${req.id}/review/run`, { method: "POST" }); toast(`AI scored ${d.scored} item(s) · ${d.relevant} relevant${d.degraded ? " (deterministic)" : " (AI)"}`); load(); } catch (e) { toast(String(e.message || e), true); } finally { setBusy(false); } };
+  const acceptAll = async () => { setBusy(true); try { const d = await api(`/api/privacy/dsar/${req.id}/review/accept-all`, { method: "POST" }); toast(`Accepted ${d.accepted} AI verdict(s) · ${d.relevant} relevant`); load(); } catch (e) { toast(String(e.message || e), true); } finally { setBusy(false); } };
   const validate = async (itemId, body) => { try { await api(`/api/privacy/dsar/${req.id}/review/${itemId}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }); load(); } catch (e) { toast(String(e.message || e), true); } };
-  const pending = (items || []).filter((i) => i.reviewDecision === "PENDING").length;
-  const validatedCount = (items || []).filter((i) => i.reviewDecision !== "PENDING" && i.aiVerdict).length;
+  const all = items || [];
+  const total = all.length;
+  const pending = all.filter((i) => i.reviewDecision === "PENDING").length;
+  const aiScored = all.filter((i) => i.aiVerdict).length;
+  const aiPending = all.filter((i) => i.reviewDecision === "PENDING" && i.aiVerdict).length;
+  const validated = total - pending;
+  const validatedCount = all.filter((i) => i.reviewDecision !== "PENDING" && i.aiVerdict).length;
+  const step = (n, label, done, active) => (
+    <div style={{ flex: 1, textAlign: "center" }}>
+      <div style={{ width: 20, height: 20, margin: "0 auto", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontFamily: M, fontWeight: 700, color: done || active ? C.bg : C.t3, background: done ? C.gn : active ? C.pp : "transparent", border: `1px solid ${done ? C.gn : active ? C.pp : C.br}` }}>{done ? "✓" : n}</div>
+      <div style={{ fontSize: 8.5, fontFamily: M, letterSpacing: .4, textTransform: "uppercase", color: active ? C.pp : done ? C.gn : C.t4, marginTop: 4 }}>{label}</div>
+    </div>
+  );
   return (
     <div>
       <M365CollectPanel req={req} onCollected={load} toast={toast} />
+
+      {/* AI-assisted relevance review — the aiR flow, human-gated */}
+      <div style={{ ...card }}>
+        <div style={{ fontSize: 12.5, color: C.t1, fontWeight: 600, marginBottom: 2 }}>AI-assisted relevance review</div>
+        <div style={{ fontSize: 10, color: C.t4, fontFamily: M, marginBottom: 10 }}>AI proposes a verdict for every record; a human confirms or overrides. The AI never finalises.</div>
+        <div style={{ display: "flex", gap: 4, marginBottom: 12 }}>
+          {step(1, "Collect", total > 0, total === 0)}
+          {step(2, "Run AI", aiScored > 0 && pending === 0 ? false : aiScored >= total && total > 0, total > 0 && aiScored < total)}
+          {step(3, "Validate", validated > 0, aiScored > 0 && pending > 0)}
+          {step(4, "Scale", pending === 0 && total > 0, false)}
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <button disabled={busy || pending === 0} onClick={runAI} style={btn(C.pp)}>{busy ? "Scoring…" : `✨ Run AI review (${pending})`}</button>
+          <button disabled={busy || aiPending === 0} onClick={acceptAll} title="Confirm every pending item at the AI verdict — the reviewer applies the model at scale after validating a sample." style={aiPending > 0 ? btn(C.gn) : ghost(C.t4)}>✓ Accept all AI ({aiPending})</button>
+          <span style={{ marginLeft: "auto", fontSize: 10, fontFamily: M, color: C.t3, alignSelf: "center" }}>{validated}/{total} coded</span>
+        </div>
+      </div>
+
       <ValidationStrip requestId={req.id} refreshKey={validatedCount} />
+
       <div style={{ ...card, padding: "10px 12px" }}>
         <div style={lbl}>Or add records manually (one per line — optionally "System | Title")</div>
-        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={3} style={{ ...input, resize: "vertical", fontFamily: M, fontSize: 11 }} placeholder={"Salesforce CRM | Account note mentioning the data subject\nHRIS | Employment record"} />
-        <div style={{ display: "flex", gap: 8, marginTop: 6 }}>
-          <button onClick={addItems} style={btn(C.cy)}>Add to queue</button>
-          <button disabled={busy || pending === 0} onClick={runAI} style={btn(C.pp)}>{busy ? "Scoring…" : `✨ Run AI relevance review (${pending})`}</button>
-        </div>
+        <textarea value={text} onChange={(e) => setText(e.target.value)} rows={2} style={{ ...input, resize: "vertical", fontFamily: M, fontSize: 11 }} placeholder={"Salesforce CRM | Account note mentioning the data subject"} />
+        <div style={{ marginTop: 6 }}><button onClick={addItems} style={ghost(C.cy)}>Add to queue</button></div>
       </div>
       {!items ? <div style={{ fontSize: 11, color: C.t4, fontFamily: M }}>Loading…</div>
         : items.length === 0 ? <div style={{ fontSize: 11, color: C.t4, fontStyle: "italic" }}>No records collected yet.</div>
@@ -367,9 +406,6 @@ function DeliveryTab({ req, reload, toast }) {
   );
 }
 
-const TABS = [
-  ["overview", "Overview"], ["identity", "Identity"], ["inventory", "Data inventory"], ["review", "Review"], ["delivery", "Delivery"],
-];
 
 export function DsarDetail({ requestId, onClose, onChanged }) {
   const [req, setReq] = useState(null);
@@ -403,10 +439,7 @@ export function DsarDetail({ requestId, onClose, onChanged }) {
                   <div onClick={onClose} style={{ cursor: "pointer", fontSize: 10, fontFamily: M, color: C.t3, marginTop: 6 }}>✕ CLOSE</div>
                 </div>
               </div>
-              <div style={{ marginTop: 12 }}><Stepper status={req.status} onJump={setTab} /></div>
-              <div style={{ display: "flex", gap: 4 }}>
-                {TABS.map(([id, label]) => <div key={id} onClick={() => setTab(id)} style={{ padding: "6px 12px", fontSize: 10.5, fontFamily: M, letterSpacing: .5, cursor: "pointer", color: tab === id ? C.cy : C.t3, borderBottom: `2px solid ${tab === id ? C.cy : "transparent"}` }}>{label}</div>)}
-              </div>
+              <PhaseNav status={req.status} activeTab={tab} onTab={setTab} />
             </div>
             <div style={{ padding: "16px 20px" }}>
               {toast && <div style={{ marginBottom: 10, fontSize: 11, fontFamily: M, color: toast.err ? C.rd : C.gn }}>{toast.err ? "⚠ " : "✓ "}{toast.msg}</div>}
