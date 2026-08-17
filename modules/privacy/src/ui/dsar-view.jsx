@@ -103,7 +103,18 @@ export function DsarView() {
   const [filter, setFilter] = useState({ status: "", overdue: false, mine: false });
   const [openId, setOpenId] = useState(null);
   const [creating, setCreating] = useState(false);
+  const [seeding, setSeeding] = useState(false);
   const [error, setError] = useState(null);
+
+  const seedDemo = async () => {
+    setSeeding(true); setError(null);
+    try {
+      const r = await fetch("/api/privacy/dsar/seed-demo", { method: "POST" });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setOpenId(d.requestId);
+    } catch (e) { setError(String(e.message || e)); } finally { setSeeding(false); }
+  };
 
   const load = useCallback(() => {
     const qs = new URLSearchParams();
@@ -122,7 +133,10 @@ export function DsarView() {
           <div style={{ fontSize: 10, fontFamily: M, letterSpacing: 2, color: C.tl, textTransform: "uppercase" }}>Privacy &amp; Compliance Ops</div>
           <div style={{ fontSize: 24, fontFamily: SR, color: C.t1 }}>Data Subject Requests</div>
         </div>
-        <button onClick={() => setCreating(true)} style={btn(C.cy)}>+ New request</button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <button onClick={seedDemo} disabled={seeding} style={{ ...ghost(C.tl), opacity: seeding ? .6 : 1 }} title="Create (or reset) a controlled Priya Kulkarni demo request">{seeding ? "Seeding…" : "⚡ Seed demo"}</button>
+          <button onClick={() => setCreating(true)} style={btn(C.cy)}>+ New request</button>
+        </div>
       </div>
 
       {dash && (
