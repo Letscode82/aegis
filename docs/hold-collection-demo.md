@@ -29,10 +29,11 @@ addresses. Two of them (`priya.kulkarni`, `marcus.reid`) already match real
 tenant users, so this just swaps the domain:
 
 ```
-pnpm --filter @aegis/db exec tsx scripts/point-hold-custodians-to-tenant.ts --tenant 6bs6wq.onmicrosoft.com
+# from the repo root — the ../../ is because --filter runs inside packages/db
+pnpm --filter @aegis/db exec tsx ../../scripts/point-hold-custodians-to-tenant.ts --tenant 6bs6wq.onmicrosoft.com
 ```
 
-- Preview first with `--verify-only`.
+- Preview first by appending `--verify-only`.
 - Rhea Malhotra has no matching tenant user — either leave her (she'll return
   0 hits, which is a fine "not connected" state) or map her to a real user:
   `--map "rhea.malhotra=lena.perez"`.
