@@ -8,6 +8,7 @@
  * between the Article 30 record and the live request.
  */
 import { prisma, logAudit } from "@aegis/db";
+import { enumerateM365DataSourcesForUser, getM365ConnectionStatus, type EnumeratedDataSource } from "@aegis/matter";
 import type { Actor } from "./requests";
 
 export interface DataLocationDTO {
@@ -82,6 +83,71 @@ export async function updateDataLocation(organizationId: string, requestId: stri
 export interface SeedInventoryResult {
   scanned: number;
   created: number;
+}
+
+/** Friendly (system, dataType) for a discovered M365 source (pure). */
+export function mapEnumeratedSource(ds: Pick<EnumeratedDataSource, "type" | "displayLabel">): { system: string; dataType: string } {
+  const t = String(ds.type).toUpperCase();
+  if (t.includes("MAILBOX") || t.includes("EMAIL")) return { system: "Exchange Online", dataType: "email" };
+  if (t.includes("ONEDRIVE")) return { system: "OneDrive", dataType: "files" };
+  if (t.includes("TEAMS")) return { system: "Microsoft Teams", dataType: "chats" };
+  if (t.includes("SHAREPOINT") || t.includes("SITE")) return { system: "SharePoint", dataType: "documents" };
+  return { system: ds.displayLabel || "Microsoft 365", dataType: t.toLowerCase().replace(/_/g, "-") };
+}
+
+export interface DiscoverM365Result {
+  scanned: number;
+  created: number;
+  simulated: boolean;
+  locations: DataLocationDTO[];
+}
+
+/**
+ * Discover the data subject's real Microsoft 365 data sources (mailbox,
+ * OneDrive, Teams, SharePoint) via the same Graph enumeration legal hold uses,
+ * and add them to the DSAR data-location checklist. Requires the subject to
+ * have an email/UPN. Idempotent by (system, dataType). Chain-sealed.
+ */
+export async function discoverM365DataLocations(organizationId: string, requestId: string, actor: Actor): Promise<DiscoverM365Result> {
+  const req = await prisma.dataSubjectRequest.findFirst({
+    where: { id: requestId, organizationId },
+    include: { requesterPerson: { select: { email: true, externalRef: true } } },
+  });
+  if (!req) throw new Error("Request not found");
+  const identifier = req.requesterPerson?.email || req.requesterPerson?.externalRef;
+  if (!identifier) throw new Error("The data subject has no email / UPN to enumerate M365 data sources for.");
+
+  const [sources, status] = await Promise.all([
+    enumerateM365DataSourcesForUser(organizationId, identifier),
+    getM365ConnectionStatus(organizationId).catch(() => ({ mode: "mock" as const })),
+  ]);
+
+  let created = 0;
+  const seen = new Set<string>();
+  for (const ds of sources) {
+    const { system, dataType } = mapEnumeratedSource(ds);
+    const key = `${system}|${dataType}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const existing = await prisma.dSARDataLocation.findUnique({
+      where: { requestId_system_dataType: { requestId, system, dataType } },
+      select: { id: true },
+    });
+    if (existing) continue;
+    await prisma.dSARDataLocation.create({ data: { requestId, system, dataType, found: false, redactionsRequired: false } });
+    created += 1;
+  }
+
+  if (created > 0) {
+    await logAudit({
+      organizationId, actorId: actor.id, actorType: actor.type ?? "USER",
+      action: "privacy.dsar.m365_locations_discovered", resourceType: "DataSubjectRequest", resourceId: requestId,
+      afterJson: { created, scanned: sources.length, simulated: status.mode !== "real" } as never,
+      metadata: { source: "privacy", channel: "m365" } as never,
+    });
+  }
+
+  return { scanned: sources.length, created, simulated: status.mode !== "real", locations: await listDataLocations(organizationId, requestId) };
 }
 
 /**

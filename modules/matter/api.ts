@@ -830,6 +830,17 @@ export type {
   DataSubjectSourceType,
 } from "./src/internal/services/m365";
 
+// Per-user M365 data-source enumeration — the same Graph lookup legal hold's
+// custodian data-source discovery uses, exposed so Privacy's DSAR data
+// inventory can enumerate the data subject's real mailbox / OneDrive / Teams.
+export async function enumerateM365DataSourcesForUser(
+  organizationId: string,
+  externalIdentifier: string,
+) {
+  const client = await resolveM365Client(organizationId);
+  return client.enumerateDataSourcesForUser(externalIdentifier);
+}
+
 // Scoped content collection — the shared eDiscovery/DSAR primitive. Run a
 // KQL/KeyQL query across the tenant through the same per-org factory.
 export async function searchM365Content(

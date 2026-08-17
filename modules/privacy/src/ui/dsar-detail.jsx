@@ -118,11 +118,13 @@ function InventoryTab({ req, reload, toast }) {
   const load = useCallback(() => { fetch(`/api/privacy/dsar/${req.id}/inventory`).then((r) => r.json()).then((d) => d.ok && setLocs(d.locations)).catch(() => {}); }, [req.id]);
   useEffect(() => { load(); }, [load]);
   const seed = async () => { try { const d = await api(`/api/privacy/dsar/${req.id}/inventory`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ seed: true }) }); toast(`Seeded ${d.seeded.created} location(s) from ROPA`); setLocs(d.locations); } catch (e) { toast(String(e.message || e), true); } };
+  const discover = async () => { try { const d = await api(`/api/privacy/dsar/${req.id}/inventory`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ discover: true }) }); toast(`Discovered ${d.discovered.created} M365 source(s)${d.discovered.simulated ? " (simulated — no tenant)" : " from Microsoft 365"}`); setLocs(d.locations); } catch (e) { toast(String(e.message || e), true); } };
   const addLoc = async () => { try { await api(`/api/privacy/dsar/${req.id}/inventory`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(add) }); setAdd({ system: "", dataType: "" }); load(); } catch (e) { toast(String(e.message || e), true); } };
   const upd = async (locationId, body) => { try { await api(`/api/privacy/dsar/${req.id}/inventory`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ locationId, ...body }) }); load(); } catch (e) { toast(String(e.message || e), true); } };
   return (
     <div>
-      <div style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+      <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+        <button onClick={discover} style={btn(C.tl)}>⚡ Discover from Microsoft 365</button>
         <button onClick={seed} style={ghost(C.tl)}>⤵ Seed from ROPA</button>
       </div>
       <div style={{ ...card, padding: "10px 12px" }}>
