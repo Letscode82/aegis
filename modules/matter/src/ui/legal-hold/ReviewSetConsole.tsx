@@ -19,7 +19,7 @@ export interface ReviewSetConsoleProps {
 
 interface Item {
   id: string; sourceType: string; sourceSystem: string; title: string; excerpt: string | null;
-  aiVerdict: string | null; aiScore: number | null; coded: boolean;
+  aiVerdict: string | null; aiScore: number | null; aiRationale: string | null; aiRoute: string | null; coded: boolean;
   codedResponsive: boolean | null; codedPrivileged: boolean; redact: boolean;
 }
 interface Detail {
@@ -36,12 +36,15 @@ interface Manifest {
 
 const btn = (bg: string): React.CSSProperties => ({ padding: "6px 12px", background: bg, color: C.bg, border: "none", borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: .8, fontWeight: 700, textTransform: "uppercase", cursor: "pointer" });
 const ghost = (col: string): React.CSSProperties => ({ padding: "6px 12px", background: "transparent", color: col, border: `1px solid ${col}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: .8, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" });
+const routeColor = (route: string | null): string => route === "ATTORNEY" ? C.pp : route === "REVIEWER" ? C.bl : route === "AUTO_CULL" ? C.t4 : C.t4;
+const routeLabel = (route: string | null): string => route === "ATTORNEY" ? "Attorney" : route === "REVIEWER" ? "Reviewer" : route === "AUTO_CULL" ? "Auto-cull" : "";
 
 export const ReviewSetConsole: React.FC<ReviewSetConsoleProps> = ({ reviewSetId, canMutate, onClose }) => {
   const toast = useToast();
   const [detail, setDetail] = useState<Detail | null>(null);
   const [cursor, setCursor] = useState(0);
   const [manifest, setManifest] = useState<Manifest | null>(null);
+  const [runningAi, setRunningAi] = useState(false);
 
   const load = useCallback(() => {
     fetch(`/api/matter/review-sets/${reviewSetId}`).then((r) => r.json()).then((d) => { if (d.ok) setDetail(d); }).catch(() => {});
@@ -79,6 +82,17 @@ export const ReviewSetConsole: React.FC<ReviewSetConsoleProps> = ({ reviewSetId,
     return () => window.removeEventListener("keydown", onKey);
   }, [items.length, code, current, onClose]);
 
+  const runAiReview = async () => {
+    setRunningAi(true);
+    try {
+      const r = await fetch(`/api/matter/review-sets/${reviewSetId}/ai-review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pendingOnly: false }) });
+      const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error);
+      const rt = d.routes;
+      toast.success(`AI review: ${d.scored} scored · ${rt.attorney} attorney · ${rt.reviewer} reviewer · ${rt.autoCull} auto-cull${d.degraded ? " (deterministic)" : ""}`);
+      load();
+    } catch (e) { toast.error(String((e as Error).message || e)); }
+    finally { setRunningAi(false); }
+  };
   const freeze = async () => {
     try { const r = await fetch(`/api/matter/review-sets/${reviewSetId}/freeze`, { method: "POST" }); const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error); toast.success("Review set frozen"); load(); }
     catch (e) { toast.error(String((e as Error).message || e)); }
@@ -109,6 +123,7 @@ export const ReviewSetConsole: React.FC<ReviewSetConsoleProps> = ({ reviewSetId,
           <div style={{ fontSize: 16, fontFamily: SR, color: C.t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{detail?.summary.name ?? "Loading…"}</div>
         </div>
         {p && <div style={{ fontSize: 11, fontFamily: M, color: C.t2 }}>{p.coded}/{p.total} coded · {p.responsive} resp · {p.privileged} priv · {overturns} AI overturns</div>}
+        {canMutate && !frozen && <button onClick={runAiReview} disabled={runningAi} style={ghost(C.bl)}>{runningAi ? "Running…" : "Run AI review"}</button>}
         {canMutate && !frozen && <button onClick={freeze} style={ghost(C.am)}>Freeze</button>}
         {canMutate && detail?.summary.status === "FROZEN" && <button onClick={produce} style={btn(C.gn)}>Produce</button>}
         <div onClick={onClose} style={{ cursor: "pointer", fontSize: 11, fontFamily: M, color: C.t3 }}>✕ ESC</div>
@@ -120,7 +135,10 @@ export const ReviewSetConsole: React.FC<ReviewSetConsoleProps> = ({ reviewSetId,
           {items.map((it, i) => (
             <div key={it.id} onClick={() => setCursor(i)} style={{ padding: "8px 12px", borderBottom: `1px solid ${C.br}22`, cursor: "pointer", background: i === cursor ? C.s1 : "transparent", borderLeft: `3px solid ${it.coded ? (it.codedResponsive ? (it.codedPrivileged ? C.pp : C.gn) : C.t4) : "transparent"}` }}>
               <div style={{ fontSize: 11.5, color: C.t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{it.title}</div>
-              <div style={{ fontSize: 9, fontFamily: M, color: C.t4 }}>{it.sourceSystem}{it.aiVerdict ? ` · AI ${it.aiVerdict}` : ""}{it.redact ? " · redact" : ""}</div>
+              <div style={{ fontSize: 9, fontFamily: M, color: C.t4, display: "flex", alignItems: "center", gap: 5 }}>
+                <span>{it.sourceSystem}{it.aiVerdict ? ` · AI ${it.aiVerdict}` : ""}{it.redact ? " · redact" : ""}</span>
+                {it.aiRoute && <span style={{ color: routeColor(it.aiRoute), fontWeight: 700 }}>→ {routeLabel(it.aiRoute)}</span>}
+              </div>
             </div>
           ))}
         </div>
@@ -144,8 +162,12 @@ export const ReviewSetConsole: React.FC<ReviewSetConsoleProps> = ({ reviewSetId,
             <div style={{ color: C.t4, fontFamily: M, fontSize: 12 }}>{detail ? "No items in this set." : "Loading…"}</div>
           ) : (
             <div>
-              <div style={{ fontSize: 9.5, fontFamily: M, color: C.t4 }}>{current.sourceType} · {current.sourceSystem}{current.aiVerdict ? ` · AI: ${current.aiVerdict}${current.aiScore != null ? ` ${Math.round(current.aiScore * 100)}%` : ""}` : ""}</div>
+              <div style={{ fontSize: 9.5, fontFamily: M, color: C.t4, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                <span>{current.sourceType} · {current.sourceSystem}{current.aiVerdict ? ` · AI: ${current.aiVerdict}${current.aiScore != null ? ` ${Math.round(current.aiScore * 100)}%` : ""}` : ""}</span>
+                {current.aiRoute && <span style={{ padding: "1px 6px", borderRadius: 4, border: `1px solid ${routeColor(current.aiRoute)}`, color: routeColor(current.aiRoute), fontWeight: 700, letterSpacing: .6 }}>→ {routeLabel(current.aiRoute)}</span>}
+              </div>
               <div style={{ fontSize: 17, fontFamily: SR, color: C.t1, margin: "6px 0 12px" }}>{current.title}</div>
+              {current.aiRationale && <div style={{ fontSize: 10.5, fontFamily: M, color: C.t3, marginBottom: 12, lineHeight: 1.5 }}>{current.aiRationale}</div>}
               <div style={{ padding: "14px 16px", background: C.cd, border: `1px solid ${C.br}`, borderRadius: 8, fontSize: 13, lineHeight: 1.7, color: C.t2, minHeight: 120 }}>{current.excerpt || <span style={{ color: C.t4, fontStyle: "italic" }}>No preview text — open in Purview for the full item.</span>}</div>
 
               <div style={{ display: "flex", gap: 8, marginTop: 16, flexWrap: "wrap", alignItems: "center" }}>

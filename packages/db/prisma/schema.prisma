@@ -2588,6 +2588,11 @@ model ReviewSetItem {
   aiVerdict      DSARReviewVerdict?
   aiScore        Float?
   aiRationale    String?
+  /// Full multi-dimension AI-review tag set (@aegis/ai-review): responsive/
+  /// privileged/PII/key/redact, each with confidence + citation.
+  aiTags         Json?
+  /// Routing decision from the tag set: AUTO_CULL | REVIEWER | ATTORNEY.
+  aiRoute        String?
   reviewDecision DSARReviewDecision @default(PENDING)
   codedResponsive Boolean?
   codedPrivileged Boolean          @default(false)
