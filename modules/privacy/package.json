@@ -20,6 +20,7 @@
     "@aegis/ai": "workspace:*",
     "@aegis/db": "workspace:*",
     "@aegis/email": "workspace:*",
+    "@aegis/ai-review": "workspace:*",
     "@aegis/matter": "workspace:*",
     "@aegis/validation": "workspace:*",
     "@aegis/ui": "workspace:*",
