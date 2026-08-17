@@ -216,6 +216,39 @@ export async function validateReviewItem(organizationId: string, requestId: stri
   return toDTO(updated as Row);
 }
 
+export interface BulkAcceptResult {
+  accepted: number;
+  relevant: number;
+}
+
+/**
+ * "Apply at scale" — confirm every still-pending item at the AI's verdict in
+ * one action (finalRelevant = AI said RELEVANT). The reviewer validates a
+ * sample by hand first; this accepts the remainder. Still a human decision —
+ * it's the reviewer clicking accept, recorded per item on the audit ledger.
+ */
+export async function bulkAcceptAiVerdicts(organizationId: string, requestId: string, actor: Actor): Promise<BulkAcceptResult> {
+  await loadRequest(organizationId, requestId);
+  const pending = await prisma.dSARReviewItem.findMany({ where: { requestId, reviewDecision: "PENDING", aiVerdict: { not: null } }, select: { id: true, aiVerdict: true } });
+  if (pending.length === 0) return { accepted: 0, relevant: 0 };
+
+  let relevant = 0;
+  const now = new Date();
+  await prisma.$transaction(
+    pending.map((p) => {
+      const rel = p.aiVerdict === "RELEVANT";
+      if (rel) relevant += 1;
+      return prisma.dSARReviewItem.update({ where: { id: p.id }, data: { reviewDecision: "CONFIRMED", finalRelevant: rel, reviewedById: actor.id, reviewedAt: now } });
+    }),
+  );
+  await logAudit({
+    organizationId, actorId: actor.id, actorType: actor.type ?? "USER",
+    action: "privacy.dsar.review_bulk_accepted", resourceType: "DataSubjectRequest", resourceId: requestId,
+    afterJson: { accepted: pending.length, relevant } as never, metadata: { source: "privacy" } as never,
+  });
+  return { accepted: pending.length, relevant };
+}
+
 export interface ReviewProgress {
   total: number;
   pending: number;

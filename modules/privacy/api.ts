@@ -82,12 +82,14 @@ export {
   addReviewItems,
   runRelevanceReview,
   validateReviewItem,
+  bulkAcceptAiVerdicts,
   summarizeReview,
   type ReviewItemDTO,
   type AddReviewItemInput,
   type RelevanceReviewResult,
   type ValidateReviewItemInput,
   type ReviewProgress,
+  type BulkAcceptResult,
 } from "./src/internal/review";
 
 // M365 / Purview collection (connect to your E5 tenant + search the subject)
