@@ -14,6 +14,7 @@
 import { prisma, logAudit } from "@aegis/db";
 import { searchM365ForDataSubject, searchM365Content, getM365ConnectionStatus, draftCollectionQuery, type DataSubjectSourceType } from "@aegis/matter";
 import type { Actor } from "./requests";
+import { DEMO_SUBJECT_EMAIL, DEMO_RECORDS } from "./demo-seed";
 
 export interface CollectFromM365Input {
   sources?: DataSubjectSourceType[];
@@ -32,6 +33,13 @@ async function runSearch(
   subject: { identifiers: string[]; displayName: string | null },
   input: CollectFromM365Input,
 ) {
+  // Controlled demo subject → return the curated record set (respecting the
+  // selected sources), so the collection step is shown on deterministic data.
+  if (subject.identifiers.some((i) => i.toLowerCase() === DEMO_SUBJECT_EMAIL)) {
+    const wanted = input.sources ?? ["MAILBOX", "ONEDRIVE", "TEAMS", "SHAREPOINT"];
+    const hits = DEMO_RECORDS.filter((r) => wanted.includes(r.sourceType)).map((r) => ({ sourceType: r.sourceType, sourceSystem: r.sourceSystem, title: r.title, excerpt: r.excerpt, graphId: null, webUrl: null }));
+    return { hits, simulated: true, searchedAt: new Date().toISOString() };
+  }
   const qs = (input.queryString || "").trim();
   if (qs) return searchM365Content(organizationId, { queryString: qs, sources: input.sources, top: input.top });
   return searchM365ForDataSubject(organizationId, { identifiers: subject.identifiers, displayName: subject.displayName, sources: input.sources, top: input.top });
