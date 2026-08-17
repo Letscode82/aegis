@@ -746,6 +746,13 @@ export {
   type ListReviewSetsFilter,
 } from "./src/internal/services/review-set";
 
+// AI-assisted review over a review set (multi-dimension tags + routing).
+export {
+  runAiReviewOnReviewSet,
+  type RunReviewSetAiInput,
+  type RunReviewSetAiResult,
+} from "./src/internal/services/review-set-ai";
+
 // Reviewer console + production (code items, freeze, produce Bates + priv log).
 export {
   getReviewSetDetail,

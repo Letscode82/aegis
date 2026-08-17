@@ -22,6 +22,7 @@ export interface ReviewSetItemDTO {
   aiVerdict: string | null;
   aiScore: number | null;
   aiRationale: string | null;
+  aiRoute: string | null;
   coded: boolean;
   codedResponsive: boolean | null;
   codedPrivileged: boolean;
@@ -32,12 +33,12 @@ export interface ReviewSetItemDTO {
 
 function toItemDTO(r: {
   id: string; sourceType: string; sourceSystem: string; title: string; excerpt: string | null;
-  aiVerdict: string | null; aiScore: number | null; aiRationale: string | null;
+  aiVerdict: string | null; aiScore: number | null; aiRationale: string | null; aiRoute?: string | null;
   reviewDecision: string; codedResponsive: boolean | null; codedPrivileged: boolean; redact: boolean; reviewNote: string | null; reviewedAt: Date | null;
 }): ReviewSetItemDTO {
   return {
     id: r.id, sourceType: r.sourceType, sourceSystem: r.sourceSystem, title: r.title, excerpt: r.excerpt,
-    aiVerdict: r.aiVerdict, aiScore: r.aiScore, aiRationale: r.aiRationale,
+    aiVerdict: r.aiVerdict, aiScore: r.aiScore, aiRationale: r.aiRationale, aiRoute: r.aiRoute ?? null,
     coded: r.reviewDecision !== "PENDING", codedResponsive: r.codedResponsive, codedPrivileged: r.codedPrivileged,
     redact: r.redact, reviewNote: r.reviewNote, reviewedAt: r.reviewedAt?.toISOString() ?? null,
   };

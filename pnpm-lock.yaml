@@ -231,6 +231,9 @@ importers:
 
   modules/matter:
     dependencies:
+      '@aegis/ai-review':
+        specifier: workspace:*
+        version: link:../../packages/ai-review
       '@aegis/db':
         specifier: workspace:*
         version: link:../../packages/db
