@@ -2602,6 +2602,15 @@ model ReviewSetItem {
   /// privilegeBasis: string|null }`. Responsive/privileged/redact stay discrete
   /// columns; this holds the richer coding layout.
   codingJson     Json?
+  /// Reviewer-parity v2 (families / threading / near-dup). familyId groups an
+  /// email with its attachments (familyRole = PARENT | ATTACHMENT); threadId
+  /// groups an email conversation and isInclusive marks the most-inclusive
+  /// (latest) member; dedupKey groups exact/near duplicates.
+  familyId       String?
+  familyRole     String?
+  threadId       String?
+  isInclusive    Boolean?
+  dedupKey       String?
   reviewDecision DSARReviewDecision @default(PENDING)
   codedResponsive Boolean?
   codedPrivileged Boolean          @default(false)

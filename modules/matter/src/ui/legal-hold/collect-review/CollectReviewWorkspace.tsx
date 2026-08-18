@@ -234,6 +234,7 @@ interface Item {
   aiVerdict: string | null; aiScore: number | null; aiRationale: string | null; aiRoute: string | null; aiTags: unknown; coded: boolean;
   codedResponsive: boolean | null; codedPrivileged: boolean; redact: boolean;
   issues: string[]; confidentiality: string | null; privilegeBasis: string | null; reviewNote: string | null;
+  familyId: string | null; familyRole: string | null; threadId: string | null; isInclusive: boolean | null; dedupKey: string | null;
 }
 type Issue = { key: string; label: string };
 type RouteFilter = "ALL" | "ATTORNEY" | "REVIEWER" | "AUTO_CULL";
@@ -263,6 +264,8 @@ const ReviewStep: React.FC<{ reviewSetId: string; canMutate: boolean; onProduce:
   const [filter, setFilter] = useState<RouteFilter>("ALL");
   const [query, setQuery] = useState("");
   const [sortByPriority, setSortByPriority] = useState(true);
+  const [hideSuppressed, setHideSuppressed] = useState(false);
+  const [propagateFamily, setPropagateFamily] = useState(true);
   const [runningAi, setRunningAi] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -281,15 +284,32 @@ const ReviewStep: React.FC<{ reviewSetId: string; canMutate: boolean; onProduce:
     REVIEWER: items.filter((i) => i.aiRoute === "REVIEWER").length,
     AUTO_CULL: items.filter((i) => i.aiRoute === "AUTO_CULL").length,
   }), [items]);
+  // Family / thread / near-dup derived state.
+  const derived = useMemo(() => {
+    const threadSize = new Map<string, number>();
+    const familyCount = new Map<string, number>(); // parent familyId → attachment count
+    const dupIds = new Set<string>();
+    const seenDedup = new Set<string>();
+    for (const i of items) {
+      if (i.threadId) threadSize.set(i.threadId, (threadSize.get(i.threadId) ?? 0) + 1);
+      if (i.familyRole === "ATTACHMENT" && i.familyId) familyCount.set(i.familyId, (familyCount.get(i.familyId) ?? 0) + 1);
+      if (i.dedupKey) { if (seenDedup.has(i.dedupKey)) dupIds.add(i.id); else seenDedup.add(i.dedupKey); }
+    }
+    const suppressed = new Set<string>();
+    for (const i of items) { if (i.isInclusive === false || dupIds.has(i.id)) suppressed.add(i.id); }
+    return { threadSize, familyCount, dupIds, suppressed };
+  }, [items]);
+
   const filtered = useMemo(() => {
     let list = items.filter((i) => {
       if (filter !== "ALL" && i.aiRoute !== filter) return false;
+      if (hideSuppressed && derived.suppressed.has(i.id)) return false;
       if (query.trim()) { const q = query.toLowerCase(); return i.title.toLowerCase().includes(q) || (i.sourceSystem || "").toLowerCase().includes(q); }
       return true;
     });
     if (sortByPriority) list = [...list].sort((a, b) => aiPriority(b) - aiPriority(a));
     return list;
-  }, [items, filter, query, sortByPriority]);
+  }, [items, filter, query, sortByPriority, hideSuppressed, derived]);
   useEffect(() => { if (cursor >= filtered.length) setCursor(0); }, [filtered.length, cursor]);
   const current = filtered[cursor];
 
@@ -305,12 +325,15 @@ const ReviewStep: React.FC<{ reviewSetId: string; canMutate: boolean; onProduce:
   };
   const code = useCallback(async (body: Record<string, unknown>, advance: boolean) => {
     if (!current || !canMutate || frozen) return;
+    const full = propagateFamily && current.familyId ? { ...body, propagateFamily: true } : body;
     try {
-      const item = await patch(current.id, body);
+      const item = await patch(current.id, full);
       setItems((prev) => prev.map((it) => (it.id === current.id ? { ...it, ...item } : it)));
       if (advance) setCursor((c) => Math.min(filtered.length - 1, c + 1));
+      // A family-propagated decision changed siblings too — refresh to reflect them.
+      if (propagateFamily && current.familyId && ("responsive" in body || "privileged" in body || "redact" in body)) load();
     } catch (e) { toast.error(String((e as Error).message || e)); }
-  }, [current, canMutate, frozen, reviewSetId, filtered.length, toast]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [current, canMutate, frozen, reviewSetId, filtered.length, propagateFamily, toast, load]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const bulkCode = async (body: Record<string, unknown>) => {
     if (selected.size === 0 || !canMutate || frozen) return;
@@ -387,6 +410,9 @@ const ReviewStep: React.FC<{ reviewSetId: string; canMutate: boolean; onProduce:
         <label style={{ fontSize: 12, color: C.t3, display: "flex", alignItems: "center", gap: 6 }}>
           <input type="checkbox" checked={sortByPriority} onChange={(e) => { setSortByPriority(e.target.checked); setCursor(0); }} /> AI-prioritized
         </label>
+        <label style={{ fontSize: 12, color: C.t3, display: "flex", alignItems: "center", gap: 6 }} title="Hide older thread messages and near-duplicates">
+          <input type="checkbox" checked={hideSuppressed} onChange={(e) => { setHideSuppressed(e.target.checked); setCursor(0); }} /> Suppress dupes{derived.suppressed.size > 0 ? ` (${derived.suppressed.size})` : ""}
+        </label>
       </div>
       {setupOpen && (
         <div style={{ borderBottom: `1px solid ${C.br}`, padding: "14px 20px", background: C.cd, display: "flex", flexDirection: "column", gap: 10 }}>
@@ -434,8 +460,14 @@ const ReviewStep: React.FC<{ reviewSetId: string; canMutate: boolean; onProduce:
               <div onClick={() => setCursor(i)} style={{ minWidth: 0, cursor: "pointer", flex: 1, display: "flex", gap: 9 }}>
                 <span style={{ width: 8, height: 8, borderRadius: "50%", background: it.coded ? (it.codedResponsive ? (it.codedPrivileged ? C.pp : C.gn) : C.t4) : routeColor(it.aiRoute), marginTop: 5, flex: "none" }} />
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: i === cursor ? 600 : 400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.title}</div>
-                  <div style={{ fontSize: 11.5, color: C.t3, marginTop: 3 }}>{it.sourceSystem}{it.aiRoute ? <> · <span style={{ color: routeColor(it.aiRoute), fontWeight: 600 }}>{routeLabel(it.aiRoute)}</span></> : ""}{it.coded ? " · ✓" : ""}</div>
+                  <div style={{ fontSize: 13.5, fontWeight: i === cursor ? 600 : 400, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{it.familyRole === "ATTACHMENT" ? <span style={{ color: C.t4 }}>↳ </span> : null}{it.title}</div>
+                  <div style={{ fontSize: 11.5, color: C.t3, marginTop: 3, display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap" }}>
+                    <span>{it.sourceSystem}{it.aiRoute ? <> · <span style={{ color: routeColor(it.aiRoute), fontWeight: 600 }}>{routeLabel(it.aiRoute)}</span></> : ""}{it.coded ? " · ✓" : ""}</span>
+                    {it.familyRole === "PARENT" && derived.familyCount.get(it.familyId!) ? <MiniBadge text={`+${derived.familyCount.get(it.familyId!)} attach`} col={C.cy} /> : null}
+                    {it.familyRole === "ATTACHMENT" ? <MiniBadge text="attachment" col={C.t4} /> : null}
+                    {it.threadId && (derived.threadSize.get(it.threadId) ?? 0) > 1 ? <MiniBadge text={`thread ${derived.threadSize.get(it.threadId)}${it.isInclusive ? " · incl" : ""}`} col={C.bl} /> : null}
+                    {derived.dupIds.has(it.id) ? <MiniBadge text="dup" col={C.am} /> : null}
+                  </div>
                 </div>
               </div>
             </div>
@@ -486,6 +518,12 @@ const ReviewStep: React.FC<{ reviewSetId: string; canMutate: boolean; onProduce:
             <DecisionBtn label="Redact" hint="X" active={current.redact} col={C.am} onClick={() => code({ redact: !current.redact }, false)} disabled={!canMutate || frozen} />
           </div>
 
+          {current.familyId && (
+            <label style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 10, fontSize: 12, color: C.t3 }}>
+              <input type="checkbox" checked={propagateFamily} onChange={(e) => setPropagateFamily(e.target.checked)} /> Apply to the whole family (email + {derived.familyCount.get(current.familyId) ?? 0} attachment{(derived.familyCount.get(current.familyId) ?? 0) === 1 ? "" : "s"})
+            </label>
+          )}
+
           {current.codedPrivileged && (
             <div style={{ marginTop: 12 }}>
               <div style={{ fontSize: 11, fontWeight: 600, color: C.pp, marginBottom: 5 }}>Privilege basis (privilege log)</div>
@@ -530,6 +568,10 @@ const ReviewStep: React.FC<{ reviewSetId: string; canMutate: boolean; onProduce:
     </div>
   );
 };
+
+const MiniBadge: React.FC<{ text: string; col: string }> = ({ text, col }) => (
+  <span style={{ fontSize: 9.5, fontWeight: 700, letterSpacing: .3, color: col, border: `1px solid ${col}55`, background: `${col}14`, borderRadius: 4, padding: "1px 5px", whiteSpace: "nowrap" }}>{text}</span>
+);
 
 const DecisionBtn: React.FC<{ label: string; hint: string; active: boolean; col: string; onClick: () => void; disabled: boolean }> = ({ label, hint, active, col, onClick, disabled }) => (
   <button onClick={onClick} disabled={disabled} style={{

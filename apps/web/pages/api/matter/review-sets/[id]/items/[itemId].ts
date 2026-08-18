@@ -16,7 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!actor) return;
   try {
     const b = req.body ?? {};
-    const item = await codeReviewItem(actor.organizationId, itemId, { responsive: b.responsive, privileged: b.privileged, redact: b.redact, note: b.note, issues: b.issues, confidentiality: b.confidentiality, privilegeBasis: b.privilegeBasis }, { id: actor.id, type: "USER" });
+    const item = await codeReviewItem(actor.organizationId, itemId, { responsive: b.responsive, privileged: b.privileged, redact: b.redact, note: b.note, issues: b.issues, confidentiality: b.confidentiality, privilegeBasis: b.privilegeBasis, propagateFamily: b.propagateFamily }, { id: actor.id, type: "USER" });
     return res.status(200).json({ ok: true, item });
   } catch (err) {
     return res.status(400).json({ ok: false, error: String((err as Error).message || err) });
