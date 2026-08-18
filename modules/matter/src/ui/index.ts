@@ -40,6 +40,9 @@ export { NoticeTemplatesAdmin } from "./legal-hold/NoticeTemplatesAdmin";
 // Hold Wizard (sub-PR 4d.0 — counsel-driven five-step flow)
 export { HoldWizard } from "./legal-hold/wizard/HoldWizard";
 
+// Collect & Review — first-class full-page eDiscovery workspace
+export { CollectReviewWorkspace } from "./legal-hold/collect-review/CollectReviewWorkspace";
+
 // Per-data-source lifecycle badge with inline Retry (sub-PR 4d.0)
 export {
   DataSourceStatusBadge,
