@@ -48,7 +48,7 @@ export const ReviewSetConsole: React.FC<ReviewSetConsoleProps> = ({ reviewSetId,
   const [runningAi, setRunningAi] = useState(false);
 
   const load = useCallback(() => {
-    fetch(`/api/matter/review-sets/${reviewSetId}`).then((r) => r.json()).then((d) => { if (d.ok) setDetail(d); }).catch(() => {});
+    fetch(`/api/review/sets/${reviewSetId}`).then((r) => r.json()).then((d) => { if (d.ok) setDetail(d); }).catch(() => {});
   }, [reviewSetId]);
   useEffect(() => { load(); }, [load]);
 
@@ -59,7 +59,7 @@ export const ReviewSetConsole: React.FC<ReviewSetConsoleProps> = ({ reviewSetId,
   const code = useCallback(async (body: Record<string, unknown>, advance: boolean) => {
     if (!current || !canMutate || frozen) return;
     try {
-      const r = await fetch(`/api/matter/review-sets/${reviewSetId}/items/${current.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const r = await fetch(`/api/review/sets/${reviewSetId}/items/${current.id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json();
       if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
       setDetail((prev) => prev ? { ...prev, items: prev.items.map((it) => it.id === current.id ? { ...it, ...d.item } : it), progress: recompute(prev.items.map((it) => it.id === current.id ? { ...it, ...d.item } : it)) } : prev);
@@ -86,7 +86,7 @@ export const ReviewSetConsole: React.FC<ReviewSetConsoleProps> = ({ reviewSetId,
   const runAiReview = async () => {
     setRunningAi(true);
     try {
-      const r = await fetch(`/api/matter/review-sets/${reviewSetId}/ai-review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pendingOnly: false }) });
+      const r = await fetch(`/api/review/sets/${reviewSetId}/ai-review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pendingOnly: false }) });
       const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error);
       const rt = d.routes;
       toast.success(`AI review: ${d.scored} scored · ${rt.attorney} attorney · ${rt.reviewer} reviewer · ${rt.autoCull} auto-cull${d.degraded ? " (deterministic)" : ""}`);
@@ -95,12 +95,12 @@ export const ReviewSetConsole: React.FC<ReviewSetConsoleProps> = ({ reviewSetId,
     finally { setRunningAi(false); }
   };
   const freeze = async () => {
-    try { const r = await fetch(`/api/matter/review-sets/${reviewSetId}/freeze`, { method: "POST" }); const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error); toast.success("Review set frozen"); load(); }
+    try { const r = await fetch(`/api/review/sets/${reviewSetId}/freeze`, { method: "POST" }); const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error); toast.success("Review set frozen"); load(); }
     catch (e) { toast.error(String((e as Error).message || e)); }
   };
   const produce = async () => {
     try {
-      const r = await fetch(`/api/matter/review-sets/${reviewSetId}/produce`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
+      const r = await fetch(`/api/review/sets/${reviewSetId}/produce`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
       const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error);
       setManifest(d.manifest); toast.success(`Produced ${d.manifest.counts.produced} · ${d.manifest.counts.privileged} withheld`); load();
     } catch (e) { toast.error(String((e as Error).message || e)); }
