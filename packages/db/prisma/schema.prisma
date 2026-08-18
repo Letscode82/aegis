@@ -2555,6 +2555,11 @@ model ReviewSet {
   name                  String
   queryString           String
   sources               String[]        @default([])
+  /// Reviewer-parity v1: plain-language responsiveness criteria driving the
+  /// AI review, and the review's issue codes (`[{key,label}]`) for multi-issue
+  /// coding.
+  criteria              String?
+  issuesJson            Json?
   /// Optional provenance links (plain scalars — no back-relation churn).
   legalHoldId           String?
   matterId              String?
@@ -2593,6 +2598,10 @@ model ReviewSetItem {
   aiTags         Json?
   /// Routing decision from the tag set: AUTO_CULL | REVIEWER | ATTORNEY.
   aiRoute        String?
+  /// Reviewer-parity v1 coding: `{ issues: string[], confidentiality: string|null,
+  /// privilegeBasis: string|null }`. Responsive/privileged/redact stay discrete
+  /// columns; this holds the richer coding layout.
+  codingJson     Json?
   reviewDecision DSARReviewDecision @default(PENDING)
   codedResponsive Boolean?
   codedPrivileged Boolean          @default(false)

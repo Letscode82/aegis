@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { buildProductionManifest } from "../src/internal/services/review-set-coding";
 
-const item = (p: Partial<{ title: string; sourceSystem: string; codedResponsive: boolean | null; codedPrivileged: boolean; redact: boolean; reviewNote: string | null }>) => ({
+const item = (p: Partial<{ title: string; sourceSystem: string; codedResponsive: boolean | null; codedPrivileged: boolean; redact: boolean; reviewNote: string | null; privilegeBasis: string | null }>) => ({
   title: "doc", sourceSystem: "Exchange", codedResponsive: null, codedPrivileged: false, redact: false, reviewNote: null, ...p,
 });
 
@@ -24,6 +24,10 @@ describe("buildProductionManifest", () => {
   it("defaults the privilege basis when no note", () => {
     const m = buildProductionManifest([item({ codedResponsive: true, codedPrivileged: true })], "X");
     expect(m.privilegeLog[0]!.basis).toMatch(/privilege/i);
+  });
+  it("prefers the coded privilege basis over the free note", () => {
+    const m = buildProductionManifest([item({ codedResponsive: true, codedPrivileged: true, reviewNote: "a note", privilegeBasis: "Work product doctrine" })], "X");
+    expect(m.privilegeLog[0]!.basis).toBe("Work product doctrine");
   });
   it("continuous Bates across the produced set only", () => {
     const items = [item({ codedResponsive: true }), item({ codedResponsive: false }), item({ codedResponsive: true })];

@@ -16,12 +16,16 @@ import type { DataSubjectSourceType, DataSubjectHit } from "./m365";
 
 type Actor = { id: string | null; type?: "USER" | "AGENT" | "SYSTEM" };
 
+export interface ReviewIssue { key: string; label: string }
+
 export interface ReviewSetSummary {
   id: string;
   origin: ReviewSetOrigin;
   status: string;
   name: string;
   queryString: string;
+  criteria: string | null;
+  issues: ReviewIssue[];
   sources: string[];
   legalHoldId: string | null;
   matterId: string | null;
@@ -37,7 +41,8 @@ export interface ReviewSetSummary {
 async function toSummary(id: string): Promise<ReviewSetSummary> {
   const rs = await prisma.reviewSet.findUniqueOrThrow({ where: { id }, include: { _count: { select: { items: true } } } });
   return {
-    id: rs.id, origin: rs.origin, status: rs.status, name: rs.name, queryString: rs.queryString, sources: rs.sources,
+    id: rs.id, origin: rs.origin, status: rs.status, name: rs.name, queryString: rs.queryString,
+    criteria: rs.criteria ?? null, issues: (rs.issuesJson as ReviewIssue[] | null) ?? [], sources: rs.sources,
     legalHoldId: rs.legalHoldId, matterId: rs.matterId, dataSubjectRequestId: rs.dataSubjectRequestId,
     custodianCount: rs.custodianCount, simulated: rs.simulated, itemCount: rs._count.items,
     frozenAt: rs.frozenAt?.toISOString() ?? null, producedAt: rs.producedAt?.toISOString() ?? null, createdAt: rs.createdAt.toISOString(),
@@ -116,11 +121,36 @@ export async function listReviewSets(organizationId: string, filter: ListReviewS
     orderBy: [{ createdAt: "desc" }],
   });
   return rows.map((rs) => ({
-    id: rs.id, origin: rs.origin, status: rs.status, name: rs.name, queryString: rs.queryString, sources: rs.sources,
+    id: rs.id, origin: rs.origin, status: rs.status, name: rs.name, queryString: rs.queryString,
+    criteria: rs.criteria ?? null, issues: (rs.issuesJson as ReviewIssue[] | null) ?? [], sources: rs.sources,
     legalHoldId: rs.legalHoldId, matterId: rs.matterId, dataSubjectRequestId: rs.dataSubjectRequestId,
     custodianCount: rs.custodianCount, simulated: rs.simulated, itemCount: rs._count.items,
     frozenAt: rs.frozenAt?.toISOString() ?? null, producedAt: rs.producedAt?.toISOString() ?? null, createdAt: rs.createdAt.toISOString(),
   }));
+}
+
+/** Set the review set's responsiveness criteria + issue codes (drives AI review
+ *  + multi-issue coding). Chain-sealed. */
+export async function setReviewSetCriteria(
+  organizationId: string,
+  id: string,
+  input: { criteria?: string | null; issues?: ReviewIssue[] },
+  actor: Actor,
+): Promise<ReviewSetSummary> {
+  const rs = await prisma.reviewSet.findFirst({ where: { id, organizationId }, select: { id: true } });
+  if (!rs) throw new Error("Review set not found");
+  const issues = (input.issues ?? []).filter((i) => i && i.key && i.label).map((i) => ({ key: i.key.trim(), label: i.label.trim() }));
+  await prisma.reviewSet.update({
+    where: { id },
+    data: { criteria: (input.criteria ?? "").trim() || null, issuesJson: issues as never },
+  });
+  await logAudit({
+    organizationId, actorId: actor.id, actorType: actor.type ?? "USER",
+    action: "reviewset.criteria_updated", resourceType: "ReviewSet", resourceId: id,
+    afterJson: { criteria: input.criteria ?? null, issues } as never,
+    metadata: { source: "matter", channel: "ediscovery" } as never,
+  });
+  return toSummary(id);
 }
 
 export async function getReviewSetSummary(organizationId: string, id: string): Promise<ReviewSetSummary | null> {
