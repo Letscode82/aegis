@@ -73,6 +73,12 @@ export const CollectionRailCard: React.FC<CollectionRailCardProps> = ({ matterId
       </div>
       {open && (
         <div style={{ marginTop: 10 }}>
+          <button
+            onClick={() => { window.location.href = `/matter/${matterId}/holds/${holdId}/review`; }}
+            style={{ width: "100%", padding: "10px 12px", marginBottom: 10, background: C.bl, color: C.bg, border: "none", borderRadius: 7, fontFamily: M, fontSize: 10.5, letterSpacing: .8, fontWeight: 700, textTransform: "uppercase", cursor: "pointer" }}
+          >
+            ⬈ Open Collect &amp; Review workspace
+          </button>
           {!canMutate && <div style={{ fontSize: 10.5, color: C.t4, fontFamily: M, marginBottom: 6 }}>Read-only — you lack legal-hold issue rights.</div>}
           <div style={{ fontSize: 9, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.pp, marginBottom: 3 }}>Natural language → KeyQL</div>
           <div style={{ display: "flex", gap: 6, marginBottom: 6 }}>
