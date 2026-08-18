@@ -13,34 +13,47 @@ import { getReviewSetSummary, type ReviewSetSummary } from "./review-set";
 
 type Actor = { id: string | null; type?: "USER" | "AGENT" | "SYSTEM" };
 
+/** Per-item coding blob (reviewer-parity v1). */
+interface CodingBlob { issues?: string[]; confidentiality?: string | null; privilegeBasis?: string | null }
+
 export interface ReviewSetItemDTO {
   id: string;
   sourceType: string;
   sourceSystem: string;
   title: string;
   excerpt: string | null;
+  graphId: string | null;
+  webUrl: string | null;
   aiVerdict: string | null;
   aiScore: number | null;
   aiRationale: string | null;
   aiRoute: string | null;
+  aiTags: unknown;
   coded: boolean;
   codedResponsive: boolean | null;
   codedPrivileged: boolean;
   redact: boolean;
+  issues: string[];
+  confidentiality: string | null;
+  privilegeBasis: string | null;
   reviewNote: string | null;
   reviewedAt: string | null;
 }
 
 function toItemDTO(r: {
   id: string; sourceType: string; sourceSystem: string; title: string; excerpt: string | null;
-  aiVerdict: string | null; aiScore: number | null; aiRationale: string | null; aiRoute?: string | null;
+  graphId?: string | null; webUrl?: string | null; aiTags?: unknown;
+  aiVerdict: string | null; aiScore: number | null; aiRationale: string | null; aiRoute?: string | null; codingJson?: unknown;
   reviewDecision: string; codedResponsive: boolean | null; codedPrivileged: boolean; redact: boolean; reviewNote: string | null; reviewedAt: Date | null;
 }): ReviewSetItemDTO {
+  const coding = (r.codingJson as CodingBlob | null) ?? {};
   return {
     id: r.id, sourceType: r.sourceType, sourceSystem: r.sourceSystem, title: r.title, excerpt: r.excerpt,
+    graphId: r.graphId ?? null, webUrl: r.webUrl ?? null, aiTags: r.aiTags ?? null,
     aiVerdict: r.aiVerdict, aiScore: r.aiScore, aiRationale: r.aiRationale, aiRoute: r.aiRoute ?? null,
     coded: r.reviewDecision !== "PENDING", codedResponsive: r.codedResponsive, codedPrivileged: r.codedPrivileged,
-    redact: r.redact, reviewNote: r.reviewNote, reviewedAt: r.reviewedAt?.toISOString() ?? null,
+    redact: r.redact, issues: coding.issues ?? [], confidentiality: coding.confidentiality ?? null, privilegeBasis: coding.privilegeBasis ?? null,
+    reviewNote: r.reviewNote, reviewedAt: r.reviewedAt?.toISOString() ?? null,
   };
 }
 
@@ -70,9 +83,12 @@ export interface CodeReviewItemInput {
   privileged?: boolean;
   redact?: boolean;
   note?: string | null;
+  issues?: string[];
+  confidentiality?: string | null;
+  privilegeBasis?: string | null;
 }
 
-/** Code one item (responsiveness / privilege / redaction). Chain-sealed. */
+/** Code one item (responsiveness / privilege / redaction / issues / confidentiality). Chain-sealed. */
 export async function codeReviewItem(organizationId: string, itemId: string, input: CodeReviewItemInput, actor: Actor): Promise<ReviewSetItemDTO> {
   const item = await prisma.reviewSetItem.findFirst({ where: { id: itemId, organizationId } });
   if (!item) throw new Error("Review item not found");
@@ -82,6 +98,16 @@ export async function codeReviewItem(organizationId: string, itemId: string, inp
   if (input.privileged !== undefined) data.codedPrivileged = input.privileged;
   if (input.redact !== undefined) data.redact = input.redact;
   if (input.note !== undefined) data.reviewNote = input.note;
+
+  // Merge the coding blob so a partial update never drops sibling coding.
+  if (input.issues !== undefined || input.confidentiality !== undefined || input.privilegeBasis !== undefined) {
+    const prev = (item.codingJson as CodingBlob | null) ?? {};
+    data.codingJson = {
+      issues: input.issues !== undefined ? input.issues : prev.issues ?? [],
+      confidentiality: input.confidentiality !== undefined ? input.confidentiality : prev.confidentiality ?? null,
+      privilegeBasis: input.privilegeBasis !== undefined ? input.privilegeBasis : prev.privilegeBasis ?? null,
+    } as never;
+  }
 
   const updated = await prisma.reviewSetItem.update({ where: { id: itemId }, data: data as never });
   await logAudit({
@@ -113,7 +139,7 @@ export interface ProductionManifest {
   counts: { produced: number; privileged: number; nonResponsive: number; uncoded: number };
 }
 
-interface CodeableItem { title: string; sourceSystem: string; codedResponsive: boolean | null; codedPrivileged: boolean; redact: boolean; reviewNote: string | null }
+interface CodeableItem { title: string; sourceSystem: string; codedResponsive: boolean | null; codedPrivileged: boolean; redact: boolean; reviewNote: string | null; privilegeBasis?: string | null }
 
 /** Assemble a Bates-numbered production + privilege log (pure). Responsive &
  *  non-privileged → produced with sequential Bates; responsive & privileged →
@@ -127,7 +153,7 @@ export function buildProductionManifest(items: CodeableItem[], batesPrefix: stri
     if (!it.codedResponsive) { nonResponsive += 1; continue; }
     if (it.codedPrivileged) {
       logSeq += 1;
-      privilegeLog.push({ logNo: `PRIV-${String(logSeq).padStart(4, "0")}`, title: it.title, sourceSystem: it.sourceSystem, basis: (it.reviewNote || "").trim() || "Attorney-client privilege / work product" });
+      privilegeLog.push({ logNo: `PRIV-${String(logSeq).padStart(4, "0")}`, title: it.title, sourceSystem: it.sourceSystem, basis: (it.privilegeBasis || "").trim() || (it.reviewNote || "").trim() || "Attorney-client privilege / work product" });
       continue;
     }
     seq += 1;
@@ -148,12 +174,13 @@ export async function produceReviewSet(organizationId: string, id: string, opts:
   if (rs.status === "PRODUCED") throw new Error("This review set has already been produced.");
   if (rs.status !== "FROZEN") throw new Error("Freeze the review set before producing it.");
 
-  const rows = await prisma.reviewSetItem.findMany({ where: { reviewSetId: id }, select: { title: true, sourceSystem: true, codedResponsive: true, codedPrivileged: true, redact: true, reviewNote: true } });
+  const rows = await prisma.reviewSetItem.findMany({ where: { reviewSetId: id }, select: { title: true, sourceSystem: true, codedResponsive: true, codedPrivileged: true, redact: true, reviewNote: true, codingJson: true } });
   const uncoded = rows.filter((r) => r.codedResponsive == null).length;
   if (uncoded > 0) throw new Error(`${uncoded} item(s) are uncoded — code every item before producing.`);
 
   const prefix = (opts.batesPrefix || "").trim() || "AEGIS";
-  const manifest = buildProductionManifest(rows as CodeableItem[], prefix);
+  const codeable: CodeableItem[] = rows.map((r) => ({ ...r, privilegeBasis: (r.codingJson as CodingBlob | null)?.privilegeBasis ?? null }));
+  const manifest = buildProductionManifest(codeable, prefix);
 
   await prisma.reviewSet.update({ where: { id }, data: { status: "PRODUCED", producedAt: new Date() } });
   await logAudit({

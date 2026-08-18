@@ -41,8 +41,9 @@ function verdictFromTags(tags: { kind: string; value: boolean; confidence: numbe
 }
 
 export async function runAiReviewOnReviewSet(organizationId: string, reviewSetId: string, input: RunReviewSetAiInput, actor: Actor): Promise<RunReviewSetAiResult> {
-  const rs = await prisma.reviewSet.findFirst({ where: { id: reviewSetId, organizationId }, select: { id: true, name: true, queryString: true } });
+  const rs = await prisma.reviewSet.findFirst({ where: { id: reviewSetId, organizationId }, select: { id: true, name: true, queryString: true, criteria: true, issuesJson: true } });
   if (!rs) throw new Error("Review set not found");
+  const storedIssues = ((rs.issuesJson as Array<{ key: string; label: string }> | null) ?? []).map((i) => ({ key: i.key, description: i.label }));
 
   const rows = await prisma.reviewSetItem.findMany({
     where: { reviewSetId, ...(input.pendingOnly === false ? {} : { reviewDecision: "PENDING" }) },
@@ -52,8 +53,8 @@ export async function runAiReviewOnReviewSet(organizationId: string, reviewSetId
   if (rows.length === 0) return { scored: 0, routes: { total: 0, attorney: 0, reviewer: 0, autoCull: 0 }, degraded: true };
 
   const instruction: ReviewInstruction = {
-    criteria: (input.criteria || "").trim() || `${rs.name}. Collection query: ${rs.queryString}`,
-    issues: input.issues,
+    criteria: (input.criteria || "").trim() || (rs.criteria || "").trim() || `${rs.name}. Collection query: ${rs.queryString}`,
+    issues: input.issues ?? (storedIssues.length > 0 ? storedIssues : undefined),
     dimensions: input.dimensions,
   };
   const items: ReviewItem[] = rows.map((r) => ({ id: r.id, title: r.title, text: r.excerpt, sourceSystem: r.sourceSystem }));

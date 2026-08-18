@@ -741,7 +741,9 @@ export {
   commitHoldCollection,
   listReviewSets,
   getReviewSetSummary,
+  setReviewSetCriteria,
   type ReviewSetSummary,
+  type ReviewIssue,
   type CommitHoldCollectionInput,
   type ListReviewSetsFilter,
 } from "./src/internal/services/review-set";
