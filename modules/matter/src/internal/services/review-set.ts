@@ -7,10 +7,12 @@
  * Chain-sealed via logAudit (`reviewset.*`). Freezing snapshots the set for
  * review; producing marks it exported. Coding lives in review-set-coding.ts.
  */
+import { randomUUID } from "node:crypto";
 import { prisma, logAudit } from "@aegis/db";
 import type { ReviewSetOrigin } from "@aegis/db";
 import { getM365ClientForOrg } from "./m365-factory";
 import { draftCollectionQuery } from "./collection-query";
+import { assignThreadingAndDedup } from "./review-threading";
 import { holdCustodianEmails } from "../legal-hold/services/hold-collection";
 import type { DataSubjectSourceType, DataSubjectHit } from "./m365";
 
@@ -62,15 +64,41 @@ async function persistSet(
       custodianCount: data.custodianCount, simulated: data.simulated, createdById: actor.id,
     },
   });
-  if (hits.length > 0) {
-    await prisma.reviewSetItem.createMany({
-      data: hits.map((h) => ({ organizationId, reviewSetId: rs.id, sourceType: h.sourceType, sourceSystem: h.sourceSystem, title: h.title, excerpt: h.excerpt ?? null, graphId: h.graphId ?? null, webUrl: h.webUrl ?? null })),
+  // Assign explicit ids so attachment children can link to their parent email
+  // (family) in a single createMany, and thread/dedup the message-level hits.
+  const parents = hits.map((h) => ({ id: randomUUID(), hit: h }));
+  const assign = assignThreadingAndDedup(
+    parents.map((p) => ({ id: p.id, subject: p.hit.title, body: p.hit.excerpt, conversationId: p.hit.conversationId ?? null, sentAt: p.hit.sentAt ?? null })),
+  );
+  type ItemRow = {
+    id: string; organizationId: string; reviewSetId: string; sourceType: string; sourceSystem: string; title: string;
+    excerpt: string | null; graphId: string | null; webUrl: string | null;
+    familyId: string | null; familyRole: string | null; threadId: string | null; isInclusive: boolean | null; dedupKey: string | null;
+  };
+  const rows: ItemRow[] = [];
+  for (const p of parents) {
+    const a = assign.get(p.id)!;
+    const atts = p.hit.attachments ?? [];
+    const hasFamily = atts.length > 0;
+    rows.push({
+      id: p.id, organizationId, reviewSetId: rs.id, sourceType: p.hit.sourceType, sourceSystem: p.hit.sourceSystem,
+      title: p.hit.title, excerpt: p.hit.excerpt ?? null, graphId: p.hit.graphId ?? null, webUrl: p.hit.webUrl ?? null,
+      familyId: hasFamily ? p.id : null, familyRole: hasFamily ? "PARENT" : null,
+      threadId: a.threadId, isInclusive: a.isInclusive, dedupKey: a.dedupKey,
     });
+    for (const att of atts) {
+      rows.push({
+        id: randomUUID(), organizationId, reviewSetId: rs.id, sourceType: p.hit.sourceType, sourceSystem: p.hit.sourceSystem,
+        title: att.name, excerpt: att.contentType ? `Attachment · ${att.contentType}` : "Attachment", graphId: null, webUrl: null,
+        familyId: p.id, familyRole: "ATTACHMENT", threadId: a.threadId, isInclusive: a.isInclusive, dedupKey: null,
+      });
+    }
   }
+  if (rows.length > 0) await prisma.reviewSetItem.createMany({ data: rows as never });
   await logAudit({
     organizationId, actorId: actor.id, actorType: actor.type ?? "USER",
     action: "reviewset.created", resourceType: "ReviewSet", resourceId: rs.id,
-    afterJson: { origin: data.origin, name: data.name, items: hits.length, queryString: data.queryString } as never,
+    afterJson: { origin: data.origin, name: data.name, items: rows.length, queryString: data.queryString } as never,
     metadata: { source: "matter", channel: "ediscovery" } as never,
   });
   return toSummary(rs.id);

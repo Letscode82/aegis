@@ -874,12 +874,23 @@ export class M365GraphClient implements M365Client {
       const label = idInput.includes("@") ? idInput : userId;
 
       if (sources.includes("MAILBOX")) {
-        const messages = await this.safeUserGet<{ value?: Array<{ id?: string; subject?: string; bodyPreview?: string; webLink?: string }> }>(
-          `/users/${userId}/messages?$top=${top}&$select=subject,bodyPreview,webLink,receivedDateTime&$orderby=receivedDateTime desc`,
+        const messages = await this.safeUserGet<{ value?: Array<{ id?: string; subject?: string; bodyPreview?: string; webLink?: string; conversationId?: string; receivedDateTime?: string; hasAttachments?: boolean }> }>(
+          `/users/${userId}/messages?$top=${top}&$select=subject,bodyPreview,webLink,receivedDateTime,conversationId,hasAttachments&$orderby=receivedDateTime desc`,
           "Mail.Read",
         );
         for (const m of messages?.value ?? []) {
-          hits.push({ sourceType: "MAILBOX", sourceSystem: `Exchange · ${label}`, title: m.subject || "(no subject)", excerpt: m.bodyPreview ?? null, graphId: m.id ?? null, webUrl: m.webLink ?? null });
+          // Best-effort attachment enumeration for family grouping — a failure
+          // (permissions, size) must not sink the collection.
+          let attachments: Array<{ name: string; size?: number | null; contentType?: string | null }> | undefined;
+          if (m.hasAttachments && m.id) {
+            const att = await this.safeUserGet<{ value?: Array<{ name?: string; size?: number; contentType?: string }> }>(
+              `/users/${userId}/messages/${m.id}/attachments?$select=name,size,contentType`,
+              "Mail.Read",
+            ).catch(() => null);
+            attachments = (att?.value ?? []).map((a) => ({ name: a.name || "attachment", size: a.size ?? null, contentType: a.contentType ?? null }));
+            if (attachments.length === 0) attachments = undefined;
+          }
+          hits.push({ sourceType: "MAILBOX", sourceSystem: `Exchange · ${label}`, title: m.subject || "(no subject)", excerpt: m.bodyPreview ?? null, graphId: m.id ?? null, webUrl: m.webLink ?? null, conversationId: m.conversationId ?? null, sentAt: m.receivedDateTime ?? null, attachments });
         }
       }
 

@@ -38,12 +38,18 @@ export interface ReviewSetItemDTO {
   privilegeBasis: string | null;
   reviewNote: string | null;
   reviewedAt: string | null;
+  familyId: string | null;
+  familyRole: string | null;
+  threadId: string | null;
+  isInclusive: boolean | null;
+  dedupKey: string | null;
 }
 
 function toItemDTO(r: {
   id: string; sourceType: string; sourceSystem: string; title: string; excerpt: string | null;
   graphId?: string | null; webUrl?: string | null; aiTags?: unknown;
   aiVerdict: string | null; aiScore: number | null; aiRationale: string | null; aiRoute?: string | null; codingJson?: unknown;
+  familyId?: string | null; familyRole?: string | null; threadId?: string | null; isInclusive?: boolean | null; dedupKey?: string | null;
   reviewDecision: string; codedResponsive: boolean | null; codedPrivileged: boolean; redact: boolean; reviewNote: string | null; reviewedAt: Date | null;
 }): ReviewSetItemDTO {
   const coding = (r.codingJson as CodingBlob | null) ?? {};
@@ -54,6 +60,7 @@ function toItemDTO(r: {
     coded: r.reviewDecision !== "PENDING", codedResponsive: r.codedResponsive, codedPrivileged: r.codedPrivileged,
     redact: r.redact, issues: coding.issues ?? [], confidentiality: coding.confidentiality ?? null, privilegeBasis: coding.privilegeBasis ?? null,
     reviewNote: r.reviewNote, reviewedAt: r.reviewedAt?.toISOString() ?? null,
+    familyId: r.familyId ?? null, familyRole: r.familyRole ?? null, threadId: r.threadId ?? null, isInclusive: r.isInclusive ?? null, dedupKey: r.dedupKey ?? null,
   };
 }
 
@@ -86,6 +93,9 @@ export interface CodeReviewItemInput {
   issues?: string[];
   confidentiality?: string | null;
   privilegeBasis?: string | null;
+  /** Family propagation: also apply this coding to every sibling in the item's
+   *  family (email + its attachments). */
+  propagateFamily?: boolean;
 }
 
 /** Code one item (responsiveness / privilege / redaction / issues / confidentiality). Chain-sealed. */
@@ -110,10 +120,19 @@ export async function codeReviewItem(organizationId: string, itemId: string, inp
   }
 
   const updated = await prisma.reviewSetItem.update({ where: { id: itemId }, data: data as never });
+
+  // Family propagation: apply the same coding to every sibling in the family.
+  if (input.propagateFamily && item.familyId) {
+    await prisma.reviewSetItem.updateMany({
+      where: { reviewSetId: item.reviewSetId, familyId: item.familyId, id: { not: itemId } },
+      data: data as never,
+    });
+  }
+
   await logAudit({
     organizationId, actorId: actor.id, actorType: actor.type ?? "USER",
     action: "reviewset.item.coded", resourceType: "ReviewSet", resourceId: item.reviewSetId,
-    afterJson: { itemId, responsive: updated.codedResponsive, privileged: updated.codedPrivileged, redact: updated.redact } as never,
+    afterJson: { itemId, responsive: updated.codedResponsive, privileged: updated.codedPrivileged, redact: updated.redact, propagatedToFamily: !!(input.propagateFamily && item.familyId) } as never,
     metadata: { source: "matter", channel: "ediscovery" } as never,
   });
   return toItemDTO(updated);
