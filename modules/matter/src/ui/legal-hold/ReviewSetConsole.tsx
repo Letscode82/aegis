@@ -9,6 +9,7 @@
  *            J/↓ next · K/↑ prev.
  */
 import React, { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { C, F, M, SR, useToast } from "@aegis/ui";
 
 export interface ReviewSetConsoleProps {
@@ -115,7 +116,7 @@ export const ReviewSetConsole: React.FC<ReviewSetConsoleProps> = ({ reviewSetId,
   const p = detail?.progress;
   const overturns = items.filter((i) => i.coded && i.aiVerdict && ((i.aiVerdict === "RELEVANT") !== (i.codedResponsive === true))).length;
 
-  return (
+  const overlay = (
     <div style={{ position: "fixed", inset: 0, background: "rgba(4,7,15,.82)", zIndex: 1200, display: "flex", flexDirection: "column", fontFamily: F }}>
       <div style={{ padding: "12px 20px", borderBottom: `1px solid ${C.br}`, display: "flex", alignItems: "center", gap: 12, background: C.bg }}>
         <div style={{ flex: 1, minWidth: 0 }}>
@@ -184,6 +185,12 @@ export const ReviewSetConsole: React.FC<ReviewSetConsoleProps> = ({ reviewSetId,
       </div>
     </div>
   );
+
+  // Portal to <body> so the full-screen overlay escapes any transformed /
+  // positioned ancestor in the matter layout (a CSS transform on an ancestor
+  // makes position:fixed resolve to that ancestor, which was collapsing the
+  // console into the 320px rail). Same escape hatch the Toast uses.
+  return typeof document !== "undefined" ? createPortal(overlay, document.body) : overlay;
 };
 
 function recompute(items: Item[]): Detail["progress"] {
