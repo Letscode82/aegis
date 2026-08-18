@@ -17,6 +17,31 @@ The hold collection now uses that same per-custodian path. Each custodian's
 own mailbox / OneDrive is the collection surface — which is exactly right for
 a legal hold — and the reviewer console + AI review cull it down.
 
+## Fastest path: seed the whole demo suite once
+
+`scripts/seed-demo-suite.ps1` drops **several distinct matters** into the real
+tenant mailboxes in one run, so every demo (hold / culling / AI review) has
+varied material and you never re-seed. Each scenario has its own category tag,
+so it's independently idempotent.
+
+```
+$env:AEGIS_M365_CLIENT_SECRET = "<client secret VALUE>"
+.\scripts\seed-demo-suite.ps1 -Tenant 6bs6wq.onmicrosoft.com
+```
+
+| Scenario | Custodians | Category |
+|---|---|---|
+| MSA / IP dispute (Snowflake · vendorx §8.2) | priya, marcus, rebecca, samira, carlos | `AEGIS-DEMO-MSAIP` |
+| HR internal investigation (conduct complaint) | daniel.brooks, lena.perez, alex.kim | `AEGIS-DEMO-HR` |
+| Trade-secret / departing employee (exfiltration) | sarah.watson, samira, thomas.berger | `AEGIS-DEMO-TRADESECRET` |
+
+`-Only msaip,hr` seeds a subset; `-Clear` removes a scenario's messages. DSAR
+is seeded separately (`seed-priya-dsar-mailbox.ps1`, Priya). Then in AEGIS,
+open or create a hold, **+ Add custodians → M365 directory search** to pull the
+right people, and run Collection → Preview → Commit → Run AI review.
+
+The step-by-step below covers the seeded **MSA hold (LH-2026-0001)** specifically.
+
 ## One-time setup (per tenant)
 
 Everything runs locally against your `.env` (Neon `DATABASE_URL` +
