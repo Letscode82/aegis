@@ -17,6 +17,31 @@ The hold collection now uses that same per-custodian path. Each custodian's
 own mailbox / OneDrive is the collection surface — which is exactly right for
 a legal hold — and the reviewer console + AI review cull it down.
 
+## Fastest path: seed the whole demo suite once
+
+`scripts/seed-demo-suite.ps1` drops **several distinct matters** into the real
+tenant mailboxes in one run, so every demo (hold / culling / AI review) has
+varied material and you never re-seed. Each scenario has its own category tag,
+so it's independently idempotent.
+
+```
+$env:AEGIS_M365_CLIENT_SECRET = "<client secret VALUE>"
+.\scripts\seed-demo-suite.ps1 -Tenant 6bs6wq.onmicrosoft.com
+```
+
+| Scenario | Custodians | Category |
+|---|---|---|
+| MSA / IP dispute (Snowflake · vendorx §8.2) | priya, marcus, rebecca, samira, carlos | `AEGIS-DEMO-MSAIP` |
+| HR internal investigation (conduct complaint) | daniel.brooks, lena.perez, alex.kim | `AEGIS-DEMO-HR` |
+| Trade-secret / departing employee (exfiltration) | sarah.watson, samira, thomas.berger | `AEGIS-DEMO-TRADESECRET` |
+
+`-Only msaip,hr` seeds a subset; `-Clear` removes a scenario's messages. DSAR
+is seeded separately (`seed-priya-dsar-mailbox.ps1`, Priya). Then in AEGIS,
+open or create a hold, **+ Add custodians → M365 directory search** to pull the
+right people, and run Collection → Preview → Commit → Run AI review.
+
+The step-by-step below covers the seeded **MSA hold (LH-2026-0001)** specifically.
+
 ## One-time setup (per tenant)
 
 Everything runs locally against your `.env` (Neon `DATABASE_URL` +
@@ -41,23 +66,36 @@ pnpm --filter @aegis/db exec tsx ../../scripts/point-hold-custodians-to-tenant.t
 
 ### 2. Seed investigation-flavored mail into those mailboxes
 
+One coherent matter (the Snowflake MSA / vendorx IP §8.2 dispute), but each
+custodian gets a **distinct, role-appropriate slice** so culling + AI routing
+look real instead of cloned. The profile is inferred from the mailbox
+local-part (override with `-Profile`):
+
+| Profile | Personas | Skews toward |
+|---|---|---|
+| `counsel` | marcus.reid, thomas.berger, lena.perez | Privileged (outside-counsel memos, legal strategy) |
+| `engineer` | samira.iqbal, rebecca.sato | Responsive-technical (IP §8.2, model weights, pipelines) |
+| `finance` | carlos.mendez | Invoice / spend / committed-use responsive |
+| `departed` | sarah.watson | Sparse, older (handover + a 2025 thread) |
+| `mixed` | priya.kulkarni / everyone else | Balanced |
+
+A richer 5-custodian sweep:
+
 ```
 $env:AEGIS_M365_CLIENT_SECRET = "<app registration client secret VALUE>"
-.\scripts\seed-investigation-mailbox.ps1 -Mailboxes "priya.kulkarni@6bs6wq.onmicrosoft.com,marcus.reid@6bs6wq.onmicrosoft.com"
+.\scripts\seed-investigation-mailbox.ps1 -Mailboxes "priya.kulkarni@6bs6wq.onmicrosoft.com,marcus.reid@6bs6wq.onmicrosoft.com,samira.iqbal@6bs6wq.onmicrosoft.com,rebecca.sato@6bs6wq.onmicrosoft.com,carlos.mendez@6bs6wq.onmicrosoft.com"
 ```
 
-Each mailbox gets a **deliberately mixed** set so the AI review has real
-routing signal:
-
-| Kind | Example | Where the engine routes it |
-|---|---|---|
-| **Responsive** | Snowflake MSA renewal, vendorx pricing, IP §8.2 | Reviewer |
-| **Privileged** | outside-counsel memo marked *attorney-client privileged* | **Attorney** |
-| **PII** | HR record with home address + mobile | Reviewer (PII tag) |
-| **Noise** | all-hands, nightly backup, lunch menu | Auto-cull |
+Every set carries routing signal — **Responsive** → Reviewer, **Privileged**
+(marked *attorney-client*) → **Attorney**, **PII** (home address + mobile) →
+Reviewer, **Noise** (all-hands / backup / lunch) → Auto-cull.
 
 Idempotent (tagged `AEGIS-INVESTIGATION-DEMO`; re-run deletes + re-creates).
 `-Clear` removes them.
+
+> To use more than the seeded three hold custodians, add Samira / Rebecca /
+> Carlos to LH-2026-0001 in-app (**+ Add custodians → M365 directory search**)
+> — collection now pulls each one's mailbox per-user.
 
 ## Run the demo
 
