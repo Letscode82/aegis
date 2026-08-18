@@ -21,6 +21,7 @@
     "@aegis/intake": "workspace:*",
     "@aegis/spend": "workspace:*",
     "@aegis/matter": "workspace:*",
+    "@aegis/review": "workspace:*",
     "@aegis/observability": "workspace:*",
     "@aegis/privacy": "workspace:*",
     "@aegis/ui": "workspace:*",

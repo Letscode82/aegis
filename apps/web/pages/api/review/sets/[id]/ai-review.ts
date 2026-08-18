@@ -1,19 +1,17 @@
 /**
- * POST /api/matter/review-sets/[id]/ai-review — run the shared AI-review engine
- * over the set's items (multi-dimension tags + routing; deterministic screen
- * until 4d). Body { criteria?, issues?, dimensions?, pendingOnly? }.
- * matter:legal_hold:issue.
+ * POST /api/review/sets/[id]/ai-review — run the shared AI-review engine over
+ * the set (multi-dimension tags + routing). Legal-hold issue OR DSAR fulfill.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission } from "@aegis/auth";
-import { runAiReviewOnReviewSet } from "@aegis/matter";
-import { requireActor } from "../../../../../lib/matter-actor";
+import { runAiReviewOnReviewSet } from "@aegis/review";
+import { requireActorAny } from "../../../../../lib/matter-actor";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") { res.setHeader("Allow", "POST"); return res.status(405).json({ error: "Method not allowed" }); }
   const id = req.query.id;
   if (typeof id !== "string") return res.status(400).json({ error: "Invalid id" });
-  const actor = await requireActor(req, res, Permission.MatterLegalHoldIssue);
+  const actor = await requireActorAny(req, res, [Permission.MatterLegalHoldIssue, Permission.PrivacyDsarFulfill]);
   if (!actor) return;
   try {
     const b = req.body ?? {};
