@@ -6,3 +6,4 @@
  */
 export { DsarView } from "./dsar-view.jsx";
 export { DsarPortalStatus, DsarPortalIntake } from "./dsar-portal.jsx";
+export { DsarReviewWorkspace } from "./DsarReviewWorkspace";

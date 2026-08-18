@@ -22,6 +22,7 @@
     "@aegis/email": "workspace:*",
     "@aegis/ai-review": "workspace:*",
     "@aegis/matter": "workspace:*",
+    "@aegis/review": "workspace:*",
     "@aegis/validation": "workspace:*",
     "@aegis/ui": "workspace:*",
     "react": "^18.3.1"

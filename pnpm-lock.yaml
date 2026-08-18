@@ -307,6 +307,9 @@ importers:
       '@aegis/matter':
         specifier: workspace:*
         version: link:../matter
+      '@aegis/review':
+        specifier: workspace:*
+        version: link:../../packages/review
       '@aegis/ui':
         specifier: workspace:*
         version: link:../../packages/ui

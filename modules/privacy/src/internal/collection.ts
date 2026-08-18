@@ -13,6 +13,7 @@
  */
 import { prisma, logAudit } from "@aegis/db";
 import { searchM365ForDataSubject, searchM365Content, getM365ConnectionStatus, draftCollectionQuery, type DataSubjectSourceType } from "@aegis/matter";
+import { persistReviewSet, type ReviewSetSummary } from "@aegis/review";
 import type { Actor } from "./requests";
 
 export interface CollectFromM365Input {
@@ -143,6 +144,37 @@ export async function collectFromM365(organizationId: string, requestId: string,
   });
 
   return { searched: result.hits.length, added, duplicates, simulated: result.simulated };
+}
+
+/**
+ * Commit the subject's collection into a shared `ReviewSet` (origin DSAR) so it
+ * can be worked in the platform's full reviewer — the same engine legal hold
+ * uses (multi-dimension AI tags, threading/families, coding, production). This
+ * complements the lightweight DSARReviewItem relevance queue; the review set is
+ * the "one review engine across the platform" surface for DSAR.
+ */
+export async function commitDsarReviewSet(organizationId: string, requestId: string, input: CollectFromM365Input, actor: Actor): Promise<ReviewSetSummary> {
+  const req = await prisma.dataSubjectRequest.findFirst({
+    where: { id: requestId, organizationId },
+    include: { requesterPerson: { select: { name: true, email: true } } },
+  });
+  if (!req) throw new Error("Request not found");
+
+  const identifiers = [req.requesterPerson?.email].filter((s): s is string => !!s);
+  const displayName = req.requesterPerson?.name ?? null;
+  if (identifiers.length === 0 && !displayName && !(input.queryString || "").trim()) throw new Error("The data subject has no email or name to search on.");
+
+  const result = await runSearch(organizationId, { identifiers, displayName }, input);
+  const subjectLabel = displayName ?? identifiers[0] ?? "subject";
+  const name = `DSAR — ${subjectLabel} collection`;
+  const queryString = (input.queryString || "").trim() || `Data subject: ${subjectLabel}`;
+
+  return persistReviewSet(
+    organizationId,
+    { origin: "DSAR", name, queryString, sources: (input.sources ?? ALL_SOURCE_TYPES) as string[], dataSubjectRequestId: requestId, custodianCount: 1, simulated: result.simulated },
+    result.hits,
+    actor,
+  );
 }
 
 /**
