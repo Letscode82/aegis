@@ -97,6 +97,7 @@ export {
 // M365 / Purview collection (connect to your E5 tenant + search the subject)
 export {
   collectFromM365,
+  commitDsarReviewSet,
   previewM365Collection,
   draftDsarCollectionQuery,
   getDsarM365Status,

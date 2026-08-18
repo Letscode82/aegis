@@ -308,6 +308,15 @@ function ReviewTab({ req, reload, toast, goTab }) {
     <div>
       <M365CollectPanel req={req} onCollected={load} toast={toast} />
 
+      {/* Full reviewer — shared @aegis/review engine (AI tags, threading, families, coding, production) */}
+      <div style={{ ...card, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 12.5, color: C.t1, fontWeight: 600 }}>Collect &amp; Review workspace</div>
+          <div style={{ fontSize: 10, color: C.t4, fontFamily: M, marginTop: 2 }}>Work the subject&apos;s data in the full reviewer — the same engine legal hold uses: AI tags + routing, email threading / near-dup / families, multi-dimension coding, and a delivery-ready production.</div>
+        </div>
+        <button onClick={() => { window.location.href = `/privacy/dsar/${req.id}/review`; }} style={{ ...btn(C.bl), whiteSpace: "nowrap" }}>Open workspace →</button>
+      </div>
+
       {/* AI-assisted relevance review — the aiR flow, human-gated */}
       <div style={{ ...card }}>
         <div style={{ fontSize: 12.5, color: C.t1, fontWeight: 600, marginBottom: 2 }}>AI-assisted relevance review</div>
