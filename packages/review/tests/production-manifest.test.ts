@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildProductionManifest } from "../src/internal/services/review-set-coding";
+import { buildProductionManifest } from "../src/coding";
 
 const item = (p: Partial<{ title: string; sourceSystem: string; codedResponsive: boolean | null; codedPrivileged: boolean; redact: boolean; reviewNote: string | null; privilegeBasis: string | null }>) => ({
   title: "doc", sourceSystem: "Exchange", codedResponsive: null, codedPrivileged: false, redact: false, reviewNote: null, ...p,

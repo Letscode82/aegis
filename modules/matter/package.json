@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@aegis/ai-review": "workspace:*",
+    "@aegis/review": "workspace:*",
     "@aegis/db": "workspace:*",
     "@aegis/ui": "workspace:*",
     "@azure/identity": "4.4.1",

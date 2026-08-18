@@ -9,7 +9,7 @@
  * chain-sealed (`reviewset.*`).
  */
 import { prisma, logAudit } from "@aegis/db";
-import { getReviewSetSummary, type ReviewSetSummary } from "./review-set";
+import { getReviewSetSummary, type ReviewSetSummary } from "./reviewset";
 
 type Actor = { id: string | null; type?: "USER" | "AGENT" | "SYSTEM" };
 
@@ -133,7 +133,7 @@ export async function codeReviewItem(organizationId: string, itemId: string, inp
     organizationId, actorId: actor.id, actorType: actor.type ?? "USER",
     action: "reviewset.item.coded", resourceType: "ReviewSet", resourceId: item.reviewSetId,
     afterJson: { itemId, responsive: updated.codedResponsive, privileged: updated.codedPrivileged, redact: updated.redact, propagatedToFamily: !!(input.propagateFamily && item.familyId) } as never,
-    metadata: { source: "matter", channel: "ediscovery" } as never,
+    metadata: { source: "review", channel: "ediscovery" } as never,
   });
   return toItemDTO(updated);
 }
@@ -143,7 +143,7 @@ export async function freezeReviewSet(organizationId: string, id: string, actor:
   if (!rs) throw new Error("Review set not found");
   if (rs.status !== "OPEN") throw new Error(`Review set is ${rs.status} and cannot be frozen.`);
   await prisma.reviewSet.update({ where: { id }, data: { status: "FROZEN", frozenAt: new Date() } });
-  await logAudit({ organizationId, actorId: actor.id, actorType: actor.type ?? "USER", action: "reviewset.frozen", resourceType: "ReviewSet", resourceId: id, afterJson: { status: "FROZEN" } as never, metadata: { source: "matter" } as never });
+  await logAudit({ organizationId, actorId: actor.id, actorType: actor.type ?? "USER", action: "reviewset.frozen", resourceType: "ReviewSet", resourceId: id, afterJson: { status: "FROZEN" } as never, metadata: { source: "review" } as never });
   return (await getReviewSetSummary(organizationId, id))!;
 }
 
@@ -206,7 +206,7 @@ export async function produceReviewSet(organizationId: string, id: string, opts:
     organizationId, actorId: actor.id, actorType: actor.type ?? "USER",
     action: "reviewset.produced", resourceType: "ReviewSet", resourceId: id,
     afterJson: { status: "PRODUCED", batesPrefix: prefix, counts: manifest.counts } as never,
-    metadata: { source: "matter", channel: "ediscovery" } as never,
+    metadata: { source: "review", channel: "ediscovery" } as never,
   });
   return { summary: (await getReviewSetSummary(organizationId, id))!, manifest };
 }

@@ -1,0 +1,27 @@
+{
+  "name": "@aegis/review",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared eDiscovery / review-set engine — persistence, multi-dimension coding (issues/privilege/confidentiality/redaction), email threading + near-dup + families, AI review orchestration (@aegis/ai-review), and Bates production. Consumed by matter (legal hold) and privacy (DSAR).",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "files": ["src"],
+  "scripts": {
+    "lint": "eslint src tests",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@aegis/ai-review": "workspace:*",
+    "@aegis/db": "workspace:*"
+  },
+  "devDependencies": {
+    "@aegis/eslint-config": "workspace:*",
+    "@types/node": "^20.17.9",
+    "eslint": "^8.57.1",
+    "typescript": "5.6.3",
+    "vitest": "1.6.1"
+  }
+}

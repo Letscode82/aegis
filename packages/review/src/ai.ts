@@ -84,7 +84,7 @@ export async function runAiReviewOnReviewSet(organizationId: string, reviewSetId
     organizationId, actorId: actor.id, actorType: actor.type ?? "USER",
     action: "reviewset.ai_review_run", resourceType: "ReviewSet", resourceId: reviewSetId,
     afterJson: { scored: results.length, routes } as never,
-    metadata: { source: "matter", channel: "ediscovery", degraded: true } as never,
+    metadata: { source: "review", channel: "ediscovery", degraded: true } as never,
   });
 
   return { scored: results.length, routes, degraded: true };
