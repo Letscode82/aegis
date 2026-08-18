@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeSubject, assignThreadingAndDedup } from "../src/internal/services/review-threading";
+import { normalizeSubject, assignThreadingAndDedup } from "../src/threading";
 
 describe("normalizeSubject", () => {
   it("strips reply/forward prefixes and normalizes", () => {

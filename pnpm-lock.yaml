@@ -237,6 +237,9 @@ importers:
       '@aegis/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@aegis/review':
+        specifier: workspace:*
+        version: link:../../packages/review
       '@aegis/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -542,6 +545,31 @@ importers:
       typescript:
         specifier: 5.6.3
         version: 5.6.3
+
+  packages/review:
+    dependencies:
+      '@aegis/ai-review':
+        specifier: workspace:*
+        version: link:../ai-review
+      '@aegis/db':
+        specifier: workspace:*
+        version: link:../db
+    devDependencies:
+      '@aegis/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@types/node':
+        specifier: ^20.17.9
+        version: 20.19.39
+      eslint:
+        specifier: ^8.57.1
+        version: 8.57.1
+      typescript:
+        specifier: 5.6.3
+        version: 5.6.3
+      vitest:
+        specifier: 1.6.1
+        version: 1.6.1(@types/node@20.19.39)
 
   packages/search: {}
 

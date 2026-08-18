@@ -736,32 +736,31 @@ export type {
   PreviewHoldCollectionInput,
 } from "./src/internal/legal-hold";
 
-// Review sets — persist a collection into a durable, codeable review set.
+// Hold-scoped collection → review set (matter-specific collection step).
 export {
   commitHoldCollection,
+  type CommitHoldCollectionInput,
+} from "./src/internal/services/review-set";
+
+// Shared review engine (@aegis/review) — persistence, reads, coding, AI review,
+// and production. Re-exported so matter's existing routes keep importing from
+// `@aegis/matter`; privacy (DSAR) and future modules consume `@aegis/review`
+// directly.
+export {
   listReviewSets,
   getReviewSetSummary,
   setReviewSetCriteria,
-  type ReviewSetSummary,
-  type ReviewIssue,
-  type CommitHoldCollectionInput,
-  type ListReviewSetsFilter,
-} from "./src/internal/services/review-set";
-
-// AI-assisted review over a review set (multi-dimension tags + routing).
-export {
   runAiReviewOnReviewSet,
-  type RunReviewSetAiInput,
-  type RunReviewSetAiResult,
-} from "./src/internal/services/review-set-ai";
-
-// Reviewer console + production (code items, freeze, produce Bates + priv log).
-export {
   getReviewSetDetail,
   codeReviewItem,
   freezeReviewSet,
   produceReviewSet,
   buildProductionManifest,
+  type ReviewSetSummary,
+  type ReviewIssue,
+  type ListReviewSetsFilter,
+  type RunReviewSetAiInput,
+  type RunReviewSetAiResult,
   type ReviewSetDetail,
   type ReviewSetItemDTO,
   type CodeReviewItemInput,
@@ -769,7 +768,7 @@ export {
   type ProductionManifest,
   type ProductionItem,
   type PrivilegeLogEntry,
-} from "./src/internal/services/review-set-coding";
+} from "@aegis/review";
 
 // ── M365 connection management (sub-PR 4c) ─────────────────────────
 
