@@ -42,3 +42,29 @@ export async function commitHoldCollection(legalHoldId: string, input: CommitHol
     actor,
   );
 }
+
+export interface AdhocCollectionInput {
+  name: string;
+  source: "INVESTIGATION" | "ADHOC";
+  /** Custodian emails / UPNs to collect. */
+  identifiers: string[];
+  sources?: DataSubjectSourceType[];
+  top?: number;
+  matterId?: string | null;
+}
+
+/** Hub-initiated collection (internal investigation / ad-hoc culling) — not
+ *  tied to a hold or DSAR. Collects the given custodians per-user and persists
+ *  a ReviewSet. Matter owns this because it owns the M365 client. */
+export async function createAdhocCollection(organizationId: string, input: AdhocCollectionInput, actor: Actor): Promise<ReviewSetSummary> {
+  const identifiers = [...new Set((input.identifiers || []).map((s) => (s || "").trim()).filter(Boolean))];
+  if (identifiers.length === 0) throw new Error("Add at least one custodian email or UPN to collect.");
+  const client = await getM365ClientForOrg(organizationId);
+  const res = await client.searchForDataSubject({ identifiers, sources: input.sources, top: input.top ?? 200 });
+  return persistReviewSet(
+    organizationId,
+    { origin: input.source, name: (input.name || "").trim() || "Ad-hoc collection", queryString: `Custodians: ${identifiers.join(", ")}`, sources: (input.sources ?? ["MAILBOX", "ONEDRIVE", "TEAMS"]) as string[], matterId: input.matterId ?? null, custodianCount: identifiers.length, simulated: res.simulated },
+    res.hits,
+    actor,
+  );
+}

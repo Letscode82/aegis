@@ -31,6 +31,7 @@ export function EDiscoveryHub() {
   const [rows, setRows] = useState(null);
   const [source, setSource] = useState("ALL");
   const [stage, setStage] = useState("ALL");
+  const [showNew, setShowNew] = useState(false);
 
   useEffect(() => {
     fetch("/api/review/collections").then((r) => r.json()).then((d) => setRows(d.ok ? d.collections : [])).catch(() => setRows([]));
@@ -51,9 +52,15 @@ export function EDiscoveryHub() {
 
   return (
     <div style={{ padding: "26px 32px", fontFamily: F, color: C.t1, maxWidth: 1440, margin: "0 auto" }}>
-      <div style={{ marginBottom: 6, fontFamily: M, fontSize: 10.5, letterSpacing: 1.4, color: C.cy, textTransform: "uppercase" }}>eDiscovery · one review engine across the platform</div>
-      <div style={{ fontFamily: SR, fontSize: 28, fontWeight: 600, marginBottom: 4 }}>Collect &amp; Review</div>
-      <div style={{ fontSize: 13.5, color: C.t3, marginBottom: 20 }}>Every collection — from legal holds, DSARs, and investigations — flows through one pipeline: Collect → Cull → Review → Produce.</div>
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16 }}>
+        <div>
+          <div style={{ marginBottom: 6, fontFamily: M, fontSize: 10.5, letterSpacing: 1.4, color: C.cy, textTransform: "uppercase" }}>eDiscovery · one review engine across the platform</div>
+          <div style={{ fontFamily: SR, fontSize: 28, fontWeight: 600, marginBottom: 4 }}>Collect &amp; Review</div>
+          <div style={{ fontSize: 13.5, color: C.t3, marginBottom: 20 }}>Every collection — from legal holds, DSARs, and investigations — flows through one pipeline: Collect → Cull → Review → Produce.</div>
+        </div>
+        <button onClick={() => setShowNew(true)} style={{ flex: "none", padding: "10px 16px", background: C.bl, color: C.bg, border: "none", borderRadius: 8, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ New collection</button>
+      </div>
+      {showNew && <NewCollectionModal onClose={() => setShowNew(false)} />}
 
       {/* filters */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
@@ -93,6 +100,55 @@ export function EDiscoveryHub() {
             </div>
           );
         })}
+      </div>
+    </div>
+  );
+}
+
+function NewCollectionModal({ onClose }) {
+  const [name, setName] = useState("");
+  const [src, setSrc] = useState("INVESTIGATION");
+  const [ids, setIds] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  const inp = { width: "100%", background: C.bg, border: `1px solid ${C.br}`, borderRadius: 8, color: C.t1, fontFamily: F, fontSize: 13.5, padding: "10px 12px", outline: "none", boxSizing: "border-box" };
+
+  const create = async () => {
+    setBusy(true); setErr("");
+    try {
+      const r = await fetch("/api/review/collections", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, source: src, identifiers: ids }) });
+      const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      window.location.href = `/review/collections/${d.reviewSet.id}`;
+    } catch (e) { setErr(String(e.message || e)); setBusy(false); }
+  };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(4,7,15,.72)", zIndex: 1200, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: F }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: 520, maxWidth: "92%", background: C.cd, border: `1px solid ${C.brL}`, borderRadius: 14, padding: "24px 26px" }}>
+        <div style={{ fontFamily: SR, fontSize: 19, fontWeight: 600, marginBottom: 4 }}>New collection</div>
+        <div style={{ fontSize: 12.5, color: C.t3, marginBottom: 18 }}>Collect a custodian set for an internal investigation or ad-hoc culling — no hold or DSAR required. It lands in the same Collect &rarr; Cull &rarr; Review &rarr; Produce workspace.</div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: C.t3, marginBottom: 5 }}>Name</div>
+            <input value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Project Falcon — trade-secret review" style={inp} />
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: C.t3, marginBottom: 5 }}>Type</div>
+            <select value={src} onChange={(e) => setSrc(e.target.value)} style={inp}>
+              <option value="INVESTIGATION">Internal investigation</option>
+              <option value="ADHOC">Ad-hoc culling / export</option>
+            </select>
+          </div>
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 600, color: C.t3, marginBottom: 5 }}>Custodians — emails / UPNs (one per line or comma-separated)</div>
+            <textarea value={ids} onChange={(e) => setIds(e.target.value)} rows={4} placeholder={"priya.kulkarni@...\nmarcus.reid@..."} style={{ ...inp, fontFamily: M, fontSize: 12, resize: "vertical" }} />
+          </div>
+          {err && <div style={{ fontSize: 12, color: C.rd }}>{err}</div>}
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
+          <button onClick={onClose} style={{ padding: "10px 16px", background: "transparent", color: C.t3, border: `1px solid ${C.t3}`, borderRadius: 8, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+          <button disabled={busy || !ids.trim()} onClick={create} style={{ padding: "10px 18px", background: C.gn, color: C.bg, border: "none", borderRadius: 8, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{busy ? "Collecting..." : "Collect →"}</button>
+        </div>
       </div>
     </div>
   );

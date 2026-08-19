@@ -736,10 +736,13 @@ export type {
   PreviewHoldCollectionInput,
 } from "./src/internal/legal-hold";
 
-// Hold-scoped collection → review set (matter-specific collection step).
+// Hold-scoped collection → review set (matter-specific collection step) +
+// hub-initiated ad-hoc / investigation collections.
 export {
   commitHoldCollection,
+  createAdhocCollection,
   type CommitHoldCollectionInput,
+  type AdhocCollectionInput,
 } from "./src/internal/services/review-set";
 
 // Shared review engine (@aegis/review) — persistence, reads, coding, AI review,
