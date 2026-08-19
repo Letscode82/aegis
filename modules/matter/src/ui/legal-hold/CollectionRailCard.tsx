@@ -7,7 +7,6 @@
  */
 import React, { useEffect, useState } from "react";
 import { Card, SH, C, F, M, useToast } from "@aegis/ui";
-import { ReviewSetConsole } from "./ReviewSetConsole";
 
 export interface CollectionRailCardProps {
   matterId: string;
@@ -34,7 +33,6 @@ export const CollectionRailCard: React.FC<CollectionRailCardProps> = ({ matterId
   const [preview, setPreview] = useState<Preview | null>(null);
   const [busy, setBusy] = useState(false);
   const [sets, setSets] = useState<Array<{ id: string; name: string; itemCount: number; status: string }>>([]);
-  const [consoleId, setConsoleId] = useState<string | null>(null);
   const selected = SOURCES.filter((s) => sources[s]);
 
   const loadSets = () => {
@@ -61,7 +59,7 @@ export const CollectionRailCard: React.FC<CollectionRailCardProps> = ({ matterId
   };
   const commit = async () => {
     setBusy(true);
-    try { const d = await post({ commit: true, queryString: kql.trim() || undefined, naturalLanguage: nl, sources: selected }); toast.success(`Committed ${d.reviewSet.itemCount} item(s) to "${d.reviewSet.name}"`); setPreview(null); loadSets(); }
+    try { const d = await post({ commit: true, queryString: kql.trim() || undefined, naturalLanguage: nl, sources: selected }); toast.success(`Collected ${d.reviewSet.itemCount} item(s) — opening in eDiscovery`); window.location.href = `/review/collections/${d.reviewSet.id}`; }
     catch (e) { toast.error(String((e as Error).message || e)); } finally { setBusy(false); }
   };
 
@@ -74,10 +72,10 @@ export const CollectionRailCard: React.FC<CollectionRailCardProps> = ({ matterId
       {open && (
         <div style={{ marginTop: 10 }}>
           <button
-            onClick={() => { window.location.href = `/matter/${matterId}/holds/${holdId}/review`; }}
+            onClick={() => { window.location.href = `/?view=ediscovery`; }}
             style={{ width: "100%", padding: "10px 12px", marginBottom: 10, background: C.bl, color: C.bg, border: "none", borderRadius: 7, fontFamily: M, fontSize: 10.5, letterSpacing: .8, fontWeight: 700, textTransform: "uppercase", cursor: "pointer" }}
           >
-            ⬈ Open Collect &amp; Review workspace
+            ⬈ Open in eDiscovery
           </button>
           {!canMutate && <div style={{ fontSize: 10.5, color: C.t4, fontFamily: M, marginBottom: 6 }}>Read-only — you lack legal-hold issue rights.</div>}
           <div style={{ fontSize: 9, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.pp, marginBottom: 3 }}>Natural language → KeyQL</div>
@@ -107,7 +105,7 @@ export const CollectionRailCard: React.FC<CollectionRailCardProps> = ({ matterId
             <div style={{ marginTop: 10, borderTop: `1px solid ${C.br}`, paddingTop: 8 }}>
               <div style={{ fontSize: 9, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t3, marginBottom: 4 }}>Review sets</div>
               {sets.map((s) => (
-                <div key={s.id} onClick={() => setConsoleId(s.id)} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.t2, padding: "4px 0", cursor: "pointer" }}>
+                <div key={s.id} onClick={() => { window.location.href = `/review/collections/${s.id}`; }} style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: C.t2, padding: "4px 0", cursor: "pointer" }}>
                   <span style={{ minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{s.name}</span>
                   <span style={{ fontFamily: M, color: C.cy, flexShrink: 0, marginLeft: 8 }}>{s.itemCount} · {s.status} →</span>
                 </div>
@@ -116,7 +114,6 @@ export const CollectionRailCard: React.FC<CollectionRailCardProps> = ({ matterId
           )}
         </div>
       )}
-      {consoleId && <ReviewSetConsole reviewSetId={consoleId} canMutate={canMutate} onClose={() => { setConsoleId(null); loadSets(); }} />}
     </Card>
   );
 };
