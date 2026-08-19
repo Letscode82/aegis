@@ -64,8 +64,8 @@ export const DsarReviewWorkspace: React.FC<DsarReviewWorkspaceProps> = ({ dsarId
     try {
       const r = await fetch(`/api/privacy/dsar/${dsarId}/review-set`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({}) });
       const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error);
-      toast.success(`Collected ${d.reviewSet.itemCount} record(s) to review`);
-      setActiveSetId(d.reviewSet.id); await loadSets(); setStep("review");
+      toast.success(`Collected ${d.reviewSet.itemCount} record(s) — opening in eDiscovery`);
+      window.location.href = `/review/collections/${d.reviewSet.id}`;
     } catch (e) { toast.error(String((e as Error).message || e)); } finally { setBusy(false); }
   };
 
@@ -107,7 +107,7 @@ export const DsarReviewWorkspace: React.FC<DsarReviewWorkspaceProps> = ({ dsarId
               <div style={{ background: C.cd, border: `1px solid ${C.br}`, borderRadius: 12, padding: "14px 18px" }}>
                 <div style={{ fontSize: 11, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t3, marginBottom: 8 }}>Review sets</div>
                 {sets.map((s) => (
-                  <div key={s.id} onClick={() => { setActiveSetId(s.id); setStep("review"); }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", cursor: "pointer" }}>
+                  <div key={s.id} onClick={() => { window.location.href = `/review/collections/${s.id}`; }} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", cursor: "pointer" }}>
                     <span style={{ fontSize: 14 }}>{s.name}</span>
                     <span style={{ fontFamily: M, fontSize: 12, color: C.cy }}>{s.itemCount} · {s.status} →</span>
                   </div>
