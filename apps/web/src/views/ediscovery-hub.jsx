@@ -22,11 +22,8 @@ const STAGE = {
   PRODUCED: { label: "Produced", col: C.gn },
 };
 
-function openHref(c) {
-  if (c.origin === "LEGAL_HOLD" && c.matterId && c.legalHoldId) return `/matter/${c.matterId}/holds/${c.legalHoldId}/review`;
-  if (c.origin === "DSAR" && c.dataSubjectRequestId) return `/privacy/dsar/${c.dataSubjectRequestId}/review`;
-  return null;
-}
+// Every collection opens in the unified stage workspace, whatever its source.
+function openHref(c) { return `/review/collections/${c.id}`; }
 
 const badge = (col) => ({ fontSize: 10, fontWeight: 700, letterSpacing: .4, color: col, border: `1px solid ${col}`, borderRadius: 5, padding: "2px 8px", whiteSpace: "nowrap" });
 
