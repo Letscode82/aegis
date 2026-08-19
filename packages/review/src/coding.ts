@@ -43,6 +43,9 @@ export interface ReviewSetItemDTO {
   threadId: string | null;
   isInclusive: boolean | null;
   dedupKey: string | null;
+  batchId: string | null;
+  assignedToUserId: string | null;
+  qcStatus: string | null;
 }
 
 function toItemDTO(r: {
@@ -50,6 +53,7 @@ function toItemDTO(r: {
   graphId?: string | null; webUrl?: string | null; aiTags?: unknown;
   aiVerdict: string | null; aiScore: number | null; aiRationale: string | null; aiRoute?: string | null; codingJson?: unknown;
   familyId?: string | null; familyRole?: string | null; threadId?: string | null; isInclusive?: boolean | null; dedupKey?: string | null;
+  batchId?: string | null; assignedToUserId?: string | null; qcStatus?: string | null;
   reviewDecision: string; codedResponsive: boolean | null; codedPrivileged: boolean; redact: boolean; reviewNote: string | null; reviewedAt: Date | null;
 }): ReviewSetItemDTO {
   const coding = (r.codingJson as CodingBlob | null) ?? {};
@@ -61,6 +65,7 @@ function toItemDTO(r: {
     redact: r.redact, issues: coding.issues ?? [], confidentiality: coding.confidentiality ?? null, privilegeBasis: coding.privilegeBasis ?? null,
     reviewNote: r.reviewNote, reviewedAt: r.reviewedAt?.toISOString() ?? null,
     familyId: r.familyId ?? null, familyRole: r.familyRole ?? null, threadId: r.threadId ?? null, isInclusive: r.isInclusive ?? null, dedupKey: r.dedupKey ?? null,
+    batchId: r.batchId ?? null, assignedToUserId: r.assignedToUserId ?? null, qcStatus: r.qcStatus ?? null,
   };
 }
 
