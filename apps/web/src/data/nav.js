@@ -8,6 +8,7 @@ export const NAV=[
   {id:"divider1"},
   {id:"intake",label:"Legal Intake",icon:"◆",c:C.cy,group:"OPERATIONS"},
   {id:"matters",label:"Matter Management",icon:"▣",c:C.bl,group:"OPERATIONS"},
+  {id:"ediscovery",label:"eDiscovery",icon:"◫",c:C.cy,group:"OPERATIONS"},
   {id:"contracts",label:"Contracts",icon:"▤",c:C.bl,group:"OPERATIONS"},
   {id:"regulatory",label:"Regulatory",icon:"▥",c:C.tl,group:"OPERATIONS"},
   {id:"ocm",label:"Outside Counsel",icon:"▦",c:C.am,group:"OPERATIONS"},

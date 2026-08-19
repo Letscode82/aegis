@@ -180,3 +180,32 @@ export async function getReviewSetSummary(organizationId: string, id: string): P
   if (!rs) return null;
   return toSummary(id);
 }
+
+/** Lifecycle stage derived from status + coding progress — drives the
+ *  eDiscovery hub's stage tracker without a schema column. */
+export type CollectionStage = "INTAKE" | "REVIEW" | "READY" | "FROZEN" | "PRODUCED";
+export function deriveStage(status: string, itemCount: number, codedCount: number): CollectionStage {
+  if (status === "PRODUCED") return "PRODUCED";
+  if (status === "FROZEN") return "FROZEN";
+  if (itemCount === 0) return "INTAKE";
+  return codedCount >= itemCount ? "READY" : "REVIEW";
+}
+
+export interface CollectionSummary extends ReviewSetSummary { codedCount: number; stage: CollectionStage }
+
+/** Every review set (collection) across the org, with coded progress + a
+ *  derived lifecycle stage — the eDiscovery hub's cross-source read. */
+export async function listCollections(organizationId: string): Promise<CollectionSummary[]> {
+  const sets = await listReviewSets(organizationId);
+  if (sets.length === 0) return [];
+  const coded = await prisma.reviewSetItem.groupBy({
+    by: ["reviewSetId"],
+    where: { organizationId, reviewSetId: { in: sets.map((s) => s.id) }, reviewDecision: { not: "PENDING" } },
+    _count: { _all: true },
+  });
+  const codedBy = new Map(coded.map((c) => [c.reviewSetId, c._count._all]));
+  return sets.map((s) => {
+    const codedCount = codedBy.get(s.id) ?? 0;
+    return { ...s, codedCount, stage: deriveStage(s.status, s.itemCount, codedCount) };
+  });
+}
