@@ -11,6 +11,7 @@ import { DsarView } from "@aegis/privacy/ui";
 import { MissionControlView, BoardReportView, CyberView, ArchitectureView, RiskGraphView, ScenariosView } from "./views/v8";
 import { BrainDemoView, RegulatoryDemoView } from "./views/gc-suite-demos.jsx";
 import { MatterManagementShell, AuditLogShell } from "./views/matter-shell.jsx";
+import { EDiscoveryHub } from "./views/ediscovery-hub.jsx";
 import { AdminUsersShell, AdminRolesShell } from "./views/admin-shell.jsx";
 import { UserBadge } from "./views/user-badge.jsx";
 import { PreviewRoleSwitcher, PreviewRoleBanner } from "./views/preview-role-switcher.jsx";
@@ -45,6 +46,7 @@ export default function App(){
     ocm:OutsideCounselView,spend:SpendDashboard,governance:GovernanceView,
     cyber:CyberView,brain:BrainDemoView,board:BoardReportView,
     dsar:DsarView,
+    ediscovery:EDiscoveryHub,
     architecture:ArchitectureView,
     users:AdminUsersShell,roles:AdminRolesShell,audit:AuditLogShell};
   // In the intake-only profile, any view outside the allowed set (e.g. a

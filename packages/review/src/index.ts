@@ -9,8 +9,12 @@
 export {
   persistReviewSet,
   listReviewSets,
+  listCollections,
+  deriveStage,
   getReviewSetSummary,
   setReviewSetCriteria,
+  type CollectionSummary,
+  type CollectionStage,
   type Actor,
   type ReviewIssue,
   type ReviewCollectedItem,
