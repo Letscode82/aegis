@@ -2539,6 +2539,8 @@ enum ReviewSetOrigin {
   LEGAL_HOLD
   DSAR
   MANUAL
+  INVESTIGATION
+  ADHOC
 }
 
 enum ReviewSetStatus {
