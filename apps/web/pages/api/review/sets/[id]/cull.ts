@@ -1,0 +1,32 @@
+/**
+ * /api/review/sets/[id]/cull — the Cull stage's persisted culls.
+ *   GET  — the exclusion log. POST { action: "apply" | "clear" }.
+ * Legal-hold issue OR DSAR fulfill.
+ */
+import type { NextApiRequest, NextApiResponse } from "next";
+import { Permission } from "@aegis/auth";
+import { applyThreadNearDupCull, clearCull, listExclusions } from "@aegis/review";
+import { requireActorAny } from "../../../../../lib/matter-actor";
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  const id = req.query.id;
+  if (typeof id !== "string") return res.status(400).json({ error: "Invalid id" });
+  const actor = await requireActorAny(req, res, [Permission.MatterLegalHoldIssue, Permission.PrivacyDsarFulfill]);
+  if (!actor) return;
+  try {
+    if (req.method === "GET") {
+      const exclusions = await listExclusions(actor.organizationId, id);
+      return res.status(200).json({ ok: true, exclusions });
+    }
+    if (req.method === "POST") {
+      const action = (req.body ?? {}).action;
+      const who = { id: actor.id, type: "USER" as const };
+      const result = action === "clear" ? await clearCull(actor.organizationId, id, who) : await applyThreadNearDupCull(actor.organizationId, id, who);
+      return res.status(200).json({ ok: true, ...result });
+    }
+    res.setHeader("Allow", "GET, POST");
+    return res.status(405).json({ error: "Method not allowed" });
+  } catch (err) {
+    return res.status(400).json({ ok: false, error: String((err as Error).message || err) });
+  }
+}

@@ -46,6 +46,8 @@ export interface ReviewSetItemDTO {
   batchId: string | null;
   assignedToUserId: string | null;
   qcStatus: string | null;
+  excluded: boolean;
+  exclusionReason: string | null;
 }
 
 function toItemDTO(r: {
@@ -54,6 +56,7 @@ function toItemDTO(r: {
   aiVerdict: string | null; aiScore: number | null; aiRationale: string | null; aiRoute?: string | null; codingJson?: unknown;
   familyId?: string | null; familyRole?: string | null; threadId?: string | null; isInclusive?: boolean | null; dedupKey?: string | null;
   batchId?: string | null; assignedToUserId?: string | null; qcStatus?: string | null;
+  excludedAt?: Date | null; exclusionReason?: string | null;
   reviewDecision: string; codedResponsive: boolean | null; codedPrivileged: boolean; redact: boolean; reviewNote: string | null; reviewedAt: Date | null;
 }): ReviewSetItemDTO {
   const coding = (r.codingJson as CodingBlob | null) ?? {};
@@ -66,6 +69,7 @@ function toItemDTO(r: {
     reviewNote: r.reviewNote, reviewedAt: r.reviewedAt?.toISOString() ?? null,
     familyId: r.familyId ?? null, familyRole: r.familyRole ?? null, threadId: r.threadId ?? null, isInclusive: r.isInclusive ?? null, dedupKey: r.dedupKey ?? null,
     batchId: r.batchId ?? null, assignedToUserId: r.assignedToUserId ?? null, qcStatus: r.qcStatus ?? null,
+    excluded: !!r.excludedAt, exclusionReason: r.exclusionReason ?? null,
   };
 }
 
@@ -198,7 +202,8 @@ export async function produceReviewSet(organizationId: string, id: string, opts:
   if (rs.status === "PRODUCED") throw new Error("This review set has already been produced.");
   if (rs.status !== "FROZEN") throw new Error("Freeze the review set before producing it.");
 
-  const rows = await prisma.reviewSetItem.findMany({ where: { reviewSetId: id }, select: { title: true, sourceSystem: true, codedResponsive: true, codedPrivileged: true, redact: true, reviewNote: true, codingJson: true } });
+  // Culled (excluded) items are not part of the production and don't need coding.
+  const rows = await prisma.reviewSetItem.findMany({ where: { reviewSetId: id, excludedAt: null }, select: { title: true, sourceSystem: true, codedResponsive: true, codedPrivileged: true, redact: true, reviewNote: true, codingJson: true } });
   const uncoded = rows.filter((r) => r.codedResponsive == null).length;
   if (uncoded > 0) throw new Error(`${uncoded} item(s) are uncoded — code every item before producing.`);
 

@@ -20,6 +20,7 @@ interface Item {
   codedResponsive: boolean | null; codedPrivileged: boolean; redact: boolean;
   issues: string[]; confidentiality: string | null; privilegeBasis: string | null; reviewNote: string | null;
   familyId: string | null; familyRole: string | null; threadId: string | null; isInclusive: boolean | null; dedupKey: string | null;
+  excluded?: boolean;
 }
 type Issue = { key: string; label: string };
 type RouteFilter = "ALL" | "ATTORNEY" | "REVIEWER" | "AUTO_CULL";
@@ -59,7 +60,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
 
   const load = useCallback(() => {
     fetch(`${apiBase}/${reviewSetId}`).then((r) => r.json()).then((d) => {
-      if (d.ok) { setItems(d.items); setStatus(d.summary.status); setCriteria(d.summary.criteria ?? ""); setIssues(d.summary.issues ?? []); }
+      if (d.ok) { setItems((d.items || []).filter((i: Item) => !i.excluded)); setStatus(d.summary.status); setCriteria(d.summary.criteria ?? ""); setIssues(d.summary.issues ?? []); }
     }).catch(() => {});
   }, [apiBase, reviewSetId]);
   useEffect(() => { load(); }, [load]);
