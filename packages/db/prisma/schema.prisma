@@ -2574,10 +2574,30 @@ model ReviewSet {
 
   organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   items        ReviewSetItem[]
+  batches      ReviewBatch[]
 
   @@index([organizationId, origin])
   @@index([legalHoldId])
   @@index([dataSubjectRequestId])
+}
+
+/// Reviewer-parity v3: a batch of review-set items assigned to one reviewer,
+/// flowing DRAFT → ASSIGNED → IN_REVIEW → QC → COMPLETE. The second-level QC
+/// pass is tracked per item (`ReviewSetItem.qcStatus`).
+model ReviewBatch {
+  id               String   @id @default(cuid())
+  organizationId   String
+  reviewSetId      String
+  name             String
+  assignedToUserId String?
+  status           String   @default("DRAFT")
+  createdById      String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  reviewSet ReviewSet @relation(fields: [reviewSetId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, reviewSetId])
 }
 
 model ReviewSetItem {
@@ -2611,6 +2631,13 @@ model ReviewSetItem {
   threadId       String?
   isInclusive    Boolean?
   dedupKey       String?
+  /// Reviewer-parity v3 (batching + QC). batchId assigns the item to a review
+  /// batch; assignedToUserId is the first-pass reviewer; qcStatus tracks the
+  /// second-level QC pass (PENDING_QC | QC_APPROVED | QC_REJECTED).
+  batchId          String?
+  assignedToUserId String?
+  qcStatus         String?
+  qcById           String?
   reviewDecision DSARReviewDecision @default(PENDING)
   codedResponsive Boolean?
   codedPrivileged Boolean          @default(false)
