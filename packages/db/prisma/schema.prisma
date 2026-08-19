@@ -2640,6 +2640,11 @@ model ReviewSetItem {
   assignedToUserId String?
   qcStatus         String?
   qcById           String?
+  /// RC-5 cull: when set, the item is excluded from review + production (a
+  /// persisted cull — thread-suppressed / near-duplicate). exclusionReason
+  /// records why for the defensible exclusion log.
+  excludedAt       DateTime?
+  exclusionReason  String?
   reviewDecision DSARReviewDecision @default(PENDING)
   codedResponsive Boolean?
   codedPrivileged Boolean          @default(false)

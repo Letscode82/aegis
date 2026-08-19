@@ -6,12 +6,14 @@
  * dupes" toggle and excluded from production by coding); RC-5 turns these into
  * persisted culls with an exclusion log.
  */
-import React, { useEffect, useMemo, useState } from "react";
-import { C, F, M, SR } from "@aegis/ui";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { C, F, M, SR, useToast } from "@aegis/ui";
 
-export interface CullPanelProps { apiBase: string; reviewSetId: string }
+export interface CullPanelProps { apiBase: string; reviewSetId: string; canMutate?: boolean }
 
-type Item = { id: string; familyRole: string | null; familyId: string | null; threadId: string | null; isInclusive: boolean | null; dedupKey: string | null };
+type Item = { id: string; familyRole: string | null; familyId: string | null; threadId: string | null; isInclusive: boolean | null; dedupKey: string | null; excluded?: boolean };
+const cbtn = (bg: string): React.CSSProperties => ({ padding: "10px 16px", background: bg, color: C.bg, border: "none", borderRadius: 8, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: "pointer" });
+const cghost = (col: string): React.CSSProperties => ({ padding: "10px 16px", background: "transparent", color: col, border: `1px solid ${col}`, borderRadius: 8, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: "pointer" });
 
 const stat = (label: string, value: React.ReactNode, col: string, sub?: string) => (
   <div style={{ background: C.cd, border: `1px solid ${C.br}`, borderRadius: 12, padding: "18px 20px", minWidth: 150 }}>
@@ -21,18 +23,33 @@ const stat = (label: string, value: React.ReactNode, col: string, sub?: string) 
   </div>
 );
 
-export const CullPanel: React.FC<CullPanelProps> = ({ apiBase, reviewSetId }) => {
+export const CullPanel: React.FC<CullPanelProps> = ({ apiBase, reviewSetId, canMutate }) => {
+  const toast = useToast();
   const [items, setItems] = useState<Item[] | null>(null);
-  useEffect(() => {
+  const [busy, setBusy] = useState(false);
+  const load = useCallback(() => {
     fetch(`${apiBase}/${reviewSetId}`).then((r) => r.json()).then((d) => setItems(d.ok ? d.items : [])).catch(() => setItems([]));
   }, [apiBase, reviewSetId]);
+  useEffect(() => { load(); }, [load]);
+
+  const cull = async (action: "apply" | "clear") => {
+    setBusy(true);
+    try {
+      const r = await fetch(`${apiBase}/${reviewSetId}/cull`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+      const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error);
+      toast.success(action === "apply" ? `Culled ${d.total} document(s)` : `Restored ${d.restored} document(s)`);
+      load();
+    } catch (e) { toast.error(String((e as Error).message || e)); } finally { setBusy(false); }
+  };
 
   const m = useMemo(() => {
     const its = items || [];
+    const kept = its.filter((i) => !i.excluded);
+    const alreadyExcluded = its.length - kept.length;
     const threadSize = new Map<string, number>();
     const seen = new Set<string>();
     let dups = 0, families = 0, attachments = 0, nonInclusive = 0;
-    for (const i of its) {
+    for (const i of kept) {
       if (i.threadId) threadSize.set(i.threadId, (threadSize.get(i.threadId) ?? 0) + 1);
       if (i.familyRole === "PARENT") families += 1;
       if (i.familyRole === "ATTACHMENT") attachments += 1;
@@ -41,10 +58,10 @@ export const CullPanel: React.FC<CullPanelProps> = ({ apiBase, reviewSetId }) =>
     }
     const threads = [...threadSize.values()].filter((n) => n > 1).length;
     const suppressible = new Set<string>();
-    for (const i of its) { if (i.isInclusive === false || (i.dedupKey && dupIsLater(its, i))) suppressible.add(i.id); }
+    for (const i of kept) { if (i.isInclusive === false || (i.dedupKey && dupIsLater(kept, i))) suppressible.add(i.id); }
     const total = its.length;
-    const afterCull = total - suppressible.size;
-    return { total, families, attachments, threads, nonInclusive, dups, suppressed: suppressible.size, afterCull };
+    const afterCull = kept.length - suppressible.size;
+    return { total, alreadyExcluded, inReview: kept.length, families, attachments, threads, nonInclusive, dups, suppressed: suppressible.size, afterCull };
   }, [items]);
 
   return (
@@ -73,7 +90,12 @@ export const CullPanel: React.FC<CullPanelProps> = ({ apiBase, reviewSetId }) =>
               {stat("Thread-suppressible", m.nonInclusive, C.t3, "older messages")}
             </div>
 
-            <div style={{ marginTop: 20, fontSize: 12, color: C.t4, fontFamily: M, lineHeight: 1.6 }}>Suppression is applied in the Review stage (the “Suppress dupes” toggle) and excluded from production by coding. Persisted culls with an exclusion log land in a follow-up.</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 20, flexWrap: "wrap" }}>
+              <button disabled={busy || !canMutate || m.suppressed === 0} onClick={() => cull("apply")} style={cbtn(C.gn)}>{busy ? "Culling…" : `Apply cull — exclude ${m.suppressed}`}</button>
+              {m.alreadyExcluded > 0 && <button disabled={busy || !canMutate} onClick={() => cull("clear")} style={cghost(C.t3)}>Restore {m.alreadyExcluded} culled</button>}
+              {m.alreadyExcluded > 0 && <span style={{ fontSize: 12, color: C.t3 }}><b style={{ color: C.gn }}>{m.alreadyExcluded}</b> already excluded · {m.inReview} in review</span>}
+            </div>
+            <div style={{ marginTop: 12, fontSize: 12, color: C.t4, fontFamily: M, lineHeight: 1.6 }}>Culled documents are excluded from review and from the production — a persisted, chain-sealed decision recorded in the exclusion log. Restore anytime.</div>
           </>
         )}
       </div>

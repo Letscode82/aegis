@@ -54,7 +54,7 @@ export async function createReviewBatch(organizationId: string, reviewSetId: str
 
   let itemIds = input.itemIds ?? [];
   if (itemIds.length === 0 && input.autoSize && input.autoSize > 0) {
-    const rows = await prisma.reviewSetItem.findMany({ where: { reviewSetId, batchId: null }, select: { id: true }, take: input.autoSize, orderBy: [{ createdAt: "asc" }] });
+    const rows = await prisma.reviewSetItem.findMany({ where: { reviewSetId, batchId: null, excludedAt: null }, select: { id: true }, take: input.autoSize, orderBy: [{ createdAt: "asc" }] });
     itemIds = rows.map((r) => r.id);
   }
 

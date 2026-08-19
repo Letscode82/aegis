@@ -83,7 +83,7 @@ export const CollectionWorkspace: React.FC<CollectionWorkspaceProps> = ({ apiBas
         </div>
       </div>
 
-      {stage === "cull" && <CullPanel apiBase={apiBase} reviewSetId={collectionId} />}
+      {stage === "cull" && <CullPanel apiBase={apiBase} reviewSetId={collectionId} canMutate={canMutate} />}
       {stage === "review" && <ReviewStep apiBase={apiBase} reviewSetId={collectionId} canMutate={canMutate} onProduce={() => setStage("produce")} onReload={load} />}
       {stage === "batches" && <BatchPanel apiBase={apiBase} reviewSetId={collectionId} canMutate={canMutate} />}
       {stage === "produce" && <ProduceStep apiBase={apiBase} reviewSetId={collectionId} canMutate={canMutate} onReload={load} />}

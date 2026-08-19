@@ -53,6 +53,14 @@ export {
 } from "./threading";
 
 export {
+  applyThreadNearDupCull,
+  clearCull,
+  listExclusions,
+  type ApplyCullResult,
+  type ExclusionEntry,
+} from "./cull";
+
+export {
   createReviewBatch,
   listReviewBatches,
   assignReviewBatch,
