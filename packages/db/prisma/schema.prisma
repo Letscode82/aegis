@@ -98,6 +98,7 @@ model Organization {
   workflowDefinitions    WorkflowDefinition[]
   workflowInstances      WorkflowInstance[]
   reviewSets             ReviewSet[]
+  reviewProfiles         ReviewProfile[]
 
   @@index([name])
 }
@@ -2562,6 +2563,11 @@ model ReviewSet {
   /// coding.
   criteria              String?
   issuesJson            Json?
+  /// AIR-2: the review profile (versioned instructions) this set adopts, if
+  /// any. `criteria` / `issuesJson` above are seeded from the profile version
+  /// but stay editable per-set; the link records provenance for AIR-3+ runs.
+  reviewProfileId       String?
+  reviewProfileVersion  Int?
   /// Optional provenance links (plain scalars — no back-relation churn).
   legalHoldId           String?
   matterId              String?
@@ -2600,6 +2606,63 @@ model ReviewBatch {
   reviewSet ReviewSet @relation(fields: [reviewSetId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, reviewSetId])
+}
+
+/// AIR-2: a reusable, versioned set of review instructions — plain-language
+/// responsiveness `criteria`, issue codes, an optional prompt-template override,
+/// model params, and confidence thresholds for AIR routing. A review set adopts
+/// a profile version; each edit freezes an immutable `ReviewProfileVersion`
+/// (same pattern as `HoldNoticeTemplateVersion` / `AgentDefinitionVersion`).
+model ReviewProfile {
+  id              String   @id @default(cuid())
+  organizationId  String
+  name            String
+  description     String?
+  /// Plain-language responsiveness criteria driving the AI review.
+  criteria        String
+  /// Issue codes `[{key,label}]` for multi-issue coding.
+  issuesJson      Json?
+  /// Optional review-prompt-template override (defaults to the engine builder).
+  promptTemplate  String?
+  /// `{ model, temperature, maxTokens }` — model params for the Claude path.
+  modelParamsJson Json?
+  /// `{ responsive, privileged, autoCull }` — confidence cutoffs for routing.
+  thresholdsJson  Json?
+  /// Mirrors the latest frozen version number (starts at 1).
+  version         Int      @default(1)
+  isArchived      Boolean  @default(false)
+  createdById     String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  versions     ReviewProfileVersion[]
+
+  @@index([organizationId, isArchived])
+}
+
+/// Immutable snapshot of a `ReviewProfile` at one version — the defensible
+/// record of exactly which instructions an AI review ran under.
+model ReviewProfileVersion {
+  id              String   @id @default(cuid())
+  organizationId  String
+  profileId       String
+  version         Int
+  name            String
+  description     String?
+  criteria        String
+  issuesJson      Json?
+  promptTemplate  String?
+  modelParamsJson Json?
+  thresholdsJson  Json?
+  changeLog       String?
+  createdById     String?
+  createdAt       DateTime @default(now())
+
+  profile ReviewProfile @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, version])
+  @@index([profileId, createdAt])
 }
 
 model ReviewSetItem {
