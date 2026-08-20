@@ -44,12 +44,28 @@ export function InvestigationsHub() {
 function InvestigationRow({ inv }) {
   const [custodians, setCustodians] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [picked, setPicked] = useState(() => new Set());
+  const [workup, setWorkup] = useState(null);
+  const [workBusy, setWorkBusy] = useState(false);
+  const [msg, setMsg] = useState("");
   const suggest = async () => {
     setBusy(true);
     try {
       const r = await fetch(`/api/investigations/${inv.matterId}/suggest-custodians`, { method: "POST" });
-      const d = await r.json(); setCustodians(d.ok ? d.custodians : []);
+      const d = await r.json();
+      const list = d.ok ? d.custodians : [];
+      setCustodians(list);
+      setPicked(new Set(list.map((c) => c.email).filter(Boolean)));
     } catch { setCustodians([]); } finally { setBusy(false); }
+  };
+  const toggle = (email) => setPicked((p) => { const n = new Set(p); if (n.has(email)) n.delete(email); else n.add(email); return n; });
+  const runWorkup = async () => {
+    setWorkBusy(true); setMsg("");
+    try {
+      const r = await fetch(`/api/investigations/${inv.matterId}/workup`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ custodianIdentifiers: [...picked] }) });
+      const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setWorkup(d.result);
+    } catch (e) { setMsg(String(e.message || e)); } finally { setWorkBusy(false); }
   };
   return (
     <div style={{ borderBottom: `1px solid ${C.br}44` }}>
@@ -68,16 +84,32 @@ function InvestigationRow({ inv }) {
       {custodians && (
         <div style={{ padding: "0 18px 13px 18px" }}>
           <div style={{ border: `1px solid ${C.br}`, borderRadius: 8, padding: "10px 12px", background: C.bg }}>
-            <div style={{ fontSize: 10.5, fontFamily: M, letterSpacing: .6, textTransform: "uppercase", color: C.cy, marginBottom: 6 }}>Suggested custodians ({custodians.length})</div>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, gap: 10, flexWrap: "wrap" }}>
+              <div style={{ fontSize: 10.5, fontFamily: M, letterSpacing: .6, textTransform: "uppercase", color: C.cy }}>Custodians ({picked.size}/{custodians.length} selected)</div>
+              {custodians.length > 0 && !workup && (
+                <button onClick={runWorkup} disabled={workBusy || picked.size === 0} title="Create a draft legal hold on the matter and collect from the selected custodians" style={{ fontSize: 11.5, fontWeight: 600, padding: "6px 11px", borderRadius: 7, cursor: "pointer", background: C.pp, color: C.bg, border: "none" }}>{workBusy ? "Working…" : "⚖ Preserve & collect →"}</button>
+              )}
+            </div>
             {custodians.length === 0 && <div style={{ fontSize: 12, color: C.t4 }}>No candidates found.</div>}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {custodians.map((c) => (
-                <div key={c.id} style={{ border: `1px solid ${C.br}`, borderRadius: 7, padding: "6px 10px", fontSize: 12 }}>
-                  <span style={{ fontWeight: 600 }}>{c.name}</span>{c.title ? <span style={{ color: C.t4 }}> · {c.title}</span> : null}
-                  <div style={{ fontSize: 10.5, color: C.t4, fontFamily: M }}>{c.email}</div>
-                </div>
-              ))}
+              {custodians.map((c) => {
+                const on = c.email && picked.has(c.email);
+                return (
+                  <button key={c.id} onClick={() => c.email && toggle(c.email)} style={{ textAlign: "left", cursor: "pointer", border: `1px solid ${on ? C.pp : C.br}`, background: on ? `${C.pp}14` : "transparent", borderRadius: 7, padding: "6px 10px", fontSize: 12 }}>
+                    <span style={{ fontWeight: 600 }}>{on ? "✓ " : ""}{c.name}</span>{c.title ? <span style={{ color: C.t4 }}> · {c.title}</span> : null}
+                    <div style={{ fontSize: 10.5, color: C.t4, fontFamily: M }}>{c.email}</div>
+                  </button>
+                );
+              })}
             </div>
+            {msg && <div style={{ fontSize: 12, color: C.rd, marginTop: 8 }}>{msg}</div>}
+            {workup && (
+              <div style={{ marginTop: 10, borderTop: `1px solid ${C.br}`, paddingTop: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <span style={{ ...badge(C.gn), fontSize: 10 }}>PRESERVED &amp; COLLECTED</span>
+                <span style={{ fontSize: 12, color: C.t2 }}>Draft hold created · <b>{workup.itemCount}</b> documents collected{workup.simulated ? " (simulated)" : ""}.</span>
+                <button onClick={() => { window.location.href = `/review/collections/${workup.reviewSetId}`; }} style={{ fontSize: 11.5, fontWeight: 600, padding: "6px 11px", borderRadius: 7, cursor: "pointer", background: C.cy, color: C.bg, border: "none" }}>Open collection →</button>
+              </div>
+            )}
           </div>
         </div>
       )}
