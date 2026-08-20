@@ -28,6 +28,7 @@ import {
   listInvestigationsService,
   getInvestigationService,
 } from "./src/internal/services/investigation";
+import { createAdhocCollection as createAdhocCollectionService } from "./src/internal/services/review-set";
 import {
   closeMatterService,
   transitionMatterStatusService,
@@ -182,6 +183,37 @@ export async function suggestInvestigationCustodians(
   const client = await resolveM365Client(organizationId);
   const candidates = await client.discoverCustodians({ description: input.sourceText, matterId: input.matterId });
   return candidates.map((c) => ({ id: c.externalIdentifier, name: c.name, email: c.email, department: c.department ?? null, title: c.title ?? null }));
+}
+
+/** INV-2 — one-click preserve + collect from an investigation. Creates a DRAFT
+ *  legal hold on the investigation's matter (preservation record; custodians
+ *  are added in the hold workspace) AND an INVESTIGATION collection scoped to
+ *  the chosen custodians (reviewable docs immediately). Returns both so the UI
+ *  can deep-link to the hold and the collection workspace. */
+export async function startInvestigationWorkup(
+  actor: MatterActor,
+  input: { matterId: string; custodianIdentifiers: string[]; jurisdictions?: string[] },
+): Promise<{ holdId: string; holdStatus: string; reviewSetId: string; reviewSetName: string; itemCount: number; simulated: boolean }> {
+  const inv = await getInvestigationService(actor.organizationId, input.matterId);
+  if (!inv) throw new Error("Investigation not found");
+  const scope = inv.plan?.scopeSuggestion ?? `Preserve all data related to ${inv.matterTitle}.`;
+
+  const hold = await createLegalHold(
+    { matterId: input.matterId, title: `${inv.matterTitle} — Preservation`, scopeDescription: scope, jurisdictions: input.jurisdictions ?? [] },
+    actor,
+  );
+
+  const identifiers = [...new Set((input.custodianIdentifiers || []).map((s) => (s || "").trim()).filter(Boolean))];
+  const reviewSet = await createAdhocCollectionService(
+    actor.organizationId,
+    { name: `${inv.matterTitle} — Collection`, source: "INVESTIGATION", identifiers, matterId: input.matterId },
+    { id: actor.id, type: "USER" },
+  );
+
+  return {
+    holdId: hold.id, holdStatus: hold.status,
+    reviewSetId: reviewSet.id, reviewSetName: reviewSet.name, itemCount: reviewSet.itemCount, simulated: reviewSet.simulated,
+  };
 }
 
 export async function transitionMatterStatus(
