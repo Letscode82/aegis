@@ -90,6 +90,15 @@ export {
 } from "./profile";
 
 export {
+  getEcaFunnel,
+  type EcaFunnel,
+  type EcaFunnelStage,
+  type EcaBreakdownRow,
+  type EcaEstimate,
+  type EcaCostModel,
+} from "./eca";
+
+export {
   startValidationPilot,
   computeValidationMetrics,
   applyAtScale,

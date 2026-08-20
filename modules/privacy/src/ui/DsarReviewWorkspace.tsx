@@ -7,7 +7,7 @@
  */
 import React, { useCallback, useEffect, useState } from "react";
 import { C, F, M, SR, useToast } from "@aegis/ui";
-import { ReviewStep, ProduceStep, BatchPanel, ValidationPanel } from "@aegis/review/ui";
+import { ReviewStep, ProduceStep, BatchPanel, ValidationPanel, EcaPanel } from "@aegis/review/ui";
 
 const REVIEW_API = "/api/review/sets";
 
@@ -17,7 +17,7 @@ export interface DsarReviewWorkspaceProps {
   onBack: () => void;
 }
 
-type Step = "collect" | "review" | "validate" | "batches" | "produce";
+type Step = "collect" | "eca" | "review" | "validate" | "batches" | "produce";
 type SetRow = { id: string; name: string; itemCount: number; status: string };
 
 const btn = (bg: string): React.CSSProperties => ({ padding: "12px 18px", background: bg, color: C.bg, border: "none", borderRadius: 8, fontFamily: F, fontSize: 14, fontWeight: 600, cursor: "pointer" });
@@ -70,7 +70,7 @@ export const DsarReviewWorkspace: React.FC<DsarReviewWorkspaceProps> = ({ dsarId
   };
 
   const steps: Array<{ key: Step; n: number; label: string }> = [
-    { key: "collect", n: 1, label: "Collect" }, { key: "review", n: 2, label: "Review" }, { key: "validate", n: 3, label: "Validate" }, { key: "batches", n: 4, label: "Batches" }, { key: "produce", n: 5, label: "Produce" },
+    { key: "collect", n: 1, label: "Collect" }, { key: "eca", n: 2, label: "ECA" }, { key: "review", n: 3, label: "Review" }, { key: "validate", n: 4, label: "Validate" }, { key: "batches", n: 5, label: "Batches" }, { key: "produce", n: 6, label: "Produce" },
   ];
 
   return (
@@ -123,6 +123,8 @@ export const DsarReviewWorkspace: React.FC<DsarReviewWorkspaceProps> = ({ dsarId
           </div>
         </div>
       )}
+      {step === "eca" && activeSet && <EcaPanel apiBase={REVIEW_API} reviewSetId={activeSet.id} />}
+      {step === "eca" && !activeSet && <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: C.t4, fontFamily: M }}>Collect data first.</div>}
       {step === "review" && activeSet && <ReviewStep apiBase={REVIEW_API} reviewSetId={activeSet.id} canMutate={canMutate} onProduce={() => setStep("produce")} onReload={loadSets} />}
       {step === "review" && !activeSet && <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: C.t4, fontFamily: M }}>Collect data first.</div>}
       {step === "validate" && activeSet && <ValidationPanel apiBase={REVIEW_API} reviewSetId={activeSet.id} canMutate={canMutate} />}

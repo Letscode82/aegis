@@ -7,4 +7,5 @@ export { ReviewStep, ProduceStep, routeColor, routeLabel, type ReviewStepProps, 
 export { BatchPanel, type BatchPanelProps } from "./BatchPanel";
 export { CullPanel, type CullPanelProps } from "./CullPanel";
 export { ValidationPanel, type ValidationPanelProps } from "./ValidationPanel";
+export { EcaPanel, type EcaPanelProps } from "./EcaPanel";
 export { CollectionWorkspace, type CollectionWorkspaceProps } from "./CollectionWorkspace";
