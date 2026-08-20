@@ -49,6 +49,7 @@ function InvestigationRow({ inv }) {
   const [workBusy, setWorkBusy] = useState(false);
   const [msg, setMsg] = useState("");
   const [showChron, setShowChron] = useState(false);
+  const [showReport, setShowReport] = useState(false);
   const suggest = async () => {
     setBusy(true);
     try {
@@ -80,6 +81,7 @@ function InvestigationRow({ inv }) {
         <div style={{ textAlign: "right", display: "flex", gap: 6, justifyContent: "flex-end" }}>
           <button onClick={suggest} disabled={busy} style={{ fontSize: 11, fontWeight: 600, padding: "5px 9px", borderRadius: 6, cursor: "pointer", background: "transparent", color: C.cy, border: `1px solid ${C.cy}` }}>{busy ? "…" : "Custodians"}</button>
           <button onClick={() => setShowChron((v) => !v)} style={{ fontSize: 11, fontWeight: 600, padding: "5px 9px", borderRadius: 6, cursor: "pointer", background: showChron ? `${C.am}14` : "transparent", color: C.am, border: `1px solid ${C.am}` }}>Chronology</button>
+          <button onClick={() => setShowReport(true)} style={{ fontSize: 11, fontWeight: 600, padding: "5px 9px", borderRadius: 6, cursor: "pointer", background: "transparent", color: C.gn, border: `1px solid ${C.gn}` }}>Report</button>
           <button onClick={() => { window.location.href = `/?view=matters&matterId=${inv.matterId}`; }} style={{ fontSize: 11, fontWeight: 600, padding: "5px 9px", borderRadius: 6, cursor: "pointer", background: "transparent", color: C.bl, border: `1px solid ${C.bl}` }}>Matter →</button>
         </div>
       </div>
@@ -116,6 +118,7 @@ function InvestigationRow({ inv }) {
         </div>
       )}
       {showChron && <div style={{ padding: "0 18px 14px 18px" }}><ChronologyPanel matterId={inv.matterId} /></div>}
+      {showReport && <ReportModal matterId={inv.matterId} onClose={() => setShowReport(false)} />}
     </div>
   );
 }
@@ -270,6 +273,38 @@ function ChronologyPanel({ matterId }) {
         </div>
       )}
       {sugg && sugg.length === 0 && <div style={{ fontSize: 12, color: C.t4, marginTop: 8 }}>No responsive documents to draw facts from yet — code some in the collection first.</div>}
+    </div>
+  );
+}
+
+function ReportModal({ matterId, onClose }) {
+  const [report, setReport] = useState(null);
+  const [err, setErr] = useState("");
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    fetch(`/api/investigations/${matterId}/report`).then((r) => r.json()).then((d) => { if (d.ok) setReport(d.report); else setErr(d.error || "Failed"); }).catch((e) => setErr(String(e)));
+  }, [matterId]);
+  const copy = () => { if (report && navigator?.clipboard) { navigator.clipboard.writeText(report.markdown); setCopied(true); setTimeout(() => setCopied(false), 1800); } };
+
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(4,7,15,.72)", zIndex: 1200, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: F, padding: 20 }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ width: 720, maxWidth: "96%", maxHeight: "90vh", overflow: "auto", background: C.cd, border: `1px solid ${C.brL}`, borderRadius: 14, padding: "24px 26px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+          <div style={{ fontFamily: SR, fontSize: 19, fontWeight: 600 }}>Findings report</div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={copy} disabled={!report} style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 7, cursor: "pointer", background: "transparent", color: C.cy, border: `1px solid ${C.cy}` }}>{copied ? "Copied ✓" : "Copy Markdown"}</button>
+            <button onClick={onClose} style={{ fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 7, cursor: "pointer", background: "transparent", color: C.t3, border: `1px solid ${C.t3}` }}>Close</button>
+          </div>
+        </div>
+        {err && <div style={{ fontSize: 12, color: C.rd }}>{err}</div>}
+        {!report && !err && <div style={{ fontSize: 12, color: C.t4, fontFamily: M }}>Assembling report…</div>}
+        {report && (
+          <div>
+            <div style={{ fontSize: 12.5, color: C.t3, marginBottom: 14 }}>{report.matterTitle}{report.matterNumber ? ` · ${report.matterNumber}` : ""} — {report.stats.responsive} responsive / {report.stats.collected} collected · {report.chronology.length} facts</div>
+            <pre style={{ whiteSpace: "pre-wrap", fontFamily: M, fontSize: 12.5, lineHeight: 1.6, color: C.t1, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 10, padding: "16px 18px", margin: 0 }}>{report.markdown}</pre>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

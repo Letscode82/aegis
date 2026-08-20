@@ -35,6 +35,7 @@ import {
   listChronologyService,
   deleteCaseFactService,
 } from "./src/internal/services/chronology";
+import { buildInvestigationReportService } from "./src/internal/services/investigation-report";
 import {
   closeMatterService,
   transitionMatterStatusService,
@@ -212,6 +213,12 @@ export function listInvestigationChronology(organizationId: string, matterId: st
 }
 export function deleteInvestigationFact(organizationId: string, factId: string, actor: MatterActor) {
   return deleteCaseFactService(organizationId, factId, actor);
+}
+
+// ── Investigation findings report (INV-4) ──────────────────────────────
+export type { InvestigationReport, ReportKeyDoc } from "./src/internal/services/investigation-report";
+export function buildInvestigationReport(organizationId: string, matterId: string) {
+  return buildInvestigationReportService(organizationId, matterId);
 }
 
 /** INV-2 — one-click preserve + collect from an investigation. Creates a DRAFT
