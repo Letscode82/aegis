@@ -862,6 +862,23 @@ export async function searchM365Content(
   return client.searchContent(input);
 }
 
+// Purview eDiscovery (Premium) tenant-scale collection estimate — the
+// enterprise-scale seam (CW-2). Creates/reuses an eDiscovery case, adds a
+// custodian-scoped search + KQL, and reads back the tenant-wide item/size/
+// mailbox/site statistics without pulling every message per-user. Routed
+// through the same per-org factory (delegated preferred; mock in dev).
+export async function estimatePurviewCollection(
+  organizationId: string,
+  input: import("./src/internal/services/m365").PurviewCollectionInput,
+) {
+  const client = await resolveM365Client(organizationId);
+  return client.estimatePurviewCollection(input);
+}
+export type {
+  PurviewCollectionInput,
+  PurviewCollectionEstimate,
+} from "./src/internal/services/m365";
+
 // NL → KQL/KeyQL query drafting (deterministic; attorney edits before firing).
 export {
   draftCollectionQuery,

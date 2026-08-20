@@ -42,6 +42,8 @@ import type {
   PreservationResult,
   PreserveDepartedInput,
   ReleasePreservationInput,
+  PurviewCollectionInput,
+  PurviewCollectionEstimate,
 } from "./m365";
 
 const MOCK_FALLBACK = new MockM365Client();
@@ -115,6 +117,17 @@ class RoutedM365Client implements M365Client {
     if (this.devModeFallback)
       return this.mockFallback.preserveDepartedMailbox(input);
     throw this.requireError("preserveDepartedMailbox");
+  }
+
+  async estimatePurviewCollection(
+    input: PurviewCollectionInput,
+  ): Promise<PurviewCollectionEstimate> {
+    // `/security/cases/*` is honored on delegated tokens in production; the
+    // app-only client carries the same shape as a best-effort fallback.
+    if (this.delegated) return this.delegated.estimatePurviewCollection(input);
+    if (this.devModeFallback)
+      return this.mockFallback.estimatePurviewCollection(input);
+    return this.appOnly.estimatePurviewCollection(input);
   }
 
   private requireError(method: string): M365DelegatedAuthRequiredError {

@@ -44,6 +44,7 @@ import {
 import { withGraphAudit } from "./m365-graph-audit";
 import { fetchFirstPage } from "./m365-graph-pagination";
 import { extractAttachmentText, htmlToText } from "./text-extract";
+import { estimatePurviewCollectionViaGraph } from "./m365-graph-purview-estimate";
 
 /** Maximum tries on `applyHold` polling before declaring "applying". */
 const APPLY_HOLD_POLL_MAX = 6;
@@ -60,6 +61,18 @@ export class M365GraphClient implements M365Client {
     private readonly tenantId: string,
     private readonly organizationId: string,
   ) {}
+
+  /** Purview eDiscovery (Premium) tenant-scale collection estimate (CW-2).
+   *  App-only path — production prefers the delegated client for
+   *  `/security/cases/*`, but the Graph shape is identical. */
+  async estimatePurviewCollection(
+    input: import("./m365").PurviewCollectionInput,
+  ): Promise<import("./m365").PurviewCollectionEstimate> {
+    return estimatePurviewCollectionViaGraph(
+      { graph: this.graph, organizationId: this.organizationId, tenantId: this.tenantId, authMode: "app-only" },
+      input,
+    );
+  }
 
   // ────────────────────────────────────────────────────────────────
   // Matter bindings

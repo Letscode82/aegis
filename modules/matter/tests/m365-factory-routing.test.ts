@@ -97,6 +97,23 @@ describe("factory routing", () => {
     }
   });
 
+  it("dev-mode without delegated auth returns the mock SIMULATED Purview estimate", async () => {
+    const prev = process.env.NODE_ENV;
+    process.env.NODE_ENV = "development";
+    try {
+      const client = await getM365ClientForOrg("org-1");
+      const est = await client.estimatePurviewCollection({
+        custodianIdentifiers: ["marcus@example.com", "priya@example.com"],
+      });
+      expect(est.simulated).toBe(true);
+      expect(est.status).toBe("SIMULATED");
+      expect(est.estimatedItems).toBeGreaterThan(0);
+      expect(est.mailboxCount).toBe(2);
+    } finally {
+      process.env.NODE_ENV = prev;
+    }
+  });
+
   it("production without delegated auth throws M365DelegatedAuthRequiredError", async () => {
     const prev = process.env.NODE_ENV;
     process.env.NODE_ENV = "production";
