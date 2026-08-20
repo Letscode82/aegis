@@ -1985,8 +1985,16 @@ async function main() {
   const agentDefs = await seedAgentDefinitions(org.id);
   console.log(`[seed] agent_definitions=${agentDefs} (oKF Agent Designer)`);
 
-  const wf = await seedWorkflows(org.id, user.id);
-  console.log(`[seed] workflow_definitions=${wf.definitions} running_instances=${wf.instances}`);
+  // Non-fatal: the governance-workflow seed uses interactive transactions that
+  // can trip Neon's pooled endpoint (P2028). Everything above is already
+  // committed, so a hiccup here must not fail the whole seed — warn and go on.
+  try {
+    const wf = await seedWorkflows(org.id, user.id);
+    console.log(`[seed] workflow_definitions=${wf.definitions} running_instances=${wf.instances}`);
+  } catch (err) {
+    console.warn(`[seed] workflows skipped (non-fatal): ${(err as Error).message}`);
+    console.warn("[seed] re-run the seed to retry the governance workflows, or seed over Neon's direct (non-pooler) endpoint.");
+  }
 
   console.log("[seed] done.");
 }

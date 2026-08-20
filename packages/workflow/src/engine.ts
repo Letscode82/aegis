@@ -178,6 +178,12 @@ export async function defineWorkflow(input: DefineWorkflowInput) {
       where: { id: def.id },
       include: { steps: { orderBy: { stepOrder: "asc" } } },
     });
+  }, {
+    // Neon's pooled endpoint adds real per-statement latency; the default 5s
+    // interactive-transaction window is too tight for this multi-write upsert
+    // and trips P2028. Give it headroom without affecting local Postgres.
+    maxWait: 15_000,
+    timeout: 30_000,
   });
 }
 
