@@ -43,6 +43,7 @@ import {
 } from "./m365-graph-errors";
 import { withGraphAudit } from "./m365-graph-audit";
 import { fetchFirstPage } from "./m365-graph-pagination";
+import { extractAttachmentText, htmlToText } from "./text-extract";
 
 /** Maximum tries on `applyHold` polling before declaring "applying". */
 const APPLY_HOLD_POLL_MAX = 6;
@@ -874,23 +875,30 @@ export class M365GraphClient implements M365Client {
       const label = idInput.includes("@") ? idInput : userId;
 
       if (sources.includes("MAILBOX")) {
-        const messages = await this.safeUserGet<{ value?: Array<{ id?: string; subject?: string; bodyPreview?: string; webLink?: string; conversationId?: string; receivedDateTime?: string; hasAttachments?: boolean }> }>(
-          `/users/${userId}/messages?$top=${top}&$select=subject,bodyPreview,webLink,receivedDateTime,conversationId,hasAttachments&$orderby=receivedDateTime desc`,
+        // CW-1: collect the FULL body (not the 255-char bodyPreview) so review
+        // + AI see whole emails.
+        const messages = await this.safeUserGet<{ value?: Array<{ id?: string; subject?: string; bodyPreview?: string; body?: { contentType?: string; content?: string }; webLink?: string; conversationId?: string; receivedDateTime?: string; hasAttachments?: boolean }> }>(
+          `/users/${userId}/messages?$top=${top}&$select=subject,bodyPreview,body,webLink,receivedDateTime,conversationId,hasAttachments&$orderby=receivedDateTime desc`,
           "Mail.Read",
         );
         for (const m of messages?.value ?? []) {
-          // Best-effort attachment enumeration for family grouping — a failure
-          // (permissions, size) must not sink the collection.
-          let attachments: Array<{ name: string; size?: number | null; contentType?: string | null }> | undefined;
+          const fullBody = m.body?.contentType?.toLowerCase() === "html" ? htmlToText(m.body?.content) : (m.body?.content ?? null);
+          const excerpt = fullBody || m.bodyPreview || null;
+          // Best-effort attachment enumeration + text extraction — a failure
+          // (permissions, size, parse) must not sink the collection.
+          let attachments: Array<{ name: string; size?: number | null; contentType?: string | null; text?: string | null }> | undefined;
           if (m.hasAttachments && m.id) {
-            const att = await this.safeUserGet<{ value?: Array<{ name?: string; size?: number; contentType?: string }> }>(
-              `/users/${userId}/messages/${m.id}/attachments?$select=name,size,contentType`,
+            const att = await this.safeUserGet<{ value?: Array<{ name?: string; size?: number; contentType?: string; contentBytes?: string; "@odata.type"?: string }> }>(
+              `/users/${userId}/messages/${m.id}/attachments?$select=name,size,contentType,contentBytes`,
               "Mail.Read",
             ).catch(() => null);
-            attachments = (att?.value ?? []).map((a) => ({ name: a.name || "attachment", size: a.size ?? null, contentType: a.contentType ?? null }));
+            attachments = await Promise.all((att?.value ?? []).map(async (a) => ({
+              name: a.name || "attachment", size: a.size ?? null, contentType: a.contentType ?? null,
+              text: await extractAttachmentText(a.contentType, a.contentBytes).catch(() => null),
+            })));
             if (attachments.length === 0) attachments = undefined;
           }
-          hits.push({ sourceType: "MAILBOX", sourceSystem: `Exchange · ${label}`, title: m.subject || "(no subject)", excerpt: m.bodyPreview ?? null, graphId: m.id ?? null, webUrl: m.webLink ?? null, conversationId: m.conversationId ?? null, sentAt: m.receivedDateTime ?? null, attachments });
+          hits.push({ sourceType: "MAILBOX", sourceSystem: `Exchange · ${label}`, title: m.subject || "(no subject)", excerpt, graphId: m.id ?? null, webUrl: m.webLink ?? null, conversationId: m.conversationId ?? null, sentAt: m.receivedDateTime ?? null, attachments });
         }
       }
 

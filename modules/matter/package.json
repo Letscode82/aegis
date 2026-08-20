@@ -9,7 +9,10 @@
     ".": "./api.ts",
     "./ui": "./src/ui/index.ts"
   },
-  "files": ["api.ts", "src"],
+  "files": [
+    "api.ts",
+    "src"
+  ],
   "scripts": {
     "lint": "eslint api.ts src",
     "typecheck": "tsc --noEmit",

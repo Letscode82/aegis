@@ -30,7 +30,7 @@ export interface ReviewCollectedItem {
   webUrl?: string | null;
   conversationId?: string | null;
   sentAt?: string | null;
-  attachments?: Array<{ name: string; size?: number | null; contentType?: string | null }>;
+  attachments?: Array<{ name: string; size?: number | null; contentType?: string | null; text?: string | null }>;
 }
 
 export interface ReviewSetSummary {
@@ -115,7 +115,7 @@ export async function persistReviewSet(
     for (const att of atts) {
       rows.push({
         id: randomUUID(), organizationId, reviewSetId: rs.id, sourceType: p.hit.sourceType, sourceSystem: p.hit.sourceSystem,
-        title: att.name, excerpt: att.contentType ? `Attachment · ${att.contentType}` : "Attachment", graphId: null, webUrl: null,
+        title: att.name, excerpt: att.text || (att.contentType ? `Attachment · ${att.contentType}` : "Attachment"), graphId: null, webUrl: null,
         familyId: p.id, familyRole: "ATTACHMENT", threadId: a.threadId, isInclusive: a.isInclusive, dedupKey: null,
       });
     }
