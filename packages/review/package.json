@@ -17,6 +17,7 @@
     "@aegis/ai-review": "workspace:*",
     "@aegis/db": "workspace:*",
     "@aegis/ui": "workspace:*",
+    "@aegis/validation": "workspace:*",
     "react": "^18.3.1"
   },
   "devDependencies": {
