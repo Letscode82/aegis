@@ -8,10 +8,10 @@
  */
 import React, { useCallback, useEffect, useState } from "react";
 import { C, F, M, SR } from "@aegis/ui";
-import { ReviewStep } from "./ReviewSteps";
-import { ProduceStep } from "./ReviewSteps";
+import { ReviewStep, ProduceStep } from "./ReviewSteps";
 import { BatchPanel } from "./BatchPanel";
 import { CullPanel } from "./CullPanel";
+import { ValidationPanel } from "./ValidationPanel";
 
 export interface CollectionWorkspaceProps {
   /** Review-set REST base, e.g. "/api/review/sets". */
@@ -20,7 +20,7 @@ export interface CollectionWorkspaceProps {
   onBack: () => void;
 }
 
-type Stage = "cull" | "review" | "batches" | "produce";
+type Stage = "cull" | "review" | "validate" | "batches" | "produce";
 const SOURCE: Record<string, { label: string; col: string }> = {
   LEGAL_HOLD: { label: "Legal Hold", col: C.bl }, DSAR: { label: "DSAR", col: C.tl },
   INVESTIGATION: { label: "Investigation", col: C.pp }, ADHOC: { label: "Ad-hoc", col: C.am },
@@ -52,7 +52,7 @@ export const CollectionWorkspace: React.FC<CollectionWorkspaceProps> = ({ apiBas
 
   const src = summary ? (SOURCE[summary.origin] || { label: summary.origin, col: C.t3 }) : null;
   const stages: Array<{ key: Stage; n: number; label: string }> = [
-    { key: "cull", n: 1, label: "Cull" }, { key: "review", n: 2, label: "Review" }, { key: "batches", n: 3, label: "Batches" }, { key: "produce", n: 4, label: "Produce" },
+    { key: "cull", n: 1, label: "Cull" }, { key: "review", n: 2, label: "Review" }, { key: "validate", n: 3, label: "Validate" }, { key: "batches", n: 4, label: "Batches" }, { key: "produce", n: 5, label: "Produce" },
   ];
 
   return (
@@ -85,6 +85,7 @@ export const CollectionWorkspace: React.FC<CollectionWorkspaceProps> = ({ apiBas
 
       {stage === "cull" && <CullPanel apiBase={apiBase} reviewSetId={collectionId} canMutate={canMutate} />}
       {stage === "review" && <ReviewStep apiBase={apiBase} reviewSetId={collectionId} canMutate={canMutate} onProduce={() => setStage("produce")} onReload={load} />}
+      {stage === "validate" && <ValidationPanel apiBase={apiBase} reviewSetId={collectionId} canMutate={canMutate} />}
       {stage === "batches" && <BatchPanel apiBase={apiBase} reviewSetId={collectionId} canMutate={canMutate} />}
       {stage === "produce" && <ProduceStep apiBase={apiBase} reviewSetId={collectionId} canMutate={canMutate} onReload={load} />}
     </div>

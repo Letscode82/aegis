@@ -2580,9 +2580,10 @@ model ReviewSet {
   createdAt             DateTime        @default(now())
   updatedAt             DateTime        @updatedAt
 
-  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  items        ReviewSetItem[]
-  batches      ReviewBatch[]
+  organization   Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items          ReviewSetItem[]
+  batches        ReviewBatch[]
+  validationRuns ReviewValidationRun[]
 
   @@index([organizationId, origin])
   @@index([legalHoldId])
@@ -2708,6 +2709,10 @@ model ReviewSetItem {
   /// records why for the defensible exclusion log.
   excludedAt       DateTime?
   exclusionReason  String?
+  /// AIR-4: when set, this item was drawn into the validation pilot sample of
+  /// the referenced ReviewValidationRun — human coding on these items is the
+  /// ground truth for the recall/precision/overturn metrics.
+  pilotRunId       String?
   reviewDecision DSARReviewDecision @default(PENDING)
   codedResponsive Boolean?
   codedPrivileged Boolean          @default(false)
@@ -2722,6 +2727,37 @@ model ReviewSetItem {
 
   @@index([organizationId, reviewSetId])
   @@index([reviewSetId, reviewDecision])
+  @@index([pilotRunId])
+}
+
+/// AIR-4: a pilot → validate → scale run over a review set. A stratified sample
+/// of the AI-scored items is coded by humans (the ground truth); the run then
+/// computes recall / precision / overturn of the AI against that ground truth,
+/// and can apply the AI's confident, cited decisions at scale while failing
+/// closed (leaving PENDING) on uncited-high-confidence and low-confidence items.
+model ReviewValidationRun {
+  id             String    @id @default(cuid())
+  organizationId String
+  reviewSetId    String
+  /// The review profile (+ version) the AI review ran under, for provenance.
+  profileId      String?
+  profileVersion Int?
+  /// Which responsiveness call is validated (RESPONSIVE default; PRIVILEGED also allowed).
+  dimension      String    @default("RESPONSIVE")
+  status         String    @default("AWAITING_CODING") // AWAITING_CODING | COMPUTED | SCALED
+  sampleSize     Int
+  /// `{ recall, recallCI, precision, precisionCI, f1, overturn, matrix, n, codedInSample }`.
+  metricsJson    Json?
+  scaledAt       DateTime?
+  appliedCount   Int?
+  failClosedCount Int?
+  createdById    String?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  reviewSet ReviewSet @relation(fields: [reviewSetId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, reviewSetId])
 }
 
 // ════════════════════════════════════════════════════════════════════

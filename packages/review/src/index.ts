@@ -88,3 +88,15 @@ export {
   type UpsertReviewProfileInput,
   type DraftProfileRequest,
 } from "./profile";
+
+export {
+  startValidationPilot,
+  computeValidationMetrics,
+  applyAtScale,
+  listValidationRuns,
+  type ValidationRunSummary,
+  type ValidationMetricsDTO,
+  type ValidationDimension,
+  type StartPilotInput,
+  type ApplyAtScaleResult,
+} from "./validation";

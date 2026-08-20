@@ -153,6 +153,7 @@ export type {
   ReviewBatch,
   ReviewProfile,
   ReviewProfileVersion,
+  ReviewValidationRun,
   ConsentRecord,
   DataProcessingActivity,
   PrivacyIncident,
