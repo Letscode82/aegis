@@ -48,6 +48,7 @@ function InvestigationRow({ inv }) {
   const [workup, setWorkup] = useState(null);
   const [workBusy, setWorkBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [showChron, setShowChron] = useState(false);
   const suggest = async () => {
     setBusy(true);
     try {
@@ -78,6 +79,7 @@ function InvestigationRow({ inv }) {
         <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>{(inv.issues || []).slice(0, 4).map((i) => <span key={i.key} style={badge(C.pp)}>{i.label}</span>)}</div>
         <div style={{ textAlign: "right", display: "flex", gap: 6, justifyContent: "flex-end" }}>
           <button onClick={suggest} disabled={busy} style={{ fontSize: 11, fontWeight: 600, padding: "5px 9px", borderRadius: 6, cursor: "pointer", background: "transparent", color: C.cy, border: `1px solid ${C.cy}` }}>{busy ? "…" : "Custodians"}</button>
+          <button onClick={() => setShowChron((v) => !v)} style={{ fontSize: 11, fontWeight: 600, padding: "5px 9px", borderRadius: 6, cursor: "pointer", background: showChron ? `${C.am}14` : "transparent", color: C.am, border: `1px solid ${C.am}` }}>Chronology</button>
           <button onClick={() => { window.location.href = `/?view=matters&matterId=${inv.matterId}`; }} style={{ fontSize: 11, fontWeight: 600, padding: "5px 9px", borderRadius: 6, cursor: "pointer", background: "transparent", color: C.bl, border: `1px solid ${C.bl}` }}>Matter →</button>
         </div>
       </div>
@@ -113,6 +115,7 @@ function InvestigationRow({ inv }) {
           </div>
         </div>
       )}
+      {showChron && <div style={{ padding: "0 18px 14px 18px" }}><ChronologyPanel matterId={inv.matterId} /></div>}
     </div>
   );
 }
@@ -199,6 +202,74 @@ function NewInvestigationModal({ onClose, onCreated }) {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function ChronologyPanel({ matterId }) {
+  const [facts, setFacts] = useState(null);
+  const [sugg, setSugg] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const load = () => fetch(`/api/investigations/${matterId}/chronology`).then((r) => r.json()).then((d) => setFacts(d.ok ? d.facts : [])).catch(() => setFacts([]));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [matterId]);
+
+  const suggest = async () => {
+    setBusy(true);
+    try { const r = await fetch(`/api/investigations/${matterId}/chronology/suggest`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ limit: 25 }) }); const d = await r.json(); setSugg(d.ok ? d.suggestions : []); }
+    catch { setSugg([]); } finally { setBusy(false); }
+  };
+  const add = async (s) => {
+    await fetch(`/api/investigations/${matterId}/chronology`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ reviewSetItemId: s.reviewSetItemId, occurredOn: s.occurredOn, label: s.label, sourceQuote: s.sourceQuote, issueKeys: s.issueKeys }) });
+    setSugg((prev) => prev.filter((x) => x.reviewSetItemId !== s.reviewSetItemId));
+    load();
+  };
+  const remove = async (id) => { await fetch(`/api/investigations/${matterId}/chronology/${id}`, { method: "DELETE" }); load(); };
+  const fmt = (iso) => (iso ? new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "undated");
+
+  return (
+    <div style={{ border: `1px solid ${C.br}`, borderRadius: 8, padding: "12px 14px", background: C.bg }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10, gap: 10, flexWrap: "wrap" }}>
+        <div style={{ fontSize: 10.5, fontFamily: M, letterSpacing: .6, textTransform: "uppercase", color: C.am }}>Case chronology {facts ? `(${facts.length})` : ""}</div>
+        <button onClick={suggest} disabled={busy} style={{ fontSize: 11.5, fontWeight: 600, padding: "6px 11px", borderRadius: 7, cursor: "pointer", background: "transparent", color: C.am, border: `1px solid ${C.am}` }}>{busy ? "…" : "Suggest facts from collection"}</button>
+      </div>
+
+      {facts === null && <div style={{ fontSize: 12, color: C.t4 }}>Loading…</div>}
+      {facts && facts.length === 0 && !sugg && <div style={{ fontSize: 12, color: C.t4 }}>No facts yet. Code responsive documents, then suggest facts from the collection.</div>}
+
+      {facts && facts.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 0, marginBottom: sugg ? 14 : 0 }}>
+          {facts.map((f) => (
+            <div key={f.id} style={{ display: "grid", gridTemplateColumns: "110px 1fr auto", gap: 12, padding: "8px 0", borderBottom: `1px solid ${C.br}44`, alignItems: "start" }}>
+              <div style={{ fontFamily: M, fontSize: 11.5, color: f.occurredOn ? C.t2 : C.t4, paddingTop: 1 }}>{fmt(f.occurredOn)}</div>
+              <div>
+                <div style={{ fontSize: 13, color: C.t1 }}>{f.label}</div>
+                {f.sourceQuote && <div style={{ fontSize: 11.5, color: C.t4, marginTop: 2, fontStyle: "italic" }}>“{f.sourceQuote.slice(0, 160)}”</div>}
+                {f.issueKeys?.length > 0 && <div style={{ display: "flex", gap: 4, marginTop: 4, flexWrap: "wrap" }}>{f.issueKeys.map((k) => <span key={k} style={{ fontSize: 9.5, color: C.pp, border: `1px solid ${C.pp}`, borderRadius: 4, padding: "1px 5px" }}>{k}</span>)}</div>}
+              </div>
+              <button onClick={() => remove(f.id)} title="Remove fact" style={{ fontSize: 11, color: C.t4, background: "transparent", border: "none", cursor: "pointer" }}>✕</button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {sugg && sugg.length > 0 && (
+        <div style={{ borderTop: `1px solid ${C.br}`, paddingTop: 10 }}>
+          <div style={{ fontSize: 10.5, fontFamily: M, letterSpacing: .6, textTransform: "uppercase", color: C.t3, marginBottom: 8 }}>Suggested facts — confirm to add</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+            {sugg.map((s) => (
+              <div key={s.reviewSetItemId} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10, border: `1px solid ${C.br}`, borderRadius: 7, padding: "7px 10px" }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 12.5, color: C.t1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.label}</div>
+                  <div style={{ fontSize: 10.5, color: C.t4, fontFamily: M }}>{s.occurredOn ? new Date(s.occurredOn).toLocaleDateString() : "undated"}</div>
+                </div>
+                <button onClick={() => add(s)} style={{ fontSize: 11, fontWeight: 600, padding: "5px 10px", borderRadius: 6, cursor: "pointer", background: C.gn, color: C.bg, border: "none" }}>+ Add</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {sugg && sugg.length === 0 && <div style={{ fontSize: 12, color: C.t4, marginTop: 8 }}>No responsive documents to draw facts from yet — code some in the collection first.</div>}
     </div>
   );
 }

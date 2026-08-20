@@ -100,6 +100,7 @@ model Organization {
   reviewSets             ReviewSet[]
   reviewProfiles         ReviewProfile[]
   investigations         Investigation[]
+  caseFacts              CaseFact[]
 
   @@index([name])
 }
@@ -553,6 +554,7 @@ model Matter {
   tasks         MatterTask[]
   contracts     Contract[]
   investigation Investigation?
+  caseFacts     CaseFact[]
 
   @@unique([organizationId, matterNumber])
   @@index([organizationId, status])
@@ -589,6 +591,36 @@ model Investigation {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, status])
+}
+
+/// INV-3: a chronology fact assembled from the coded documents of an
+/// investigation (or any matter). Facts are proposed deterministically from
+/// responsive documents (date from the message, quote from the body) and a
+/// human confirms/edits before they persist — the chronology is the backbone
+/// of the findings report. Chain-sealed on create/delete.
+model CaseFact {
+  id              String    @id @default(cuid())
+  organizationId  String
+  matterId        String
+  /// Source document this fact was drawn from, when applicable.
+  reviewSetItemId String?
+  /// When the fact occurred — drives chronological ordering (nullable: undated).
+  occurredOn      DateTime?
+  /// Short fact statement.
+  label           String
+  detail          String?
+  /// Which investigation issue codes this fact touches.
+  issueKeys       String[]  @default([])
+  /// Supporting excerpt from the source document.
+  sourceQuote     String?
+  createdById     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  matter       Matter       @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, matterId, occurredOn])
 }
 
 enum MatterPartyRole {
