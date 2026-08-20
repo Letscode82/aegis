@@ -23,6 +23,7 @@ interface Item {
   excluded?: boolean;
 }
 type Issue = { key: string; label: string };
+type ProfileOpt = { id: string; name: string; version: number };
 type RouteFilter = "ALL" | "ATTORNEY" | "REVIEWER" | "AUTO_CULL";
 const CONFIDENTIALITY = ["None", "Confidential", "Highly Confidential", "Attorneys' Eyes Only"];
 const PRIV_TERMS = ["privileged", "attorney-client", "confidential", "work product", "outside counsel", "legal advice"];
@@ -57,6 +58,16 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
   const [runningAi, setRunningAi] = useState(false);
   const [setupOpen, setSetupOpen] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [profiles, setProfiles] = useState<ProfileOpt[]>([]);
+  const [profileId, setProfileId] = useState<string>("");
+  const [drafting, setDrafting] = useState(false);
+  const [draftOpen, setDraftOpen] = useState(false);
+  const [draftDesc, setDraftDesc] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+
+  // Profiles live at the sibling `/profiles` namespace of the review-set REST
+  // base, so this stays neutral across the hold + DSAR mounts.
+  const profilesBase = apiBase.replace(/\/sets$/, "/profiles");
 
   const load = useCallback(() => {
     fetch(`${apiBase}/${reviewSetId}`).then((r) => r.json()).then((d) => {
@@ -64,6 +75,10 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
     }).catch(() => {});
   }, [apiBase, reviewSetId]);
   useEffect(() => { load(); }, [load]);
+  const loadProfiles = useCallback(() => {
+    fetch(profilesBase).then((r) => r.json()).then((d) => { if (d.ok) setProfiles(d.profiles || []); }).catch(() => {});
+  }, [profilesBase]);
+  useEffect(() => { loadProfiles(); }, [loadProfiles]);
 
   const frozen = status !== "OPEN";
   const counts = useMemo(() => ({
@@ -140,6 +155,39 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
       toast.success("Review criteria saved");
     } catch (e) { toast.error(String((e as Error).message || e)); }
   };
+  const applyProfile = async (pid: string) => {
+    setProfileId(pid);
+    if (!pid) return;
+    try {
+      const r = await fetch(`${apiBase}/${reviewSetId}/apply-profile`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ profileId: pid }) });
+      const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error);
+      setCriteria(d.criteria ?? ""); setIssues(d.issues ?? []);
+      const p = profiles.find((x) => x.id === pid);
+      toast.success(`Applied profile "${p?.name ?? pid}" (v${d.profileVersion})`);
+    } catch (e) { toast.error(String((e as Error).message || e)); }
+  };
+  const draftWithAi = async () => {
+    if (!draftDesc.trim()) return;
+    setDrafting(true);
+    try {
+      const r = await fetch(`${profilesBase}/draft`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ description: draftDesc.trim() }) });
+      const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error);
+      setCriteria(d.draft.criteria ?? ""); setIssues(d.draft.issues ?? []);
+      setDraftOpen(false); setDraftDesc("");
+      toast.success("Drafted criteria + issue codes — review and edit, then Save");
+    } catch (e) { toast.error(String((e as Error).message || e)); } finally { setDrafting(false); }
+  };
+  const saveAsProfile = async () => {
+    if (!criteria.trim()) { toast.error("Add criteria before saving as a profile"); return; }
+    const name = (typeof window !== "undefined" ? window.prompt("Name this review profile", "") : "")?.trim();
+    if (!name) return;
+    setSavingProfile(true);
+    try {
+      const r = await fetch(profilesBase, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, criteria, issues }) });
+      const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error);
+      toast.success(`Saved profile "${name}"`); loadProfiles(); setProfileId(d.profile.id);
+    } catch (e) { toast.error(String((e as Error).message || e)); } finally { setSavingProfile(false); }
+  };
   const runAi = async () => {
     setRunningAi(true);
     try {
@@ -201,6 +249,27 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
       </div>
       {setupOpen && (
         <div style={{ borderBottom: `1px solid ${C.br}`, padding: "14px 20px", background: C.cd, display: "flex", flexDirection: "column", gap: 10 }}>
+          <div style={{ display: "flex", alignItems: "flex-end", gap: 10, flexWrap: "wrap" }}>
+            <div style={{ flex: "1 1 260px", minWidth: 200 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: C.t3, marginBottom: 5 }}>Review profile (versioned instructions)</div>
+              <select value={profileId} onChange={(e) => applyProfile(e.target.value)} disabled={!canMutate} style={{ ...inputS, fontSize: 13 }}>
+                <option value="">— No profile (ad-hoc criteria) —</option>
+                {profiles.map((p) => <option key={p.id} value={p.id}>{p.name} (v{p.version})</option>)}
+              </select>
+            </div>
+            <button disabled={!canMutate} onClick={() => setDraftOpen((o) => !o)} title="Draft criteria + issue codes from a description" style={{ ...ghost(C.pp), padding: "9px 14px", fontSize: 13 }}>✨ Draft with AI</button>
+            <button disabled={!canMutate || savingProfile || !criteria.trim()} onClick={saveAsProfile} title="Save the current criteria + issues as a reusable profile" style={{ ...ghost(C.tl), padding: "9px 14px", fontSize: 13 }}>{savingProfile ? "Saving…" : "Save as profile"}</button>
+          </div>
+          {draftOpen && (
+            <div style={{ border: `1px solid ${C.pp}55`, borderRadius: 8, padding: "10px 12px", background: `${C.pp}0d`, display: "flex", flexDirection: "column", gap: 8 }}>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: C.pp }}>Describe the matter / investigation — AEGIS drafts criteria + issue codes (you edit before saving)</div>
+              <textarea value={draftDesc} onChange={(e) => setDraftDesc(e.target.value)} rows={3} placeholder="e.g. Departing VP of Engineering suspected of taking trade-secret source code and pricing models to a competitor before resigning." style={{ ...inputS, fontSize: 13, resize: "vertical" }} />
+              <div style={{ display: "flex", gap: 8 }}>
+                <button disabled={drafting || !draftDesc.trim()} onClick={draftWithAi} style={{ ...btn(C.pp), padding: "8px 14px", fontSize: 12.5 }}>{drafting ? "Drafting…" : "Draft criteria →"}</button>
+                <button onClick={() => { setDraftOpen(false); setDraftDesc(""); }} style={{ ...ghost(C.t3), padding: "8px 14px", fontSize: 12.5 }}>Cancel</button>
+              </div>
+            </div>
+          )}
           <div>
             <div style={{ fontSize: 11.5, fontWeight: 600, color: C.t3, marginBottom: 5 }}>Responsiveness criteria (drives the AI review)</div>
             <textarea value={criteria} onChange={(e) => setCriteria(e.target.value)} disabled={!canMutate} rows={2} placeholder="e.g. Documents about the Snowflake MSA renewal, vendorx pricing, or IP §8.2 ownership are responsive." style={{ ...inputS, fontSize: 13, resize: "vertical" }} />

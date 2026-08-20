@@ -71,3 +71,20 @@ export {
   type CreateReviewBatchInput,
   type BatchStatus,
 } from "./batching";
+
+export {
+  createReviewProfile,
+  updateReviewProfile,
+  listReviewProfiles,
+  getReviewProfile,
+  archiveReviewProfile,
+  applyProfileToReviewSet,
+  draftProfileCriteria,
+  type ReviewProfileSummary,
+  type ReviewProfileDetail,
+  type ReviewProfileVersionSummary,
+  type ReviewProfileModelParams,
+  type ReviewProfileThresholds,
+  type UpsertReviewProfileInput,
+  type DraftProfileRequest,
+} from "./profile";
