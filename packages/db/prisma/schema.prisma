@@ -99,6 +99,7 @@ model Organization {
   workflowInstances      WorkflowInstance[]
   reviewSets             ReviewSet[]
   reviewProfiles         ReviewProfile[]
+  investigations         Investigation[]
 
   @@index([name])
 }
@@ -551,6 +552,7 @@ model Matter {
   intakeTickets IntakeTicket[]
   tasks         MatterTask[]
   contracts     Contract[]
+  investigation Investigation?
 
   @@unique([organizationId, matterNumber])
   @@index([organizationId, status])
@@ -559,6 +561,34 @@ model Matter {
   @@index([counterpartyId])
   @@index([parentMatterId])
   @@index([leadAttorneyId])
+}
+
+/// INV-1: an internal investigation. A thin, 1:1 companion to a Matter of type
+/// INVESTIGATION that captures the originating source (allegation letter /
+/// referral), the AI-extracted issue codes, and a draft investigation plan
+/// (steps + custodian hints + collection scope). The Matter carries the
+/// lifecycle, parties, holds, and audit chain; this row carries the
+/// investigation-specific working state that feeds the hold + collection flow.
+model Investigation {
+  id             String   @id @default(cuid())
+  organizationId String
+  matterId       String   @unique
+  /// The source letter / allegation / referral text the investigation opens on.
+  sourceText     String
+  /// AI-extracted issue codes `[{key,label}]` (deterministic today; Claude later).
+  issuesJson     Json?
+  /// Draft plan: `{ steps: string[], custodianHints: [{name, rationale}],
+  /// scopeSuggestion: string, dataSources: string[] }`.
+  planJson       Json?
+  status         String   @default("DRAFT") // DRAFT | ACTIVE | CLOSED
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  matter       Matter       @relation(fields: [matterId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
 }
 
 enum MatterPartyRole {

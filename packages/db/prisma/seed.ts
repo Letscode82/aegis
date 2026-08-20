@@ -675,6 +675,65 @@ async function seedMatters(orgId: string, leadAttorneyPersonId: string) {
 }
 
 /**
+ * Seed one demo Investigation (INV-1) so the Investigations hub isn't empty.
+ * A trade-secret matter of type INVESTIGATION with extracted issues + a draft
+ * plan. Idempotent on the fixed matter id.
+ */
+async function seedInvestigation(orgId: string, leadAttorneyPersonId: string) {
+  const sourceText =
+    "Referral from HR: A departing VP of Engineering is alleged to have downloaded trade-secret source code, engineering designs, and confidential pricing models to a personal OneDrive in the two weeks before resigning to join a direct competitor. Requesting preservation and investigation of the VP's mailbox, OneDrive, SharePoint, and Teams activity.";
+  await prisma.matter.upsert({
+    where: { id: "m-falcon-investigation" },
+    update: { title: "Project Falcon — Trade-Secret Misappropriation" },
+    create: {
+      id: "m-falcon-investigation",
+      organizationId: orgId,
+      title: "Project Falcon — Trade-Secret Misappropriation",
+      matterNumber: "M-INV-2026-0001",
+      type: MatterType.INVESTIGATION,
+      status: MatterStatus.OPEN,
+      jurisdiction: "US-CA",
+      leadAttorneyId: leadAttorneyPersonId,
+      description: sourceText.slice(0, 500),
+      closeoutChecklistJson: checklistSnapshot(MatterType.INVESTIGATION),
+      metadata: { source: "investigations" },
+    },
+  });
+  const issues = [
+    { key: "IP_TRADE_SECRET", label: "IP / trade secret" },
+    { key: "EMPLOYMENT", label: "Employment / HR" },
+    { key: "COMMUNICATIONS", label: "Key communications" },
+  ];
+  const plan = {
+    steps: [
+      "Preserve relevant data (issue a legal hold on identified custodians)",
+      "Collect from custodian mailboxes, OneDrive, SharePoint, and Teams",
+      "Cull with threading + near-duplicate suppression to the in-scope set",
+      "AI-assisted issue-coded review; validate on a sample before scaling",
+      "Assemble the chronology and interview list from coded documents",
+      "Draft the findings report and, if needed, produce to the requester",
+    ],
+    custodianHints: [
+      { name: "Engineering leadership", rationale: "Owns the source code / designs alleged to be misappropriated." },
+      { name: "HR business partner", rationale: "Holds personnel, performance, and separation records." },
+      { name: "The subject(s) named in the source", rationale: "Primary custodian — their mailbox and drives are the first target." },
+    ],
+    scopeSuggestion:
+      "A document is responsive if it relates to the departing VP's access, download, or transfer of source code, engineering designs, or pricing models in the period before resignation.",
+    dataSources: ["Exchange mailbox", "OneDrive", "SharePoint", "Teams / chat"],
+  };
+  const existing = await prisma.investigation.findUnique({ where: { matterId: "m-falcon-investigation" } });
+  if (existing) {
+    await prisma.investigation.update({ where: { id: existing.id }, data: { sourceText, issuesJson: issues, planJson: plan, status: "ACTIVE" } });
+  } else {
+    await prisma.investigation.create({
+      data: { organizationId: orgId, matterId: "m-falcon-investigation", sourceText, issuesJson: issues, planJson: plan, status: "ACTIVE" },
+    });
+  }
+  return { matterId: "m-falcon-investigation" };
+}
+
+/**
  * Seed Legal Hold core (sub-PR 4b).
  *
  *  • One OrganizationHoldPolicy with sensible defaults.
@@ -1862,6 +1921,9 @@ async function main() {
   void empMatter;
   const hold = await seedLegalHold(org.id, "m-snowflake-msa", user.id);
   console.log(`[seed] matters=3 legal_hold=${hold.id} (status=${hold.status})`);
+
+  const inv = await seedInvestigation(org.id, alexPerson.id);
+  console.log(`[seed] investigation=${inv.matterId}`);
 
   const ma = await seedMatterAuditRows(org.id, user.id, alexPerson.id);
   console.log(

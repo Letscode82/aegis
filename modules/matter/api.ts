@@ -23,6 +23,12 @@ import {
   updateMatterService,
 } from "./src/internal/services/matter";
 import {
+  extractInvestigationPlan,
+  createInvestigationService,
+  listInvestigationsService,
+  getInvestigationService,
+} from "./src/internal/services/investigation";
+import {
   closeMatterService,
   transitionMatterStatusService,
 } from "./src/internal/services/status";
@@ -134,6 +140,48 @@ export async function updateMatter(
   actor: MatterActor,
 ): Promise<Matter> {
   return updateMatterService(id, input, actor);
+}
+
+// ── Investigations (INV-1) ─────────────────────────────────────────────
+// An investigation is a Matter of type INVESTIGATION plus a companion
+// Investigation row (source letter + AI-extracted issues + draft plan). The
+// collection flow reuses createAdhocCollection(source: "INVESTIGATION").
+export type {
+  InvestigationDTO,
+  InvestigationDraft,
+  InvestigationPlan,
+  InvestigationIssue,
+  CustodianHint,
+  CreateInvestigationInput,
+} from "./src/internal/services/investigation";
+
+/** Preview issues + a draft plan from a source letter — no persistence. */
+export function previewInvestigation(sourceText: string, title?: string) {
+  return extractInvestigationPlan(sourceText, title);
+}
+export function createInvestigation(
+  input: import("./src/internal/services/investigation").CreateInvestigationInput,
+  actor: MatterActor,
+) {
+  return createInvestigationService(input, actor);
+}
+export function listInvestigations(organizationId: string) {
+  return listInvestigationsService(organizationId);
+}
+export function getInvestigation(organizationId: string, matterId: string) {
+  return getInvestigationService(organizationId, matterId);
+}
+
+/** Candidate custodians for an investigation — the same M365 directory lookup
+ *  the legal-hold custodian picker uses, scoped by the source text. Mock in
+ *  dev; real Graph when connected. */
+export async function suggestInvestigationCustodians(
+  organizationId: string,
+  input: { sourceText: string; matterId?: string },
+) {
+  const client = await resolveM365Client(organizationId);
+  const candidates = await client.discoverCustodians({ description: input.sourceText, matterId: input.matterId });
+  return candidates.map((c) => ({ id: c.externalIdentifier, name: c.name, email: c.email, department: c.department ?? null, title: c.title ?? null }));
 }
 
 export async function transitionMatterStatus(

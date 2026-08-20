@@ -154,6 +154,7 @@ export type {
   ReviewProfile,
   ReviewProfileVersion,
   ReviewValidationRun,
+  Investigation,
   ConsentRecord,
   DataProcessingActivity,
   PrivacyIncident,
