@@ -26,6 +26,7 @@ import type {
 import { withGraphAudit } from "./m365-graph-audit";
 import { mapGraphError } from "./m365-graph-errors";
 import { getFreshDelegatedAccessToken } from "./m365-graph-delegated-auth";
+import { estimatePurviewCollectionViaGraph } from "./m365-graph-purview-estimate";
 
 const APPLY_HOLD_POLL_MAX = 6;
 const APPLY_HOLD_POLL_INTERVAL_MS = 5_000;
@@ -103,6 +104,10 @@ export class M365GraphDelegatedClient
           ? `Graph reported holdStatus=${finalStatus}`
           : null,
     };
+  }
+
+  async estimatePurviewCollection(input: import("./m365").PurviewCollectionInput): Promise<import("./m365").PurviewCollectionEstimate> {
+    return estimatePurviewCollectionViaGraph({ graph: this.getGraph(), organizationId: this.organizationId, tenantId: this.tenantId, authMode: "delegated" }, input);
   }
 
   private async findOrCreateCase(

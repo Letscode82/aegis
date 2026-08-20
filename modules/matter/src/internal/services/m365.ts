@@ -245,6 +245,35 @@ export interface M365Client {
    *  selected sources. The shared collection primitive behind eDiscovery /
    *  legal-hold collections and DSAR advanced search. */
   searchContent(input: ContentSearchInput): Promise<DataSubjectSearchResult>;
+
+  /** Enterprise-scale collection estimate via Purview eDiscovery (Premium) —
+   *  creates/reuses an eDiscovery case + search scoped to the custodians and a
+   *  KQL query, runs the search estimate, and returns tenant-wide statistics
+   *  (item count + size + mailbox/site coverage). Delegated auth (the same
+   *  `/security/cases/*` surface as preservation). Degrades when eDiscovery
+   *  Premium / delegated auth is absent. */
+  estimatePurviewCollection(input: PurviewCollectionInput): Promise<PurviewCollectionEstimate>;
+}
+
+export interface PurviewCollectionInput {
+  /** Custodian emails / UPNs to scope the search. */
+  custodianIdentifiers: string[];
+  /** KQL content query (blank = all content for the custodians). */
+  queryString?: string | null;
+  displayName?: string;
+}
+
+export interface PurviewCollectionEstimate {
+  caseId: string | null;
+  searchId: string | null;
+  estimatedItems: number;
+  estimatedSizeBytes: number;
+  mailboxCount: number;
+  siteCount: number;
+  /** COMPLETE — estimate ready; RUNNING — Purview still estimating (poll again);
+   *  SIMULATED — mock (no tenant / dev). */
+  status: "COMPLETE" | "RUNNING" | "SIMULATED";
+  simulated: boolean;
 }
 
 /**
@@ -454,6 +483,23 @@ export class MockM365Client implements M365Client {
     ];
     const hits = all.filter((h) => sources.includes(h.sourceType)).slice(0, input.top ?? 25);
     return { hits, simulated: true, searchedAt: new Date().toISOString() };
+  }
+
+  async estimatePurviewCollection(input: PurviewCollectionInput): Promise<PurviewCollectionEstimate> {
+    // Deterministic representative estimate so the tenant-scale UI works with no
+    // tenant. The real client runs a Purview eDiscovery search estimate.
+    const custodians = [...new Set((input.custodianIdentifiers || []).map((s) => (s || "").trim()).filter(Boolean))];
+    const n = Math.max(1, custodians.length);
+    return {
+      caseId: `mock-case-${hashish(custodians.join(","))}`,
+      searchId: `mock-search-${hashish(input.queryString || "")}`,
+      estimatedItems: n * 1840,
+      estimatedSizeBytes: n * 512 * 1024 * 1024,
+      mailboxCount: n,
+      siteCount: Math.max(1, Math.floor(n / 2)),
+      status: "SIMULATED",
+      simulated: true,
+    };
   }
 }
 

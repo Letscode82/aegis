@@ -105,12 +105,21 @@ export function EDiscoveryHub() {
   );
 }
 
+function fmtBytes(n) {
+  if (!n || n < 1024) return `${n || 0} B`;
+  const u = ["KB", "MB", "GB", "TB"]; let v = n / 1024, i = 0;
+  while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+  return `${v.toFixed(1)} ${u[i]}`;
+}
+
 function NewCollectionModal({ onClose }) {
   const [name, setName] = useState("");
   const [src, setSrc] = useState("INVESTIGATION");
   const [ids, setIds] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [est, setEst] = useState(null);
+  const [estBusy, setEstBusy] = useState(false);
   const inp = { width: "100%", background: C.bg, border: `1px solid ${C.br}`, borderRadius: 8, color: C.t1, fontFamily: F, fontSize: 13.5, padding: "10px 12px", outline: "none", boxSizing: "border-box" };
 
   const create = async () => {
@@ -120,6 +129,16 @@ function NewCollectionModal({ onClose }) {
       const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
       window.location.href = `/review/collections/${d.reviewSet.id}`;
     } catch (e) { setErr(String(e.message || e)); setBusy(false); }
+  };
+
+  const estimate = async () => {
+    setEstBusy(true); setErr(""); setEst(null);
+    try {
+      const r = await fetch("/api/review/collections/estimate", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ custodianIdentifiers: ids, displayName: name || undefined }) });
+      const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setEst(d.estimate);
+    } catch (e) { setErr(String(e.message || e)); }
+    setEstBusy(false);
   };
 
   return (
@@ -143,11 +162,29 @@ function NewCollectionModal({ onClose }) {
             <div style={{ fontSize: 11, fontWeight: 600, color: C.t3, marginBottom: 5 }}>Custodians — emails / UPNs (one per line or comma-separated)</div>
             <textarea value={ids} onChange={(e) => setIds(e.target.value)} rows={4} placeholder={"priya.kulkarni@...\nmarcus.reid@..."} style={{ ...inp, fontFamily: M, fontSize: 12, resize: "vertical" }} />
           </div>
+          {est && (
+            <div style={{ border: `1px solid ${C.br}`, borderRadius: 10, padding: "12px 14px", background: C.bg }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <div style={{ fontSize: 11, fontFamily: M, letterSpacing: .6, textTransform: "uppercase", color: C.cy }}>Purview tenant-scale estimate</div>
+                <span style={{ ...badge(est.status === "COMPLETE" ? C.gn : C.am), fontSize: 9.5 }}>{est.simulated ? "SIMULATED" : est.status}</span>
+              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px 16px" }}>
+                <div><div style={{ fontFamily: SR, fontSize: 20, fontWeight: 600 }}>{(est.estimatedItems || 0).toLocaleString()}</div><div style={{ fontSize: 10.5, color: C.t4, fontFamily: M }}>items</div></div>
+                <div><div style={{ fontFamily: SR, fontSize: 20, fontWeight: 600 }}>{fmtBytes(est.estimatedSizeBytes)}</div><div style={{ fontSize: 10.5, color: C.t4, fontFamily: M }}>data volume</div></div>
+                <div><div style={{ fontFamily: SR, fontSize: 20, fontWeight: 600 }}>{est.mailboxCount || 0}</div><div style={{ fontSize: 10.5, color: C.t4, fontFamily: M }}>mailboxes</div></div>
+                <div><div style={{ fontFamily: SR, fontSize: 20, fontWeight: 600 }}>{est.siteCount || 0}</div><div style={{ fontSize: 10.5, color: C.t4, fontFamily: M }}>sites</div></div>
+              </div>
+              {est.simulated && <div style={{ fontSize: 10.5, color: C.t4, marginTop: 8 }}>Representative numbers — connect eDiscovery (delegated) at /admin/m365 for live tenant statistics.</div>}
+            </div>
+          )}
           {err && <div style={{ fontSize: 12, color: C.rd }}>{err}</div>}
         </div>
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8, marginTop: 20 }}>
-          <button onClick={onClose} style={{ padding: "10px 16px", background: "transparent", color: C.t3, border: `1px solid ${C.t3}`, borderRadius: 8, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
-          <button disabled={busy || !ids.trim()} onClick={create} style={{ padding: "10px 18px", background: C.gn, color: C.bg, border: "none", borderRadius: 8, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{busy ? "Collecting..." : "Collect →"}</button>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 8, marginTop: 20 }}>
+          <button disabled={estBusy || !ids.trim()} onClick={estimate} title="Estimate tenant-wide item count via Purview eDiscovery before collecting" style={{ padding: "10px 16px", background: "transparent", color: C.cy, border: `1px solid ${C.cy}`, borderRadius: 8, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{estBusy ? "Estimating…" : "Estimate scale (Purview)"}</button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={onClose} style={{ padding: "10px 16px", background: "transparent", color: C.t3, border: `1px solid ${C.t3}`, borderRadius: 8, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Cancel</button>
+            <button disabled={busy || !ids.trim()} onClick={create} style={{ padding: "10px 18px", background: C.gn, color: C.bg, border: "none", borderRadius: 8, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{busy ? "Collecting..." : "Collect →"}</button>
+          </div>
         </div>
       </div>
     </div>
