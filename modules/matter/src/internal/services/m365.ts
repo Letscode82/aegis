@@ -148,7 +148,7 @@ export interface DataSubjectHit {
    *  child family items at persistence time. */
   conversationId?: string | null;
   sentAt?: string | null;
-  attachments?: Array<{ name: string; size?: number | null; contentType?: string | null }>;
+  attachments?: Array<{ name: string; size?: number | null; contentType?: string | null; text?: string | null }>;
 }
 
 export interface DataSubjectSearchResult {
@@ -430,7 +430,7 @@ export class MockM365Client implements M365Client {
     const sources = input.sources ?? ["MAILBOX", "ONEDRIVE", "TEAMS"];
     const conv = `conv-${hashish(id)}`;
     const all: DataSubjectHit[] = [
-      { sourceType: "MAILBOX", sourceSystem: `Exchange · ${id}`, title: `Account update — ${name}`, excerpt: `Message thread referencing ${id}; contains contact details and preferences.`, graphId: `msg-${hashish(id)}-1`, webUrl: null, conversationId: conv, sentAt: "2026-01-10T09:00:00Z", attachments: [{ name: `profile_${name.replace(/\s+/g, "_")}.pdf`, size: 20480, contentType: "application/pdf" }] },
+      { sourceType: "MAILBOX", sourceSystem: `Exchange · ${id}`, title: `Account update — ${name}`, excerpt: `Message thread referencing ${id}; contains contact details and preferences.`, graphId: `msg-${hashish(id)}-1`, webUrl: null, conversationId: conv, sentAt: "2026-01-10T09:00:00Z", attachments: [{ name: `profile_${name.replace(/\s+/g, "_")}.pdf`, size: 20480, contentType: "application/pdf", text: `Extracted document text — employment profile for ${name}: job title, salary band, start date, reporting manager and emergency contact.` }] },
       { sourceType: "MAILBOX", sourceSystem: `Exchange · ${id}`, title: `Re: Account update — ${name}`, excerpt: `Reply in the same thread; ${id} confirmed the details.`, graphId: `msg-${hashish(id)}-2`, webUrl: null, conversationId: conv, sentAt: "2026-01-11T14:30:00Z" },
       { sourceType: "ONEDRIVE", sourceSystem: `OneDrive · ${id}`, title: `Customer_profile_${name.replace(/\s+/g, "_")}.xlsx`, excerpt: `Spreadsheet row for ${name} with address and order history.`, graphId: `drv-${hashish(id)}-1`, webUrl: `https://contoso-my.sharepoint.com/personal/${encodeURIComponent(id)}` },
       { sourceType: "TEAMS", sourceSystem: `Teams · Support`, title: `Support chat mentioning ${name}`, excerpt: `Agent discussed a ticket raised by ${name}.`, graphId: `tm-${hashish(id)}-1`, webUrl: null },
