@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 <#
-    07-seed-sharepoint-content.ps1 — Upload documents to the seeded
+    07-seed-sharepoint-content.ps1 - Upload documents to the seeded
     SharePoint sites' default document library, creating folder
     structure as specified in matter manifests.
 
@@ -9,7 +9,7 @@
 
     Followed sites: as a final pass, ensure each user "follows" the
     sites their matter manifests place them on. AEGIS auto-discovery
-    reads /users/{id}/followedSites — without the follow, the wizard
+    reads /users/{id}/followedSites - without the follow, the wizard
     won't surface those sites.
 #>
 
@@ -80,7 +80,7 @@ function Invoke-SeedSharePointContent {
         }
 
         Write-Host ""
-        Write-Host "  Matter: $($matter.matterId) → /sites/$($siteSpec.urlSlug)" -ForegroundColor White
+        Write-Host "  Matter: $($matter.matterId) -> /sites/$($siteSpec.urlSlug)" -ForegroundColor White
 
         if (-not $driveCache.ContainsKey($siteSpec.siteId)) {
             $driveCache[$siteSpec.siteId] = Resolve-SiteDriveId -SiteId $siteSpec.siteId
@@ -100,15 +100,15 @@ function Invoke-SeedSharePointContent {
 
             if ($VerifyOnly) {
                 if ($existing) {
-                    Write-Ok "    $fullPath — present"
+                    Write-Ok "    $fullPath - present"
                 } else {
-                    Write-Warn "    $fullPath — MISSING"
+                    Write-Warn "    $fullPath - MISSING"
                 }
                 continue
             }
 
             if ($existing) {
-                Write-Skip "    $fullPath — already present"
+                Write-Skip "    $fullPath - already present"
                 continue
             }
 
@@ -122,7 +122,7 @@ function Invoke-SeedSharePointContent {
                     -Uri "/v1.0/drives/$driveId/root:/$fullPath`:/content" `
                     -ContentType 'application/octet-stream' `
                     -Body $bytes | Out-Null
-                Write-Ok "    $fullPath — uploaded"
+                Write-Ok "    $fullPath - uploaded"
             } catch {
                 Write-Fail `
                     "SharePoint upload failed: $fullPath." `
@@ -152,13 +152,13 @@ function Invoke-SeedSharePointContent {
                     -Body ($body | ConvertTo-Json -Depth 4) `
                     -ContentType 'application/json' | Out-Null
             } catch {
-                # 409-shaped responses are normal when already following — swallow.
+                # 409-shaped responses are normal when already following - swallow.
                 if ($_.Exception.Message -notmatch '409|already|conflict') {
                     Write-Warn "  Could not mark $($u.upn) as following /sites/$($spec.urlSlug): $($_.Exception.Message)"
                 }
             }
         }
-        Write-Ok "/sites/$($spec.urlSlug) — followed by $($spec.members.Count) member(s)"
+        Write-Ok "/sites/$($spec.urlSlug) - followed by $($spec.members.Count) member(s)"
     }
 
     Write-Ok "SharePoint content seeding complete."

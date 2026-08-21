@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 <#
-    04-create-sharepoint-sites.ps1 — Provision the 5 SharePoint team
+    04-create-sharepoint-sites.ps1 - Provision the 5 SharePoint team
     sites with members.
 
     Approach: We create each as an M365 group via Graph
@@ -39,9 +39,9 @@ function Invoke-CreateSharePointSites {
 
         if ($VerifyOnly) {
             if ($existing) {
-                Write-Ok "/sites/$($spec.urlSlug) — group present (id $($existing.Id))"
+                Write-Ok "/sites/$($spec.urlSlug) - group present (id $($existing.Id))"
             } else {
-                Write-Warn "/sites/$($spec.urlSlug) — MISSING"
+                Write-Warn "/sites/$($spec.urlSlug) - MISSING"
             }
             $result[$spec.key] = [pscustomobject]@{
                 key          = $spec.key
@@ -66,7 +66,7 @@ function Invoke-CreateSharePointSites {
             }
             try {
                 $group = New-MgGroup -BodyParameter $body
-                Write-Ok "/sites/$($spec.urlSlug) — group created (id $($group.Id))"
+                Write-Ok "/sites/$($spec.urlSlug) - group created (id $($group.Id))"
             } catch {
                 Write-Fail `
                     "Failed to create group for /sites/$($spec.urlSlug)." `
@@ -76,7 +76,7 @@ function Invoke-CreateSharePointSites {
                 throw
             }
         } else {
-            Write-Skip "/sites/$($spec.urlSlug) — group already exists"
+            Write-Skip "/sites/$($spec.urlSlug) - group already exists"
         }
 
         # Add owners and members. Graph dedupes by id so re-running is
@@ -85,7 +85,7 @@ function Invoke-CreateSharePointSites {
         foreach ($ownerKey in $spec.owners) {
             $u = $UserMap[$ownerKey]
             if (-not $u -or -not $u.id) {
-                Write-Warn "  Owner '$ownerKey' not in user map — skipping"
+                Write-Warn "  Owner '$ownerKey' not in user map - skipping"
                 continue
             }
             try {
@@ -99,7 +99,7 @@ function Invoke-CreateSharePointSites {
         foreach ($memberKey in $spec.members) {
             $u = $UserMap[$memberKey]
             if (-not $u -or -not $u.id) {
-                Write-Warn "  Member '$memberKey' not in user map — skipping"
+                Write-Warn "  Member '$memberKey' not in user map - skipping"
                 continue
             }
             try {
@@ -113,7 +113,7 @@ function Invoke-CreateSharePointSites {
         Write-Ok "  Owners + members synced"
 
         # Resolve the connected site. SharePoint provisioning lags the
-        # group by 30s–2min on first creation.
+        # group by 30s-2min on first creation.
         $site = $null
         Wait-For -Description "Site provisioning: /sites/$($spec.urlSlug)" -TimeoutSeconds 300 -IntervalSeconds 15 -Predicate {
             try {

@@ -1,7 +1,7 @@
 #!/usr/bin/env pwsh
 <#
 .SYNOPSIS
-    AEGIS M365 dev tenant seed — orchestrator.
+    AEGIS M365 dev tenant seed - orchestrator.
 
 .DESCRIPTION
     Provisions 10 demo users, 5 SharePoint sites, and seed content
@@ -12,7 +12,7 @@
     already exist are detected and skipped.
 
 .PARAMETER VerifyOnly
-    Read-only verification pass — reports what's present and what's
+    Read-only verification pass - reports what's present and what's
     missing without making any changes to the tenant or AEGIS DB.
 
 .PARAMETER WithDraftHolds
@@ -28,7 +28,7 @@
 
 .EXAMPLE
     $env:M365_TENANT = '6bs6wq.onmicrosoft.com'
-    $env:DATABASE_URL = 'postgres://…'
+    $env:DATABASE_URL = 'postgres://...'
     ./scripts/seed-m365-tenant.ps1
 
 .EXAMPLE
@@ -61,18 +61,18 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'helpers/07-seed-sharepoint-content.ps1')
 . (Join-Path $PSScriptRoot 'helpers/08-sync-aegis-database.ps1')
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Banner
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 $tenant = Resolve-Tenant
 Write-Host ""
-Write-Host "════════════════════════════════════════════════════════════════"
+Write-Host "================================================================"
 Write-Host " AEGIS M365 Dev Tenant Seed" -ForegroundColor White
 Write-Host " Tenant : $tenant" -ForegroundColor Gray
 Write-Host " Mode   : $(if ($VerifyOnly) { 'Verify only (no changes)' } else { 'Seed' })" -ForegroundColor Gray
 Write-Host " Holds  : $(if ($WithDraftHolds) { 'Draft holds will be created' } else { 'Holds skipped' })" -ForegroundColor Gray
-Write-Host "════════════════════════════════════════════════════════════════"
+Write-Host "================================================================"
 
 $state = Get-SeedState
 if (-not $state.tenant) {
@@ -87,9 +87,9 @@ if (-not $state.tenant) {
     exit 1
 }
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Pipeline
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 try {
     $ctx = Connect-AegisM365Graph
@@ -128,9 +128,9 @@ try {
 }
 catch {
     Write-Host ""
-    Write-Host "════════════════════════════════════════════════════════════════"
+    Write-Host "================================================================"
     Write-Host " Seed run STOPPED" -ForegroundColor Red
-    Write-Host "════════════════════════════════════════════════════════════════"
+    Write-Host "================================================================"
     Write-Host ""
     Write-Host "Reason: $($_.Exception.Message)" -ForegroundColor Red
     Write-Host ""
@@ -140,14 +140,14 @@ catch {
     exit 1
 }
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Verification report
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 Write-Host ""
-Write-Host "════════════════════════════════════════════════════════════════"
+Write-Host "================================================================"
 Write-Host " Verification" -ForegroundColor White
-Write-Host "════════════════════════════════════════════════════════════════"
+Write-Host "================================================================"
 
 $createdCount = 0
 $initialPasswords = @()
@@ -165,21 +165,21 @@ foreach ($key in $userMap.Keys) {
 
 if ($initialPasswords.Count -gt 0) {
     Write-Host ""
-    Write-Host "INITIAL PASSWORDS (printed once — not stored anywhere):" -ForegroundColor Yellow
+    Write-Host "INITIAL PASSWORDS (printed once - not stored anywhere):" -ForegroundColor Yellow
     Write-Host "Each user must change at first sign-in."
     Write-Host ""
     $initialPasswords | Format-Table -AutoSize | Out-String | Write-Host
-    Write-Host "Save these securely now — they will not be shown again." -ForegroundColor Yellow
+    Write-Host "Save these securely now - they will not be shown again." -ForegroundColor Yellow
 }
 
 Write-Host ""
 Write-Host "Demo readiness:" -ForegroundColor White
-Write-Host "  • Open Entra → Users to verify the 10 users are present"
+Write-Host "  * Open Entra -> Users to verify the 10 users are present"
 $tenantPrefix = ($tenant -split '\.')[0]
-Write-Host "  • SharePoint sites at https://$tenantPrefix.sharepoint.com/sites/<slug>"
-Write-Host "  • In AEGIS, navigate to a matter (e.g. m-employment-watson) and click + NEW HOLD (GUIDED)"
-Write-Host "  • Step 2: 'watson' or 'samira' should match real custodians"
-Write-Host "  • Step 3: auto-discovery returns Mailbox + OneDrive + sites"
+Write-Host "  * SharePoint sites at https://$tenantPrefix.sharepoint.com/sites/<slug>"
+Write-Host "  * In AEGIS, navigate to a matter (e.g. m-employment-watson) and click + NEW HOLD (GUIDED)"
+Write-Host "  * Step 2: 'watson' or 'samira' should match real custodians"
+Write-Host "  * Step 3: auto-discovery returns Mailbox + OneDrive + sites"
 Write-Host ""
 Write-Host "Next-step verification: pnpm --filter @aegis/db exec tsx packages/db/scripts/m365-smoke.ts"
 Write-Host ""

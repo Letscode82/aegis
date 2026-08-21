@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 <#
-    02-create-users.ps1 — Provision the 10 demo users in the dev tenant.
+    02-create-users.ps1 - Provision the 10 demo users in the dev tenant.
 
     Idempotency: filter Get-MgUser by UPN. If exists, update only
     drifted properties. Don't recreate.
@@ -38,9 +38,9 @@ function Invoke-CreateUsers {
 
         if ($VerifyOnly) {
             if ($existing) {
-                Write-Ok "$upn — present"
+                Write-Ok "$upn - present"
             } else {
-                Write-Warn "$upn — MISSING"
+                Write-Warn "$upn - MISSING"
             }
             $result[$spec.key] = [pscustomobject]@{
                 upn             = $upn
@@ -53,7 +53,7 @@ function Invoke-CreateUsers {
         }
 
         if ($existing) {
-            # Drift-check — only patch fields that differ.
+            # Drift-check - only patch fields that differ.
             $patches = @{}
             if ($existing.DisplayName -ne $spec.displayName) { $patches.DisplayName = $spec.displayName }
             if ($existing.GivenName -ne $spec.givenName)     { $patches.GivenName   = $spec.givenName }
@@ -69,9 +69,9 @@ function Invoke-CreateUsers {
 
             if ($patches.Count -gt 0) {
                 Update-MgUser -UserId $existing.Id -BodyParameter $patches
-                Write-Ok "$upn — updated $($patches.Count) drifted field(s): $(($patches.Keys | Sort-Object) -join ', ')"
+                Write-Ok "$upn - updated $($patches.Count) drifted field(s): $(($patches.Keys | Sort-Object) -join ', ')"
             } else {
-                Write-Skip "$upn — present, no drift"
+                Write-Skip "$upn - present, no drift"
             }
 
             $result[$spec.key] = [pscustomobject]@{
@@ -109,7 +109,7 @@ function Invoke-CreateUsers {
 
         try {
             $created = New-MgUser -BodyParameter $body
-            Write-Ok "$upn — created (id $($created.Id))"
+            Write-Ok "$upn - created (id $($created.Id))"
         } catch {
             Write-Fail `
                 "Failed to create user $upn." `

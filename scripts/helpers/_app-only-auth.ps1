@@ -1,15 +1,15 @@
 #!/usr/bin/env pwsh
 <#
-    _app-only-auth.ps1 — Client-credentials (app-only) OAuth2 token
+    _app-only-auth.ps1 - Client-credentials (app-only) OAuth2 token
     acquisition for cross-user mailbox + drive operations that
     delegated Global Admin cannot perform.
 
     Why this exists
-    ───────────────
+    ---------------
     Microsoft Graph's permission model refuses delegated admin
     tokens for sendMail-as-another-user, mailFolder writes against
     another user's mailbox, and OneDrive uploads into another
-    user's drive — even with Mail.Send / Mail.ReadWrite /
+    user's drive - even with Mail.Send / Mail.ReadWrite /
     Files.ReadWrite.All granted to the signed-in admin.
     Application permissions are the only path. Delegated auth
     (Connect-AegisM365Graph in 01-connect.ps1) still owns
@@ -20,7 +20,7 @@
     AEGIS_M365_CLIENT_SECRET. This file fails loud if unset.
 
     Test seam
-    ─────────
+    ---------
     Two script-scope script blocks (AegisAppOnlyTokenInvoker and
     AegisAppOnlyGraphInvoker) wrap every outbound HTTP call.
     Tests overwrite them to drive the auth flow without touching
@@ -29,13 +29,13 @@
 
 Set-StrictMode -Version Latest
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Application identity
 #
 # Hard-coded defaults match the AEGIS dev tenant; env-var overrides
 # exist so CI / a future second tenant can rebind without an edit.
 # Mirrors the pattern used by Resolve-Tenant in _lib.ps1.
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 $Script:AegisAppOnlyTenantId = if ($env:AEGIS_M365_APP_TENANT_ID) {
     $env:AEGIS_M365_APP_TENANT_ID
@@ -48,9 +48,9 @@ $Script:AegisAppOnlyClientId = if ($env:AEGIS_M365_APP_CLIENT_ID) {
     '94414388-9a8d-43a1-bd65-094798622f7d'
 }
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Test seams. Real implementations call out to Microsoft.
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 $Script:AegisAppOnlyTokenInvoker = {
     param($Uri, $FormBody)
@@ -80,12 +80,12 @@ $Script:AegisAppOnlyGraphInvoker = {
     }
 }
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Cached token state.
 #
 # AccessToken : raw bearer string
 # ExpiresAt   : [datetime] absolute expiry (Get-Date + expires_in s)
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 $Script:AegisAppOnlyToken = $null
 
@@ -150,12 +150,12 @@ function Clear-AegisM365AppOnlyToken {
     $Script:AegisAppOnlyToken = $null
 }
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Bearer-token Graph caller. Returns the response object the
 # invoker produced (Invoke-WebRequest in production gives
 # .StatusCode + .Content). Retries once on 401 with a forced
-# token refresh — covers the rare mid-flight rotation case.
-# ───────────────────────────────────────────────────────────────────
+# token refresh - covers the rare mid-flight rotation case.
+# -------------------------------------------------------------------
 
 function Invoke-AegisM365GraphAppOnly {
     [CmdletBinding()]
@@ -199,14 +199,14 @@ function Invoke-AegisM365GraphAppOnly {
     }
 }
 
-# ───────────────────────────────────────────────────────────────────
-# /users/{senderId}/sendMail — assert 202 Accepted.
+# -------------------------------------------------------------------
+# /users/{senderId}/sendMail - assert 202 Accepted.
 #
 # Send-MgUserMail's behaviour of writing non-terminating errors
 # was the silent-success bug this PR exists to kill. Anything
 # other than 202 throws here, with the response body included so
 # the operator can see exactly what Graph rejected.
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 function Invoke-AegisM365SendMailAppOnly {
     [CmdletBinding()]
