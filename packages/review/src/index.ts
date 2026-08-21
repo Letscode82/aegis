@@ -100,6 +100,16 @@ export {
 } from "./copilot";
 
 export {
+  runCaseGraph,
+  type CaseDossier,
+  type IssueCluster,
+  type TimelineFact,
+  type CaseEntity,
+  type DossierKeyDoc,
+  type GraphNodeStatus,
+} from "./case-graph";
+
+export {
   getEcaFunnel,
   type EcaFunnel,
   type EcaFunnelStage,
