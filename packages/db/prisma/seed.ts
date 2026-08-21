@@ -730,6 +730,18 @@ async function seedInvestigation(orgId: string, leadAttorneyPersonId: string) {
       data: { organizationId: orgId, matterId: "m-falcon-investigation", sourceText, issuesJson: issues, planJson: plan, status: "ACTIVE" },
     });
   }
+  // A couple of seeded chronology facts (INV-3) so the timeline demos.
+  const facts = [
+    { id: "fact-falcon-1", occurredOn: new Date("2026-07-28T00:00:00Z"), label: "VP downloaded 340 files from the engineering SharePoint to a personal OneDrive", issueKeys: ["IP_TRADE_SECRET"], sourceQuote: "Bulk download of /eng/source and /eng/pricing detected from an unmanaged device." },
+    { id: "fact-falcon-2", occurredOn: new Date("2026-08-04T00:00:00Z"), label: "VP submitted resignation, effective in two weeks", issueKeys: ["EMPLOYMENT"], sourceQuote: "Resignation letter received by HR; noted intent to join a competitor." },
+  ];
+  for (const f of facts) {
+    await prisma.caseFact.upsert({
+      where: { id: f.id },
+      update: { label: f.label, occurredOn: f.occurredOn, issueKeys: f.issueKeys, sourceQuote: f.sourceQuote },
+      create: { id: f.id, organizationId: orgId, matterId: "m-falcon-investigation", label: f.label, occurredOn: f.occurredOn, issueKeys: f.issueKeys, sourceQuote: f.sourceQuote },
+    });
+  }
   return { matterId: "m-falcon-investigation" };
 }
 

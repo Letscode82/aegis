@@ -30,6 +30,13 @@ import {
 } from "./src/internal/services/investigation";
 import { createAdhocCollection as createAdhocCollectionService } from "./src/internal/services/review-set";
 import {
+  suggestFactsService,
+  addCaseFactService,
+  listChronologyService,
+  deleteCaseFactService,
+} from "./src/internal/services/chronology";
+import { buildInvestigationReportService } from "./src/internal/services/investigation-report";
+import {
   closeMatterService,
   transitionMatterStatusService,
 } from "./src/internal/services/status";
@@ -183,6 +190,35 @@ export async function suggestInvestigationCustodians(
   const client = await resolveM365Client(organizationId);
   const candidates = await client.discoverCustodians({ description: input.sourceText, matterId: input.matterId });
   return candidates.map((c) => ({ id: c.externalIdentifier, name: c.name, email: c.email, department: c.department ?? null, title: c.title ?? null }));
+}
+
+// ── Investigation chronology (INV-3) ──────────────────────────────────
+export type {
+  CaseFactDTO,
+  SuggestedFact,
+  AddCaseFactInput,
+} from "./src/internal/services/chronology";
+/** Deterministic candidate facts from the matter's responsive documents. */
+export function suggestInvestigationFacts(organizationId: string, matterId: string, limit?: number) {
+  return suggestFactsService(organizationId, matterId, { limit });
+}
+export function addInvestigationFact(
+  input: import("./src/internal/services/chronology").AddCaseFactInput,
+  actor: MatterActor,
+) {
+  return addCaseFactService(input, actor);
+}
+export function listInvestigationChronology(organizationId: string, matterId: string) {
+  return listChronologyService(organizationId, matterId);
+}
+export function deleteInvestigationFact(organizationId: string, factId: string, actor: MatterActor) {
+  return deleteCaseFactService(organizationId, factId, actor);
+}
+
+// ── Investigation findings report (INV-4) ──────────────────────────────
+export type { InvestigationReport, ReportKeyDoc } from "./src/internal/services/investigation-report";
+export function buildInvestigationReport(organizationId: string, matterId: string) {
+  return buildInvestigationReportService(organizationId, matterId);
 }
 
 /** INV-2 — one-click preserve + collect from an investigation. Creates a DRAFT
