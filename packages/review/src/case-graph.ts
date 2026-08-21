@@ -194,3 +194,103 @@ export async function runCaseGraph(organizationId: string, reviewSetId: string, 
 
   return { reviewSetId, brief, theory, issueClusters, timeline, entities, keyDocuments, gaps, recommendations, degraded, model, nodes };
 }
+
+// ── CAP-3: Case Knowledge Graph (persisted, materialized from the collection) ──
+
+export interface KGNode { kind: "PERSON" | "ORG" | "ISSUE"; label: string; weight: number }
+export interface KGEdge { fromLabel: string; toLabel: string; kind: "CO_OCCURS" | "AFFILIATED" | "INVOLVES"; weight: number }
+export interface CaseKnowledgeGraph { reviewSetId: string; nodes: KGNode[]; edges: KGEdge[] }
+
+/** Entities present in one document (people, orgs, issues) — the per-doc unit
+ *  the co-occurrence graph is built from. */
+function docEntities(item: Item): Array<{ kind: "PERSON" | "ORG" | "ISSUE"; label: string }> {
+  const out: Array<{ kind: "PERSON" | "ORG" | "ISSUE"; label: string }> = [];
+  const hay = `${item.title} ${item.excerpt ?? ""}`;
+  const seen = new Set<string>();
+  for (const m of hay.matchAll(/\b([A-Z][a-z]+)\s+([A-Z][a-z]+)\b/g)) {
+    if (STOP_NAME.has(m[1]!) || STOP_NAME.has(m[2]!)) continue;
+    const label = `${m[1]} ${m[2]}`;
+    if (!seen.has(`P:${label}`)) { seen.add(`P:${label}`); out.push({ kind: "PERSON", label }); }
+  }
+  for (const m of hay.matchAll(/[a-z0-9._%+-]+@([a-z0-9.-]+\.[a-z]{2,})/gi)) {
+    const dom = m[1]!.toLowerCase();
+    if (FREEMAIL.has(dom)) continue;
+    const label = dom.split(".")[0]!;
+    if (!seen.has(`O:${label}`)) { seen.add(`O:${label}`); out.push({ kind: "ORG", label }); }
+  }
+  for (const k of (item.codingJson as { issues?: string[] } | null)?.issues ?? []) {
+    if (!seen.has(`I:${k}`)) { seen.add(`I:${k}`); out.push({ kind: "ISSUE", label: k }); }
+  }
+  return out;
+}
+
+/** Re-materialize the knowledge graph for a collection: nodes weighted by the
+ *  number of documents they appear in, edges by shared documents. Chain-sealed. */
+export async function materializeCaseGraph(organizationId: string, reviewSetId: string, actor: Actor): Promise<CaseKnowledgeGraph> {
+  const rs = await prisma.reviewSet.findFirst({ where: { id: reviewSetId, organizationId }, select: { id: true } });
+  if (!rs) throw new Error("Review set not found");
+  const items = await prisma.reviewSetItem.findMany({
+    where: { reviewSetId, excludedAt: null },
+    select: { id: true, title: true, excerpt: true, aiRoute: true, codedResponsive: true, codedPrivileged: true, codingJson: true },
+    take: 2000,
+  });
+
+  const nodeWeight = new Map<string, { kind: "PERSON" | "ORG" | "ISSUE"; weight: number }>();
+  const edgeWeight = new Map<string, number>();
+  const edgeKind = new Map<string, "CO_OCCURS" | "AFFILIATED" | "INVOLVES">();
+
+  for (const it of items) {
+    const ents = docEntities(it).slice(0, 12); // cap per doc to bound pairs
+    for (const e of ents) {
+      const key = `${e.kind}:${e.label}`;
+      const cur = nodeWeight.get(key);
+      if (cur) cur.weight += 1; else nodeWeight.set(key, { kind: e.kind, weight: 1 });
+    }
+    for (let a = 0; a < ents.length; a++) {
+      for (let b = a + 1; b < ents.length; b++) {
+        const x = ents[a]!, y = ents[b]!;
+        const [from, to] = [x.label, y.label].sort();
+        const kind: "CO_OCCURS" | "AFFILIATED" | "INVOLVES" = (x.kind === "ISSUE" || y.kind === "ISSUE") ? "INVOLVES" : (x.kind !== y.kind ? "AFFILIATED" : "CO_OCCURS");
+        const ek = `${from}|${to}|${kind}`;
+        edgeWeight.set(ek, (edgeWeight.get(ek) ?? 0) + 1);
+        edgeKind.set(ek, kind);
+      }
+    }
+  }
+
+  // Keep the strongest nodes + the edges among them.
+  const topNodes = [...nodeWeight.entries()].sort((a, b) => b[1].weight - a[1].weight).slice(0, 30);
+  const kept = new Set(topNodes.map(([k]) => k.split(":").slice(1).join(":")));
+  const nodes: KGNode[] = topNodes.map(([k, v]) => ({ kind: v.kind, label: k.split(":").slice(1).join(":"), weight: v.weight }));
+  const edges: KGEdge[] = [...edgeWeight.entries()]
+    .map(([k, w]) => { const [from, to] = k.split("|"); return { fromLabel: from!, toLabel: to!, kind: edgeKind.get(k)!, weight: w }; })
+    .filter((e) => kept.has(e.fromLabel) && kept.has(e.toLabel) && e.weight >= 1)
+    .sort((a, b) => b.weight - a.weight)
+    .slice(0, 80);
+
+  await prisma.$transaction([
+    prisma.caseGraphEdge.deleteMany({ where: { reviewSetId } }),
+    prisma.caseGraphNode.deleteMany({ where: { reviewSetId } }),
+    ...(nodes.length ? [prisma.caseGraphNode.createMany({ data: nodes.map((n) => ({ organizationId, reviewSetId, kind: n.kind, label: n.label, weight: n.weight })) })] : []),
+    ...(edges.length ? [prisma.caseGraphEdge.createMany({ data: edges.map((e) => ({ organizationId, reviewSetId, fromLabel: e.fromLabel, toLabel: e.toLabel, kind: e.kind, weight: e.weight })) })] : []),
+  ]);
+  await logAudit({
+    organizationId, actorId: actor.id, actorType: actor.type ?? "USER",
+    action: "reviewset.casegraph.materialized", resourceType: "ReviewSet", resourceId: reviewSetId,
+    afterJson: { nodes: nodes.length, edges: edges.length } as never,
+    metadata: { source: "review", channel: "case-graph" } as never,
+  });
+  return { reviewSetId, nodes, edges };
+}
+
+export async function getCaseKnowledgeGraph(organizationId: string, reviewSetId: string): Promise<CaseKnowledgeGraph> {
+  const [nodeRows, edgeRows] = await Promise.all([
+    prisma.caseGraphNode.findMany({ where: { organizationId, reviewSetId }, orderBy: [{ weight: "desc" }] }),
+    prisma.caseGraphEdge.findMany({ where: { organizationId, reviewSetId }, orderBy: [{ weight: "desc" }] }),
+  ]);
+  return {
+    reviewSetId,
+    nodes: nodeRows.map((n) => ({ kind: n.kind as KGNode["kind"], label: n.label, weight: n.weight })),
+    edges: edgeRows.map((e) => ({ fromLabel: e.fromLabel, toLabel: e.toLabel, kind: e.kind as KGEdge["kind"], weight: e.weight })),
+  };
+}

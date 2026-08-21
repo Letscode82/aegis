@@ -2646,10 +2646,47 @@ model ReviewSet {
   items          ReviewSetItem[]
   batches        ReviewBatch[]
   validationRuns ReviewValidationRun[]
+  graphNodes     CaseGraphNode[]
+  graphEdges     CaseGraphEdge[]
 
   @@index([organizationId, origin])
   @@index([legalHoldId])
   @@index([dataSubjectRequestId])
+}
+
+/// CAP-3: the Case Knowledge Graph, materialized from the Case Graph agents
+/// over a collection. Nodes are people / orgs / issues; edges are the
+/// co-occurrence and affiliation relationships the agents inferred. Keyed by
+/// reviewSetId and re-materialized on demand (labels are node identity).
+model CaseGraphNode {
+  id             String   @id @default(cuid())
+  organizationId String
+  reviewSetId    String
+  kind           String // PERSON | ORG | ISSUE
+  label          String
+  weight         Int      @default(1)
+  createdAt      DateTime @default(now())
+
+  reviewSet ReviewSet @relation(fields: [reviewSetId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewSetId, kind, label])
+  @@index([organizationId, reviewSetId])
+}
+
+model CaseGraphEdge {
+  id             String   @id @default(cuid())
+  organizationId String
+  reviewSetId    String
+  fromLabel      String
+  toLabel        String
+  kind           String // CO_OCCURS | AFFILIATED | INVOLVES
+  weight         Int      @default(1)
+  createdAt      DateTime @default(now())
+
+  reviewSet ReviewSet @relation(fields: [reviewSetId], references: [id], onDelete: Cascade)
+
+  @@unique([reviewSetId, fromLabel, toLabel, kind])
+  @@index([organizationId, reviewSetId])
 }
 
 /// Reviewer-parity v3: a batch of review-set items assigned to one reviewer,
