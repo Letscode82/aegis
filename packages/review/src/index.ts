@@ -90,6 +90,16 @@ export {
 } from "./profile";
 
 export {
+  buildCaseBrief,
+  answerCaseQuestion,
+  type CaseBrief,
+  type CopilotAnswer,
+  type CopilotCitation,
+  type CopilotSuggestion,
+  type AnswerInput,
+} from "./copilot";
+
+export {
   getEcaFunnel,
   type EcaFunnel,
   type EcaFunnelStage,

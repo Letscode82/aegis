@@ -8,4 +8,5 @@ export { BatchPanel, type BatchPanelProps } from "./BatchPanel";
 export { CullPanel, type CullPanelProps } from "./CullPanel";
 export { ValidationPanel, type ValidationPanelProps } from "./ValidationPanel";
 export { EcaPanel, type EcaPanelProps } from "./EcaPanel";
+export { CopilotPanel, type CopilotPanelProps } from "./CopilotPanel";
 export { CollectionWorkspace, type CollectionWorkspaceProps } from "./CollectionWorkspace";
