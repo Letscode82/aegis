@@ -10,4 +10,5 @@ export { ValidationPanel, type ValidationPanelProps } from "./ValidationPanel";
 export { EcaPanel, type EcaPanelProps } from "./EcaPanel";
 export { CopilotPanel, type CopilotPanelProps } from "./CopilotPanel";
 export { DossierPanel, type DossierPanelProps } from "./DossierPanel";
+export { KnowledgeGraphPanel, type KnowledgeGraphPanelProps } from "./KnowledgeGraphPanel";
 export { CollectionWorkspace, type CollectionWorkspaceProps } from "./CollectionWorkspace";

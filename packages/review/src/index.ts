@@ -101,13 +101,27 @@ export {
 
 export {
   runCaseGraph,
+  materializeCaseGraph,
+  getCaseKnowledgeGraph,
   type CaseDossier,
   type IssueCluster,
   type TimelineFact,
   type CaseEntity,
   type DossierKeyDoc,
   type GraphNodeStatus,
+  type CaseKnowledgeGraph,
+  type KGNode,
+  type KGEdge,
 } from "./case-graph";
+
+export {
+  proposeAgentAction,
+  listAgentProposals,
+  approveAgentAction,
+  rejectAgentAction,
+  type AgentProposalDTO,
+  type AgentActionKind,
+} from "./agent-actions";
 
 export {
   getEcaFunnel,

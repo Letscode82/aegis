@@ -156,6 +156,8 @@ export type {
   ReviewValidationRun,
   Investigation,
   CaseFact,
+  CaseGraphNode,
+  CaseGraphEdge,
   ConsentRecord,
   DataProcessingActivity,
   PrivacyIncident,
