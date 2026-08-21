@@ -8,6 +8,7 @@
  */
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { C, F, M, SR } from "@aegis/ui";
+import { DossierPanel } from "./DossierPanel";
 
 interface Brief {
   name: string; origin: string; criteria: string | null;
@@ -33,6 +34,7 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({ apiBase, reviewSetId
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [tab, setTab] = useState<"ask" | "graph">("ask");
   const scroller = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -70,7 +72,14 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({ apiBase, reviewSetId
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
       {/* Case brief header */}
       <div style={{ borderBottom: `1px solid ${C.br}`, padding: "14px 22px", background: C.cd }}>
-        <div style={{ fontFamily: M, fontSize: 10, letterSpacing: 1.2, color: C.pp, textTransform: "uppercase", marginBottom: 3 }}>Case Copilot{brief ? ` · ${brief.origin}` : ""}</div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+          <div style={{ fontFamily: M, fontSize: 10, letterSpacing: 1.2, color: C.pp, textTransform: "uppercase", marginBottom: 3 }}>Case Copilot{brief ? ` · ${brief.origin}` : ""}</div>
+          <div style={{ display: "flex", gap: 4, background: C.bg, borderRadius: 8, padding: 3, border: `1px solid ${C.br}` }}>
+            {(["ask", "graph"] as const).map((t) => (
+              <button key={t} onClick={() => setTab(t)} style={{ fontSize: 12, fontWeight: 600, padding: "5px 12px", borderRadius: 6, cursor: "pointer", border: "none", background: tab === t ? C.pp : "transparent", color: tab === t ? C.bg : C.t3 }}>{t === "ask" ? "Ask" : "Case Graph"}</button>
+            ))}
+          </div>
+        </div>
         {brief ? (
           <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "baseline" }}>
             <div style={{ fontFamily: SR, fontSize: 17, fontWeight: 600 }}>{brief.name}</div>
@@ -80,6 +89,8 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({ apiBase, reviewSetId
         ) : <div style={{ fontSize: 12, color: C.t4 }}>Loading case brief…</div>}
       </div>
 
+      {tab === "graph" ? <DossierPanel apiBase={apiBase} reviewSetId={reviewSetId} /> : (
+      <>
       {/* Transcript */}
       <div ref={scroller} style={{ flex: 1, overflow: "auto", padding: "20px 22px", minHeight: 0 }}>
         <div style={{ maxWidth: 820, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16 }}>
@@ -121,6 +132,8 @@ export const CopilotPanel: React.FC<CopilotPanelProps> = ({ apiBase, reviewSetId
           <button disabled={busy || !q.trim()} onClick={() => ask(q)} style={{ padding: "11px 18px", background: C.pp, color: C.bg, border: "none", borderRadius: 10, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Ask</button>
         </div>
       </div>
+      </>
+      )}
     </div>
   );
 };
