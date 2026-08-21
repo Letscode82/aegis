@@ -1,25 +1,25 @@
 #!/usr/bin/env pwsh
 <#
-    06-seed-onedrive-content.ps1 — Upload generated documents to each
+    06-seed-onedrive-content.ps1 - Upload generated documents to each
     user's OneDrive root.
 
-    Auth model — same constraint as helper 05
-    ─────────────────────────────────────────
+    Auth model - same constraint as helper 05
+    -----------------------------------------
     Cross-user OneDrive operations require APPLICATION permissions.
     Delegated Global Admin is rejected by the Graph permission model:
-      GET /v1.0/users/{otherUserId}/drive  → 403 in delegated, 200 in app-only
-      PUT /v1.0/users/{otherUserId}/drive/root:/{name}:/content  → same
+      GET /v1.0/users/{otherUserId}/drive  -> 403 in delegated, 200 in app-only
+      PUT /v1.0/users/{otherUserId}/drive/root:/{name}:/content  -> same
     Files.ReadWrite.All granted to the signed-in admin does not unlock
     acting on another user's drive.
 
     Therefore: existence check + upload go through Get-AegisM365AppOnlyToken.
     The shared Invoke-AegisM365GraphAppOnly helper covers the JSON GET;
     binary PUT goes through a small in-file invoker (test seam) that wraps
-    Invoke-RestMethod with the bearer header — Invoke-AegisM365GraphAppOnly
+    Invoke-RestMethod with the bearer header - Invoke-AegisM365GraphAppOnly
     is intentionally JSON-only.
 
     Drive readiness
-    ───────────────
+    ---------------
     OneDrive provisioning lags license assignment by minutes. Helper 03
     pre-provisions every active user's site via Request-SPOPersonalSite,
     but Graph's drive endpoints can still 404 for some minutes after.
@@ -36,11 +36,11 @@
 . (Join-Path $PSScriptRoot '_docgen.ps1')
 . (Join-Path $PSScriptRoot '_app-only-auth.ps1')
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Test seam for binary OneDrive PUT. Wraps the bearer-token call so
 # the smoke can intercept the request and assert byte-for-byte body
 # preservation. Real implementation calls Invoke-RestMethod directly.
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 $Script:AegisOneDriveUploadInvoker = {
     param($Url, $Token, $Bytes, $ContentType)
@@ -52,10 +52,10 @@ $Script:AegisOneDriveUploadInvoker = {
         -Body $Bytes
 }
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Drive readiness probe. Returns $true on 200, $false on 404 (with a
 # Write-Warn for the operator). Other status codes throw.
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 function Test-AegisOneDriveReady {
     param(
@@ -73,7 +73,7 @@ function Test-AegisOneDriveReady {
             }
         } catch {}
         if ($statusCode -eq 404) {
-            Write-Warn "$OwnerUpn — OneDrive not yet provisioned in Graph; skipping uploads for this user. Re-run later."
+            Write-Warn "$OwnerUpn - OneDrive not yet provisioned in Graph; skipping uploads for this user. Re-run later."
             return $false
         }
         throw "Drive readiness probe failed for ${OwnerUpn} (status ${statusCode}): $($_.Exception.Message)"
@@ -111,7 +111,7 @@ function Invoke-SeedOneDriveContent {
         foreach ($doc in $matter.onedrive) {
             $owner = $UserMap[$doc.userKey]
             if (-not $owner -or -not $owner.id) {
-                Write-Warn "    $($doc.fileName) — owner '$($doc.userKey)' not found, skipping"
+                Write-Warn "    $($doc.fileName) - owner '$($doc.userKey)' not found, skipping"
                 continue
             }
 
@@ -142,20 +142,20 @@ function Invoke-SeedOneDriveContent {
                 if ($statusCode -ne 404) {
                     throw "Existence check failed for $($owner.upn):/$($doc.fileName) (status ${statusCode}): $($_.Exception.Message)"
                 }
-                # 404 → file is genuinely absent; fall through to upload path.
+                # 404 -> file is genuinely absent; fall through to upload path.
             }
 
             if ($VerifyOnly) {
                 if ($existing) {
-                    Write-Ok "    $($owner.upn):/$($doc.fileName) — present"
+                    Write-Ok "    $($owner.upn):/$($doc.fileName) - present"
                 } else {
-                    Write-Warn "    $($owner.upn):/$($doc.fileName) — MISSING"
+                    Write-Warn "    $($owner.upn):/$($doc.fileName) - MISSING"
                 }
                 continue
             }
 
             if ($existing) {
-                Write-Skip "    $($owner.upn):/$($doc.fileName) — already present"
+                Write-Skip "    $($owner.upn):/$($doc.fileName) - already present"
                 continue
             }
 
@@ -167,18 +167,18 @@ function Invoke-SeedOneDriveContent {
 
                 [void](& $Script:AegisOneDriveUploadInvoker $url $token $bytes 'application/octet-stream')
 
-                Write-Ok "    $($owner.upn):/$($doc.fileName) — uploaded"
+                Write-Ok "    $($owner.upn):/$($doc.fileName) - uploaded"
             } catch {
                 Write-Fail `
                     "OneDrive upload failed: $($owner.upn):/$($doc.fileName)." `
                     ("Error: $($_.Exception.Message)`n" +
                      "Common causes:`n" +
-                     "  • User's OneDrive provisioning still in flight (probe may have passed`n" +
+                     "  * User's OneDrive provisioning still in flight (probe may have passed`n" +
                      "    seconds before the upload race; re-run will pick it up).`n" +
-                     "  • Transient network or Graph throttle.`n" +
-                     "  • App registration missing Files.ReadWrite.All Application permission`n" +
+                     "  * Transient network or Graph throttle.`n" +
+                     "  * App registration missing Files.ReadWrite.All Application permission`n" +
                      "    (admin-consented).`n" +
-                     "  • AEGIS_M365_CLIENT_SECRET expired or rotated.`n" +
+                     "  * AEGIS_M365_CLIENT_SECRET expired or rotated.`n" +
                      "Re-run the orchestrator to retry; idempotency will skip what's already uploaded.")
                 throw
             }

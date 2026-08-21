@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 <#
-    01-connect.ps1 — Connect to Microsoft Graph with the scopes
+    01-connect.ps1 - Connect to Microsoft Graph with the scopes
     every downstream helper needs, and verify each one was granted.
 
     On first run the Microsoft Graph PowerShell SDK opens an
@@ -13,7 +13,7 @@
 
     Dual-auth: directory ops (this file) stay on delegated.
     Cross-user mailbox / drive ops (helper 05+) use app-only
-    via _app-only-auth.ps1 — see Get-AegisM365AppOnlyToken there.
+    via _app-only-auth.ps1 - see Get-AegisM365AppOnlyToken there.
 #>
 
 . (Join-Path $PSScriptRoot '_lib.ps1')
@@ -53,10 +53,10 @@ function Connect-AegisM365Graph {
     if ($existing -and $existing.TenantId -and $existing.Scopes) {
         $missing = $RequiredScopes | Where-Object { $_ -notin $existing.Scopes }
         if (-not $missing) {
-            Write-Ok "Already connected — tenant $($existing.TenantId), all scopes present."
+            Write-Ok "Already connected - tenant $($existing.TenantId), all scopes present."
             $needsConnect = $false
         } else {
-            Write-Skip "Reconnecting — missing scopes: $($missing -join ', ')"
+            Write-Skip "Reconnecting - missing scopes: $($missing -join ', ')"
         }
     }
 
@@ -76,7 +76,7 @@ function Connect-AegisM365Graph {
             "Connected, but the following Graph scopes were NOT granted: $($missing -join ', ')" `
             ("An admin must consent. Either:`n" +
              "  1. Re-run and consent to all scopes when prompted, or`n" +
-             "  2. Pre-consent in Entra: App registrations → Microsoft Graph PowerShell → API permissions → Grant admin consent.")
+             "  2. Pre-consent in Entra: App registrations -> Microsoft Graph PowerShell -> API permissions -> Grant admin consent.")
         throw "Graph scope check failed."
     }
 
@@ -86,7 +86,7 @@ function Connect-AegisM365Graph {
     if ($tenant -notin $verifiedDomains) {
         Write-Warn "Connected tenant verified domains: $($verifiedDomains -join ', ')"
         Write-Warn "Operator asked for: $tenant"
-        Write-Warn "Proceeding — tenant token resolves what Microsoft thinks the tenant is."
+        Write-Warn "Proceeding - tenant token resolves what Microsoft thinks the tenant is."
     }
 
     Write-Ok "Connected to tenant: $($ctx.TenantId)"

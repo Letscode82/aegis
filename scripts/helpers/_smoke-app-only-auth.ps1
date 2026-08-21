@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 <#
-    _smoke-app-only-auth.ps1 — Runtime smoke test for the
+    _smoke-app-only-auth.ps1 - Runtime smoke test for the
     app-only auth path used by helper 05.
 
     Drives Get-AegisM365AppOnlyToken + Invoke-SeedMailboxContent
@@ -12,14 +12,14 @@
       ./scripts/helpers/_smoke-app-only-auth.ps1
 
     Asserts (per the PR task):
-      • Token fetched once, reused across 3 sendMail calls.
-      • Each sendMail POST hits /v1.0/users/{senderId}/sendMail.
-      • 202 → state mark written for each email.
-      • 403 mid-batch → throws, state for failing email NOT
+      * Token fetched once, reused across 3 sendMail calls.
+      * Each sendMail POST hits /v1.0/users/{senderId}/sendMail.
+      * 202 -> state mark written for each email.
+      * 403 mid-batch -> throws, state for failing email NOT
         written, prior emails' state IS written, subsequent
         emails not attempted.
-      • Token refresh fires when cache is within 5 min of expiry.
-      • Reset-LegacySentEmailsStateIfNeeded fires when
+      * Token refresh fires when cache is within 5 min of expiry.
+      * Reset-LegacySentEmailsStateIfNeeded fires when
         stateSchemaVersion is missing; no-op when it's 2.
 #>
 
@@ -29,10 +29,10 @@ param()
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Sandbox state file. We rebind $Script:StateFile after sourcing
 # _lib.ps1 so the smoke never reads or writes the real seed state.
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 $smokeRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("aegis-smoke-" + [guid]::NewGuid())
 [void](New-Item -ItemType Directory -Path $smokeRoot -Force)
@@ -49,9 +49,9 @@ $Script:SeedDataRoot = Join-Path $smokeRoot 'seed-data'
 # token endpoint is mocked.
 $env:AEGIS_M365_CLIENT_SECRET = 'fake-secret-for-smoke-only'
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Tiny assertion helpers (no Pester dependency).
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 $Failures = New-Object System.Collections.ArrayList
 
@@ -69,12 +69,12 @@ function Assert-Equal {
     Assert-True ($Expected -eq $Actual) "$Message (expected=$Expected, actual=$Actual)"
 }
 
-# ───────────────────────────────────────────────────────────────────
-# Captures hashtable — every mock script block reads + writes
+# -------------------------------------------------------------------
+# Captures hashtable - every mock script block reads + writes
 # through this single object via .GetNewClosure(). Avoids the
 # $Script: vs module-scope foot-gun (the script blocks execute
 # in _app-only-auth.ps1's scope, not this script's).
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 $captures = @{
     TokenFetchCount = 0
@@ -115,10 +115,10 @@ function Reset-Mocks {
     }.GetNewClosure()
 }
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Synthetic seed-data fixture under the temp dir.
 # Three emails total, two matters.
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 [void](New-Item -ItemType Directory -Path (Join-Path $Script:SeedDataRoot 'emails') -Force)
 [void](New-Item -ItemType Directory -Path (Join-Path $Script:SeedDataRoot 'matters') -Force)
@@ -165,12 +165,12 @@ function Get-SentEmailKeys {
     return ,$names
 }
 
-# ───────────────────────────────────────────────────────────────────
-# Scenario 1 — happy path. 3 emails all 202.
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
+# Scenario 1 - happy path. 3 emails all 202.
+# -------------------------------------------------------------------
 
 Write-Host ''
-Write-Host '── Scenario 1: 3 emails, all 202 ──' -ForegroundColor Cyan
+Write-Host '-- Scenario 1: 3 emails, all 202 --' -ForegroundColor Cyan
 Reset-State
 Reset-Mocks
 
@@ -191,13 +191,13 @@ Assert-True ($sentKeys -contains 'm-smoke-b:e3') 'mark for e3 written'
 $state = Get-SeedState
 Assert-Equal 2 $state.stateSchemaVersion 'stateSchemaVersion stamped to 2'
 
-# ───────────────────────────────────────────────────────────────────
-# Scenario 2 — 403 on second send must abort. e1 mark written, e2
+# -------------------------------------------------------------------
+# Scenario 2 - 403 on second send must abort. e1 mark written, e2
 # mark NOT written, e3 not attempted.
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 Write-Host ''
-Write-Host '── Scenario 2: 403 mid-batch aborts the run ──' -ForegroundColor Cyan
+Write-Host '-- Scenario 2: 403 mid-batch aborts the run --' -ForegroundColor Cyan
 Reset-State
 Reset-Mocks -FailOnCallNumber 2
 
@@ -214,12 +214,12 @@ Assert-True ($sentKeys -contains 'm-smoke-a:e1') 'e1 mark written before failure
 Assert-True (-not ($sentKeys -contains 'm-smoke-a:e2')) 'e2 mark NOT written (failed)'
 Assert-True (-not ($sentKeys -contains 'm-smoke-b:e3')) 'e3 mark NOT written (not attempted)'
 
-# ───────────────────────────────────────────────────────────────────
-# Scenario 3 — token refreshes when cached entry is < 5 min from expiry.
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
+# Scenario 3 - token refreshes when cached entry is < 5 min from expiry.
+# -------------------------------------------------------------------
 
 Write-Host ''
-Write-Host '── Scenario 3: token refresh under 5-min remaining ──' -ForegroundColor Cyan
+Write-Host '-- Scenario 3: token refresh under 5-min remaining --' -ForegroundColor Cyan
 Reset-Mocks -ExpiresIn 3600
 
 $first = Get-AegisM365AppOnlyToken
@@ -227,18 +227,18 @@ $second = Get-AegisM365AppOnlyToken
 Assert-Equal 1 $captures.TokenFetchCount 'fresh token cached, second call reused it'
 Assert-Equal $first $second 'same token string returned'
 
-# Force the cache to expire in 4 minutes — under the 5-min threshold.
+# Force the cache to expire in 4 minutes - under the 5-min threshold.
 $Script:AegisAppOnlyToken.ExpiresAt = (Get-Date).AddMinutes(4)
 $third = Get-AegisM365AppOnlyToken
 Assert-Equal 2 $captures.TokenFetchCount 'expiring-soon cache triggered a refresh'
 Assert-True ($third -ne $first) 'new token returned after refresh'
 
-# ───────────────────────────────────────────────────────────────────
-# Scenario 4 — state-schema migration only fires when needed.
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
+# Scenario 4 - state-schema migration only fires when needed.
+# -------------------------------------------------------------------
 
 Write-Host ''
-Write-Host '── Scenario 4: legacy sentEmails reset gated by schema version ──' -ForegroundColor Cyan
+Write-Host '-- Scenario 4: legacy sentEmails reset gated by schema version --' -ForegroundColor Cyan
 
 # 4a. Legacy state with stale sentEmails entries.
 Reset-State
@@ -256,22 +256,22 @@ Assert-Equal 2 $post.stateSchemaVersion 'stateSchemaVersion stamped to 2 after r
 $postKeys = Get-SentEmailKeys
 Assert-Equal 0 $postKeys.Count 'sentEmails bucket emptied'
 
-# 4b. Already-migrated state — no-op.
+# 4b. Already-migrated state - no-op.
 $reset2 = Reset-LegacySentEmailsStateIfNeeded
 Assert-True (-not $reset2) 'reset returns false when stateSchemaVersion already 2'
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Cleanup + summary
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 Remove-Item -Recurse -Force $smokeRoot
 Remove-Item Env:\AEGIS_M365_CLIENT_SECRET -ErrorAction SilentlyContinue
 
 Write-Host ''
 if ($Failures.Count -gt 0) {
-    Write-Host "✗ $($Failures.Count) assertion failure(s):" -ForegroundColor Red
+    Write-Host "[X] $($Failures.Count) assertion failure(s):" -ForegroundColor Red
     $Failures | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
     exit 1
 }
-Write-Host '✓ all scenarios passed' -ForegroundColor Green
+Write-Host '[OK] all scenarios passed' -ForegroundColor Green
 exit 0

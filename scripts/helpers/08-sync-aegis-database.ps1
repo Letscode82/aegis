@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 <#
-    08-sync-aegis-database.ps1 — Hand off to TypeScript for AEGIS DB
+    08-sync-aegis-database.ps1 - Hand off to TypeScript for AEGIS DB
     sync. PowerShell handles M365; TypeScript handles Postgres
     (uses the existing @aegis/db Prisma client).
 
@@ -27,7 +27,7 @@ function Invoke-SyncAegisDatabase {
 
     if (-not $env:DATABASE_URL) {
         $remediation = @'
-Set it before running — for example:
+Set it before running - for example:
   $env:DATABASE_URL = (Get-Content apps\web\.env.production | Select-String 'DATABASE_URL=').Line -replace 'DATABASE_URL="' -replace '"$'
 Or paste it directly. The TypeScript helper needs Postgres reach.
 '@

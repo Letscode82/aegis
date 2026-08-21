@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 <#
-    _docgen.ps1 — Build minimal valid .docx and .xlsx byte arrays
+    _docgen.ps1 - Build minimal valid .docx and .xlsx byte arrays
     from the templates in seed-data/documents/index.json.
 
     A .docx is a ZIP with three required parts:
@@ -15,7 +15,7 @@
       - xl/workbook.xml
       - xl/worksheets/sheet1.xml
 
-    The shapes here are intentionally minimal — readable in Word/Excel,
+    The shapes here are intentionally minimal - readable in Word/Excel,
     text content searchable, suitable for AEGIS auto-discovery and the
     MARC content sampling demos. Not for any production document use.
 #>
@@ -85,7 +85,7 @@ function New-DocxBytes {
             $escaped = ConvertTo-DocxXmlEscaped ($line -replace '^### ', '')
             [void]$sb.AppendLine("    <w:p><w:r><w:rPr><w:b/></w:rPr><w:t xml:space=`"preserve`">$escaped</w:t></w:r></w:p>")
         } elseif ($line -match '^\s*- ') {
-            $escaped = ConvertTo-DocxXmlEscaped ($line -replace '^\s*- ', '• ')
+            $escaped = ConvertTo-DocxXmlEscaped ($line -replace '^\s*- ', '* ')
             [void]$sb.AppendLine("    <w:p><w:r><w:t xml:space=`"preserve`">$escaped</w:t></w:r></w:p>")
         } else {
             [void]$sb.AppendLine("    <w:p><w:r><w:t xml:space=`"preserve`">$escaped</w:t></w:r></w:p>")
@@ -218,13 +218,13 @@ function New-DocumentBytes {
 
     if ($FileName -match '\.xlsx$') {
         if (-not $tpl.PSObject.Properties['xlsxSheet']) {
-            throw "Template $TemplateKey does not declare xlsxSheet — cannot generate .xlsx for $FileName."
+            throw "Template $TemplateKey does not declare xlsxSheet - cannot generate .xlsx for $FileName."
         }
         return ,(New-XlsxBytes -Title $tpl.title -Sheet $tpl.xlsxSheet)
     }
     if ($FileName -match '\.docx$') {
         if (-not $tpl.PSObject.Properties['body']) {
-            throw "Template $TemplateKey does not declare body — cannot generate .docx for $FileName."
+            throw "Template $TemplateKey does not declare body - cannot generate .docx for $FileName."
         }
         return ,(New-DocxBytes -Title $tpl.title -Body $tpl.body)
     }

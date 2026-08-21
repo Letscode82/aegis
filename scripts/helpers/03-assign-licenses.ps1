@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 <#
-    03-assign-licenses.ps1 — Assign the M365 E5 SKU
+    03-assign-licenses.ps1 - Assign the M365 E5 SKU
     (DEVELOPERPACK_E5) to each seeded user, then poll until Microsoft
     finishes provisioning Mailbox + OneDrive.
 
@@ -20,7 +20,7 @@ Import-Module Microsoft.Graph.Users -ErrorAction Stop
 Import-Module Microsoft.Graph.Identity.DirectoryManagement -ErrorAction Stop
 Import-Module Microsoft.Graph.Users.Actions -ErrorAction Stop
 
-# Microsoft 365 Developer Pack E5 — what dev tenants have. The script
+# Microsoft 365 Developer Pack E5 - what dev tenants have. The script
 # falls back to common production SKUs (ENTERPRISEPACK = E3,
 # SPE_E5 = M365 E5) if the dev pack is absent so this also works in
 # customer test tenants.
@@ -45,19 +45,19 @@ function Invoke-AssignLicenses {
         Write-Fail `
             "No suitable SKU found in tenant. Looked for: $($PreferredSkuParts -join ', ')." `
             ("Sign up for a free Microsoft 365 Developer subscription at`n" +
-             "https://developer.microsoft.com/microsoft-365/dev-program — the dev pack`n" +
+             "https://developer.microsoft.com/microsoft-365/dev-program - the dev pack`n" +
              "provisions DEVELOPERPACK_E5 with 25 licenses.")
         throw "No SKU available."
     }
 
     $available = $sku.PrepaidUnits.Enabled - $sku.ConsumedUnits
-    Write-Ok "SKU: $($sku.SkuPartNumber) — $available of $($sku.PrepaidUnits.Enabled) licenses available"
+    Write-Ok "SKU: $($sku.SkuPartNumber) - $available of $($sku.PrepaidUnits.Enabled) licenses available"
 
     if (-not $VerifyOnly -and $available -lt $UserMap.Keys.Count) {
         $needed = $UserMap.Keys.Count
         Write-Fail `
-            "License quota too low — need $needed, only $available available." `
-            ("Either: release licenses from existing users in Entra → Users → Licenses,`n" +
+            "License quota too low - need $needed, only $available available." `
+            ("Either: release licenses from existing users in Entra -> Users -> Licenses,`n" +
              "or upgrade SKU tier. The seed cannot proceed without enough licenses for all 10 users.")
         throw "License quota exhausted."
     }
@@ -65,7 +65,7 @@ function Invoke-AssignLicenses {
     foreach ($key in $UserMap.Keys) {
         $u = $UserMap[$key]
         if (-not $u.id) {
-            Write-Skip "$($u.upn) — no user id (verify-only mode), skipping license check"
+            Write-Skip "$($u.upn) - no user id (verify-only mode), skipping license check"
             continue
         }
 
@@ -74,22 +74,22 @@ function Invoke-AssignLicenses {
 
         if ($VerifyOnly) {
             if ($hasLicense) {
-                Write-Ok "$($u.upn) — licensed"
+                Write-Ok "$($u.upn) - licensed"
             } else {
-                Write-Warn "$($u.upn) — NOT LICENSED"
+                Write-Warn "$($u.upn) - NOT LICENSED"
             }
             continue
         }
 
         if ($hasLicense) {
-            Write-Skip "$($u.upn) — already licensed"
+            Write-Skip "$($u.upn) - already licensed"
             continue
         }
 
-        # Ensure UsageLocation is set — required before license assignment
+        # Ensure UsageLocation is set - required before license assignment
         if (-not $userDetail.UsageLocation) {
             Update-MgUser -UserId $u.id -UsageLocation 'US'
-            Write-Ok "$($u.upn) — UsageLocation set to US"
+            Write-Ok "$($u.upn) - UsageLocation set to US"
         }
 
         $params = @{
@@ -98,7 +98,7 @@ function Invoke-AssignLicenses {
         }
         try {
             Set-MgUserLicense -UserId $u.id -BodyParameter $params | Out-Null
-            Write-Ok "$($u.upn) — license assigned"
+            Write-Ok "$($u.upn) - license assigned"
         } catch {
             Write-Fail `
                 "License assignment failed for $($u.upn)." `
@@ -112,14 +112,14 @@ function Invoke-AssignLicenses {
     if ($VerifyOnly) { return }
 
     # Wait for mailbox provisioning. After Set-MgUserLicense, Microsoft
-    # takes 5–15 min to provision Exchange Online. Poll a readiness
+    # takes 5-15 min to provision Exchange Online. Poll a readiness
     # signal that uses scopes the seed already holds: GET /users/{id}
     # with $select=mail,proxyAddresses returns mail and SMTP proxy
     # addresses once Exchange Online has finalized the mailbox.
     #
     # The earlier implementation used /users/{id}/mailFolders, which
     # requires shared or application-tier Mail.Read permissions. The
-    # seed connects with delegated Mail.ReadWrite — sufficient for
+    # seed connects with delegated Mail.ReadWrite - sufficient for
     # the seed's own mailbox operations later, but not for cross-user
     # mailFolders reads, even as Global Admin. The call 403s silently
     # inside the predicate's catch and the loop times out at 900s on
@@ -128,18 +128,18 @@ function Invoke-AssignLicenses {
 
     foreach ($key in $UserMap.Keys) {
         $u = $UserMap[$key]
-        # Skip Sarah Watson (account disabled — mailbox doesn't get
+        # Skip Sarah Watson (account disabled - mailbox doesn't get
         # provisioned until/unless we enable it). For our demo the
         # license is what counts; her mailbox content seeding is
         # handled by enabling-temporarily then disabling-again in
         # helper 05.
         $isDisabled = (Get-MgUser -UserId $u.id -Property 'accountEnabled').AccountEnabled -eq $false
         if ($isDisabled) {
-            Write-Skip "$($u.upn) — account disabled, mailbox provisioning deferred"
+            Write-Skip "$($u.upn) - account disabled, mailbox provisioning deferred"
             continue
         }
 
-        # Pin the per-iteration values for the closure — bare $u
+        # Pin the per-iteration values for the closure - bare $u
         # capture would resolve to whatever the foreach is currently
         # pointing at when the predicate runs.
         $userId = $u.id

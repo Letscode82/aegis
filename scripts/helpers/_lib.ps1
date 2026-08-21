@@ -4,49 +4,49 @@
 
     All helpers source this file at the top so logging, idempotency
     state, and JSON loading work consistently. Must remain side-effect
-    free — sourcing this file should not perform any tenant operations.
+    free - sourcing this file should not perform any tenant operations.
 #>
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Paths
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 $Script:ScriptsRoot = Split-Path -Parent $PSScriptRoot
 $Script:SeedDataRoot = Join-Path $Script:ScriptsRoot 'seed-data'
 $Script:StateFile = Join-Path $Script:ScriptsRoot '.seed-state.json'
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Logging
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 function Write-Step {
     param([string]$Message)
     Write-Host ""
-    Write-Host "▶ $Message" -ForegroundColor Cyan
+    Write-Host " $Message" -ForegroundColor Cyan
 }
 
 function Write-Ok {
     param([string]$Message)
-    Write-Host "  ✓ $Message" -ForegroundColor Green
+    Write-Host "  [OK] $Message" -ForegroundColor Green
 }
 
 function Write-Skip {
     param([string]$Message)
-    Write-Host "  · $Message" -ForegroundColor DarkGray
+    Write-Host "  * $Message" -ForegroundColor DarkGray
 }
 
 function Write-Warn {
     param([string]$Message)
-    Write-Host "  ⚠ $Message" -ForegroundColor Yellow
+    Write-Host "  [!] $Message" -ForegroundColor Yellow
 }
 
 function Write-Fail {
     param([string]$Message, [string]$Remediation)
     Write-Host ""
-    Write-Host "✗ $Message" -ForegroundColor Red
+    Write-Host "[X] $Message" -ForegroundColor Red
     if ($Remediation) {
         Write-Host ""
         Write-Host "  Remediation:" -ForegroundColor Yellow
@@ -57,9 +57,9 @@ function Write-Fail {
     Write-Host ""
 }
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # JSON loading / state file
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 function Get-SeedJson {
     param([Parameter(Mandatory)][string]$RelativePath)
@@ -126,9 +126,9 @@ function Get-SeedStateMark {
     return $null
 }
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Tenant resolution + UPN substitution
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 function Resolve-Tenant {
     if (-not $env:M365_TENANT) {
@@ -145,9 +145,9 @@ function Resolve-UPN {
     return "$LocalPart@$Tenant"
 }
 
-# ───────────────────────────────────────────────────────────────────
-# User key → UPN resolution (for sites.json members, matter manifests)
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
+# User key -> UPN resolution (for sites.json members, matter manifests)
+# -------------------------------------------------------------------
 
 function Get-UserMap {
     $users = (Get-SeedJson 'users.json').users
@@ -164,9 +164,9 @@ function Get-UserMap {
     return $map
 }
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Random secure password generator (used for initial sign-in only)
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 function New-SecurePassword {
     param([int]$Length = 16)
@@ -192,9 +192,9 @@ function New-SecurePassword {
     return $chars.ToString()
 }
 
-# ───────────────────────────────────────────────────────────────────
-# Polling helper — returns when predicate is true or throws on timeout
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
+# Polling helper - returns when predicate is true or throws on timeout
+# -------------------------------------------------------------------
 
 function Wait-For {
     param(
@@ -213,7 +213,7 @@ function Wait-For {
                 return
             }
         } catch {
-            # Predicate failures are expected during provisioning — keep polling.
+            # Predicate failures are expected during provisioning - keep polling.
         }
         Start-Sleep -Seconds $IntervalSeconds
     }

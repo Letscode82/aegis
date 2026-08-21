@@ -1,6 +1,6 @@
 #!/usr/bin/env pwsh
 <#
-    _smoke-onedrive-upload.ps1 — Runtime smoke test for helper 06's
+    _smoke-onedrive-upload.ps1 - Runtime smoke test for helper 06's
     app-only OneDrive path.
 
     Drives Invoke-SeedOneDriveContent through synthetic matters with
@@ -12,14 +12,14 @@
       ./scripts/helpers/_smoke-onedrive-upload.ps1
 
     Asserts (per the PR task):
-      • Drive readiness probe: 404 → continue with warning, no upload.
-      • Drive readiness probe: 200 → proceed.
-      • Existence check: 404 → upload proceeds.
-      • Existence check: 200 → upload skipped (idempotency).
-      • Existence check: 403 / 500 → throws with original error visible.
-      • Upload: 201 / 200 → state recorded, success logged.
-      • Upload: 403 → throws, no success log.
-      • Binary body preserved through the call (content-type + bytes).
+      * Drive readiness probe: 404 -> continue with warning, no upload.
+      * Drive readiness probe: 200 -> proceed.
+      * Existence check: 404 -> upload proceeds.
+      * Existence check: 200 -> upload skipped (idempotency).
+      * Existence check: 403 / 500 -> throws with original error visible.
+      * Upload: 201 / 200 -> state recorded, success logged.
+      * Upload: 403 -> throws, no success log.
+      * Binary body preserved through the call (content-type + bytes).
 #>
 
 [CmdletBinding()]
@@ -28,9 +28,9 @@ param()
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Sandbox temp dir + state file rebind.
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 $smokeRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("aegis-smoke-od-" + [guid]::NewGuid())
 [void](New-Item -ItemType Directory -Path $smokeRoot -Force)
@@ -55,9 +55,9 @@ $Script:SeedDataRoot = Join-Path $smokeRoot 'seed-data'
 
 $env:AEGIS_M365_CLIENT_SECRET = 'fake-secret-for-smoke-only'
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Tiny assertion helpers (no Pester).
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 $Failures = New-Object System.Collections.ArrayList
 
@@ -75,11 +75,11 @@ function Assert-Equal {
     Assert-True ($Expected -eq $Actual) "$Message (expected=$Expected, actual=$Actual)"
 }
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Captures + mock invokers. The Graph caller drives both the drive-
 # readiness probe and the existence check; rules are keyed on the
 # (Method, URI-suffix) pair.
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 $captures = @{
     TokenFetchCount = 0
@@ -171,10 +171,10 @@ function Add-UploadRule { param($Match, [bool]$Throw = $false, [int]$Status = 20
     $captures.UploadRules += @{ Match = $Match; Throw = $Throw; Status = $Status }
 }
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Synthetic seed-data fixture. Two matters; alice owns 2 docs, bob
 # owns 1, dan (drive-not-ready) owns 1.
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 [void](New-Item -ItemType Directory -Path (Join-Path $Script:SeedDataRoot 'matters') -Force)
 
@@ -206,18 +206,18 @@ $userMap = @{
     dan   = [pscustomobject]@{ key='dan';   id='id-dan';   upn='dan@x';   displayName='Dan'   }
 }
 
-# ───────────────────────────────────────────────────────────────────
-# Scenario 1 — Drive readiness probe: 404 short-circuits one user;
+# -------------------------------------------------------------------
+# Scenario 1 - Drive readiness probe: 404 short-circuits one user;
 # 200 lets others proceed.
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 Write-Host ''
-Write-Host '── Scenario 1: drive readiness probe (404 skips user, 200 proceeds) ──' -ForegroundColor Cyan
+Write-Host '-- Scenario 1: drive readiness probe (404 skips user, 200 proceeds) --' -ForegroundColor Cyan
 Reset-Mocks
 
 # Drive probe rules:
-#   alice + bob → 200 (drives ready)
-#   dan        → 404 (drive not provisioned; whole user skipped)
+#   alice + bob -> 200 (drives ready)
+#   dan        -> 404 (drive not provisioned; whole user skipped)
 Add-GraphRule { param($m,$u) $m -eq 'GET' -and $u -match '/users/id-alice/drive$' } 200 (@{ id='drv-alice' })
 Add-GraphRule { param($m,$u) $m -eq 'GET' -and $u -match '/users/id-bob/drive$'   } 200 (@{ id='drv-bob' })
 Add-GraphRule { param($m,$u) $m -eq 'GET' -and $u -match '/users/id-dan/drive$'   } 404
@@ -250,12 +250,12 @@ Assert-True $bytesMatch 'upload bytes preserved byte-for-byte'
 $ct = ($captures.UploadCalls | Where-Object { $_.Url -match 'complaint\.docx' })[0].ContentType
 Assert-Equal 'application/octet-stream' $ct 'content-type is application/octet-stream'
 
-# ───────────────────────────────────────────────────────────────────
-# Scenario 2 — Existence check: 200 means file exists, upload skipped.
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
+# Scenario 2 - Existence check: 200 means file exists, upload skipped.
+# -------------------------------------------------------------------
 
 Write-Host ''
-Write-Host '── Scenario 2: existence check 200 → idempotent skip ──' -ForegroundColor Cyan
+Write-Host '-- Scenario 2: existence check 200 -> idempotent skip --' -ForegroundColor Cyan
 Reset-Mocks
 
 Add-GraphRule { param($m,$u) $m -eq 'GET' -and $u -match '/users/id-alice/drive$' } 200 (@{ id='drv-alice' })
@@ -268,14 +268,14 @@ Invoke-SeedOneDriveContent -UserMap $userMap
 
 Assert-Equal 0 $captures.UploadCalls.Count 'no uploads issued (every file already present)'
 
-# ───────────────────────────────────────────────────────────────────
-# Scenario 3 — Existence check: 403 must throw with original error
+# -------------------------------------------------------------------
+# Scenario 3 - Existence check: 403 must throw with original error
 # visible in the message. Silent error swallowing was the helper-05
 # bug we killed; do not let it back in here.
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 Write-Host ''
-Write-Host '── Scenario 3: existence check 403 → throws with status visible ──' -ForegroundColor Cyan
+Write-Host '-- Scenario 3: existence check 403 -> throws with status visible --' -ForegroundColor Cyan
 Reset-Mocks
 
 Add-GraphRule { param($m,$u) $m -eq 'GET' -and $u -match '/users/id-alice/drive$' } 200 (@{ id='drv-alice' })
@@ -296,12 +296,12 @@ Assert-True ($msg -match 'status 403') 'error message mentions HTTP 403'
 Assert-True ($msg -match 'Existence check failed') 'error message identifies the existence check'
 Assert-Equal 0 $captures.UploadCalls.Count 'no upload attempted on existence-check failure'
 
-# ───────────────────────────────────────────────────────────────────
-# Scenario 4 — Existence check: 500 must also throw (not silently skip).
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
+# Scenario 4 - Existence check: 500 must also throw (not silently skip).
+# -------------------------------------------------------------------
 
 Write-Host ''
-Write-Host '── Scenario 4: existence check 500 → throws ──' -ForegroundColor Cyan
+Write-Host '-- Scenario 4: existence check 500 -> throws --' -ForegroundColor Cyan
 Reset-Mocks
 
 Add-GraphRule { param($m,$u) $m -eq 'GET' -and $u -match '/users/id-alice/drive$' } 200 (@{ id='drv-alice' })
@@ -320,12 +320,12 @@ try {
 Assert-True $threw 'existence check 500 caused a thrown error'
 Assert-True ($msg -match 'status 500') 'error message mentions HTTP 500'
 
-# ───────────────────────────────────────────────────────────────────
-# Scenario 5 — Upload: 403 must throw and no success line.
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
+# Scenario 5 - Upload: 403 must throw and no success line.
+# -------------------------------------------------------------------
 
 Write-Host ''
-Write-Host '── Scenario 5: upload 403 → throws, no success ──' -ForegroundColor Cyan
+Write-Host '-- Scenario 5: upload 403 -> throws, no success --' -ForegroundColor Cyan
 Reset-Mocks
 
 Add-GraphRule { param($m,$u) $m -eq 'GET' -and $u -match '/users/id-alice/drive$' } 200 (@{ id='drv-alice' })
@@ -343,12 +343,12 @@ try {
 Assert-True $threw 'upload 403 surfaced as terminating error'
 Assert-Equal 1 $captures.UploadCalls.Count 'first upload attempted, run aborted before second'
 
-# ───────────────────────────────────────────────────────────────────
-# Scenario 6 — Drive readiness 500 (non-404) must throw.
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
+# Scenario 6 - Drive readiness 500 (non-404) must throw.
+# -------------------------------------------------------------------
 
 Write-Host ''
-Write-Host '── Scenario 6: drive readiness probe non-404 → throws ──' -ForegroundColor Cyan
+Write-Host '-- Scenario 6: drive readiness probe non-404 -> throws --' -ForegroundColor Cyan
 Reset-Mocks
 
 Add-GraphRule { param($m,$u) $m -eq 'GET' -and $u -match '/users/id-alice/drive$' } 500
@@ -366,18 +366,18 @@ Assert-True $threw 'drive probe 500 surfaced as terminating error'
 Assert-True ($msg -match 'Drive readiness probe failed') 'error message identifies the probe path'
 Assert-True ($msg -match 'status 500') 'error message includes the actual status'
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Cleanup + summary
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 Remove-Item -Recurse -Force $smokeRoot
 Remove-Item Env:\AEGIS_M365_CLIENT_SECRET -ErrorAction SilentlyContinue
 
 Write-Host ''
 if ($Failures.Count -gt 0) {
-    Write-Host "✗ $($Failures.Count) assertion failure(s):" -ForegroundColor Red
+    Write-Host "[X] $($Failures.Count) assertion failure(s):" -ForegroundColor Red
     $Failures | ForEach-Object { Write-Host "  - $_" -ForegroundColor Red }
     exit 1
 }
-Write-Host '✓ all scenarios passed' -ForegroundColor Green
+Write-Host '[OK] all scenarios passed' -ForegroundColor Green
 exit 0

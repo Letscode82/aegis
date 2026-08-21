@@ -1,13 +1,13 @@
 #!/usr/bin/env pwsh
 <#
-    05-seed-mailbox-content.ps1 — Send the realistic email threads
+    05-seed-mailbox-content.ps1 - Send the realistic email threads
     described in each matter manifest.
 
-    Auth model — read carefully
-    ───────────────────────────
+    Auth model - read carefully
+    ---------------------------
     Sending mail AS another user via Graph requires APPLICATION
     permissions. Delegated Global Admin is rejected by the Graph
-    permission model — Send-MgUserMail under a delegated token
+    permission model - Send-MgUserMail under a delegated token
     returns 403 even with Mail.Send and Mail.ReadWrite granted to
     the signed-in admin. This is not a missing scope; it's the
     permission model itself.
@@ -23,11 +23,11 @@
     recorded in the seed state file. Re-runs skip already-sent ids.
 
     State remediation: the previous (delegated-auth) implementation
-    printed "✓ sent" even on 403 because Send-MgUserMail wrote
+    printed "[OK] sent" even on 403 because Send-MgUserMail wrote
     non-terminating errors. State files from those runs may
     contain sentEmails entries for emails that never arrived.
     On first run after this PR, Reset-LegacySentEmailsStateIfNeeded
-    clears the bucket and stamps stateSchemaVersion = 2 — every
+    clears the bucket and stamps stateSchemaVersion = 2 - every
     email re-sends, then idempotency resumes normally.
 
     Sarah Watson note: with app-only sendMail, disabled accounts
@@ -38,15 +38,15 @@
 . (Join-Path $PSScriptRoot '_lib.ps1')
 . (Join-Path $PSScriptRoot '_app-only-auth.ps1')
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Constants
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 $Script:SentEmailsStateSchemaVersion = 2
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Body helpers (unchanged from prior PR)
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 function Resolve-EmailBody {
     param([Parameter(Mandatory)][string]$TemplateName)
@@ -68,12 +68,12 @@ function ConvertTo-HtmlBody {
     return "<html><body style=`"font-family:Calibri,Arial,sans-serif;font-size:11pt;`">$escaped</body></html>"
 }
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # State schema migration. One-time clean of legacy sentEmails entries
 # that may have been recorded against delegated-auth 403s. Returns
 # $true if a reset happened (so the caller can log / surface that to
 # the operator), $false if the state was already at v2.
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 function Reset-LegacySentEmailsStateIfNeeded {
     $state = Get-SeedState
@@ -84,7 +84,7 @@ function Reset-LegacySentEmailsStateIfNeeded {
 
     if ($version -ge $Script:SentEmailsStateSchemaVersion) { return $false }
 
-    Write-Warn "Clearing legacy sentEmails entries from pre-app-only-auth runs — those sends may not have reached recipients."
+    Write-Warn "Clearing legacy sentEmails entries from pre-app-only-auth runs - those sends may not have reached recipients."
     Write-Warn "Affected emails will be re-attempted on this run; idempotency resumes after this one-time reset."
 
     # Replace sentEmails with an empty PSCustomObject so the JSON shape stays stable.
@@ -105,12 +105,12 @@ function Reset-LegacySentEmailsStateIfNeeded {
     return $true
 }
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Send via app-only token. Throws on any non-202; the caller leaves
 # the state mark un-written so the next run retries. The previous
-# helper's "non-terminating error swallowed by ✓ sent" failure mode
-# cannot occur here — every code path either returns 202 or throws.
-# ───────────────────────────────────────────────────────────────────
+# helper's "non-terminating error swallowed by [OK] sent" failure mode
+# cannot occur here - every code path either returns 202 or throws.
+# -------------------------------------------------------------------
 
 function Send-AegisMatterEmail {
     param(
@@ -140,9 +140,9 @@ function Send-AegisMatterEmail {
         -SaveToSentItems $true
 }
 
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 # Orchestrator
-# ───────────────────────────────────────────────────────────────────
+# -------------------------------------------------------------------
 
 function Invoke-SeedMailboxContent {
     [CmdletBinding()]
@@ -179,21 +179,21 @@ function Invoke-SeedMailboxContent {
 
             if ($VerifyOnly) {
                 if ($alreadySent) {
-                    Write-Ok "    $($email.id) — sent"
+                    Write-Ok "    $($email.id) - sent"
                 } else {
-                    Write-Warn "    $($email.id) — NOT SENT"
+                    Write-Warn "    $($email.id) - NOT SENT"
                 }
                 continue
             }
 
             if ($alreadySent) {
-                Write-Skip "    $($email.id) — already sent"
+                Write-Skip "    $($email.id) - already sent"
                 continue
             }
 
             $sender = $UserMap[$email.from]
             if (-not $sender -or -not $sender.id) {
-                Write-Warn "    $($email.id) — sender '$($email.from)' not found, skipping"
+                Write-Warn "    $($email.id) - sender '$($email.from)' not found, skipping"
                 continue
             }
 
@@ -212,7 +212,7 @@ function Invoke-SeedMailboxContent {
                 }
             }
             if ($toRecipients.Count -eq 0) {
-                Write-Warn "    $($email.id) — no resolvable recipients, skipping"
+                Write-Warn "    $($email.id) - no resolvable recipients, skipping"
                 continue
             }
 
@@ -235,16 +235,16 @@ function Invoke-SeedMailboxContent {
                     matterId = $matter.matterId
                     emailId  = $email.id
                 }
-                Write-Ok "    $($email.id) — sent"
+                Write-Ok "    $($email.id) - sent"
             } catch {
                 Write-Fail `
                     "Email send failed: $($email.id) (matter $($matter.matterId))." `
                     ("Error: $($_.Exception.Message)`n" +
                      "Common causes:`n" +
-                     "  • Mailbox not yet provisioned — license-propagation latency can be 10-15 min.`n" +
-                     "  • App registration is missing the required Application permissions:`n" +
+                     "  * Mailbox not yet provisioned - license-propagation latency can be 10-15 min.`n" +
+                     "  * App registration is missing the required Application permissions:`n" +
                      "      Mail.Send, Mail.ReadWrite (admin-consented).`n" +
-                     "  • AEGIS_M365_CLIENT_SECRET expired or rotated.`n" +
+                     "  * AEGIS_M365_CLIENT_SECRET expired or rotated.`n" +
                      "Re-run the orchestrator to retry; idempotency will skip what's already sent.")
                 throw
             }
