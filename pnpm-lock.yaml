@@ -554,6 +554,9 @@ importers:
 
   packages/review:
     dependencies:
+      '@aegis/ai':
+        specifier: workspace:*
+        version: link:../ai
       '@aegis/ai-review':
         specifier: workspace:*
         version: link:../ai-review

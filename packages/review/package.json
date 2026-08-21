@@ -14,6 +14,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@aegis/ai": "workspace:*",
     "@aegis/ai-review": "workspace:*",
     "@aegis/db": "workspace:*",
     "@aegis/ui": "workspace:*",

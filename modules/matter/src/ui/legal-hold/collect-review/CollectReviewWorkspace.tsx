@@ -11,7 +11,7 @@
  */
 import React, { useCallback, useEffect, useState } from "react";
 import { C, F, M, SR, useToast } from "@aegis/ui";
-import { ReviewStep, ProduceStep, BatchPanel, ValidationPanel, EcaPanel } from "@aegis/review/ui";
+import { ReviewStep, ProduceStep, BatchPanel, ValidationPanel, EcaPanel, CopilotPanel } from "@aegis/review/ui";
 
 /** All review-set REST endpoints live under this neutral, module-agnostic base
  *  (matter and privacy both point the shared reviewer here). */
@@ -23,7 +23,7 @@ export interface CollectReviewWorkspaceProps {
   onBack: () => void;
 }
 
-type Step = "collect" | "eca" | "review" | "validate" | "batches" | "produce";
+type Step = "collect" | "eca" | "review" | "copilot" | "validate" | "batches" | "produce";
 type SetRow = { id: string; name: string; itemCount: number; status: string };
 
 const btn = (bg: string): React.CSSProperties => ({ padding: "12px 18px", background: bg, color: C.bg, border: "none", borderRadius: 8, fontFamily: F, fontSize: 14, fontWeight: 600, cursor: "pointer" });
@@ -95,6 +95,8 @@ export const CollectReviewWorkspace: React.FC<CollectReviewWorkspaceProps> = ({ 
       {step === "eca" && !activeSet && <Empty label="Collect documents first." />}
       {step === "review" && activeSet && <ReviewStep apiBase={REVIEW_API} reviewSetId={activeSet.id} canMutate={canMutate} onProduce={() => setStep("produce")} onReload={loadSets} />}
       {step === "review" && !activeSet && <Empty label="Collect documents first." />}
+      {step === "copilot" && activeSet && <CopilotPanel apiBase={REVIEW_API} reviewSetId={activeSet.id} canMutate={canMutate} />}
+      {step === "copilot" && !activeSet && <Empty label="Collect documents first." />}
       {step === "validate" && activeSet && <ValidationPanel apiBase={REVIEW_API} reviewSetId={activeSet.id} canMutate={canMutate} />}
       {step === "validate" && !activeSet && <Empty label="Collect documents first." />}
       {step === "batches" && activeSet && <BatchPanel apiBase={REVIEW_API} reviewSetId={activeSet.id} canMutate={canMutate} />}
@@ -115,9 +117,10 @@ const Stepper: React.FC<{ step: Step; setStep: (s: Step) => void; hasSets: boole
     { key: "collect", n: 1, label: "Collect" },
     { key: "eca", n: 2, label: "ECA" },
     { key: "review", n: 3, label: "Review" },
-    { key: "validate", n: 4, label: "Validate" },
-    { key: "batches", n: 5, label: "Batches" },
-    { key: "produce", n: 6, label: "Produce" },
+    { key: "copilot", n: 4, label: "Copilot" },
+    { key: "validate", n: 5, label: "Validate" },
+    { key: "batches", n: 6, label: "Batches" },
+    { key: "produce", n: 7, label: "Produce" },
   ];
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>

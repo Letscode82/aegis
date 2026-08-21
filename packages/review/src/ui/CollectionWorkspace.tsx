@@ -13,6 +13,7 @@ import { BatchPanel } from "./BatchPanel";
 import { CullPanel } from "./CullPanel";
 import { ValidationPanel } from "./ValidationPanel";
 import { EcaPanel } from "./EcaPanel";
+import { CopilotPanel } from "./CopilotPanel";
 
 export interface CollectionWorkspaceProps {
   /** Review-set REST base, e.g. "/api/review/sets". */
@@ -21,7 +22,7 @@ export interface CollectionWorkspaceProps {
   onBack: () => void;
 }
 
-type Stage = "eca" | "cull" | "review" | "validate" | "batches" | "produce";
+type Stage = "eca" | "cull" | "review" | "copilot" | "validate" | "batches" | "produce";
 const SOURCE: Record<string, { label: string; col: string }> = {
   LEGAL_HOLD: { label: "Legal Hold", col: C.bl }, DSAR: { label: "DSAR", col: C.tl },
   INVESTIGATION: { label: "Investigation", col: C.pp }, ADHOC: { label: "Ad-hoc", col: C.am },
@@ -53,7 +54,7 @@ export const CollectionWorkspace: React.FC<CollectionWorkspaceProps> = ({ apiBas
 
   const src = summary ? (SOURCE[summary.origin] || { label: summary.origin, col: C.t3 }) : null;
   const stages: Array<{ key: Stage; n: number; label: string }> = [
-    { key: "eca", n: 1, label: "ECA" }, { key: "cull", n: 2, label: "Cull" }, { key: "review", n: 3, label: "Review" }, { key: "validate", n: 4, label: "Validate" }, { key: "batches", n: 5, label: "Batches" }, { key: "produce", n: 6, label: "Produce" },
+    { key: "eca", n: 1, label: "ECA" }, { key: "cull", n: 2, label: "Cull" }, { key: "review", n: 3, label: "Review" }, { key: "copilot", n: 4, label: "Copilot" }, { key: "validate", n: 5, label: "Validate" }, { key: "batches", n: 6, label: "Batches" }, { key: "produce", n: 7, label: "Produce" },
   ];
 
   return (
@@ -87,6 +88,7 @@ export const CollectionWorkspace: React.FC<CollectionWorkspaceProps> = ({ apiBas
       {stage === "eca" && <EcaPanel apiBase={apiBase} reviewSetId={collectionId} />}
       {stage === "cull" && <CullPanel apiBase={apiBase} reviewSetId={collectionId} canMutate={canMutate} />}
       {stage === "review" && <ReviewStep apiBase={apiBase} reviewSetId={collectionId} canMutate={canMutate} onProduce={() => setStage("produce")} onReload={load} />}
+      {stage === "copilot" && <CopilotPanel apiBase={apiBase} reviewSetId={collectionId} canMutate={canMutate} />}
       {stage === "validate" && <ValidationPanel apiBase={apiBase} reviewSetId={collectionId} canMutate={canMutate} />}
       {stage === "batches" && <BatchPanel apiBase={apiBase} reviewSetId={collectionId} canMutate={canMutate} />}
       {stage === "produce" && <ProduceStep apiBase={apiBase} reviewSetId={collectionId} canMutate={canMutate} onReload={load} />}
