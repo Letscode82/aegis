@@ -2835,6 +2835,9 @@ model ReviewSetItem {
   excerpt        String?
   graphId        String?
   webUrl         String?
+  /// Item date (mailbox sentAt), captured at collection for date-window culling
+  /// and chronology. Null for undated sources (files, some chats).
+  sentAt         DateTime?
   aiVerdict      DSARReviewVerdict?
   aiScore        Float?
   aiRationale    String?

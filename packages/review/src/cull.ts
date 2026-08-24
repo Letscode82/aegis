@@ -88,6 +88,46 @@ export async function applyKeywordCull(organizationId: string, reviewSetId: stri
   return { excluded: ids.length, total: ids.length };
 }
 
+interface DatedItem { id: string; sentAt?: Date | string | null }
+
+/**
+ * Pure: ids of DATED items outside an inclusive [before, after] window. Undated
+ * items are never selected — a date window can't cull what it can't date.
+ * `before`/`after` are inclusive `YYYY-MM-DD` bounds (either may be omitted).
+ */
+export function selectDateWindowCullIds(items: DatedItem[], window: { before?: string | null; after?: string | null }): string[] {
+  const after = window.after ? Date.parse(`${window.after}T00:00:00.000Z`) : NaN; // keep on/after this
+  const before = window.before ? Date.parse(`${window.before}T23:59:59.999Z`) : NaN; // keep on/before this
+  const hasAfter = !Number.isNaN(after);
+  const hasBefore = !Number.isNaN(before);
+  if (!hasAfter && !hasBefore) return [];
+  const out: string[] = [];
+  for (const it of items) {
+    if (it.sentAt == null) continue;
+    const ts = it.sentAt instanceof Date ? it.sentAt.getTime() : Date.parse(String(it.sentAt));
+    if (Number.isNaN(ts)) continue;
+    if ((hasAfter && ts < after) || (hasBefore && ts > before)) out.push(it.id);
+  }
+  return out;
+}
+
+/** Exclude dated items outside a [after, before] window. Reversible + chain-sealed. */
+export async function applyDateWindowCull(organizationId: string, reviewSetId: string, window: { before?: string | null; after?: string | null }, actor: Actor): Promise<CullPassResult> {
+  const rs = await prisma.reviewSet.findFirst({ where: { id: reviewSetId, organizationId }, select: { id: true } });
+  if (!rs) throw new Error("Review set not found");
+  const items = await prisma.reviewSetItem.findMany({ where: { reviewSetId, excludedAt: null }, select: { id: true, sentAt: true } });
+  const ids = selectDateWindowCullIds(items, window);
+  const now = new Date();
+  if (ids.length) await prisma.reviewSetItem.updateMany({ where: { id: { in: ids } }, data: { excludedAt: now, exclusionReason: "OUT_OF_DATE_RANGE" } });
+  await logAudit({
+    organizationId, actorId: actor.id, actorType: actor.type ?? "USER",
+    action: "reviewset.cull_applied", resourceType: "ReviewSet", resourceId: reviewSetId,
+    afterJson: { kind: "date_window", after: window.after ?? null, before: window.before ?? null, excluded: ids.length } as never,
+    metadata: { source: "review", channel: "ediscovery" } as never,
+  });
+  return { excluded: ids.length, total: ids.length };
+}
+
 /** Exclude an entire source type (e.g. all TEAMS chat). Reversible + chain-sealed. */
 export async function applySourceTypeCull(organizationId: string, reviewSetId: string, sourceTypes: string[], actor: Actor): Promise<CullPassResult> {
   const rs = await prisma.reviewSet.findFirst({ where: { id: reviewSetId, organizationId }, select: { id: true } });

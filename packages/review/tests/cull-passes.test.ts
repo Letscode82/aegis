@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { selectKeywordCullIds, selectSourceTypeCullIds, JUNK_PATTERNS } from "../src/cull";
+import { selectKeywordCullIds, selectSourceTypeCullIds, selectDateWindowCullIds, JUNK_PATTERNS } from "../src/cull";
 
 const it_ = (id: string, p: Partial<{ title: string; excerpt: string | null; sourceType: string }>) => ({ id, title: "", excerpt: null, ...p });
 
@@ -22,6 +22,27 @@ describe("selectKeywordCullIds", () => {
   it("ships sensible junk starters", () => {
     expect(JUNK_PATTERNS).toContain("unsubscribe");
     expect(JUNK_PATTERNS.length).toBeGreaterThan(4);
+  });
+});
+
+describe("selectDateWindowCullIds", () => {
+  const items = [
+    { id: "before", sentAt: "2025-12-01T00:00:00Z" },
+    { id: "inside", sentAt: "2026-02-15T00:00:00Z" },
+    { id: "after", sentAt: "2026-05-01T00:00:00Z" },
+    { id: "undated", sentAt: null },
+  ];
+  it("selects dated items outside the inclusive window; never undated", () => {
+    expect(selectDateWindowCullIds(items, { after: "2026-01-01", before: "2026-03-31" }).sort()).toEqual(["after", "before"]);
+  });
+  it("supports an open-ended lower bound", () => {
+    expect(selectDateWindowCullIds(items, { after: "2026-01-01" })).toEqual(["before"]);
+  });
+  it("returns nothing when no bounds are given", () => {
+    expect(selectDateWindowCullIds(items, {})).toEqual([]);
+  });
+  it("accepts Date objects too", () => {
+    expect(selectDateWindowCullIds([{ id: "d", sentAt: new Date("2020-01-01T00:00:00Z") }], { after: "2026-01-01" })).toEqual(["d"]);
   });
 });
 
