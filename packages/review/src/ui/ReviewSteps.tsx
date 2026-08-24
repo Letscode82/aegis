@@ -25,6 +25,7 @@ interface Item {
 type Issue = { key: string; label: string };
 type ProfileOpt = { id: string; name: string; version: number };
 type RouteFilter = "ALL" | "ATTORNEY" | "REVIEWER" | "AUTO_CULL";
+type CodeFilter = "ALL" | "UNCODED" | "CODED" | "RESPONSIVE" | "PRIVILEGED";
 const CONFIDENTIALITY = ["None", "Confidential", "Highly Confidential", "Attorneys' Eyes Only"];
 const PRIV_TERMS = ["privileged", "attorney-client", "confidential", "work product", "outside counsel", "legal advice"];
 
@@ -51,6 +52,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
   const [issues, setIssues] = useState<Issue[]>([]);
   const [cursor, setCursor] = useState(0);
   const [filter, setFilter] = useState<RouteFilter>("ALL");
+  const [codeFilter, setCodeFilter] = useState<CodeFilter>("ALL");
   const [query, setQuery] = useState("");
   const [sortByPriority, setSortByPriority] = useState(true);
   const [hideSuppressed, setHideSuppressed] = useState(false);
@@ -105,13 +107,18 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
   const filtered = useMemo(() => {
     let list = items.filter((i) => {
       if (filter !== "ALL" && i.aiRoute !== filter) return false;
+      if (codeFilter === "UNCODED" && i.coded) return false;
+      if (codeFilter === "CODED" && !i.coded) return false;
+      if (codeFilter === "RESPONSIVE" && i.codedResponsive !== true) return false;
+      if (codeFilter === "PRIVILEGED" && !i.codedPrivileged) return false;
       if (hideSuppressed && derived.suppressed.has(i.id)) return false;
       if (query.trim()) { const q = query.toLowerCase(); return i.title.toLowerCase().includes(q) || (i.sourceSystem || "").toLowerCase().includes(q); }
       return true;
     });
     if (sortByPriority) list = [...list].sort((a, b) => aiPriority(b) - aiPriority(a));
     return list;
-  }, [items, filter, query, sortByPriority, hideSuppressed, derived]);
+  }, [items, filter, codeFilter, query, sortByPriority, hideSuppressed, derived]);
+  const uncodedInView = useMemo(() => filtered.filter((i) => !i.coded).length, [filtered]);
   useEffect(() => { if (cursor >= filtered.length) setCursor(0); }, [filtered.length, cursor]);
   const current = filtered[cursor];
 
@@ -147,6 +154,17 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
     } catch (e) { toast.error(String((e as Error).message || e)); }
   };
   const toggleSel = (id: string) => setSelected((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+
+  // Jump to the next uncoded document after the cursor (wrapping) — the review
+  // throughput lever. Bound to the "u" key + the "Next uncoded" button.
+  const gotoNextUncoded = useCallback(() => {
+    if (filtered.length === 0) return;
+    for (let step = 1; step <= filtered.length; step++) {
+      const idx = (cursor + step) % filtered.length;
+      if (!filtered[idx]?.coded) { setCursor(idx); return; }
+    }
+    toast.info("Every document in this view is coded.");
+  }, [filtered, cursor, toast]);
 
   const saveCriteria = async () => {
     try {
@@ -215,10 +233,11 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
       else if (k === "n") { e.preventDefault(); code({ responsive: false }, true); }
       else if (k === "p") { e.preventDefault(); code({ privileged: !current?.codedPrivileged }, false); }
       else if (k === "x") { e.preventDefault(); code({ redact: !current?.redact }, false); }
+      else if (k === "u") { e.preventDefault(); gotoNextUncoded(); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [filtered.length, code, current]);
+  }, [filtered.length, code, current, gotoNextUncoded]);
 
   const chip = (key: RouteFilter, label: string, n: number, col: string) => (
     <button onClick={() => { setFilter(key); setCursor(0); }} style={{
@@ -229,6 +248,14 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
     }}>
       {key !== "ALL" && <span style={{ width: 7, height: 7, borderRadius: "50%", background: col }} />}{label} {n}
     </button>
+  );
+
+  const codeChip = (key: CodeFilter, label: string, col: string) => (
+    <button onClick={() => { setCodeFilter(key); setCursor(0); }} style={{
+      fontSize: 11.5, fontWeight: 600, padding: "4px 10px", borderRadius: 20, cursor: "pointer",
+      background: codeFilter === key ? `${col}22` : "transparent",
+      color: codeFilter === key ? col : C.t3, border: `1px solid ${codeFilter === key ? col : C.br}`,
+    }}>{label}</button>
   );
 
   const hlTerms = useMemo(() => [...issues.map((i) => i.label), ...PRIV_TERMS, ...(query.trim() ? [query.trim()] : [])], [issues, query]);
@@ -295,7 +322,17 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
             {chip("REVIEWER", "Reviewer", counts.REVIEWER, C.bl)}
             {chip("AUTO_CULL", "Auto-cull", counts.AUTO_CULL, C.t4)}
           </div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center" }}>
+            {codeChip("ALL", "Any", C.t2)}
+            {codeChip("UNCODED", "Uncoded", C.am)}
+            {codeChip("CODED", "Coded", C.gn)}
+            {codeChip("RESPONSIVE", "Responsive", C.gn)}
+            {codeChip("PRIVILEGED", "Privileged", C.pp)}
+          </div>
           <input value={query} onChange={(e) => { setQuery(e.target.value); setCursor(0); }} placeholder="Search subject or custodian…" style={{ ...inputS, padding: "9px 12px", fontSize: 13, borderColor: C.br, background: C.bg }} />
+          <button disabled={uncodedInView === 0} onClick={gotoNextUncoded} title="Jump to the next uncoded document (u)" style={{ ...ghost(uncodedInView > 0 ? C.am : C.t4), padding: "7px 12px", fontSize: 12, textAlign: "center" }}>
+            {uncodedInView > 0 ? `↦ Next uncoded (${uncodedInView})` : "All coded in view ✓"}
+          </button>
         </div>
         {selected.size > 0 && (
           <div style={{ margin: "0 8px 8px", padding: "8px 10px", background: C.s1, border: `1px solid ${C.brL}`, borderRadius: 8, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
@@ -332,6 +369,17 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
       <div style={{ overflowY: "auto", minHeight: 0 }}>
         {!current ? <div style={{ padding: 40, color: C.t4, fontFamily: M }}>Select a document.</div> : (
           <div style={{ padding: "24px 34px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 8, flexWrap: "wrap" }}>
+              <div style={{ fontFamily: M, fontSize: 11, color: C.t3, letterSpacing: .4 }}>
+                Doc <span style={{ color: C.t1 }}>{cursor + 1}</span> of {filtered.length}
+                {uncodedInView > 0 && <span style={{ color: C.am }}> · {uncodedInView} uncoded</span>}
+              </div>
+              <div style={{ display: "flex", gap: 6, alignItems: "center", fontFamily: M, fontSize: 10, color: C.t4, flexWrap: "wrap" }}>
+                {[["J/K", "move"], ["R", "resp"], ["N", "not"], ["P", "priv"], ["X", "redact"], ["U", "next uncoded"]].map(([k, v]) => (
+                  <span key={k} title={`${k} — ${v}`}><kbd style={{ background: C.s1, border: `1px solid ${C.br}`, borderRadius: 3, padding: "0 4px", color: C.t2 }}>{k}</kbd> {v}</span>
+                ))}
+              </div>
+            </div>
             <div style={{ fontFamily: M, fontSize: 11, color: C.t3, letterSpacing: .4, textTransform: "uppercase" }}>{current.sourceType} · {current.sourceSystem}</div>
             <div style={{ fontFamily: SR, fontSize: 22, fontWeight: 600, margin: "8px 0 14px", lineHeight: 1.25 }}>{highlight(current.title, hlTerms)}</div>
             <div style={{ display: "flex", gap: 16, flexWrap: "wrap", fontSize: 11.5, color: C.t3, marginBottom: 14 }}>
