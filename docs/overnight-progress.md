@@ -24,13 +24,28 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
 5. ☐ **AI view upgrade.** Per-doc AI tags (responsive/priv/PII/key) with
    confidence + citation surfaced; filter by AI route/confidence; CAP-4-governed
    bulk-accept of confident cited calls.
-6. ☐ **Relativity export.** Concordance load-file (`.dat`/`.opt` + extracted-text
-   manifest) from Produce, stub-first — the "cull → export to Relativity for
-   detailed review" story.
+6. ☐ **Relativity export + RelativityOne connector.** (a) Concordance load-file
+   (`.dat`/`.opt` + extracted-text manifest) download from Produce. (b) "Connect
+   to a RelativityOne instance" (instance URL + workspace id + credential ref)
+   and a **Push to workspace** action that packages the load-file and POSTs it to
+   the configured RelativityOne import endpoint — stub-first (documented seam;
+   real Import API behind it). Keep migration-free (config via env / admin field,
+   no new table); if per-org persistence needs a column, split that into a
+   deferred (unmerged) PR.
 7. ☐ **AI Validation dashboard (AIR-6 read half).** recall/precision/F1/overturn
    per profile + drift over existing validation runs.
 8. ☐ **Collection workspace stepper.** Swap the flow indicator for the crisp
    `Stepper` across ECA → Cull → Review → Copilot → Validate → Batches → Produce.
+9. ☐ **Theme toggle — Blue (dark) ↔ Facebook Lite.** Runtime palette swap: keep
+   the `${C.x}44` alpha-append idiom working by mutating the `C` token object
+   in place to the chosen palette and remounting the app subtree (keyed by
+   theme) + persisting to localStorage; a Facebook-style light palette (bg
+   #F0F2F5, card #fff, primary #1877F2, text #050505/#65676B, border #CED0D4).
+   Toggle in the app shell; body background follows the theme. Migration-free
+   but larger — verify with a full `pnpm build`, not just tsc.
+10. ☐ **Steppers everywhere + UI/UX polish.** Adopt the crisp `Stepper` across
+    every workflow screen that has stages (intake, workflows, DSAR, matter
+    closeout, etc.) and a general cool-factor pass where it helps.
 
 ## Deferred (need a migration — build, open PR, DO NOT merge)
 
@@ -42,4 +57,5 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
 ## Log
 - (start) Queue created. Beginning item 1.
 - item 1 ✅ merged PR #341 — ECA/cull dashboard upgrade + cost-model NaN fix (25 review tests).
-- item 2 ✅ — collection filters (date-range + keyword) via pure filterHits, wired into ad-hoc + hold collection + investigation workup + custodian picker UI (8 matter tests). PR next.
+- item 2 ✅ merged PR #342 — collection filters (date-range + keyword) via pure filterHits (8 matter tests).
+- (user add) extended item 6 with a RelativityOne connector (push-to-workspace, stub-first); added item 9 (theme toggle: Blue dark ↔ Facebook Lite) and item 10 (steppers everywhere + UI polish).
