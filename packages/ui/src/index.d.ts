@@ -121,6 +121,20 @@ export interface SparklineProps {
 }
 export const Sparkline: React.FC<SparklineProps>;
 
+// Stepper — crisp horizontal step indicator for guided multi-step flows.
+export interface StepperStep {
+  label: string;
+  sublabel?: string;
+}
+export interface StepperProps {
+  steps: StepperStep[];
+  current: number;
+  furthest?: number;
+  onStepClick?: (step: number) => void;
+  compact?: boolean;
+}
+export const Stepper: React.FC<StepperProps>;
+
 // PanelBoundary (W4-1)
 export interface PanelBoundaryProps {
   label?: string;

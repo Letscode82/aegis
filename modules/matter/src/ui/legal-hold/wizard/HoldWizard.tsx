@@ -11,8 +11,8 @@
  * The shell is intentionally a thin coordinator; each Step* component
  * owns its own form state and patches WizardState on change.
  */
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Card, C, F, M, useToast } from "@aegis/ui";
+import React, { useCallback, useEffect, useState } from "react";
+import { Card, Stepper, C, F, useToast } from "@aegis/ui";
 import { Step1Scope } from "./Step1Scope";
 import { Step2Custodians } from "./Step2Custodians";
 import { Step3DataSources } from "./Step3DataSources";
@@ -153,7 +153,22 @@ export const HoldWizard: React.FC<HoldWizardProps> = ({
         color: C.t1,
       }}
     >
-      <StepIndicator current={step} />
+      <Card>
+        <Stepper
+          steps={([1, 2, 3, 4, 5] as WizardStep[]).map((s) => ({
+            label: STEP_LABELS[s],
+          }))}
+          current={step}
+          furthest={state.furthestStep}
+          onStepClick={(s) => {
+            // Allow jumping back to any visited step; can't skip ahead.
+            if (s <= Math.max(state.furthestStep, step)) {
+              setStep(s as WizardStep);
+              if (s < step) setStepValid(true);
+            }
+          }}
+        />
+      </Card>
 
       <Card>
         {step === 1 && <Step1Scope {...stepProps} />}
@@ -203,58 +218,6 @@ export const HoldWizard: React.FC<HoldWizardProps> = ({
           )}
         </div>
       </div>
-    </div>
-  );
-};
-
-// ────────────────────────────────────────────────────────────────────
-// Step indicator
-// ────────────────────────────────────────────────────────────────────
-
-const StepIndicator: React.FC<{ current: WizardStep }> = ({ current }) => {
-  const steps: WizardStep[] = useMemo(() => [1, 2, 3, 4, 5], []);
-  return (
-    <div
-      style={{
-        display: "grid",
-        gridTemplateColumns: `repeat(${steps.length}, 1fr)`,
-        gap: 6,
-        padding: "10px 4px",
-      }}
-    >
-      {steps.map((s) => {
-        const isPast = s < current;
-        const isCurrent = s === current;
-        return (
-          <div key={s} style={{ display: "grid", gap: 4 }}>
-            <div
-              style={{
-                height: 4,
-                borderRadius: 2,
-                background: isCurrent
-                  ? C.bl
-                  : isPast
-                    ? C.gn
-                    : C.brL,
-              }}
-            />
-            <div
-              style={{
-                fontSize: 10,
-                fontFamily: M,
-                color: isCurrent ? C.t1 : C.t3,
-                letterSpacing: 0.5,
-              }}
-            >
-              <strong style={{ color: isCurrent ? C.bl : "inherit" }}>
-                {s}
-              </strong>
-              {" · "}
-              {STEP_LABELS[s]}
-            </div>
-          </div>
-        );
-      })}
     </div>
   );
 };
