@@ -10,6 +10,34 @@ import { C, F, M, SR } from "@aegis/ui";
 
 const badge = (col) => ({ fontSize: 10, fontWeight: 700, letterSpacing: .4, color: col, border: `1px solid ${col}`, borderRadius: 5, padding: "2px 8px", whiteSpace: "nowrap" });
 
+// Structured prompt shown when no letter is pasted — a fill-in-the-blanks
+// template so counsel can frame an investigation even without a formal referral.
+const SAMPLE_PLACEHOLDER = `No letter yet? Frame the investigation with a few lines — AEGIS extracts the issues and drafts the plan:
+
+WHAT HAPPENED: <one or two sentences on the alleged conduct>
+WHO IS INVOLVED: <names / roles of the subject(s) and any witnesses>
+WHEN: <approximate dates or time window>
+POTENTIAL ISSUES: <e.g. trade-secret misappropriation, self-dealing, data exfiltration, harassment, FCPA>
+WHERE THE EVIDENCE LIVES: <mailboxes, Teams, OneDrive/SharePoint sites, systems>
+WHAT WE NEED TO KNOW: <the questions the investigation must answer>
+
+…or paste the full allegation / whistleblower / referral letter here and AEGIS will read it directly.`;
+
+// A worked example that matches the seeded demo mailboxes (vendorx / §8.2 IP dispute).
+const SAMPLE_ALLEGATION = `CONFIDENTIAL — INTERNAL INVESTIGATION REFERRAL
+
+WHAT HAPPENED: A whistleblower reports that during the VendorX master-services negotiation, a member of the engineering team shared AEGIS's confidential §8.2 pricing model and proprietary source-code excerpts with the counterparty ahead of contract execution, and that a departing engineer moved key files to a personal drive before resigning to join VendorX.
+
+WHO IS INVOLVED: Marcus Reid (in-house counsel on the deal), Priya Kulkarni (engineering lead), Carlos Mendez (finance). Possible departed custodian on the engineering side.
+
+WHEN: The three months leading up to the VendorX MSA signing.
+
+POTENTIAL ISSUES: Trade-secret misappropriation; breach of the §8.2 confidentiality clause; unauthorized disclosure of pricing to a counterparty; data exfiltration by a departing employee.
+
+WHERE THE EVIDENCE LIVES: The custodians' Exchange mailboxes, the deal Teams channel, and the VendorX SharePoint/OneDrive workspace.
+
+WHAT WE NEED TO KNOW: What confidential material left the company, who sent it, when, and to whom; whether the §8.2 clause was breached; and whether any files were taken by a departing employee.`;
+
 export function InvestigationsHub() {
   const [rows, setRows] = useState(null);
   const [showNew, setShowNew] = useState(false);
@@ -30,7 +58,7 @@ export function InvestigationsHub() {
       {showNew && <NewInvestigationModal onClose={() => setShowNew(false)} onCreated={() => { setShowNew(false); load(); }} />}
 
       <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, overflow: "hidden" }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 150px 1fr 120px", gap: 0, padding: "10px 18px", background: C.cd, borderBottom: `1px solid ${C.br}`, fontSize: 10.5, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t3 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.5fr) 120px minmax(0,0.9fr) 240px", gap: 12, padding: "10px 18px", background: C.cd, borderBottom: `1px solid ${C.br}`, fontSize: 10.5, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t3 }}>
           <div>Investigation</div><div>Matter</div><div>Issues</div><div style={{ textAlign: "right" }}>Actions</div>
         </div>
         {rows === null && <div style={{ padding: 22, color: C.t4, fontFamily: M, fontSize: 12.5 }}>Loading…</div>}
@@ -42,83 +70,148 @@ export function InvestigationsHub() {
 }
 
 function InvestigationRow({ inv }) {
-  const [custodians, setCustodians] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [picked, setPicked] = useState(() => new Set());
-  const [workup, setWorkup] = useState(null);
-  const [workBusy, setWorkBusy] = useState(false);
-  const [msg, setMsg] = useState("");
+  const [showCust, setShowCust] = useState(false);
   const [showChron, setShowChron] = useState(false);
   const [showReport, setShowReport] = useState(false);
-  const suggest = async () => {
-    setBusy(true);
-    try {
-      const r = await fetch(`/api/investigations/${inv.matterId}/suggest-custodians`, { method: "POST" });
-      const d = await r.json();
-      const list = d.ok ? d.custodians : [];
-      setCustodians(list);
-      setPicked(new Set(list.map((c) => c.email).filter(Boolean)));
-    } catch { setCustodians([]); } finally { setBusy(false); }
-  };
-  const toggle = (email) => setPicked((p) => { const n = new Set(p); if (n.has(email)) n.delete(email); else n.add(email); return n; });
-  const runWorkup = async () => {
-    setWorkBusy(true); setMsg("");
-    try {
-      const r = await fetch(`/api/investigations/${inv.matterId}/workup`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ custodianIdentifiers: [...picked] }) });
-      const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
-      setWorkup(d.result);
-    } catch (e) { setMsg(String(e.message || e)); } finally { setWorkBusy(false); }
-  };
   return (
     <div style={{ borderBottom: `1px solid ${C.br}44` }}>
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 150px 1fr 120px", gap: 0, padding: "13px 18px", alignItems: "center" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0,1.5fr) 120px minmax(0,0.9fr) 240px", gap: 12, padding: "13px 18px", alignItems: "center" }}>
         <div style={{ minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{inv.matterTitle}</div>
           <div style={{ fontSize: 11, color: C.t4, fontFamily: M, marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{inv.sourceText.slice(0, 90)}…</div>
         </div>
-        <div style={{ fontFamily: M, fontSize: 12, color: C.t2 }}>{inv.matterNumber || <span style={{ color: C.t4 }}>—</span>}</div>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>{(inv.issues || []).slice(0, 4).map((i) => <span key={i.key} style={badge(C.pp)}>{i.label}</span>)}</div>
-        <div style={{ textAlign: "right", display: "flex", gap: 6, justifyContent: "flex-end" }}>
-          <button onClick={suggest} disabled={busy} style={{ fontSize: 11, fontWeight: 600, padding: "5px 9px", borderRadius: 6, cursor: "pointer", background: "transparent", color: C.cy, border: `1px solid ${C.cy}` }}>{busy ? "…" : "Custodians"}</button>
+        <div style={{ fontFamily: M, fontSize: 12, color: C.t2, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis" }}>{inv.matterNumber || <span style={{ color: C.t4 }}>—</span>}</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 5, minWidth: 0 }}>{(inv.issues || []).slice(0, 4).map((i) => <span key={i.key} style={badge(C.pp)}>{i.label}</span>)}</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "flex-end" }}>
+          <button onClick={() => setShowCust((v) => !v)} style={{ fontSize: 11, fontWeight: 600, padding: "5px 9px", borderRadius: 6, cursor: "pointer", background: showCust ? `${C.cy}14` : "transparent", color: C.cy, border: `1px solid ${C.cy}` }}>Custodians</button>
           <button onClick={() => setShowChron((v) => !v)} style={{ fontSize: 11, fontWeight: 600, padding: "5px 9px", borderRadius: 6, cursor: "pointer", background: showChron ? `${C.am}14` : "transparent", color: C.am, border: `1px solid ${C.am}` }}>Chronology</button>
           <button onClick={() => setShowReport(true)} style={{ fontSize: 11, fontWeight: 600, padding: "5px 9px", borderRadius: 6, cursor: "pointer", background: "transparent", color: C.gn, border: `1px solid ${C.gn}` }}>Report</button>
           <button onClick={() => { window.location.href = `/?view=matters&matterId=${inv.matterId}`; }} style={{ fontSize: 11, fontWeight: 600, padding: "5px 9px", borderRadius: 6, cursor: "pointer", background: "transparent", color: C.bl, border: `1px solid ${C.bl}` }}>Matter →</button>
         </div>
       </div>
-      {custodians && (
-        <div style={{ padding: "0 18px 13px 18px" }}>
-          <div style={{ border: `1px solid ${C.br}`, borderRadius: 8, padding: "10px 12px", background: C.bg }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, gap: 10, flexWrap: "wrap" }}>
-              <div style={{ fontSize: 10.5, fontFamily: M, letterSpacing: .6, textTransform: "uppercase", color: C.cy }}>Custodians ({picked.size}/{custodians.length} selected)</div>
-              {custodians.length > 0 && !workup && (
-                <button onClick={runWorkup} disabled={workBusy || picked.size === 0} title="Create a draft legal hold on the matter and collect from the selected custodians" style={{ fontSize: 11.5, fontWeight: 600, padding: "6px 11px", borderRadius: 7, cursor: "pointer", background: C.pp, color: C.bg, border: "none" }}>{workBusy ? "Working…" : "⚖ Preserve & collect →"}</button>
-              )}
-            </div>
-            {custodians.length === 0 && <div style={{ fontSize: 12, color: C.t4 }}>No candidates found.</div>}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {custodians.map((c) => {
-                const on = c.email && picked.has(c.email);
+      {showCust && <div style={{ padding: "0 18px 13px 18px" }}><CustodianPicker matterId={inv.matterId} /></div>}
+      {showChron && <div style={{ padding: "0 18px 14px 18px" }}><ChronologyPanel matterId={inv.matterId} /></div>}
+      {showReport && <ReportModal matterId={inv.matterId} onClose={() => setShowReport(false)} />}
+    </div>
+  );
+}
+
+function isEmail(s) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s); }
+
+/**
+ * Search-driven custodian picker — type a name (marcus / priya / carlos), pick
+ * the real directory match, or paste an exact address. Replaces the old
+ * auto-suggest panel that returned 0 and gave no way to select. Selected
+ * custodians feed the Preserve & collect workup on the investigation's matter.
+ */
+function CustodianPicker({ matterId }) {
+  const [q, setQ] = useState("");
+  const [results, setResults] = useState([]);
+  const [searching, setSearching] = useState(false);
+  const [simulated, setSimulated] = useState(false);
+  const [selected, setSelected] = useState([]); // {email, name, title}
+  const [manual, setManual] = useState("");
+  const [workup, setWorkup] = useState(null);
+  const [workBusy, setWorkBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const inp = { flex: 1, minWidth: 160, background: C.cd, border: `1px solid ${C.br}`, borderRadius: 7, color: C.t1, fontFamily: F, fontSize: 12.5, padding: "7px 10px", outline: "none" };
+
+  useEffect(() => {
+    const term = q.trim();
+    if (term.length < 2) { setResults([]); setSearching(false); return; }
+    setSearching(true);
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/investigations/${matterId}/custodian-search?q=${encodeURIComponent(term)}`);
+        const d = await r.json();
+        setResults(d.ok ? d.users : []);
+        setSimulated(!!d.simulated);
+      } catch { setResults([]); } finally { setSearching(false); }
+    }, 280);
+    return () => clearTimeout(t);
+  }, [q, matterId]);
+
+  const add = (u) => {
+    const email = (u.email || "").trim();
+    if (!email) return;
+    setSelected((prev) => prev.some((s) => s.email.toLowerCase() === email.toLowerCase()) ? prev : [...prev, { email, name: u.name || email, title: u.title || "" }]);
+  };
+  const addManual = () => {
+    const email = manual.trim();
+    if (!isEmail(email)) { setMsg("Enter a valid email address."); return; }
+    setMsg("");
+    add({ email, name: email });
+    setManual("");
+  };
+  const remove = (email) => setSelected((prev) => prev.filter((s) => s.email !== email));
+
+  const runWorkup = async () => {
+    setWorkBusy(true); setMsg("");
+    try {
+      const r = await fetch(`/api/investigations/${matterId}/workup`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ custodianIdentifiers: selected.map((s) => s.email) }) });
+      const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setWorkup(d.result);
+    } catch (e) { setMsg(String(e.message || e)); } finally { setWorkBusy(false); }
+  };
+
+  return (
+    <div style={{ border: `1px solid ${C.br}`, borderRadius: 8, padding: "12px 14px", background: C.bg }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, gap: 10, flexWrap: "wrap" }}>
+        <div style={{ fontSize: 10.5, fontFamily: M, letterSpacing: .6, textTransform: "uppercase", color: C.cy }}>Select custodians ({selected.length} selected)</div>
+        {simulated && <span style={{ fontSize: 9.5, fontFamily: M, color: C.am, border: `1px solid ${C.am}`, borderRadius: 4, padding: "1px 6px" }}>SIMULATED DIRECTORY — connect M365 for real users</span>}
+      </div>
+
+      {!workup && (
+        <>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search the directory — e.g. marcus, priya, carlos" style={inp} />
+          </div>
+          {searching && <div style={{ fontSize: 11.5, color: C.t4, marginBottom: 6 }}>Searching…</div>}
+          {!searching && q.trim().length >= 2 && results.length === 0 && <div style={{ fontSize: 11.5, color: C.t4, marginBottom: 6 }}>No directory matches. Paste the exact address below.</div>}
+          {results.length > 0 && (
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 10 }}>
+              {results.map((u) => {
+                const on = selected.some((s) => s.email.toLowerCase() === (u.email || "").toLowerCase());
                 return (
-                  <button key={c.id} onClick={() => c.email && toggle(c.email)} style={{ textAlign: "left", cursor: "pointer", border: `1px solid ${on ? C.pp : C.br}`, background: on ? `${C.pp}14` : "transparent", borderRadius: 7, padding: "6px 10px", fontSize: 12 }}>
-                    <span style={{ fontWeight: 600 }}>{on ? "✓ " : ""}{c.name}</span>{c.title ? <span style={{ color: C.t4 }}> · {c.title}</span> : null}
-                    <div style={{ fontSize: 10.5, color: C.t4, fontFamily: M }}>{c.email}</div>
+                  <button key={u.id || u.email} onClick={() => add(u)} disabled={on || !u.email} style={{ textAlign: "left", cursor: on ? "default" : "pointer", border: `1px solid ${on ? C.gn : C.br}`, background: on ? `${C.gn}14` : "transparent", borderRadius: 7, padding: "6px 10px", fontSize: 12, opacity: u.email ? 1 : .5 }}>
+                    <span style={{ fontWeight: 600 }}>{on ? "✓ " : "+ "}{u.name || u.email}</span>{u.title ? <span style={{ color: C.t4 }}> · {u.title}</span> : null}
+                    <div style={{ fontSize: 10.5, color: C.t4, fontFamily: M }}>{u.email || "no mailbox"}</div>
                   </button>
                 );
               })}
             </div>
-            {msg && <div style={{ fontSize: 12, color: C.rd, marginTop: 8 }}>{msg}</div>}
-            {workup && (
-              <div style={{ marginTop: 10, borderTop: `1px solid ${C.br}`, paddingTop: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                <span style={{ ...badge(C.gn), fontSize: 10 }}>PRESERVED &amp; COLLECTED</span>
-                <span style={{ fontSize: 12, color: C.t2 }}>Draft hold created · <b>{workup.itemCount}</b> documents collected{workup.simulated ? " (simulated)" : ""}.</span>
-                <button onClick={() => { window.location.href = `/review/collections/${workup.reviewSetId}`; }} style={{ fontSize: 11.5, fontWeight: 600, padding: "6px 11px", borderRadius: 7, cursor: "pointer", background: C.cy, color: C.bg, border: "none" }}>Open collection →</button>
-              </div>
-            )}
+          )}
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: selected.length ? 12 : 0 }}>
+            <input value={manual} onChange={(e) => setManual(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addManual(); }} placeholder="…or paste an exact mailbox — name@tenant.onmicrosoft.com" style={inp} />
+            <button onClick={addManual} disabled={!manual.trim()} style={{ fontSize: 11.5, fontWeight: 600, padding: "7px 12px", borderRadius: 7, cursor: "pointer", background: "transparent", color: C.cy, border: `1px solid ${C.cy}` }}>+ Add address</button>
           </div>
+        </>
+      )}
+
+      {selected.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+          {selected.map((s) => (
+            <span key={s.email} style={{ display: "inline-flex", alignItems: "center", gap: 6, border: `1px solid ${C.pp}`, background: `${C.pp}14`, borderRadius: 20, padding: "4px 6px 4px 11px", fontSize: 12 }}>
+              <span><b>{s.name}</b> <span style={{ color: C.t4, fontFamily: M, fontSize: 10.5 }}>{s.email}</span></span>
+              {!workup && <button onClick={() => remove(s.email)} title="Remove" style={{ fontSize: 11, color: C.t3, background: "transparent", border: "none", cursor: "pointer", lineHeight: 1 }}>✕</button>}
+            </span>
+          ))}
         </div>
       )}
-      {showChron && <div style={{ padding: "0 18px 14px 18px" }}><ChronologyPanel matterId={inv.matterId} /></div>}
-      {showReport && <ReportModal matterId={inv.matterId} onClose={() => setShowReport(false)} />}
+
+      {!workup && selected.length > 0 && (
+        <button onClick={runWorkup} disabled={workBusy} title="Create a draft legal hold on the matter and collect from the selected custodians" style={{ fontSize: 11.5, fontWeight: 600, padding: "7px 13px", borderRadius: 7, cursor: "pointer", background: C.pp, color: C.bg, border: "none" }}>{workBusy ? "Working…" : "⚖ Preserve & collect →"}</button>
+      )}
+
+      {msg && <div style={{ fontSize: 12, color: C.rd, marginTop: 8 }}>{msg}</div>}
+
+      {workup && (
+        <div style={{ marginTop: 4, borderTop: `1px solid ${C.br}`, paddingTop: 10, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <span style={{ ...badge(C.gn), fontSize: 10 }}>PRESERVED &amp; COLLECTED</span>
+          <span style={{ fontSize: 12, color: C.t2 }}>Draft hold created · <b>{workup.itemCount}</b> documents collected{workup.simulated ? " (simulated)" : ""}.</span>
+          <button onClick={() => { window.location.href = `/review/collections/${workup.reviewSetId}`; }} style={{ fontSize: 11.5, fontWeight: 600, padding: "6px 11px", borderRadius: 7, cursor: "pointer", background: C.cy, color: C.bg, border: "none" }}>Open collection →</button>
+        </div>
+      )}
     </div>
   );
 }
@@ -162,8 +255,12 @@ function NewInvestigationModal({ onClose, onCreated }) {
               <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Project Falcon — trade-secret misappropriation" style={inp} />
             </div>
             <div>
-              <div style={{ fontSize: 11, fontWeight: 600, color: C.t3, marginBottom: 5 }}>Source letter / allegation</div>
-              <textarea value={source} onChange={(e) => setSource(e.target.value)} rows={6} placeholder="A departing VP of Engineering is alleged to have downloaded trade-secret source code and pricing models to a personal drive before joining a competitor…" style={{ ...inp, resize: "vertical" }} />
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 10, marginBottom: 5 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: C.t3 }}>Source letter / allegation</div>
+                <button type="button" onClick={() => setSource(SAMPLE_ALLEGATION)} style={{ fontSize: 11, fontWeight: 600, padding: "3px 9px", borderRadius: 6, cursor: "pointer", background: "transparent", color: C.cy, border: `1px solid ${C.cy}` }}>Insert sample allegation</button>
+              </div>
+              <textarea value={source} onChange={(e) => setSource(e.target.value)} rows={9} placeholder={SAMPLE_PLACEHOLDER} style={{ ...inp, resize: "vertical", fontFamily: M, fontSize: 12.5, lineHeight: 1.55 }} />
+              <div style={{ fontSize: 11, color: C.t4, marginTop: 5 }}>No letter yet? Fill the template above, or click <b>Insert sample allegation</b> to load a worked example you can edit.</div>
             </div>
             <div><button disabled={busy || !source.trim()} onClick={preview} style={{ padding: "9px 15px", background: "transparent", color: C.pp, border: `1px solid ${C.pp}`, borderRadius: 8, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>{busy ? "Analyzing…" : "✨ Extract issues & draft plan"}</button></div>
 
