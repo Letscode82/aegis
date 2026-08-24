@@ -34,6 +34,9 @@ export { ToastProvider, useToast } from "./Toast";
 // Sparkline (sub-PR 4c.5) — reusable trend visualisation.
 export { Sparkline } from "./Sparkline";
 
+// Stepper — crisp horizontal step indicator for guided multi-step flows.
+export { Stepper } from "./Stepper";
+
 // PanelBoundary (W4-1) — contained error boundary for one panel.
 export { PanelBoundary } from "./PanelBoundary";
 

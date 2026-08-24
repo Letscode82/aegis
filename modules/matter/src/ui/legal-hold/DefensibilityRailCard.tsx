@@ -61,7 +61,7 @@ export const DefensibilityRailCard: React.FC<DefensibilityRailCardProps> = ({
         </div>
       )}
       {score && (
-        <div style={{ display: "grid", gap: 5, marginTop: 12 }}>
+        <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
           {Object.entries(score.components).map(([key, c]) => (
             <MiniBar
               key={key}
@@ -142,10 +142,11 @@ const MiniBar: React.FC<{
           style={{
             display: "flex",
             justifyContent: "space-between",
-            fontSize: 9.5,
+            alignItems: "baseline",
+            fontSize: 11.5,
             fontFamily: F,
             color: C.t3,
-            marginBottom: 2,
+            marginBottom: 5,
           }}
         >
           <span>{label}</span>
@@ -153,18 +154,18 @@ const MiniBar: React.FC<{
             style={{
               fontFamily: M,
               color: C.t4,
-              fontSize: 9.5,
+              fontSize: 11,
               letterSpacing: 0.5,
             }}
           >
-            —
+            N/A
           </span>
         </div>
         <div
           style={{
-            height: 4,
+            height: 7,
             background: C.br,
-            borderRadius: 2,
+            borderRadius: 4,
             overflow: "hidden",
             opacity: 0.4,
           }}
@@ -179,20 +180,30 @@ const MiniBar: React.FC<{
         style={{
           display: "flex",
           justifyContent: "space-between",
-          fontSize: 9.5,
+          alignItems: "baseline",
+          fontSize: 11.5,
           fontFamily: F,
           color: C.t2,
-          marginBottom: 2,
+          marginBottom: 5,
         }}
       >
         <span>{label}</span>
-        <span style={{ fontFamily: M, color: C.t1, fontSize: 9.5 }}>{pct}%</span>
+        <span
+          style={{
+            fontFamily: M,
+            color: defensibilityColor(pct),
+            fontSize: 12.5,
+            fontWeight: 700,
+          }}
+        >
+          {pct}%
+        </span>
       </div>
       <div
         style={{
-          height: 4,
+          height: 7,
           background: C.br,
-          borderRadius: 2,
+          borderRadius: 4,
           overflow: "hidden",
         }}
       >
@@ -201,6 +212,7 @@ const MiniBar: React.FC<{
             width: `${pct}%`,
             height: "100%",
             background: defensibilityColor(pct),
+            borderRadius: 4,
             transition: "width .25s",
           }}
         />
