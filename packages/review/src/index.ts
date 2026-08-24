@@ -130,6 +130,15 @@ export {
 } from "./case-graph";
 
 export {
+  buildConcordanceDat,
+  buildOpticonOpt,
+  buildRelativityPayload,
+  type LoadFileManifest,
+  type RelativityPushRequest,
+  type RelativityPushPreview,
+} from "./export";
+
+export {
   proposeAgentAction,
   listAgentProposals,
   approveAgentAction,

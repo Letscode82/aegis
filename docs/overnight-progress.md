@@ -29,7 +29,7 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
    "AI-confident" filter chip, and a "Select confident AI-responsive" governed
    bulk-accept (selects confident+cited responsive calls for the human to
    confirm via the bulk toolbar — coding gate unchanged).
-6. ☐ **Relativity export + RelativityOne connector.** (a) Concordance load-file
+6. ✅ **Relativity export + RelativityOne connector.** (a) Concordance load-file
    (`.dat`/`.opt` + extracted-text manifest) download from Produce. (b) "Connect
    to a RelativityOne instance" (instance URL + workspace id + credential ref)
    and a **Push to workspace** action that packages the load-file and POSTs it to
@@ -69,4 +69,5 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
 - (user add) extended item 6 with a RelativityOne connector (push-to-workspace, stub-first); added item 9 (theme toggle: Blue dark ↔ Facebook Lite) and item 10 (steppers everywhere + UI polish).
 - item 3 ✅ merged PR #343 — keyword/junk cull + source-type cull (5 tests, suite 30). Date-window/sender-domain cull deferred.
 - item 4 ✅ merged PR #344 — review console: coding-status filters + Next-uncoded + position + shortcut legend.
-- item 5 ✅ — AI view: ai-tags.ts helpers (7 tests, suite 37) + AI-analysis panel (dimensions/confidence/citation) + AI-confident filter + governed select-confident bulk-accept. PR next.
+- item 5 ✅ merged PR #345 — AI view: ai-tags.ts + AI-analysis panel + AI-confident filter + governed select-confident bulk-accept (suite 37).
+- item 6 ✅ — export.ts (Concordance .dat + Opticon .opt builders + Relativity payload, 8 tests, suite 45); Produce gains .dat/.opt downloads + a stub-first "Push to RelativityOne" card + /relativity-push route (chain-sealed, RELATIVITY_API_TOKEN seam). Migration-free. PR next.
