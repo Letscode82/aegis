@@ -5,7 +5,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission } from "@aegis/auth";
-import { applyThreadNearDupCull, clearCull, listExclusions } from "@aegis/review";
+import { applyThreadNearDupCull, applyKeywordCull, applySourceTypeCull, clearCull, listExclusions } from "@aegis/review";
 import { requireActorAny } from "../../../../../lib/matter-actor";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -19,9 +19,23 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ ok: true, exclusions });
     }
     if (req.method === "POST") {
-      const action = (req.body ?? {}).action;
+      const body = req.body ?? {};
+      const action = body.action;
       const who = { id: actor.id, type: "USER" as const };
-      const result = action === "clear" ? await clearCull(actor.organizationId, id, who) : await applyThreadNearDupCull(actor.organizationId, id, who);
+      let result;
+      if (action === "clear") {
+        result = await clearCull(actor.organizationId, id, who);
+      } else if (action === "keyword") {
+        const patterns = Array.isArray(body.patterns)
+          ? body.patterns
+          : String(body.patterns || "").split(/[\n,]/).map((s: string) => s.trim()).filter(Boolean);
+        result = await applyKeywordCull(actor.organizationId, id, patterns, who);
+      } else if (action === "source") {
+        const sourceTypes = Array.isArray(body.sourceTypes) ? body.sourceTypes : [];
+        result = await applySourceTypeCull(actor.organizationId, id, sourceTypes, who);
+      } else {
+        result = await applyThreadNearDupCull(actor.organizationId, id, who);
+      }
       return res.status(200).json({ ok: true, ...result });
     }
     res.setHeader("Allow", "GET, POST");

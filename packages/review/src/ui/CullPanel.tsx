@@ -23,24 +23,32 @@ const stat = (label: string, value: React.ReactNode, col: string, sub?: string) 
   </div>
 );
 
+const JUNK_CHIPS = ["unsubscribe", "no-reply", "newsletter", "out of office", "calendar invite", "daily digest"];
+const SOURCE_TYPES = ["MAILBOX", "ONEDRIVE", "TEAMS", "SHAREPOINT"];
+
 export const CullPanel: React.FC<CullPanelProps> = ({ apiBase, reviewSetId, canMutate }) => {
   const toast = useToast();
   const [items, setItems] = useState<Item[] | null>(null);
   const [busy, setBusy] = useState(false);
+  const [kw, setKw] = useState("");
+  const [srcSel, setSrcSel] = useState<string[]>([]);
   const load = useCallback(() => {
     fetch(`${apiBase}/${reviewSetId}`).then((r) => r.json()).then((d) => setItems(d.ok ? d.items : [])).catch(() => setItems([]));
   }, [apiBase, reviewSetId]);
   useEffect(() => { load(); }, [load]);
 
-  const cull = async (action: "apply" | "clear") => {
+  const runCull = async (body: Record<string, unknown>, msg: (d: { total?: number; excluded?: number; restored?: number }) => string) => {
     setBusy(true);
     try {
-      const r = await fetch(`${apiBase}/${reviewSetId}/cull`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action }) });
+      const r = await fetch(`${apiBase}/${reviewSetId}/cull`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error);
-      toast.success(action === "apply" ? `Culled ${d.total} document(s)` : `Restored ${d.restored} document(s)`);
+      toast.success(msg(d));
       load();
     } catch (e) { toast.error(String((e as Error).message || e)); } finally { setBusy(false); }
   };
+  const cull = (action: "apply" | "clear") =>
+    runCull({ action }, (d) => (action === "apply" ? `Culled ${d.total ?? 0} document(s)` : `Restored ${d.restored ?? 0} document(s)`));
+  const toggleSrc = (s: string) => setSrcSel((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
 
   const m = useMemo(() => {
     const its = items || [];
@@ -96,6 +104,40 @@ export const CullPanel: React.FC<CullPanelProps> = ({ apiBase, reviewSetId, canM
               {m.alreadyExcluded > 0 && <span style={{ fontSize: 12, color: C.t3 }}><b style={{ color: C.gn }}>{m.alreadyExcluded}</b> already excluded · {m.inReview} in review</span>}
             </div>
             <div style={{ marginTop: 12, fontSize: 12, color: C.t4, fontFamily: M, lineHeight: 1.6 }}>Culled documents are excluded from review and from the production — a persisted, chain-sealed decision recorded in the exclusion log. Restore anytime.</div>
+
+            {/* More cull passes */}
+            <div style={{ marginTop: 26, borderTop: `1px solid ${C.br}`, paddingTop: 20 }}>
+              <div style={{ fontFamily: SR, fontSize: 16, fontWeight: 600, marginBottom: 4 }}>More cull passes</div>
+              <div style={{ fontSize: 12.5, color: C.t3, marginBottom: 16 }}>Targeted exclusions beyond dedup + threading — each reversible and chain-sealed with its own reason.</div>
+
+              {/* Keyword / junk cull */}
+              <div style={{ background: C.cd, border: `1px solid ${C.br}`, borderRadius: 12, padding: "16px 18px", marginBottom: 14 }}>
+                <div style={{ fontSize: 11, fontFamily: M, letterSpacing: .5, textTransform: "uppercase", color: C.t3, marginBottom: 8 }}>Junk / keyword cull</div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
+                  {JUNK_CHIPS.map((j) => (
+                    <button key={j} onClick={() => setKw((v) => (v ? `${v}, ${j}` : j))} style={{ fontSize: 11, padding: "3px 9px", borderRadius: 20, cursor: "pointer", background: "transparent", color: C.t2, border: `1px solid ${C.br}` }}>+ {j}</button>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <input value={kw} onChange={(e) => setKw(e.target.value)} placeholder="patterns (comma-separated) — matches subject / body" style={{ flex: 1, minWidth: 220, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 7, color: C.t1, fontFamily: F, fontSize: 12.5, padding: "8px 10px", outline: "none" }} />
+                  <button disabled={busy || !canMutate || !kw.trim()} onClick={() => { runCull({ action: "keyword", patterns: kw }, (d) => `Excluded ${d.excluded ?? 0} by keyword`); }} style={cbtn(kw.trim() && canMutate ? C.am : C.br)}>Exclude matches</button>
+                </div>
+              </div>
+
+              {/* Source-type cull */}
+              <div style={{ background: C.cd, border: `1px solid ${C.br}`, borderRadius: 12, padding: "16px 18px" }}>
+                <div style={{ fontSize: 11, fontFamily: M, letterSpacing: .5, textTransform: "uppercase", color: C.t3, marginBottom: 10 }}>Source-type cull</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                  {SOURCE_TYPES.map((s) => {
+                    const on = srcSel.includes(s);
+                    return (
+                      <button key={s} onClick={() => toggleSrc(s)} style={{ fontSize: 11.5, fontWeight: 600, padding: "6px 12px", borderRadius: 7, cursor: "pointer", background: on ? `${C.bl}22` : "transparent", color: on ? C.bl : C.t3, border: `1px solid ${on ? C.bl : C.br}` }}>{on ? "✓ " : ""}{s}</button>
+                    );
+                  })}
+                  <button disabled={busy || !canMutate || srcSel.length === 0} onClick={() => { runCull({ action: "source", sourceTypes: srcSel }, (d) => `Excluded ${d.excluded ?? 0} by source`); setSrcSel([]); }} style={{ ...cbtn(srcSel.length && canMutate ? C.bl : C.br), marginLeft: "auto" }}>Exclude selected source(s)</button>
+                </div>
+              </div>
+            </div>
           </>
         )}
       </div>
