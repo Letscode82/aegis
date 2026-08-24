@@ -41,8 +41,10 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
    + getValidationDashboard; org-wide recall/precision/F1/overturn, grouped by
    profile with drift sparklines. /api/review/validation/dashboard + a
    /review/validation page, linked from the Validate tab.
-8. ☐ **Collection workspace stepper.** Swap the flow indicator for the crisp
-   `Stepper` across ECA → Cull → Review → Copilot → Validate → Batches → Produce.
+8. ✅ **Collection workspace stepper.** Swapped the bespoke stage nav for the
+   crisp `Stepper` (navigator mode — all stages clickable, active = current) in
+   its own full-width row: ECA → Cull → Review → Copilot → Validate → Batches →
+   Produce.
 9. ☐ **Theme toggle — Blue (dark) ↔ Facebook Lite.** Runtime palette swap: keep
    the `${C.x}44` alpha-append idiom working by mutating the `C` token object
    in place to the chosen palette and remounting the app subtree (keyed by
@@ -73,4 +75,5 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
 - item 4 ✅ merged PR #344 — review console: coding-status filters + Next-uncoded + position + shortcut legend.
 - item 5 ✅ merged PR #345 — AI view: ai-tags.ts + AI-analysis panel + AI-confident filter + governed select-confident bulk-accept (suite 37).
 - item 6 ✅ merged PR #346 — Concordance .dat/.opt builders + RelativityOne push (stub-first, suite 45).
-- item 7 ✅ — AI Validation dashboard: aggregateValidationRuns (4 tests, suite 49) + getValidationDashboard + /review/validation page + link from Validate tab. Migration-free. PR next.
+- item 7 ✅ merged PR #347 — AI Validation dashboard (aggregateValidationRuns, suite 49) + /review/validation page.
+- item 8 ✅ — collection workspace now uses the crisp Stepper (navigator mode) for the 7-stage flow (UI-only). PR next.
