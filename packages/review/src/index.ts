@@ -143,6 +143,7 @@ export {
 
 export {
   getEcaFunnel,
+  resolveCostModel,
   type EcaFunnel,
   type EcaFunnelStage,
   type EcaBreakdownRow,

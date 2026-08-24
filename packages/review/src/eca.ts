@@ -39,6 +39,21 @@ export interface EcaFunnel {
 
 const DEFAULT_COST: EcaCostModel = { perDocMinutes: 2, hourlyRate: 75, currency: "USD" };
 
+/**
+ * Resolve the cost model from a partial override, ignoring undefined/invalid
+ * fields (a spread would let `undefined` clobber the defaults and produce NaN).
+ * Pure + unit-tested.
+ */
+export function resolveCostModel(cost: Partial<EcaCostModel> = {}): EcaCostModel {
+  const posNum = (v: unknown, fallback: number) =>
+    typeof v === "number" && Number.isFinite(v) && v > 0 ? v : fallback;
+  return {
+    perDocMinutes: posNum(cost.perDocMinutes, DEFAULT_COST.perDocMinutes),
+    hourlyRate: posNum(cost.hourlyRate, DEFAULT_COST.hourlyRate),
+    currency: typeof cost.currency === "string" && cost.currency ? cost.currency : DEFAULT_COST.currency,
+  };
+}
+
 function pct(n: number, of: number): number {
   return of > 0 ? Math.round((n / of) * 1000) / 10 : 0;
 }
@@ -98,7 +113,7 @@ export async function getEcaFunnel(organizationId: string, reviewSetId: string, 
     else for (const iss of issues) byIssueRows.push({ key: iss });
   }
 
-  const model: EcaCostModel = { ...DEFAULT_COST, ...cost };
+  const model: EcaCostModel = resolveCostModel(cost);
   // Reviewable set = everything still live after culling (what a human/AI must look at).
   const reviewDocs = live.length;
   const culledDocs = excluded;

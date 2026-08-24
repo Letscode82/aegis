@@ -1,12 +1,13 @@
 /**
- * EcaPanel (ECA-3) — Early Case Assessment. The "how big / what / how much"
- * lens before review starts: a volume funnel (Collected → dedup → threading →
- * in-scope), a review cost/time estimate with the savings culling bought, and
- * breakdowns by source, AI route, and issue. Read-only over the review-set REST
- * base (hold + DSAR both mount it).
+ * EcaPanel (ECA-3, + overnight cull-dashboard upgrade) — Early Case Assessment.
+ * The "how big / what / how much" lens before review starts: a volume funnel
+ * (Collected → dedup → threading → in-scope), a live cost/time tuner with the
+ * savings culling bought, a culling-impact card (reduction + per-reason
+ * breakdown), coding progress, and breakdowns by source, AI route, and issue.
+ * Read-only over the review-set REST base (hold + DSAR both mount it).
  */
 import React, { useCallback, useEffect, useState } from "react";
-import { C, M, SR } from "@aegis/ui";
+import { C, F, M, SR } from "@aegis/ui";
 
 interface Row { key: string; count: number }
 interface Funnel {
@@ -21,19 +22,31 @@ export interface EcaPanelProps { apiBase: string; reviewSetId: string; canMutate
 
 const money = (n: number, cur: string) => new Intl.NumberFormat(undefined, { style: "currency", currency: cur, maximumFractionDigits: 0 }).format(n);
 const routeColor = (r: string) => (r === "ATTORNEY" ? C.pp : r === "REVIEWER" ? C.bl : r === "AUTO_CULL" ? C.t4 : C.t3);
+const reasonLabel = (k: string) => k.replace(/_/g, " ").toLowerCase();
 
 export const EcaPanel: React.FC<EcaPanelProps> = ({ apiBase, reviewSetId }) => {
   const [d, setD] = useState<Funnel | null>(null);
   const [err, setErr] = useState("");
+  // Cost tuner state (kept local; refetch is debounced).
+  const [perDoc, setPerDoc] = useState(2);
+  const [rate, setRate] = useState(75);
+
   const load = useCallback(() => {
-    fetch(`${apiBase}/${reviewSetId}/eca`).then((r) => r.json()).then((j) => { if (j.ok) setD(j.eca); else setErr(j.error || "Failed"); }).catch((e) => setErr(String(e)));
-  }, [apiBase, reviewSetId]);
-  useEffect(() => { load(); }, [load]);
+    const qs = `?perDocMinutes=${perDoc}&hourlyRate=${rate}`;
+    fetch(`${apiBase}/${reviewSetId}/eca${qs}`).then((r) => r.json()).then((j) => { if (j.ok) setD(j.eca); else setErr(j.error || "Failed"); }).catch((e) => setErr(String(e)));
+  }, [apiBase, reviewSetId, perDoc, rate]);
+  useEffect(() => {
+    const t = setTimeout(load, 250);
+    return () => clearTimeout(t);
+  }, [load]);
 
   if (err) return <div style={{ padding: 28, color: C.rd, fontFamily: M, fontSize: 13 }}>{err}</div>;
   if (!d) return <div style={{ padding: 28, color: C.t4, fontFamily: M, fontSize: 13 }}>Loading ECA…</div>;
 
   const maxBar = Math.max(1, d.collected);
+  const reductionPct = d.collected > 0 ? Math.round((d.excluded / d.collected) * 1000) / 10 : 0;
+  const codedPct = d.estimate.reviewDocs > 0 ? Math.round((d.coded / d.estimate.reviewDocs) * 100) : 0;
+
   const stat = (label: string, value: string, col: string, sub?: string) => (
     <div style={{ border: `1px solid ${C.br}`, borderRadius: 10, padding: "14px 16px", background: C.bg, flex: "1 1 150px" }}>
       <div style={{ fontFamily: SR, fontSize: 26, fontWeight: 600, color: col }}>{value}</div>
@@ -63,6 +76,16 @@ export const EcaPanel: React.FC<EcaPanelProps> = ({ apiBase, reviewSetId }) => {
     </div>
   );
 
+  const numInput = (value: number, onChange: (n: number) => void, min: number) => (
+    <input
+      type="number"
+      value={value}
+      min={min}
+      onChange={(e) => { const n = Number(e.target.value); if (Number.isFinite(n) && n > 0) onChange(n); }}
+      style={{ width: 72, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 6, color: C.t1, fontFamily: M, fontSize: 12.5, padding: "5px 8px", outline: "none" }}
+    />
+  );
+
   return (
     <div style={{ flex: 1, overflow: "auto", padding: "24px 28px" }}>
       <div style={{ maxWidth: 940, margin: "0 auto" }}>
@@ -77,33 +100,76 @@ export const EcaPanel: React.FC<EcaPanelProps> = ({ apiBase, reviewSetId }) => {
             {d.funnel.map((s, i) => {
               const w = Math.round((s.count / maxBar) * 100);
               const col = [C.t3, C.tl, C.bl, C.gn][i] || C.bl;
+              const prev = i > 0 ? d.funnel[i - 1]!.count : s.count;
+              const dropped = prev - s.count;
               return (
                 <div key={s.key} style={{ display: "flex", alignItems: "center", gap: 14 }}>
                   <div style={{ width: 120, fontSize: 12.5, color: C.t2, textAlign: "right" }}>{s.label}</div>
                   <div style={{ flex: 1, height: 26, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 6, overflow: "hidden", position: "relative" }}>
                     <div style={{ width: `${w}%`, height: "100%", background: `${col}44`, borderRight: `2px solid ${col}` }} />
                     <div style={{ position: "absolute", left: 10, top: 0, height: "100%", display: "flex", alignItems: "center", fontFamily: M, fontSize: 12.5, color: C.t1 }}>{s.count.toLocaleString()}</div>
+                    {i > 0 && dropped > 0 && (
+                      <div style={{ position: "absolute", right: 10, top: 0, height: "100%", display: "flex", alignItems: "center", fontFamily: M, fontSize: 11, color: C.am }}>−{dropped.toLocaleString()}</div>
+                    )}
                   </div>
                   <div style={{ width: 52, fontFamily: M, fontSize: 12, color: C.t4, textAlign: "right" }}>{s.pctOfCollected}%</div>
                 </div>
               );
             })}
           </div>
-          {d.excluded > 0 && (
-            <div style={{ marginTop: 12, fontSize: 12, color: C.t3 }}>
-              <span style={{ color: C.am, fontWeight: 600 }}>{d.excluded.toLocaleString()}</span> culled ({d.excludedByReason.map((r) => `${r.count} ${r.key.replace(/_/g, " ").toLowerCase()}`).join(" · ")})
+        </div>
+
+        {/* Culling impact */}
+        <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, padding: "18px 20px", marginBottom: 18 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", flexWrap: "wrap", gap: 10, marginBottom: 14 }}>
+            <div style={{ fontSize: 11, fontFamily: M, letterSpacing: .6, textTransform: "uppercase", color: C.t3 }}>Culling impact</div>
+            <div style={{ fontSize: 12, color: C.t3 }}>
+              <span style={{ fontFamily: SR, fontSize: 20, fontWeight: 600, color: reductionPct > 0 ? C.gn : C.t4 }}>{reductionPct}%</span> of the collection removed before review
+            </div>
+          </div>
+          {d.excluded === 0 ? (
+            <div style={{ fontSize: 12.5, color: C.t4 }}>Nothing culled yet. Run dedup + threading (and other cull passes) in the Cull tab to shrink the review set.</div>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+              {d.excludedByReason.map((r) => {
+                const w = Math.round((r.count / Math.max(1, d.excludedByReason[0]?.count ?? 1)) * 100);
+                return (
+                  <div key={r.key}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3 }}>
+                      <span style={{ color: C.t2, textTransform: "capitalize" }}>{reasonLabel(r.key)}</span>
+                      <span style={{ fontFamily: M, color: C.t3 }}>{r.count.toLocaleString()}</span>
+                    </div>
+                    <div style={{ height: 6, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 4, overflow: "hidden" }}><div style={{ width: `${w}%`, height: "100%", background: C.am }} /></div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
 
-        {/* Estimate */}
-        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 8 }}>
+        {/* Estimate + tuner */}
+        <div style={{ display: "flex", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
           {stat("Docs to review", d.estimate.reviewDocs.toLocaleString(), C.bl, `${d.responsive} responsive · ${d.privileged} privileged`)}
           {stat("Est. review time", `${d.estimate.hours} h`, C.cy, `${d.cost.perDocMinutes} min/doc`)}
           {stat("Est. review cost", money(d.estimate.cost, d.cost.currency), C.pp, `@ ${money(d.cost.hourlyRate, d.cost.currency)}/h`)}
           {stat("Saved by culling", money(d.estimate.costSaved, d.cost.currency), C.gn, `${d.estimate.culledDocs} docs · ${d.estimate.hoursSaved} h`)}
         </div>
-        <div style={{ fontSize: 11, color: C.t4, marginBottom: 20 }}>Estimate assumes {d.cost.perDocMinutes} min/doc at {money(d.cost.hourlyRate, d.cost.currency)}/hour — adjust with <span style={{ fontFamily: M }}>?perDocMinutes=</span> / <span style={{ fontFamily: M }}>?hourlyRate=</span>.</div>
+        <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap", marginBottom: 20, fontSize: 12, color: C.t3, fontFamily: F }}>
+          <span style={{ fontFamily: M, fontSize: 10.5, letterSpacing: .5, textTransform: "uppercase", color: C.t4 }}>Tune estimate:</span>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>{numInput(perDoc, setPerDoc, 1)} min/doc</label>
+          <label style={{ display: "inline-flex", alignItems: "center", gap: 7 }}>{numInput(rate, setRate, 1)} {d.cost.currency}/hour</label>
+        </div>
+
+        {/* Coding progress */}
+        <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, padding: "16px 18px", marginBottom: 18 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 10 }}>
+            <div style={{ fontSize: 11, fontFamily: M, letterSpacing: .6, textTransform: "uppercase", color: C.t3 }}>Review progress</div>
+            <div style={{ fontSize: 12.5, color: C.t2 }}><span style={{ fontFamily: M, color: C.t1 }}>{d.coded.toLocaleString()}</span> / {d.estimate.reviewDocs.toLocaleString()} coded · <span style={{ fontFamily: M, color: codedPct >= 100 ? C.gn : C.bl }}>{codedPct}%</span></div>
+          </div>
+          <div style={{ height: 8, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 5, overflow: "hidden" }}>
+            <div style={{ width: `${Math.min(100, codedPct)}%`, height: "100%", background: codedPct >= 100 ? C.gn : C.bl, transition: "width .25s" }} />
+          </div>
+        </div>
 
         {/* Breakdowns */}
         <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
