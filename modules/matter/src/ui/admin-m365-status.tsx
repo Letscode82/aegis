@@ -72,6 +72,13 @@ export const AdminM365Status: React.FC = () => {
     useState<"pending" | "connected" | "expired" | "error" | null>(null);
   const [testing, setTesting] = useState(false);
 
+  // App-only credentials editor (point AEGIS at a client tenant from the UI).
+  const [showCredForm, setShowCredForm] = useState(false);
+  const [credTenant, setCredTenant] = useState("");
+  const [credClientId, setCredClientId] = useState("");
+  const [credSecret, setCredSecret] = useState("");
+  const [savingCreds, setSavingCreds] = useState(false);
+
   const reload = useCallback(async () => {
     try {
       const r = await fetch("/api/admin/m365/sync-status");
@@ -92,6 +99,32 @@ export const AdminM365Status: React.FC = () => {
   useEffect(() => {
     void reload();
   }, [reload]);
+
+  async function saveCreds() {
+    if (!credTenant.trim() || !credClientId.trim() || !credSecret.trim()) {
+      toast.error("Tenant id, client id, and client secret are all required.");
+      return;
+    }
+    setSavingCreds(true);
+    try {
+      const r = await fetch("/api/admin/m365/credentials", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantId: credTenant.trim(), clientId: credClientId.trim(), clientSecret: credSecret.trim() }),
+      });
+      const j = await r.json();
+      if (!r.ok || !j.ok) throw new Error(j.error || `HTTP ${r.status}`);
+      toast.success("Credentials saved (encrypted). Verifying…");
+      setCredSecret("");
+      setShowCredForm(false);
+      await reload();
+      await verifyNow();
+    } catch (e) {
+      toast.error(`Save failed: ${String((e as Error).message || e)}`);
+    } finally {
+      setSavingCreds(false);
+    }
+  }
 
   async function verifyNow() {
     setVerifying(true);
@@ -202,17 +235,55 @@ export const AdminM365Status: React.FC = () => {
             title="Microsoft 365 connection"
             sub={status ? sourceCaption(status) : "Loading…"}
           />
-          {status?.configured && (
+          <div style={{ display: "flex", gap: 8 }}>
             <button
               type="button"
-              onClick={verifyNow}
-              disabled={verifying}
-              style={primaryBtn(verifying)}
+              onClick={() => setShowCredForm((v) => !v)}
+              style={{ ...primaryBtn(false), background: "transparent", color: C.bl, border: `1px solid ${C.bl}` }}
             >
-              {verifying ? "Verifying…" : "Verify now"}
+              {showCredForm ? "Cancel" : status?.source === "per-org" ? "Change credentials" : "Set credentials"}
             </button>
-          )}
+            {status?.configured && (
+              <button
+                type="button"
+                onClick={verifyNow}
+                disabled={verifying}
+                style={primaryBtn(verifying)}
+              >
+                {verifying ? "Verifying…" : "Verify now"}
+              </button>
+            )}
+          </div>
         </div>
+
+        {showCredForm && (
+          <div style={{ marginTop: 12, padding: 14, border: `1px solid ${C.brL}`, borderRadius: 8, background: C.bg, display: "grid", gap: 10 }}>
+            <div style={{ fontSize: 11.5, color: C.t3 }}>
+              Point AEGIS at a Microsoft 365 tenant (app-only credentials from an Entra app registration). The secret is
+              encrypted at rest (AES-256-GCM) and never leaves the server. Requires <span style={{ fontFamily: M }}>AEGIS_ENCRYPTION_KEY</span> set.
+            </div>
+            <label style={{ display: "grid", gap: 4, fontSize: 11, color: C.t3 }}>
+              Tenant id
+              <input value={credTenant} onChange={(e) => setCredTenant(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000"
+                style={{ background: C.cd, border: `1px solid ${C.br}`, borderRadius: 6, color: C.t1, fontFamily: M, fontSize: 12.5, padding: "9px 11px", outline: "none" }} />
+            </label>
+            <label style={{ display: "grid", gap: 4, fontSize: 11, color: C.t3 }}>
+              Client (application) id
+              <input value={credClientId} onChange={(e) => setCredClientId(e.target.value)} placeholder="00000000-0000-0000-0000-000000000000"
+                style={{ background: C.cd, border: `1px solid ${C.br}`, borderRadius: 6, color: C.t1, fontFamily: M, fontSize: 12.5, padding: "9px 11px", outline: "none" }} />
+            </label>
+            <label style={{ display: "grid", gap: 4, fontSize: 11, color: C.t3 }}>
+              Client secret (value)
+              <input type="password" value={credSecret} onChange={(e) => setCredSecret(e.target.value)} placeholder="paste the secret VALUE (not the id)" autoComplete="new-password"
+                style={{ background: C.cd, border: `1px solid ${C.br}`, borderRadius: 6, color: C.t1, fontFamily: M, fontSize: 12.5, padding: "9px 11px", outline: "none" }} />
+            </label>
+            <div>
+              <button type="button" onClick={saveCreds} disabled={savingCreds} style={primaryBtn(savingCreds)}>
+                {savingCreds ? "Saving…" : "Save & verify"}
+              </button>
+            </div>
+          </div>
+        )}
 
         {!status && <div style={{ color: C.t3, fontSize: 11 }}>Loading…</div>}
         {status && (
