@@ -2648,10 +2648,70 @@ model ReviewSet {
   validationRuns ReviewValidationRun[]
   graphNodes     CaseGraphNode[]
   graphEdges     CaseGraphEdge[]
+  autopilotRuns  CaseAutoPilotRun[]
 
   @@index([organizationId, origin])
   @@index([legalHoldId])
   @@index([dataSubjectRequestId])
+}
+
+/// CAP-5: Case AutoPilot — a single-prompt agentic orchestrator over a
+/// collection. One run holds the directive, the planned step DAG, and the
+/// assembled result; each step is bound to a tool. Mutating steps gate on a
+/// PENDING AgentDecision (the human approve keystroke) before they execute —
+/// the AutoPilot proposes the plan and runs the read/analysis steps freely,
+/// then pauses at each evidence-touching step. Same governance contract as
+/// CAP-4, driven by a planner + observe/decide/act/check loop.
+model CaseAutoPilotRun {
+  id             String   @id @default(cuid())
+  organizationId String
+  reviewSetId    String
+  directive      String
+  /// PLANNING | RUNNING | WAITING_APPROVAL | DONE | FAILED | CANCELLED
+  status         String   @default("PLANNING")
+  /// Planner metadata (maxPasses, etc.).
+  planJson       Json?
+  /// The assembled Case Brief / findings markdown once the run completes.
+  summary        String?
+  degraded       Boolean  @default(false)
+  model          String?
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  reviewSet ReviewSet           @relation(fields: [reviewSetId], references: [id], onDelete: Cascade)
+  steps     CaseAutoPilotStep[]
+
+  @@index([organizationId, reviewSetId])
+}
+
+model CaseAutoPilotStep {
+  id                  String    @id @default(cuid())
+  organizationId      String
+  runId               String
+  ordinal             Int
+  /// Tool name: ai_review | cull | eca | validate | case_graph | assemble
+  tool                String
+  title               String
+  /// "read" | "mutating"
+  kind                String
+  /// PENDING | RUNNING | WAITING_APPROVAL | DONE | SKIPPED | FAILED
+  status              String    @default("PENDING")
+  inputJson           Json?
+  outputJson          Json?
+  /// For mutating steps — the PENDING AgentDecision that gates execution.
+  agentDecisionId     String?
+  /// The AuditLog row sealing the executed mutation (set on approve).
+  resultingAuditLogId String?
+  error               String?
+  startedAt           DateTime?
+  finishedAt          DateTime?
+  createdAt           DateTime  @default(now())
+
+  run CaseAutoPilotRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+
+  @@unique([runId, ordinal])
+  @@index([organizationId, runId])
 }
 
 /// CAP-3: the Case Knowledge Graph, materialized from the Case Graph agents
