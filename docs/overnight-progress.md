@@ -15,9 +15,10 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
 2. ✅ **Collection filters.** Date-range + keyword + source (mailbox/onedrive/
    teams) options on collection start (ad-hoc + investigation picker), threaded
    into the query builder / `searchForDataSubject`.
-3. ☐ **Cull options++.** Beyond thread/near-dup: date-window cull, sender-domain
-   / junk-domain cull, each reversible + logged with a distinct exclusion
-   reason. New controls in `CullPanel`.
+3. ✅ **Cull options++.** Keyword/junk-pattern cull + source-type cull (both
+   migration-free, reversible, chain-sealed with distinct reasons). NOTE:
+   date-window + sender-domain cull need `sentAt`/`fromAddress` columns on
+   ReviewSetItem → moved to Deferred (migration).
 4. ☐ **Review console redesign (Relativity One-like).** List + viewer + coding
    pane, keyboard coding shortcuts, issue tags, prev/next, filter/search,
    progress + "next uncoded".
@@ -53,9 +54,13 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
   collapses the duplicate custodian rows at the source.
 - ☐ **ECA-2 concept clustering** (if it needs cluster storage).
 - ☐ **AIR-6 batch runner** (resumable batches) if it needs schema.
+- ☐ **Date-window + sender-domain cull** — needs `sentAt` + `fromAddress`/
+  `senderDomain` columns persisted on ReviewSetItem (collection captures `sentAt`
+  on hits but doesn't store it as a column today). Migration + backfill.
 
 ## Log
 - (start) Queue created. Beginning item 1.
 - item 1 ✅ merged PR #341 — ECA/cull dashboard upgrade + cost-model NaN fix (25 review tests).
 - item 2 ✅ merged PR #342 — collection filters (date-range + keyword) via pure filterHits (8 matter tests).
 - (user add) extended item 6 with a RelativityOne connector (push-to-workspace, stub-first); added item 9 (theme toggle: Blue dark ↔ Facebook Lite) and item 10 (steppers everywhere + UI polish).
+- item 3 ✅ — keyword/junk cull + source-type cull (migration-free, 5 review tests, suite 30). Date-window/sender-domain cull deferred (needs sentAt/fromAddress columns). PR next.

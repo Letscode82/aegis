@@ -54,9 +54,15 @@ export {
 
 export {
   applyThreadNearDupCull,
+  applyKeywordCull,
+  applySourceTypeCull,
+  selectKeywordCullIds,
+  selectSourceTypeCullIds,
   clearCull,
   listExclusions,
+  JUNK_PATTERNS,
   type ApplyCullResult,
+  type CullPassResult,
   type ExclusionEntry,
 } from "./cull";
 
