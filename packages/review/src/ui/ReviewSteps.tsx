@@ -8,6 +8,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { C, F, M, SR, useToast } from "@aegis/ui";
 import { orderedAiTags, isConfidentResponsive, hasConfidentCall, type AiTagView } from "../ai-tags";
+import { buildConcordanceDat, buildOpticonOpt, type LoadFileManifest } from "../export";
 
 const tagColor = (kind: string, value: boolean): string => {
   if (!value) return C.t4;
@@ -551,6 +552,27 @@ export const ProduceStep: React.FC<ProduceStepProps> = ({ apiBase, reviewSetId, 
   const [manifest, setManifest] = useState<Manifest | null>(null);
   const [busy, setBusy] = useState(false);
   const [prefix, setPrefix] = useState("AEGIS");
+  const [relInstance, setRelInstance] = useState("");
+  const [relWs, setRelWs] = useState("");
+  const [pushing, setPushing] = useState(false);
+  const [pushResult, setPushResult] = useState<{ stubbed: boolean; message: string } | null>(null);
+
+  const downloadText = (name: string, text: string, mime: string) => {
+    const blob = new Blob([text], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a"); a.href = url; a.download = name; a.click();
+    URL.revokeObjectURL(url);
+  };
+  const pushToRelativity = async () => {
+    if (!manifest) return;
+    setPushing(true); setPushResult(null);
+    try {
+      const r = await fetch(`${apiBase}/${reviewSetId}/relativity-push`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instanceUrl: relInstance, workspaceId: relWs, manifest }) });
+      const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setPushResult({ stubbed: d.stubbed, message: d.message });
+      toast.success(d.stubbed ? "Prepared for RelativityOne (stub)" : "Pushed to RelativityOne");
+    } catch (e) { toast.error(String((e as Error).message || e)); } finally { setPushing(false); }
+  };
 
   const produce = async () => {
     setBusy(true);
@@ -584,11 +606,31 @@ export const ProduceStep: React.FC<ProduceStepProps> = ({ apiBase, reviewSetId, 
           </div>
         ) : (
           <div>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14, gap: 10, flexWrap: "wrap" }}>
               <div style={{ fontFamily: SR, fontSize: 19, fontWeight: 600 }}>Production manifest</div>
-              <button onClick={download} style={btn(C.bl)}>⬇ Download load file (JSON)</button>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <button onClick={download} style={{ ...ghost(C.bl), padding: "9px 13px", fontSize: 12.5 }}>⬇ JSON</button>
+                <button onClick={() => downloadText(`${manifest.batesPrefix}-load.dat`, buildConcordanceDat(manifest as LoadFileManifest), "text/plain")} title="Concordance load file (Relativity-compatible)" style={{ ...ghost(C.cy), padding: "9px 13px", fontSize: 12.5 }}>⬇ .dat (Concordance)</button>
+                <button onClick={() => downloadText(`${manifest.batesPrefix}-images.opt`, buildOpticonOpt(manifest as LoadFileManifest), "text/plain")} title="Opticon image cross-reference" style={{ ...ghost(C.cy), padding: "9px 13px", fontSize: 12.5 }}>⬇ .opt (Opticon)</button>
+              </div>
             </div>
             <div style={{ fontSize: 13, color: C.t2, marginBottom: 16 }}>{manifest.counts.produced} produced · {manifest.counts.privileged} withheld (privilege) · {manifest.counts.nonResponsive} non-responsive</div>
+
+            {/* Push to RelativityOne (stub-first) */}
+            <div style={{ background: C.cd, border: `1px solid ${C.br}`, borderRadius: 12, padding: "16px 18px", marginBottom: 18 }}>
+              <div style={{ fontSize: 11, fontFamily: M, letterSpacing: .5, textTransform: "uppercase", color: C.t3, marginBottom: 4 }}>Send to RelativityOne</div>
+              <div style={{ fontSize: 12, color: C.t4, marginBottom: 10 }}>Push the produced, non-privileged set straight into a Relativity workspace for detailed review.</div>
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+                <input value={relInstance} onChange={(e) => setRelInstance(e.target.value)} placeholder="https://yourorg.relativity.one" style={{ ...inputS, flex: "1 1 240px", fontSize: 12.5, padding: "9px 11px" }} />
+                <input value={relWs} onChange={(e) => setRelWs(e.target.value)} placeholder="Workspace id (e.g. 1015024)" style={{ ...inputS, width: 200, flex: "0 0 auto", fontSize: 12.5, padding: "9px 11px", fontFamily: M }} />
+                <button disabled={pushing || !canMutate || !relInstance.trim() || !relWs.trim()} onClick={pushToRelativity} style={btn(relInstance.trim() && relWs.trim() && canMutate ? C.pp : C.br)}>{pushing ? "Pushing…" : "Push to workspace →"}</button>
+              </div>
+              {pushResult && (
+                <div style={{ marginTop: 10, fontSize: 12.5, color: pushResult.stubbed ? C.am : C.gn, background: `${pushResult.stubbed ? C.am : C.gn}12`, border: `1px solid ${pushResult.stubbed ? C.am : C.gn}44`, borderRadius: 8, padding: "9px 12px" }}>
+                  {pushResult.stubbed ? "⚠ Stub — " : "✓ "}{pushResult.message}
+                </div>
+              )}
+            </div>
             <div style={{ fontSize: 10.5, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", color: C.t3, marginBottom: 6 }}>Produced (Bates)</div>
             <div style={{ background: C.cd, border: `1px solid ${C.br}`, borderRadius: 10, padding: "10px 14px", marginBottom: 16 }}>
               {manifest.produced.map((x) => <div key={x.bates} style={{ fontFamily: M, fontSize: 12, color: C.t2, padding: "3px 0" }}>{x.bates} · {x.title}{x.redacted ? " (redacted)" : ""}</div>)}
