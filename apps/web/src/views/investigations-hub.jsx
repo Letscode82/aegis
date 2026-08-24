@@ -114,6 +114,9 @@ function CustodianPicker({ matterId }) {
   const [workup, setWorkup] = useState(null);
   const [workBusy, setWorkBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [keywords, setKeywords] = useState("");
   const inp = { flex: 1, minWidth: 160, background: C.cd, border: `1px solid ${C.br}`, borderRadius: 7, color: C.t1, fontFamily: F, fontSize: 12.5, padding: "7px 10px", outline: "none" };
 
   useEffect(() => {
@@ -148,7 +151,9 @@ function CustodianPicker({ matterId }) {
   const runWorkup = async () => {
     setWorkBusy(true); setMsg("");
     try {
-      const r = await fetch(`/api/investigations/${matterId}/workup`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ custodianIdentifiers: selected.map((s) => s.email) }) });
+      const kws = keywords.split(",").map((s) => s.trim()).filter(Boolean);
+      const filters = (startDate || endDate || kws.length > 0) ? { startDate: startDate || null, endDate: endDate || null, keywords: kws } : undefined;
+      const r = await fetch(`/api/investigations/${matterId}/workup`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ custodianIdentifiers: selected.map((s) => s.email), filters }) });
       const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
       setWorkup(d.result);
     } catch (e) { setMsg(String(e.message || e)); } finally { setWorkBusy(false); }
@@ -185,6 +190,17 @@ function CustodianPicker({ matterId }) {
             <input value={manual} onChange={(e) => setManual(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter") addManual(); }} placeholder="…or paste an exact mailbox — name@tenant.onmicrosoft.com" style={inp} />
             <button onClick={addManual} disabled={!manual.trim()} style={{ fontSize: 11.5, fontWeight: 600, padding: "7px 12px", borderRadius: 7, cursor: "pointer", background: "transparent", color: C.cy, border: `1px solid ${C.cy}` }}>+ Add address</button>
           </div>
+          {selected.length > 0 && (
+            <div style={{ marginBottom: 12, borderTop: `1px solid ${C.br}`, paddingTop: 10 }}>
+              <div style={{ fontSize: 10, fontFamily: M, letterSpacing: .5, textTransform: "uppercase", color: C.t4, marginBottom: 6 }}>Collection scope (optional)</div>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                <label style={{ fontSize: 11, color: C.t3, display: "inline-flex", alignItems: "center", gap: 5 }}>From <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={{ ...inp, flex: "none", minWidth: 0, width: 150 }} /></label>
+                <label style={{ fontSize: 11, color: C.t3, display: "inline-flex", alignItems: "center", gap: 5 }}>To <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={{ ...inp, flex: "none", minWidth: 0, width: 150 }} /></label>
+                <input value={keywords} onChange={(e) => setKeywords(e.target.value)} placeholder="keywords (comma-separated) — e.g. pricing, source code" style={{ ...inp, minWidth: 240 }} />
+              </div>
+              <div style={{ fontSize: 10.5, color: C.t4, marginTop: 5 }}>Filters apply to the collected set before review — date bounds skip undated files; keywords match subject / body / attachments.</div>
+            </div>
+          )}
         </>
       )}
 
