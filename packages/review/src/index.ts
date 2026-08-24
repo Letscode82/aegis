@@ -124,6 +124,24 @@ export {
 } from "./agent-actions";
 
 export {
+  startAutoPilot,
+  approveAutoPilotStep,
+  rejectAutoPilotStep,
+  getAutoPilotRun,
+  getLatestAutoPilotRun,
+  planSteps,
+  critique,
+  TOOL_META,
+  type AutoPilotTool,
+  type AutoPilotRunDTO,
+  type AutoPilotStepDTO,
+  type PlanState,
+  type PlannedStep,
+  type CritiqueInput,
+  type CritiqueResult,
+} from "./autopilot";
+
+export {
   getEcaFunnel,
   type EcaFunnel,
   type EcaFunnelStage,
