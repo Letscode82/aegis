@@ -77,7 +77,10 @@ export const ValidationPanel: React.FC<ValidationPanelProps> = ({ apiBase, revie
   return (
     <div style={{ flex: 1, overflow: "auto", padding: "24px 28px" }}>
       <div style={{ maxWidth: 860, margin: "0 auto" }}>
-        <div style={{ fontFamily: M, fontSize: 10.5, letterSpacing: 1.4, color: C.cy, textTransform: "uppercase" }}>AIR — pilot · validate · scale</div>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+          <div style={{ fontFamily: M, fontSize: 10.5, letterSpacing: 1.4, color: C.cy, textTransform: "uppercase" }}>AIR — pilot · validate · scale</div>
+          <a href="/review/validation" style={{ fontSize: 11.5, fontWeight: 600, color: C.cy, textDecoration: "none", border: `1px solid ${C.cy}`, borderRadius: 7, padding: "4px 10px" }}>Org-wide validation dashboard →</a>
+        </div>
         <div style={{ fontFamily: SR, fontSize: 22, fontWeight: 600, marginBottom: 4 }}>Validate the AI review before trusting it</div>
         <div style={{ fontSize: 13, color: C.t3, marginBottom: 20 }}>Sample the AI-scored documents, code the sample in <b>Review</b> to build a ground truth, then measure recall / precision / overturn. If the numbers hold, apply the confident, cited decisions to the rest — uncertain documents fail closed to a human.</div>
 

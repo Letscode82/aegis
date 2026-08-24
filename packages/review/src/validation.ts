@@ -191,3 +191,117 @@ export async function listValidationRuns(organizationId: string, reviewSetId: st
   const runs = await prisma.reviewValidationRun.findMany({ where: { organizationId, reviewSetId }, orderBy: [{ createdAt: "desc" }], select: { id: true } });
   return Promise.all(runs.map((r) => toSummary(r.id)));
 }
+
+// ── AIR-6 (read half): org-wide AI Validation dashboard ─────────────
+
+export interface ValidationRunRow {
+  id: string;
+  reviewSetId: string;
+  reviewSetName: string;
+  profileLabel: string;
+  dimension: string;
+  createdAt: string;
+  recall: number | null;
+  precision: number | null;
+  f1: number | null;
+  overturn: number | null;
+  n: number;
+}
+
+export interface ValidationTrendPoint { date: string; recall: number | null; precision: number | null; f1: number | null; overturn: number | null }
+export interface ValidationProfileGroup {
+  profileLabel: string;
+  runs: number;
+  latest: ValidationTrendPoint | null;
+  avg: { recall: number | null; precision: number | null; f1: number | null; overturn: number | null };
+  trend: ValidationTrendPoint[];
+}
+export interface ValidationDashboardDTO {
+  totalRuns: number;
+  scoredRuns: number;
+  overall: { recall: number | null; precision: number | null; f1: number | null; overturn: number | null };
+  groups: ValidationProfileGroup[];
+  rows: ValidationRunRow[];
+}
+
+function avgOf(values: Array<number | null>): number | null {
+  const nums = values.filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+  if (nums.length === 0) return null;
+  return Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 1000) / 1000;
+}
+
+/** Pure aggregation: group scored validation runs by profile, compute latest +
+ *  average metrics and the chronological trend. Unit-tested. */
+export function aggregateValidationRuns(rows: ValidationRunRow[]): ValidationDashboardDTO {
+  const byProfile = new Map<string, ValidationRunRow[]>();
+  for (const r of rows) {
+    const arr = byProfile.get(r.profileLabel) ?? [];
+    arr.push(r);
+    byProfile.set(r.profileLabel, arr);
+  }
+  const groups: ValidationProfileGroup[] = [...byProfile.entries()].map(([profileLabel, rs]) => {
+    const chrono = [...rs].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const trend = chrono.map((r) => ({ date: r.createdAt, recall: r.recall, precision: r.precision, f1: r.f1, overturn: r.overturn }));
+    const latest = trend.length > 0 ? trend[trend.length - 1]! : null;
+    return {
+      profileLabel,
+      runs: rs.length,
+      latest,
+      avg: {
+        recall: avgOf(rs.map((r) => r.recall)),
+        precision: avgOf(rs.map((r) => r.precision)),
+        f1: avgOf(rs.map((r) => r.f1)),
+        overturn: avgOf(rs.map((r) => r.overturn)),
+      },
+      trend,
+    };
+  }).sort((a, b) => b.runs - a.runs || a.profileLabel.localeCompare(b.profileLabel));
+
+  const scored = rows.filter((r) => r.recall != null || r.precision != null);
+  return {
+    totalRuns: rows.length,
+    scoredRuns: scored.length,
+    overall: {
+      recall: avgOf(rows.map((r) => r.recall)),
+      precision: avgOf(rows.map((r) => r.precision)),
+      f1: avgOf(rows.map((r) => r.f1)),
+      overturn: avgOf(rows.map((r) => r.overturn)),
+    },
+    groups,
+    rows,
+  };
+}
+
+/** Org-wide validation dashboard: every scored run, grouped by the profile it
+ *  ran under, with drift trends. Pure aggregation over existing tables. */
+export async function getValidationDashboard(organizationId: string): Promise<ValidationDashboardDTO> {
+  const runs = await prisma.reviewValidationRun.findMany({
+    where: { organizationId, status: { in: ["COMPUTED", "SCALED"] } },
+    orderBy: [{ createdAt: "desc" }],
+    include: { reviewSet: { select: { name: true } } },
+  });
+  const profileIds = [...new Set(runs.map((r) => r.profileId).filter((x): x is string => !!x))];
+  const profiles = profileIds.length > 0
+    ? await prisma.reviewProfile.findMany({ where: { organizationId, id: { in: profileIds } }, select: { id: true, name: true } })
+    : [];
+  const nameById = new Map(profiles.map((p) => [p.id, p.name]));
+
+  const rows: ValidationRunRow[] = runs.map((r) => {
+    const m = (r.metricsJson as ValidationMetricsDTO | null) ?? null;
+    const label = r.profileId ? `${nameById.get(r.profileId) ?? "Profile"}${r.profileVersion ? ` v${r.profileVersion}` : ""}` : "Ad-hoc criteria";
+    return {
+      id: r.id,
+      reviewSetId: r.reviewSetId,
+      reviewSetName: r.reviewSet.name,
+      profileLabel: label,
+      dimension: r.dimension,
+      createdAt: r.createdAt.toISOString(),
+      recall: m?.recall ?? null,
+      precision: m?.precision ?? null,
+      f1: m?.f1 ?? null,
+      overturn: m?.overturn ?? null,
+      n: m?.n ?? 0,
+    };
+  });
+  return aggregateValidationRuns(rows);
+}

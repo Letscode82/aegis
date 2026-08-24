@@ -37,8 +37,10 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
    real Import API behind it). Keep migration-free (config via env / admin field,
    no new table); if per-org persistence needs a column, split that into a
    deferred (unmerged) PR.
-7. ☐ **AI Validation dashboard (AIR-6 read half).** recall/precision/F1/overturn
-   per profile + drift over existing validation runs.
+7. ✅ **AI Validation dashboard (AIR-6 read half).** Pure aggregateValidationRuns
+   + getValidationDashboard; org-wide recall/precision/F1/overturn, grouped by
+   profile with drift sparklines. /api/review/validation/dashboard + a
+   /review/validation page, linked from the Validate tab.
 8. ☐ **Collection workspace stepper.** Swap the flow indicator for the crisp
    `Stepper` across ECA → Cull → Review → Copilot → Validate → Batches → Produce.
 9. ☐ **Theme toggle — Blue (dark) ↔ Facebook Lite.** Runtime palette swap: keep
@@ -70,4 +72,5 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
 - item 3 ✅ merged PR #343 — keyword/junk cull + source-type cull (5 tests, suite 30). Date-window/sender-domain cull deferred.
 - item 4 ✅ merged PR #344 — review console: coding-status filters + Next-uncoded + position + shortcut legend.
 - item 5 ✅ merged PR #345 — AI view: ai-tags.ts + AI-analysis panel + AI-confident filter + governed select-confident bulk-accept (suite 37).
-- item 6 ✅ — export.ts (Concordance .dat + Opticon .opt builders + Relativity payload, 8 tests, suite 45); Produce gains .dat/.opt downloads + a stub-first "Push to RelativityOne" card + /relativity-push route (chain-sealed, RELATIVITY_API_TOKEN seam). Migration-free. PR next.
+- item 6 ✅ merged PR #346 — Concordance .dat/.opt builders + RelativityOne push (stub-first, suite 45).
+- item 7 ✅ — AI Validation dashboard: aggregateValidationRuns (4 tests, suite 49) + getValidationDashboard + /review/validation page + link from Validate tab. Migration-free. PR next.
