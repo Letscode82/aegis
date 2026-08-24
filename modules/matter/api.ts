@@ -228,7 +228,12 @@ export function buildInvestigationReport(organizationId: string, matterId: strin
  *  can deep-link to the hold and the collection workspace. */
 export async function startInvestigationWorkup(
   actor: MatterActor,
-  input: { matterId: string; custodianIdentifiers: string[]; jurisdictions?: string[] },
+  input: {
+    matterId: string;
+    custodianIdentifiers: string[];
+    jurisdictions?: string[];
+    filters?: import("./src/internal/services/review-set").CollectionFilters;
+  },
 ): Promise<{ holdId: string; holdStatus: string; reviewSetId: string; reviewSetName: string; itemCount: number; simulated: boolean }> {
   const inv = await getInvestigationService(actor.organizationId, input.matterId);
   if (!inv) throw new Error("Investigation not found");
@@ -242,7 +247,7 @@ export async function startInvestigationWorkup(
   const identifiers = [...new Set((input.custodianIdentifiers || []).map((s) => (s || "").trim()).filter(Boolean))];
   const reviewSet = await createAdhocCollectionService(
     actor.organizationId,
-    { name: `${inv.matterTitle} — Collection`, source: "INVESTIGATION", identifiers, matterId: input.matterId },
+    { name: `${inv.matterTitle} — Collection`, source: "INVESTIGATION", identifiers, matterId: input.matterId, filters: input.filters },
     { id: actor.id, type: "USER" },
   );
 
@@ -857,8 +862,11 @@ export type {
 export {
   commitHoldCollection,
   createAdhocCollection,
+  filterHits,
+  describeFilters,
   type CommitHoldCollectionInput,
   type AdhocCollectionInput,
+  type CollectionFilters,
 } from "./src/internal/services/review-set";
 
 // Shared review engine (@aegis/review) — persistence, reads, coding, AI review,

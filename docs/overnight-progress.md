@@ -8,11 +8,11 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
 
 ## Queue (migration-free — auto-merge)
 
-1. ☐ **Cull & ECA dashboard.** Turn `EcaPanel` into a real funnel dashboard:
+1. ✅ **Cull & ECA dashboard.** Turn `EcaPanel` into a real funnel dashboard:
    visual bar funnel (collected → deduped → threaded → in-scope → reviewed →
    responsive → produced), per-source & per-custodian breakdown, cost-model
    tuner (min/doc + rate), junk-domain summary. Read aggregation only.
-2. ☐ **Collection filters.** Date-range + keyword + source (mailbox/onedrive/
+2. ✅ **Collection filters.** Date-range + keyword + source (mailbox/onedrive/
    teams) options on collection start (ad-hoc + investigation picker), threaded
    into the query builder / `searchForDataSubject`.
 3. ☐ **Cull options++.** Beyond thread/near-dup: date-window cull, sender-domain
@@ -41,3 +41,5 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
 
 ## Log
 - (start) Queue created. Beginning item 1.
+- item 1 ✅ merged PR #341 — ECA/cull dashboard upgrade + cost-model NaN fix (25 review tests).
+- item 2 ✅ — collection filters (date-range + keyword) via pure filterHits, wired into ad-hoc + hold collection + investigation workup + custodian picker UI (8 matter tests). PR next.

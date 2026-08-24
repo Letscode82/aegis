@@ -19,7 +19,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const custodianIdentifiers = Array.isArray(b.custodianIdentifiers)
       ? b.custodianIdentifiers
       : String(b.custodianIdentifiers || "").split(/[\n,]/).map((s: string) => s.trim()).filter(Boolean);
-    const result = await startInvestigationWorkup(actor, { matterId, custodianIdentifiers, jurisdictions: Array.isArray(b.jurisdictions) ? b.jurisdictions : undefined });
+    const f = b.filters ?? {};
+    const keywords = Array.isArray(f.keywords)
+      ? f.keywords
+      : String(f.keywords || "").split(/[\n,]/).map((s: string) => s.trim()).filter(Boolean);
+    const filters =
+      f.startDate || f.endDate || keywords.length > 0
+        ? { startDate: f.startDate || null, endDate: f.endDate || null, keywords }
+        : undefined;
+    const result = await startInvestigationWorkup(actor, { matterId, custodianIdentifiers, jurisdictions: Array.isArray(b.jurisdictions) ? b.jurisdictions : undefined, filters });
     return res.status(200).json({ ok: true, result });
   } catch (err) {
     return res.status(400).json({ ok: false, error: String((err as Error).message || err) });
