@@ -1,5 +1,5 @@
 import type { AppProps } from "next/app";
-import { ToastProvider } from "@aegis/ui";
+import { ThemeProvider, ToastProvider } from "@aegis/ui";
 import { installStoragePolyfill } from "@aegis/intake/polyfill";
 import { installClientErrorReporter } from "../lib/client-error-reporter";
 
@@ -16,8 +16,10 @@ if (typeof window !== "undefined") {
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
-    <ToastProvider>
-      <Component {...pageProps} />
-    </ToastProvider>
+    <ThemeProvider>
+      <ToastProvider>
+        <Component {...pageProps} />
+      </ToastProvider>
+    </ThemeProvider>
   );
 }
