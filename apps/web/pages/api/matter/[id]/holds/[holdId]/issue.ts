@@ -12,21 +12,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (typeof holdId !== "string") return res.status(400).json({ error: "Invalid holdId" });
   const actor = await requireActor(req, res, Permission.MatterLegalHoldIssue);
   if (!actor) return;
+  // Both fields are optional. The workspace "Issue Hold" button posts an empty
+  // body — the hold is issued over its existing custodians with no notice, and
+  // the composer sends notices separately. The guided wizard supplies both.
   const body = (req.body ?? {}) as {
     noticeTemplateId?: string;
     recipientCustodianPersonIds?: string[];
   };
-  if (!body.noticeTemplateId || !Array.isArray(body.recipientCustodianPersonIds)) {
-    return res
-      .status(400)
-      .json({ error: "noticeTemplateId + recipientCustodianPersonIds required" });
-  }
   try {
     const updated = await issueLegalHold(
       {
         holdId,
         noticeTemplateId: body.noticeTemplateId,
-        recipientCustodianPersonIds: body.recipientCustodianPersonIds,
+        recipientCustodianPersonIds: Array.isArray(body.recipientCustodianPersonIds)
+          ? body.recipientCustodianPersonIds
+          : undefined,
       },
       actor,
     );

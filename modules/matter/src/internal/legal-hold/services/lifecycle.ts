@@ -13,7 +13,6 @@ import type {
 } from "../types";
 import { resolveEffectivePolicy, effectiveCadenceDays } from "./policy";
 import { nextHoldNumber } from "./numbering";
-import { pickTemplateForJurisdiction } from "./notice-template";
 import { recordHoldEvent } from "./timeline";
 
 export class IllegalHoldTransitionError extends Error {
@@ -122,27 +121,17 @@ export async function issueLegalHoldService(
 
   assertTransition(before.status, "ISSUED");
 
-  const template = await pickTemplateForJurisdiction(
-    actor.organizationId,
-    before.jurisdictions[0] ?? null,
-  );
-  if (input.noticeTemplateId && template?.id !== input.noticeTemplateId) {
-    // Caller picked a specific template — load it directly.
+  // Resolve the notice template only if one is being snapshotted. The
+  // workspace "Issue Hold" path issues with no notice (composer sends
+  // notices separately); the guided wizard passes an explicit template.
+  let tpl: { id: string; version: number; bodyHash: string } | null = null;
+  if (input.noticeTemplateId) {
     const explicit = await prisma.holdNoticeTemplate.findFirst({
-      where: {
-        id: input.noticeTemplateId,
-        organizationId: actor.organizationId,
-      },
+      where: { id: input.noticeTemplateId, organizationId: actor.organizationId },
     });
-    if (!explicit)
-      throw new Error(`Template ${input.noticeTemplateId} not found`);
+    if (!explicit) throw new Error(`Template ${input.noticeTemplateId} not found`);
+    tpl = { id: explicit.id, version: explicit.version, bodyHash: explicit.bodyHash };
   }
-  const tpl = await prisma.holdNoticeTemplate.findFirstOrThrow({
-    where: {
-      id: input.noticeTemplateId,
-      organizationId: actor.organizationId,
-    },
-  });
 
   // Snapshot the effective policy onto the hold so future org-level
   // policy changes don't retroactively shift this hold.
@@ -164,46 +153,56 @@ export async function issueLegalHoldService(
     },
   });
 
-  // Seed custodian rows for the requested recipients.
-  for (const personId of input.recipientCustodianPersonIds) {
-    await prisma.legalHoldCustodian.upsert({
-      where: { legalHoldId_personId: { legalHoldId: before.id, personId } },
-      update: {},
-      create: {
-        legalHoldId: before.id,
-        personId,
-        nextReAttestationDueAt: dueDate,
-      },
+  // Recipients: explicit list when provided, otherwise every custodian already
+  // on the hold. De-dupe so a doubled identifier can't create two rows.
+  const explicitRecipients = Array.from(new Set(input.recipientCustodianPersonIds ?? []));
+  let recipientCount = explicitRecipients.length;
+  if (explicitRecipients.length > 0) {
+    for (const personId of explicitRecipients) {
+      await prisma.legalHoldCustodian.upsert({
+        where: { legalHoldId_personId: { legalHoldId: before.id, personId } },
+        update: {},
+        create: { legalHoldId: before.id, personId, nextReAttestationDueAt: dueDate },
+      });
+    }
+  } else {
+    recipientCount = await prisma.legalHoldCustodian.count({
+      where: { legalHoldId: before.id },
     });
   }
 
-  // Issuance row — content-hash snapshot.
-  await prisma.holdNoticeIssuance.create({
-    data: {
-      legalHoldId: before.id,
-      templateId: tpl.id,
-      templateVersion: tpl.version,
-      bodyHashAtIssuance: tpl.bodyHash,
-      recipientCount: input.recipientCustodianPersonIds.length,
-      issuedById: actor.id,
-    },
-  });
+  // Issuance row — content-hash snapshot. Only when a template is supplied;
+  // issuing without a notice is a valid path (composer sends notices later).
+  if (tpl) {
+    await prisma.holdNoticeIssuance.create({
+      data: {
+        legalHoldId: before.id,
+        templateId: tpl.id,
+        templateVersion: tpl.version,
+        bodyHashAtIssuance: tpl.bodyHash,
+        recipientCount,
+        issuedById: actor.id,
+      },
+    });
+  }
 
   await recordHoldEvent({
     legalHoldId: before.id,
     organizationId: actor.organizationId,
     actor,
     type: "HOLD_ISSUED",
-    summary: `Hold issued — ${input.recipientCustodianPersonIds.length} custodians notified`,
+    summary: tpl
+      ? `Hold issued — ${recipientCount} custodians notified`
+      : `Hold issued — ${recipientCount} custodians on hold (notices composed separately)`,
     auditAction: "matter.legal_hold.issued",
     beforeJson: { status: before.status },
     afterJson: {
       status: "ISSUED",
       holdNumber,
       issuedAt: issuedAt.toISOString(),
-      templateId: tpl.id,
-      templateVersion: tpl.version,
-      bodyHashAtIssuance: tpl.bodyHash,
+      templateId: tpl?.id ?? null,
+      templateVersion: tpl?.version ?? null,
+      bodyHashAtIssuance: tpl?.bodyHash ?? null,
     },
     metadata: { cadenceDays, jurisdictions: before.jurisdictions },
   });

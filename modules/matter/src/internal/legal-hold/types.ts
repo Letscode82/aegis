@@ -63,8 +63,17 @@ export interface CreateLegalHoldInput {
 
 export interface IssueLegalHoldInput {
   holdId: string;
-  noticeTemplateId: string;
-  recipientCustodianPersonIds: string[];
+  /**
+   * Optional. When present, a notice-issuance snapshot is recorded against this
+   * template. When absent (the workspace "Issue Hold" path), the hold is issued
+   * with no notice and the composer sends notices separately at issuance.
+   */
+  noticeTemplateId?: string;
+  /**
+   * Optional. When absent or empty, defaults to every custodian already on the
+   * hold — so issuing over an existing custodian roster needs no explicit list.
+   */
+  recipientCustodianPersonIds?: string[];
 }
 
 export interface ReleaseLegalHoldInput {
