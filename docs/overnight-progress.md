@@ -19,9 +19,11 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
    migration-free, reversible, chain-sealed with distinct reasons). NOTE:
    date-window + sender-domain cull need `sentAt`/`fromAddress` columns on
    ReviewSetItem → moved to Deferred (migration).
-4. ☐ **Review console redesign (Relativity One-like).** List + viewer + coding
-   pane, keyboard coding shortcuts, issue tags, prev/next, filter/search,
-   progress + "next uncoded".
+4. ✅ **Review console redesign (Relativity One-like).** The 3-pane console
+   already had list+viewer+coding, j/k/r/n/p/x shortcuts, route filters, bulk
+   coding, families. Added: coding-status filter chips (Uncoded/Coded/
+   Responsive/Privileged), "Next uncoded" jump (button + `u` key), a doc
+   position + uncoded-remaining indicator, and a keyboard-shortcut legend.
 5. ☐ **AI view upgrade.** Per-doc AI tags (responsive/priv/PII/key) with
    confidence + citation surfaced; filter by AI route/confidence; CAP-4-governed
    bulk-accept of confident cited calls.
@@ -63,4 +65,5 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
 - item 1 ✅ merged PR #341 — ECA/cull dashboard upgrade + cost-model NaN fix (25 review tests).
 - item 2 ✅ merged PR #342 — collection filters (date-range + keyword) via pure filterHits (8 matter tests).
 - (user add) extended item 6 with a RelativityOne connector (push-to-workspace, stub-first); added item 9 (theme toggle: Blue dark ↔ Facebook Lite) and item 10 (steppers everywhere + UI polish).
-- item 3 ✅ — keyword/junk cull + source-type cull (migration-free, 5 review tests, suite 30). Date-window/sender-domain cull deferred (needs sentAt/fromAddress columns). PR next.
+- item 3 ✅ merged PR #343 — keyword/junk cull + source-type cull (5 tests, suite 30). Date-window/sender-domain cull deferred.
+- item 4 ✅ — review console: coding-status filters + Next-uncoded (u) + position indicator + shortcut legend (UI-only). PR next.
