@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { C, F, M, SR } from "@aegis/ui";
+import { C, F, M, SR, Stepper } from "@aegis/ui";
 
 // ── Public data-subject portal ───────────────────────────────────────
 // Login-less: DsarPortalStatus resolves a tracking/delivery token;
@@ -27,11 +27,8 @@ export function DsarPortalStatus({ token }) {
           : view === null ? <div style={{ color: C.rd, fontFamily: M, fontSize: 12 }}>This link is invalid or has expired.</div>
           : (
             <>
-              <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
-                {STAGE_LABELS.map((s, i) => {
-                  const done = i < view.stage.index, cur = i === view.stage.index;
-                  return <div key={s} style={{ flex: 1, textAlign: "center" }}><div style={{ height: 5, borderRadius: 3, background: done ? C.gn : cur ? C.cy : C.br }} /><div style={{ fontSize: 8.5, fontFamily: M, textTransform: "uppercase", color: cur ? C.cy : done ? C.gn : C.t4, marginTop: 4 }}>{s}</div></div>;
-                })}
+              <div style={{ marginBottom: 18 }}>
+                <Stepper steps={STAGE_LABELS.map((s) => ({ label: s }))} current={Math.max(1, view.stage.index + 1)} compact />
               </div>
               <div style={{ fontSize: 13, color: C.t1 }}>Status: <b>{view.status.replace(/_/g, " ")}</b></div>
               <div style={{ fontSize: 12, color: C.t3, marginTop: 4 }}>Type: {view.requestType} · Filed {new Date(view.submittedAt).toLocaleDateString()}</div>

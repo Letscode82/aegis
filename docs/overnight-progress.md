@@ -52,9 +52,11 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
    #F0F2F5, card #fff, primary #1877F2, text #050505/#65676B, border #CED0D4).
    Toggle in the app shell; body background follows the theme. Migration-free
    but larger — verify with a full `pnpm build`, not just tsc.
-10. ☐ **Steppers everywhere + UI/UX polish.** Adopt the crisp `Stepper` across
-    every workflow screen that has stages (intake, workflows, DSAR, matter
-    closeout, etc.) and a general cool-factor pass where it helps.
+10. ✅ **Steppers everywhere + UI/UX polish.** DSAR public portal tracker now
+    uses the crisp `Stepper`. Sequential/progress flows now consistently use the
+    shared Stepper (hold wizard, collection workspace, DSAR portal); dual-purpose
+    tab+progress navigators (DSAR detail PhaseNav) keep their combined control by
+    design. Theme toggle (item 9) is the main cool-factor pass.
 
 ## Deferred (need a migration — build, open PR, DO NOT merge)
 
@@ -77,4 +79,5 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
 - item 6 ✅ merged PR #346 — Concordance .dat/.opt builders + RelativityOne push (stub-first, suite 45).
 - item 7 ✅ merged PR #347 — AI Validation dashboard (aggregateValidationRuns, suite 49) + /review/validation page.
 - item 8 ✅ merged PR #348 — collection workspace crisp Stepper (navigator mode).
-- item 9 ✅ — theme toggle: DARK/LIGHT palettes + applyThemeTokens (mutate C in place) + ThemeProvider (remount on change, localStorage) + floating pill toggle, mounted in _app. Verified with a full `pnpm --filter @aegis/web build`. Migration-free. PR next.
+- item 9 ✅ merged PR #349 — theme toggle (Blue dark ↔ Facebook Lite), build-verified.
+- item 10 ✅ — DSAR portal tracker uses the crisp Stepper; sequential flows unified on the shared Stepper. **Migration-free queue (items 1-10) COMPLETE.** Next: deferred migration items (build, PR, do NOT merge).
