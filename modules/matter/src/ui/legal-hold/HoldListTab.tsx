@@ -62,14 +62,18 @@ export const HoldListTab: React.FC<HoldListTabProps> = ({
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <SH icon="🛑" title="Legal holds" sub={`${holds?.length ?? 0} on this matter`} />
         <div style={{ display: "flex", gap: 8 }}>
+          {/* Guided wizard is the default create path — the step-by-step
+              flow. The single-page form stays available as "Advanced form"
+              for power users. */}
           {onCreate && (
             <button
               type="button"
               onClick={onCreate}
+              title="Single-page form for power users"
               style={{
                 background: "transparent",
                 border: `1px solid ${C.brL}`,
-                color: C.t1,
+                color: C.t3,
                 padding: "6px 12px",
                 fontFamily: F,
                 fontWeight: 600,
@@ -78,7 +82,7 @@ export const HoldListTab: React.FC<HoldListTabProps> = ({
                 cursor: "pointer",
               }}
             >
-              + New hold
+              Advanced form
             </button>
           )}
           {onCreateGuided && (
@@ -99,7 +103,7 @@ export const HoldListTab: React.FC<HoldListTabProps> = ({
                 textTransform: "uppercase",
               }}
             >
-              + New hold (Guided)
+              + New hold
             </button>
           )}
         </div>
