@@ -6,8 +6,11 @@
  */
 
 // Theme tokens
-export { C, F, M, SR } from "./theme/tokens.js";
+export { C, F, M, SR, applyThemeTokens, THEMES, DARK_PALETTE, LIGHT_PALETTE } from "./theme/tokens.js";
 export { CSS } from "./theme/global-css.js";
+
+// Runtime theme toggle (Blue dark ↔ Facebook Lite).
+export { ThemeProvider, useTheme } from "./Theme";
 
 // Atoms — display
 export {

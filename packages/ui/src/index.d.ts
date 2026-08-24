@@ -48,6 +48,15 @@ export const M: string;
 export const SR: string;
 export const CSS: string;
 
+// Theme system (Blue dark ↔ Facebook Lite)
+export type ThemeName = "dark" | "light";
+export const THEMES: Record<ThemeName, typeof C>;
+export const DARK_PALETTE: typeof C;
+export const LIGHT_PALETTE: typeof C;
+export function applyThemeTokens(name: string): ThemeName;
+export const ThemeProvider: React.FC<{ children?: ReactNode }>;
+export function useTheme(): { theme: ThemeName; setTheme: (t: ThemeName) => void; toggle: () => void };
+
 export const Card: React.FC<{
   children?: ReactNode;
   style?: CSSProperties;

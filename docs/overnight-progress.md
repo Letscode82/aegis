@@ -45,7 +45,7 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
    crisp `Stepper` (navigator mode — all stages clickable, active = current) in
    its own full-width row: ECA → Cull → Review → Copilot → Validate → Batches →
    Produce.
-9. ☐ **Theme toggle — Blue (dark) ↔ Facebook Lite.** Runtime palette swap: keep
+9. ✅ **Theme toggle — Blue (dark) ↔ Facebook Lite.** Runtime palette swap: keep
    the `${C.x}44` alpha-append idiom working by mutating the `C` token object
    in place to the chosen palette and remounting the app subtree (keyed by
    theme) + persisting to localStorage; a Facebook-style light palette (bg
@@ -76,4 +76,5 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
 - item 5 ✅ merged PR #345 — AI view: ai-tags.ts + AI-analysis panel + AI-confident filter + governed select-confident bulk-accept (suite 37).
 - item 6 ✅ merged PR #346 — Concordance .dat/.opt builders + RelativityOne push (stub-first, suite 45).
 - item 7 ✅ merged PR #347 — AI Validation dashboard (aggregateValidationRuns, suite 49) + /review/validation page.
-- item 8 ✅ — collection workspace now uses the crisp Stepper (navigator mode) for the 7-stage flow (UI-only). PR next.
+- item 8 ✅ merged PR #348 — collection workspace crisp Stepper (navigator mode).
+- item 9 ✅ — theme toggle: DARK/LIGHT palettes + applyThemeTokens (mutate C in place) + ThemeProvider (remount on change, localStorage) + floating pill toggle, mounted in _app. Verified with a full `pnpm --filter @aegis/web build`. Migration-free. PR next.
