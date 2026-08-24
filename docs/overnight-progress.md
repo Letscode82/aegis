@@ -24,9 +24,11 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
    coding, families. Added: coding-status filter chips (Uncoded/Coded/
    Responsive/Privileged), "Next uncoded" jump (button + `u` key), a doc
    position + uncoded-remaining indicator, and a keyboard-shortcut legend.
-5. ☐ **AI view upgrade.** Per-doc AI tags (responsive/priv/PII/key) with
-   confidence + citation surfaced; filter by AI route/confidence; CAP-4-governed
-   bulk-accept of confident cited calls.
+5. ✅ **AI view upgrade.** Pure `ai-tags.ts` helpers + an AI-analysis panel in
+   the reviewer (each dimension: value + confidence % + citation snippet), an
+   "AI-confident" filter chip, and a "Select confident AI-responsive" governed
+   bulk-accept (selects confident+cited responsive calls for the human to
+   confirm via the bulk toolbar — coding gate unchanged).
 6. ☐ **Relativity export + RelativityOne connector.** (a) Concordance load-file
    (`.dat`/`.opt` + extracted-text manifest) download from Produce. (b) "Connect
    to a RelativityOne instance" (instance URL + workspace id + credential ref)
@@ -66,4 +68,5 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
 - item 2 ✅ merged PR #342 — collection filters (date-range + keyword) via pure filterHits (8 matter tests).
 - (user add) extended item 6 with a RelativityOne connector (push-to-workspace, stub-first); added item 9 (theme toggle: Blue dark ↔ Facebook Lite) and item 10 (steppers everywhere + UI polish).
 - item 3 ✅ merged PR #343 — keyword/junk cull + source-type cull (5 tests, suite 30). Date-window/sender-domain cull deferred.
-- item 4 ✅ — review console: coding-status filters + Next-uncoded (u) + position indicator + shortcut legend (UI-only). PR next.
+- item 4 ✅ merged PR #344 — review console: coding-status filters + Next-uncoded + position + shortcut legend.
+- item 5 ✅ — AI view: ai-tags.ts helpers (7 tests, suite 37) + AI-analysis panel (dimensions/confidence/citation) + AI-confident filter + governed select-confident bulk-accept. PR next.

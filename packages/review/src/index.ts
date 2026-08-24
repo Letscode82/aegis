@@ -45,6 +45,15 @@ export {
 } from "./ai";
 
 export {
+  parseAiTags,
+  orderedAiTags,
+  isConfidentResponsive,
+  hasConfidentCall,
+  AI_TAG_KINDS,
+  type AiTagView,
+} from "./ai-tags";
+
+export {
   normalizeSubject,
   hashString,
   assignThreadingAndDedup,

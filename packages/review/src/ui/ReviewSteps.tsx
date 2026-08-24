@@ -7,6 +7,12 @@
  */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { C, F, M, SR, useToast } from "@aegis/ui";
+import { orderedAiTags, isConfidentResponsive, hasConfidentCall, type AiTagView } from "../ai-tags";
+
+const tagColor = (kind: string, value: boolean): string => {
+  if (!value) return C.t4;
+  return kind === "PRIVILEGED" ? C.pp : kind === "PII" ? C.am : kind === "KEY_DOCUMENT" ? C.cy : kind === "REDACT" ? C.am : C.gn;
+};
 
 export const routeColor = (r: string | null): string => (r === "ATTORNEY" ? C.pp : r === "REVIEWER" ? C.bl : C.t4);
 export const routeLabel = (r: string | null): string => (r === "ATTORNEY" ? "Attorney" : r === "REVIEWER" ? "Reviewer" : r === "AUTO_CULL" ? "Auto-cull" : "");
@@ -53,6 +59,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
   const [cursor, setCursor] = useState(0);
   const [filter, setFilter] = useState<RouteFilter>("ALL");
   const [codeFilter, setCodeFilter] = useState<CodeFilter>("ALL");
+  const [confidentOnly, setConfidentOnly] = useState(false);
   const [query, setQuery] = useState("");
   const [sortByPriority, setSortByPriority] = useState(true);
   const [hideSuppressed, setHideSuppressed] = useState(false);
@@ -111,13 +118,14 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
       if (codeFilter === "CODED" && !i.coded) return false;
       if (codeFilter === "RESPONSIVE" && i.codedResponsive !== true) return false;
       if (codeFilter === "PRIVILEGED" && !i.codedPrivileged) return false;
+      if (confidentOnly && !hasConfidentCall(i.aiTags)) return false;
       if (hideSuppressed && derived.suppressed.has(i.id)) return false;
       if (query.trim()) { const q = query.toLowerCase(); return i.title.toLowerCase().includes(q) || (i.sourceSystem || "").toLowerCase().includes(q); }
       return true;
     });
     if (sortByPriority) list = [...list].sort((a, b) => aiPriority(b) - aiPriority(a));
     return list;
-  }, [items, filter, codeFilter, query, sortByPriority, hideSuppressed, derived]);
+  }, [items, filter, codeFilter, confidentOnly, query, sortByPriority, hideSuppressed, derived]);
   const uncodedInView = useMemo(() => filtered.filter((i) => !i.coded).length, [filtered]);
   useEffect(() => { if (cursor >= filtered.length) setCursor(0); }, [filtered.length, cursor]);
   const current = filtered[cursor];
@@ -154,6 +162,16 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
     } catch (e) { toast.error(String((e as Error).message || e)); }
   };
   const toggleSel = (id: string) => setSelected((prev) => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+
+  // Governed bulk-accept: select the AI's confident, CITED responsive calls that
+  // are still uncoded, into the selection. The human then confirms via the bulk
+  // toolbar — the AI proposes, a person disposes (the coding gate is unchanged).
+  const selectConfidentAiResponsive = () => {
+    const ids = filtered.filter((i) => !i.coded && isConfidentResponsive(i.aiTags)).map((i) => i.id);
+    if (ids.length === 0) { toast.info("No confident, cited AI-responsive calls left to accept."); return; }
+    setSelected(new Set(ids));
+    toast.info(`Selected ${ids.length} confident AI-responsive doc(s) — review, then confirm below.`);
+  };
 
   // Jump to the next uncoded document after the cursor (wrapping) — the review
   // throughput lever. Bound to the "u" key + the "Next uncoded" button.
@@ -328,7 +346,14 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
             {codeChip("CODED", "Coded", C.gn)}
             {codeChip("RESPONSIVE", "Responsive", C.gn)}
             {codeChip("PRIVILEGED", "Privileged", C.pp)}
+            <button onClick={() => { setConfidentOnly((v) => !v); setCursor(0); }} title="Show only documents with a confident AI call (≥70%)" style={{
+              fontSize: 11.5, fontWeight: 600, padding: "4px 10px", borderRadius: 20, cursor: "pointer",
+              background: confidentOnly ? `${C.cy}22` : "transparent", color: confidentOnly ? C.cy : C.t3, border: `1px solid ${confidentOnly ? C.cy : C.br}`,
+            }}>AI-confident</button>
           </div>
+          <button disabled={!canMutate || frozen} onClick={selectConfidentAiResponsive} title="Select the AI's confident, cited responsive calls to bulk-confirm" style={{ ...ghost(C.gn), padding: "7px 12px", fontSize: 12, textAlign: "center" }}>
+            ✓ Select confident AI-responsive
+          </button>
           <input value={query} onChange={(e) => { setQuery(e.target.value); setCursor(0); }} placeholder="Search subject or custodian…" style={{ ...inputS, padding: "9px 12px", fontSize: 13, borderColor: C.br, background: C.bg }} />
           <button disabled={uncodedInView === 0} onClick={gotoNextUncoded} title="Jump to the next uncoded document (u)" style={{ ...ghost(uncodedInView > 0 ? C.am : C.t4), padding: "7px 12px", fontSize: 12, textAlign: "center" }}>
             {uncodedInView > 0 ? `↦ Next uncoded (${uncodedInView})` : "All coded in view ✓"}
@@ -398,6 +423,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
                 {current.aiRationale && <div style={{ fontSize: 12.5, color: C.t2, lineHeight: 1.6, marginTop: 7 }}>{current.aiRationale}</div>}
               </div>
             )}
+            <AiTagsPanel tags={orderedAiTags(current.aiTags)} />
             <div style={{ marginTop: 18, padding: "22px 24px", background: C.cd, border: `1px solid ${C.br}`, borderRadius: 12, fontSize: 14.5, lineHeight: 1.8, color: C.t2, whiteSpace: "pre-wrap" }}>
               {current.excerpt ? highlight(current.excerpt, hlTerms) : <span style={{ color: C.t4, fontStyle: "italic" }}>No preview text — open the source for the full item.</span>}
             </div>
@@ -462,6 +488,41 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
         <div style={{ flex: 1, minHeight: 16 }} />
         <button disabled={!canMutate} onClick={freezeAndProduce} style={{ ...btn(C.gn), textAlign: "center" }}>{frozen ? "Go to Produce →" : "Freeze & Produce →"}</button>
       </div>
+      </div>
+    </div>
+  );
+};
+
+const KIND_LABEL: Record<string, string> = { RESPONSIVE: "Responsive", PRIVILEGED: "Privileged", PII: "PII", KEY_DOCUMENT: "Key document", REDACT: "Redact" };
+
+const AiTagsPanel: React.FC<{ tags: AiTagView[] }> = ({ tags }) => {
+  if (tags.length === 0) return null;
+  return (
+    <div style={{ marginTop: 14, border: `1px solid ${C.br}`, borderRadius: 12, padding: "14px 16px" }}>
+      <div style={{ fontSize: 10.5, fontFamily: M, letterSpacing: .6, textTransform: "uppercase", color: C.t3, marginBottom: 10 }}>AI analysis · {tags.length} dimensions</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {tags.map((t) => {
+          const col = tagColor(t.kind, t.value);
+          const pct = Math.round(t.confidence * 100);
+          return (
+            <div key={t.kind}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 11, fontWeight: 700, letterSpacing: .3, color: col, border: `1px solid ${col}`, borderRadius: 5, padding: "1px 8px" }}>
+                  {KIND_LABEL[t.kind] ?? t.kind}: {t.value ? "Yes" : "No"}
+                </span>
+                <span style={{ fontFamily: M, fontSize: 11, color: C.t3 }}>{pct}% confidence</span>
+              </div>
+              {t.citation && (
+                <div style={{ fontSize: 12, color: C.t2, marginTop: 4, borderLeft: `2px solid ${col}55`, paddingLeft: 8, fontStyle: "italic" }}>
+                  &ldquo;{t.citation}&rdquo;
+                </div>
+              )}
+              {!t.citation && t.rationale && (
+                <div style={{ fontSize: 11.5, color: C.t4, marginTop: 3 }}>{t.rationale}</div>
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
