@@ -62,6 +62,19 @@ const Cell: React.FC<{ value: React.ReactNode; color?: string }> = ({
   </span>
 );
 
+/** A value+label metric with a guaranteed gap between them, so the count
+ *  never crams against its label ("7 custodians", not "7custodians"). */
+const Metric: React.FC<{
+  value: React.ReactNode;
+  label: string;
+  color?: string;
+}> = ({ value, label, color }) => (
+  <span style={{ display: "inline-flex", alignItems: "baseline", gap: 4 }}>
+    <Cell value={value} color={color} />
+    <span style={{ color: C.t3 }}>{label}</span>
+  </span>
+);
+
 const Sep: React.FC = () => (
   <span
     style={{
@@ -97,46 +110,50 @@ export const HoldStatusRow: React.FC<HoldStatusRowProps> = ({
         style={{
           display: "grid",
           gridTemplateColumns: "1fr",
-          gap: 6,
+          gap: 8,
           fontFamily: F,
-          fontSize: 10.5,
+          fontSize: 11.5,
           color: C.t2,
         }}
       >
         <Line>
-          <Cell value={counts.custodians} /> custodian
-          {counts.custodians === 1 ? "" : "s"}
+          <Metric
+            value={counts.custodians}
+            label={`custodian${counts.custodians === 1 ? "" : "s"}`}
+          />
           <Sep />
-          <Cell value={counts.custodiansAcknowledged} color={C.gn} /> acknowledged
+          <Metric value={counts.custodiansAcknowledged} label="acknowledged" color={C.gn} />
           <Sep />
-          <Cell value={counts.custodiansPending} color={C.am} /> pending
+          <Metric value={counts.custodiansPending} label="pending" color={C.am} />
           <Sep />
-          <Cell value={counts.custodiansOverdue} color={overdueColor} /> overdue
+          <Metric value={counts.custodiansOverdue} label="overdue" color={overdueColor} />
           {counts.custodiansReleased > 0 && (
             <>
               <Sep />
-              <Cell value={counts.custodiansReleased} color={C.t4} /> released
+              <Metric value={counts.custodiansReleased} label="released" color={C.t4} />
             </>
           )}
           {counts.custodiansDeparted > 0 && (
             <>
               <Sep />
-              <Cell value={counts.custodiansDeparted} color={C.rd} /> departed
+              <Metric value={counts.custodiansDeparted} label="departed" color={C.rd} />
             </>
           )}
         </Line>
         <Line>
-          <Cell value={counts.dataSources} /> data source
-          {counts.dataSources === 1 ? "" : "s"}
+          <Metric
+            value={counts.dataSources}
+            label={`data source${counts.dataSources === 1 ? "" : "s"}`}
+          />
           <Sep />
-          <Cell value={counts.dataSourcesPreserved} color={C.gn} /> preserved
+          <Metric value={counts.dataSourcesPreserved} label="preserved" color={C.gn} />
           <Sep />
-          <Cell value={counts.dataSourcesItConfirmed} color={C.gn} /> IT-confirmed
+          <Metric value={counts.dataSourcesItConfirmed} label="IT-confirmed" color={C.gn} />
           <Sep />
-          <Cell value={counts.dataSourcesConflict} color={conflictColor} /> conflicts
+          <Metric value={counts.dataSourcesConflict} label="conflicts" color={conflictColor} />
         </Line>
         <Line>
-          Last activity{" "}
+          <span style={{ color: C.t3, marginRight: 4 }}>Last activity</span>
           {onOpenLastActivity && lastActivityAt ? (
             <button
               type="button"
@@ -163,7 +180,7 @@ export const HoldStatusRow: React.FC<HoldStatusRowProps> = ({
             <Cell value={formatRelativeTime(lastActivityAt)} color={C.t1} />
           )}
           <Sep />
-          Next reminder{" "}
+          <span style={{ color: C.t3, marginRight: 4 }}>Next reminder</span>
           <Cell
             value={formatDueIn(nextReminderDueAt)}
             color={
@@ -173,11 +190,18 @@ export const HoldStatusRow: React.FC<HoldStatusRowProps> = ({
             }
           />
           <Sep />
-          Cadence <Cell value={`${cadenceDays}d`} color={C.t1} />
+          <span style={{ color: C.t3, marginRight: 4 }}>Cadence</span>
+          <Cell value={`${cadenceDays}d`} color={C.t1} />
           <Sep />
-          {counts.notices} notice{counts.notices === 1 ? "" : "s"} issued
+          <Metric
+            value={counts.notices}
+            label={`notice${counts.notices === 1 ? "" : "s"} issued`}
+          />
           <Sep />
-          {counts.events} event{counts.events === 1 ? "" : "s"} logged
+          <Metric
+            value={counts.events}
+            label={`event${counts.events === 1 ? "" : "s"} logged`}
+          />
         </Line>
       </div>
     </Card>
@@ -185,7 +209,7 @@ export const HoldStatusRow: React.FC<HoldStatusRowProps> = ({
 };
 
 const Line: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center" }}>
+  <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", rowGap: 4 }}>
     {children}
   </div>
 );
