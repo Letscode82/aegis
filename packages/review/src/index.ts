@@ -56,6 +56,17 @@ export {
 export { getNearDuplicates, type NearDupResult } from "./near-dup";
 
 export {
+  contentHash,
+  md5Hash,
+  dedupByHash,
+  deNIST,
+  isKnownSystemHash,
+  KNOWN_SYSTEM_HASHES,
+  type HashedItem,
+  type DedupResult,
+} from "./hashing";
+
+export {
   parseAiTags,
   orderedAiTags,
   isConfidentResponsive,
