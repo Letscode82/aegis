@@ -74,7 +74,7 @@ Priority: 🔴 high (before a real matter) · 🟡 medium · 🟢 later. Status:
 | **PROC-5** | Hashing + hash-dedup + deNIST | MD5/SHA-256 identity, global dedup, drop NSRL system files | Node crypto + NIST NSRL set | 🟡 | ◧ #367 (pure engine; per-item column + NSRL data pending) |
 | **PROC-6** | Container expansion (PST/MBOX/ZIP) | Ingest exported archives, nested families | `readpst`/`libpff`, `yauzl`, Tika | 🟡 | ☐ |
 | **PROC-7** | **Purview processing mode** | Delegate processing to Advanced Indexing where E5 allows | Purview eDiscovery Premium APIs | 🟡 | ☐ |
-| **PROC-8** | Exception report + processing dashboard | Password-protected/corrupt/unsupported surfaced; processing stats | reads engine `exceptions[]` | 🟡 | ☐ |
+| **PROC-8** | Exception report + processing dashboard | Password-protected/corrupt/unsupported surfaced; processing stats | reads engine `exceptions[]` | 🟡 | ◧ #368 (classification + summarizeExceptions; per-item persistence + dashboard pending) |
 | **PROC-9** | Language ID + near-dup | Per-doc language; near-duplicate flag beyond exact dedup | Tika/CLD; shingling/MinHash | 🟢 | ✅ #366 (pure + on-the-fly read; persistence pending) |
 | RDY-OCR | (folded into PROC-4) | — | — | — | ↳ PROC-4 |
 | HARD-1 | KMS envelope encryption for M365 secrets | Production-grade secret storage | KMS (Azure Key Vault / AWS KMS) | 🟡 | ⏸ (first paying client) |
@@ -95,9 +95,14 @@ PR with an apply note (never blocks on the user):
    `/near-duplicates` read (PR #366). Per-item persistence deferred (migration).
 4. ◧ **PROC-5 (pure parts)** — hashing + `deNIST` + dedup-by-hash helpers (PR
    #367). Per-item `contentHash` column + full NSRL data are the deferred parts.
-5. **PROC-8 (return path)** — have the engine return `exceptions[]`
-   (password-protected / unsupported / corrupt) and thread them out; the
-   per-item persistence + dashboard is an UNMERGED migration PR.
+5. ◧ **PROC-8 (return path)** — accurate exception classification (ENCRYPTED/
+   UNSUPPORTED/EMPTY) + `summarizeExceptions` (PR #368). Per-item persistence +
+   dashboard deferred (migration).
+
+**Autonomous queue exhausted.** Remaining processing work needs the user:
+per-item columns (contentHash / near-dup / language / exception) + their
+dashboards are **deferred migrations**; PROC-3 (Tika Server), PROC-4 (OCR),
+PROC-6 (PST/MBOX), PROC-7 (Purview) need **infrastructure/credentials**.
 
 SKIP (need infra/creds/user): PROC-3 (Tika Server), PROC-4 (OCR sidecar/cloud),
 PROC-6 (PST/MBOX native libs), PROC-7 (Purview APIs), all HARD-*.
