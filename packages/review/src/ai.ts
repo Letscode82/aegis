@@ -6,15 +6,72 @@
  * SUGGESTIONS: a human still codes every item in the reviewer console (the
  * PENDING → coded gate is unchanged).
  *
- * Respects the 4d Matter/Legal-Hold AI freeze: this runs the engine's
- * deterministic screen (no `@aegis/ai` model call). When 4d unfreezes, a
- * Claude-backed pass drops in behind the same `@aegis/ai-review` interface with
- * no schema or caller change.
+ * 4d — LLM per-document review is the default: Claude reasons over each document
+ * + the review criteria/issues and emits cited, confidence-scored tags across
+ * all five dimensions, routing each item. It runs as a fleet of bounded-
+ * concurrency batch calls (an agentic reviewer over the set). The deterministic
+ * screen is the degrade-safe fallback — no key or a failed batch drops straight
+ * to it, and it also fills any single document the model skips, so a run is
+ * always complete. The tags stay SUGGESTIONS: a human still codes every item
+ * (the PENDING → coded gate, or the "Accept all AI calls" bulk approve).
  */
 import { prisma, logAudit } from "@aegis/db";
-import { reviewDeterministic, summarizeRoutes, type ReviewInstruction, type ReviewItem, type ReviewTagKind } from "@aegis/ai-review";
+import { buildReviewPrompt, parseAiReview, reviewDeterministic, summarizeRoutes, type ReviewInstruction, type ReviewItem, type ReviewItemResult, type ReviewTagKind } from "@aegis/ai-review";
+import { CLAUDE_MODEL, callClaudeJSON } from "@aegis/ai";
+import { ensureServerClaudeTransport } from "@aegis/ai/server";
 
 type Actor = { id: string | null; type?: "USER" | "AGENT" | "SYSTEM" };
+
+// Batch size keeps each Claude call focused (better citations) and lets one
+// failed batch degrade in isolation; concurrency caps parallel calls.
+const REVIEW_BATCH_SIZE = 8;
+const REVIEW_CONCURRENCY = 4;
+// Per-run item ceiling — beyond this, use the resumable batch runner (AIR-6)
+// so a single request can't run for minutes.
+const MAX_ITEMS_PER_RUN = 400;
+
+function chunk<T>(arr: T[], n: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += n) out.push(arr.slice(i, i + n));
+  return out;
+}
+async function mapLimit<T, R>(items: T[], limit: number, fn: (x: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let cursor = 0;
+  const worker = async () => {
+    while (cursor < items.length) {
+      const idx = cursor++;
+      out[idx] = await fn(items[idx]!);
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
+
+/**
+ * LLM-first scoring: Claude reviews each batch and emits cited tags; the
+ * deterministic screen is the fallback (no key / failed batch) and fills any
+ * document the model omits. Returns complete, routed results for every item.
+ */
+async function scoreItems(instruction: ReviewInstruction, items: ReviewItem[]): Promise<ReviewItemResult[]> {
+  try {
+    ensureServerClaudeTransport();
+  } catch {
+    return reviewDeterministic(instruction, items); // no model key → deterministic
+  }
+  const batches = chunk(items, REVIEW_BATCH_SIZE);
+  const perBatch = await mapLimit(batches, REVIEW_CONCURRENCY, async (batch) => {
+    try {
+      const prompt = buildReviewPrompt(instruction, batch);
+      const raw = await callClaudeJSON(prompt, { maxTokens: 2000, timeout: 60000 });
+      return parseAiReview(raw, instruction, batch);
+    } catch (e) {
+      console.error("[ai-review] batch failed, deterministic fallback:", e);
+      return reviewDeterministic(instruction, batch);
+    }
+  });
+  return perBatch.flat();
+}
 
 export interface RunReviewSetAiInput {
   /** Scope/criteria prompt. Defaults to the review set's name + query. */
@@ -30,6 +87,10 @@ export interface RunReviewSetAiResult {
   scored: number;
   routes: { total: number; attorney: number; reviewer: number; autoCull: number };
   degraded: boolean;
+  /** The model that reviewed, or null when the deterministic screen ran. */
+  model: string | null;
+  /** How many of the scored items came from the model vs. the fallback. */
+  byModel: number;
 }
 
 /** Map the RESPONSIVE tag onto the existing aiVerdict for at-a-glance display. */
@@ -46,11 +107,12 @@ export async function runAiReviewOnReviewSet(organizationId: string, reviewSetId
   const storedIssues = ((rs.issuesJson as Array<{ key: string; label: string }> | null) ?? []).map((i) => ({ key: i.key, description: i.label }));
 
   const rows = await prisma.reviewSetItem.findMany({
-    where: { reviewSetId, ...(input.pendingOnly === false ? {} : { reviewDecision: "PENDING" }) },
+    where: { reviewSetId, excludedAt: null, ...(input.pendingOnly === false ? {} : { reviewDecision: "PENDING" }) },
     select: { id: true, title: true, excerpt: true, sourceSystem: true },
     orderBy: [{ createdAt: "asc" }],
+    take: MAX_ITEMS_PER_RUN,
   });
-  if (rows.length === 0) return { scored: 0, routes: { total: 0, attorney: 0, reviewer: 0, autoCull: 0 }, degraded: true };
+  if (rows.length === 0) return { scored: 0, routes: { total: 0, attorney: 0, reviewer: 0, autoCull: 0 }, degraded: true, model: null, byModel: 0 };
 
   const instruction: ReviewInstruction = {
     criteria: (input.criteria || "").trim() || (rs.criteria || "").trim() || `${rs.name}. Collection query: ${rs.queryString}`,
@@ -59,8 +121,13 @@ export async function runAiReviewOnReviewSet(organizationId: string, reviewSetId
   };
   const items: ReviewItem[] = rows.map((r) => ({ id: r.id, title: r.title, text: r.excerpt, sourceSystem: r.sourceSystem }));
 
-  // 4d-frozen: deterministic screen only (the shared engine's fallback path).
-  const results = reviewDeterministic(instruction, items);
+  // 4d: LLM-first per-document review, degrading per-batch to the deterministic
+  // screen. `degraded` on each result marks whether the model or the fallback
+  // produced it.
+  const results = await scoreItems(instruction, items);
+  const byModel = results.filter((r) => !r.degraded).length;
+  const degraded = byModel === 0;
+  const model = degraded ? null : CLAUDE_MODEL;
 
   await prisma.$transaction(
     results.map((res) => {
@@ -83,9 +150,9 @@ export async function runAiReviewOnReviewSet(organizationId: string, reviewSetId
   await logAudit({
     organizationId, actorId: actor.id, actorType: actor.type ?? "USER",
     action: "reviewset.ai_review_run", resourceType: "ReviewSet", resourceId: reviewSetId,
-    afterJson: { scored: results.length, routes } as never,
-    metadata: { source: "review", channel: "ediscovery", degraded: true } as never,
+    afterJson: { scored: results.length, routes, byModel, degraded } as never,
+    metadata: { source: "review", channel: "ediscovery", degraded, model } as never,
   });
 
-  return { scored: results.length, routes, degraded: true };
+  return { scored: results.length, routes, degraded, model, byModel };
 }
