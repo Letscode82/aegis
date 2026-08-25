@@ -10,12 +10,12 @@ Legend: ✅ real · ⚠️ partial / stub · ☐ pending · (loop updates rows t
 | Capability | Status | Enabled by (component / API) | Notes & caveats |
 |---|---|---|---|
 | Mailbox / OneDrive / Teams collection | ✅ Real | **Microsoft Graph** per-user endpoints (`/users/{id}/messages`, `/drive`, `/chats`) via `M365GraphClient` (app-only) → `searchForDataSubject`; full body + attachment `contentBytes` | Needs app-only Graph perms (`Mail.Read`, `Files.Read.All`, `Sites.Read.All`). REAL GRAPH verified. |
-| Text processing / extraction | ⚠️ Partial | `@aegis/review` `text-extract.ts` (HTML→text + text/csv/json/xml/rtf attachments) | **PDF / DOCX / OCR** in progress — see Pending. |
+| Text processing / extraction | ✅ Real (OCR pending) | `text-extract.ts` — HTML→text + text/csv/json/xml/rtf + **PDF (pdf-parse)** + **DOCX (mammoth)** | Image **OCR** for scanned pages still needs a cloud OCR service (Azure Document Intelligence) — documented follow-up. |
 | Tenant-scale collection estimate | ✅ Real | **Purview eDiscovery** `estimateStatistics` (`microsoft.graph.security`) → `estimatePurviewCollection` (CW-2) | Tenant-wide size without per-user pull. |
 | Legal holds (lifecycle + defensibility) | ✅ Real | `@aegis/matter` legal-hold services; event-sourced `LegalHoldEvent` + chain-sealed `AuditLog` | Deterministic defensibility scorecard. |
 | Purview eDiscovery preservation | ✅ Real | **Microsoft Graph Security eDiscovery** (`/security/cases/*`) via `M365GraphDelegatedClient` (**Device Code OAuth**, delegated) | Degrades to vault-copy without **E5 / eDiscovery Premium**. |
 | Culling (dedup, threading, keyword/junk, source-type, date-window) | ✅ Real | `@aegis/review` `threading.ts` + `cull.ts` (deterministic) | Reversible, chain-sealed exclusion log. |
-| LLM per-document review | ✅ Real | `@aegis/ai-review` (prompt + strict-JSON parse) + `@aegis/ai` → **Anthropic Claude API** via `/api/claude` proxy | LLM-first batched reviewer; deterministic fallback. Bounded to 400 docs/run — see Pending (batch runner). |
+| LLM per-document review | ✅ Real | `@aegis/ai-review` (prompt + strict-JSON parse) + `@aegis/ai` → **Anthropic Claude API** via `/api/claude` proxy | LLM-first batched reviewer; deterministic fallback. **"Review all →" loops in 400-doc chunks over unscored items** to review a set of any size. |
 | Copilot (Ask) / Case Graph theory / theme names | ✅ Real | `@aegis/review` `copilot.ts`, `case-graph.ts`, `clusters.ts` + **Claude API** | Grounded, cited; deterministic fallback. |
 | Case AutoPilot (orchestration) | ✅ Real | `@aegis/review` `autopilot.ts` — planner + loop over the tools | Governed: `AgentDecision` gate per mutating step. |
 | AI governance (human gate + audit) | ✅ Real | `AgentDecision` table + **D11 chain-sealed `AuditLog`** (Postgres triggers, SHA-256 chain) | Tamper-evident; `verifyAuditChain`. |
@@ -31,14 +31,12 @@ Legend: ✅ real · ⚠️ partial / stub · ☐ pending · (loop updates rows t
 
 ## Pending work (non-hardening) — burning down on loop
 
-1. ☐ **PDF / DOCX / OCR text extraction.** Extend `text-extract.ts` so collected
-   PDF and Word attachments (and, where feasible, scanned images) become
-   searchable, reviewable text — not just filenames. Adds server-side parsers
-   (no schema).
-2. ☐ **Resumable batch review runner (AIR-6).** Review a whole collection past
-   the 400-doc/run cap: score the next chunk of *unscored* items per call
-   (`aiRoute IS NULL` as the progress marker), a "Review all" UI that loops with
-   a progress bar until none remain. Migration-free.
+1. ✅ **PDF / DOCX text extraction** (PR #361). PDF (pdf-parse) + DOCX (mammoth),
+   degrade-safe, server-external in next.config. Image OCR deferred (needs a
+   cloud OCR service) — moved to Hardening-adjacent follow-ups.
+2. ✅ **Resumable batch review runner** (PR pending). `unscoredOnly` mode scores
+   the next chunk of `aiRoute IS NULL` items per call and reports `remaining`; a
+   "Review all →" button loops until the whole set is scored. Migration-free.
 
 ## Hardening — deferred to first paying client (not now)
 
@@ -48,3 +46,5 @@ Legend: ✅ real · ⚠️ partial / stub · ☐ pending · (loop updates rows t
 
 ## Log
 - (start) Readiness doc created; LLM per-doc review landed (PR #360). Beginning the two pending items.
+- item 1 ✅ merged PR #361 — PDF (pdf-parse) + DOCX (mammoth) extraction, degrade-safe, build-verified. OCR (scanned images) deferred to a cloud OCR follow-up.
+- item 2 ✅ — resumable batch review runner (unscoredOnly + remaining + "Review all →" loop). Both non-hardening items done; only OCR (cloud) + the deferred hardening remain.
