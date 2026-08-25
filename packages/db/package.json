@@ -9,7 +9,10 @@
     ".": "./src/index.ts",
     "./client": "./src/client.ts"
   },
-  "files": ["src", "prisma"],
+  "files": [
+    "src",
+    "prisma"
+  ],
   "scripts": {
     "build": "prisma generate",
     "postinstall": "prisma generate || echo '[@aegis/db] prisma generate skipped (likely a CI fallback without @prisma/client present)'",
@@ -25,7 +28,8 @@
     "db:reset": "prisma migrate reset --force",
     "db:studio": "prisma studio",
     "db:audit-canary": "tsx scripts/audit-canary.ts",
-    "m365:smoke": "tsx scripts/m365-smoke.ts"
+    "m365:smoke": "tsx scripts/m365-smoke.ts",
+    "db:dedup-persons": "tsx scripts/dedup-persons.ts"
   },
   "dependencies": {
     "@prisma/client": "5.22.0",

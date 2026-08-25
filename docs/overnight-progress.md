@@ -60,8 +60,14 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
 
 ## Deferred (need a migration — build, open PR, DO NOT merge)
 
-- ☐ **Person-dedup.** Unique index on `(org, lower(email))` + cleanup pass —
-  collapses the duplicate custodian rows at the source.
+- ✅ **Person-dedup.** Delivered as `packages/db/scripts/dedup-persons.ts`
+  (`pnpm --filter @aegis/db exec tsx scripts/dedup-persons.ts`), dry-run by
+  default. MERGE collapses same-email duplicate Person rows into one keeper
+  (repoints all 10 FK relations incl. unique-collision handling + Document
+  polymorphic); optional `--prune-non-entra` removes custodian personas whose
+  email isn't in Entra (real-mode only; hard-scoped to custodians so
+  counterparties / DSAR subjects / external counsel are never touched).
+  Follow-up unique index on `(org, lower(email))` still available once clean.
 - ✅ **ECA-2 concept clustering** — deterministic TF-IDF clustering + optional
   Claude theme labels (degrade-safe). Migration-free (on-the-fly, no storage).
   "Themes" card in the ECA dashboard. 5 tests, suite 58. Merged.
