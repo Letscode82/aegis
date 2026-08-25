@@ -22,13 +22,15 @@
   },
   "dependencies": {
     "@aegis/ai-review": "workspace:*",
-    "@aegis/review": "workspace:*",
     "@aegis/db": "workspace:*",
+    "@aegis/review": "workspace:*",
     "@aegis/ui": "workspace:*",
     "@azure/identity": "4.4.1",
     "@azure/msal-node": "2.16.3",
     "@microsoft/microsoft-graph-client": "3.0.7",
     "isomorphic-fetch": "3.0.0",
+    "mammoth": "^1.12.1",
+    "pdf-parse": "^2.4.5",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
