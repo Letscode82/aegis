@@ -1039,6 +1039,17 @@ export async function searchM365DirectoryUsers(
   return { users, simulated: status.mode !== "real" };
 }
 
+// ── Processing engine (PROC-1) ─────────────────────────────────────
+export {
+  getProcessingEngineForOrg,
+  nativeProcessingEngine,
+  NativeJsEngine,
+  type ProcessingEngine,
+  type ProcessingExtractInput,
+  type ProcessingResult,
+  type ProcessingException,
+} from "./src/internal/services/processing";
+
 // ── M365 mailbox access (Intake P4b) ──────────────────────────────
 // Intake reaches Graph mail through these (never its own client).
 export {
