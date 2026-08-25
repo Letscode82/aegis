@@ -68,7 +68,7 @@ Priority: 🔴 high (before a real matter) · 🟡 medium · 🟢 later. Status:
 | ID | Item | Delivers | Enabling tech | Pri | Status |
 |---|---|---|---|---|---|
 | **PROC-1** | ProcessingEngine interface + factory | Pluggable native/Tika/Purview processing per org | factory pattern (like `m365-factory`) | 🔴 | ✅ #364 |
-| **PROC-2** | XLSX + PPTX native extraction | Excel/PowerPoint become reviewable text | `xlsx` (SheetJS) + unzip/`pptx` parse | 🔴 | ☐ |
+| **PROC-2** | XLSX + PPTX native extraction | Excel/PowerPoint become reviewable text | `xlsx` (SheetJS) + `jszip` (pptx) | 🔴 | ✅ #365 |
 | **PROC-3** | Apache **Tika Server** engine | 1000+ formats + metadata in one component | Tika Server (Docker sidecar), HTTP `/rmeta` | 🔴 | ☐ |
 | **PROC-4** | **OCR** (scanned images / image-PDFs) | Text from scans; closes the last extraction gap | **Tesseract** (via Tika) or Azure Doc Intelligence | 🔴 | ☐ (was the readiness "OCR" item) |
 | **PROC-5** | Hashing + hash-dedup + deNIST | MD5/SHA-1 identity, global dedup, drop NSRL system files | Node crypto + NIST NSRL set | 🟡 | ☐ |
@@ -89,8 +89,8 @@ PR with an apply note (never blocks on the user):
 
 1. ✅ **PROC-1** — ProcessingEngine interface + factory + `NativeJsEngine`
    (PR #364). Migration-free.
-2. **PROC-2** — XLSX (SheetJS) + PPTX native extraction. Migration-free (text
-   flows into the existing excerpt).
+2. ✅ **PROC-2** — XLSX (SheetJS) + PPTX (jszip) native extraction (PR #365).
+   Also fixed a latent OOXML-mis-decode bug. Migration-free.
 3. **PROC-9 (near-dup)** — pure MinHash/shingle near-duplicate + language-ID
    helpers, computed on the fly (surfacing only; persistence deferred).
 4. **PROC-5 (pure parts)** — hashing (SHA-256) + `deNIST` known-hash mechanism
