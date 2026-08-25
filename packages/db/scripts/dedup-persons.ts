@@ -69,11 +69,9 @@ async function tallyRefs(ids: string[]): Promise<Map<string, Refs>> {
       for (let i = 0; i < count; i++) bump(id, key, external, custodial);
     }
   }
-  // Document polymorphic owner (raw).
-  const docRows = await prisma.$queryRaw<Array<{ ownerId: string; n: bigint }>>`
-    SELECT "ownerId", COUNT(*)::bigint AS n FROM "Document"
-    WHERE "ownerType" = 'Person' AND "ownerId" = ANY(${ids}) GROUP BY "ownerId"`;
-  for (const d of docRows) for (let i = 0; i < Number(d.n); i++) bump(d.ownerId, "document", false, false);
+  // Note: Document.ownerType is an enum (MATTER/CONTRACT/DSAR/COMPLIANCE/BOARD/
+  // INTAKE) — there is no PERSON owner type, so Documents never reference a
+  // Person and need no repointing.
   return m;
 }
 
@@ -110,7 +108,6 @@ async function repointAndDelete(loserId: string, keeperId: string): Promise<void
   await prisma.dataSubjectRequest.updateMany({ where: { requesterPersonId: loserId }, data: { requesterPersonId: keeperId } });
   await prisma.consentRecord.updateMany({ where: { dataSubjectPersonId: loserId }, data: { dataSubjectPersonId: keeperId } });
   await prisma.contractReviewToken.updateMany({ where: { personId: loserId }, data: { personId: keeperId } });
-  await prisma.$executeRaw`UPDATE "Document" SET "ownerId" = ${keeperId} WHERE "ownerType" = 'Person' AND "ownerId" = ${loserId}`;
   await prisma.person.delete({ where: { id: loserId } });
 }
 
