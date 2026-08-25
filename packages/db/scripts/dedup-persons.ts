@@ -20,7 +20,9 @@
  *   ...optionally --org <organizationId>
  */
 import { prisma } from "../src/client";
-import { searchM365DirectoryUsers } from "../../../modules/matter/api";
+// NOTE: the M365 client is imported LAZILY (only for --prune-non-entra), from
+// narrow service paths — importing modules/matter/api here would transitively
+// pull @aegis/ai-review, which isn't resolvable from inside packages/db.
 
 const APPLY = process.argv.includes("--apply");
 const PRUNE = process.argv.includes("--prune-non-entra");
@@ -123,21 +125,31 @@ async function main() {
   const refs = await tallyRefs(persons.map((p) => p.id));
 
   // Entra directory check (unique emails). Skipped/untrusted in mock mode.
+  // The M365 client is loaded lazily via narrow paths (see import note above).
   const emails = Array.from(new Set(persons.map((p) => (p.email || "").toLowerCase()).filter(Boolean)));
   const entra = new Set<string>();
   let entraKnown = false;
   if (PRUNE && emails.length > 0) {
-    let simulatedSeen = false;
-    for (const email of emails) {
-      try {
-        const { users, simulated } = await searchM365DirectoryUsers(org, { query: email });
-        if (simulated) { simulatedSeen = true; break; }
-        if (users.some((u) => (u.email || "").toLowerCase() === email)) entra.add(email);
-      } catch { /* treat as unknown */ }
+    try {
+      const [{ getM365ClientForOrg }, { getM365ConnectionStatus }] = await Promise.all([
+        import("../../../modules/matter/src/internal/services/m365-factory"),
+        import("../../../modules/matter/src/internal/services/m365-graph-auth"),
+      ]);
+      const status = await getM365ConnectionStatus(org).catch(() => ({ mode: "mock" as const }));
+      if (status.mode !== "real") {
+        console.log("⚠ M365 is in mock/simulated mode — cannot verify Entra membership; PRUNE will be skipped.\n");
+      } else {
+        const client = await getM365ClientForOrg(org);
+        for (const email of emails) {
+          const cands = await client.discoverCustodians({ description: email }).catch(() => []);
+          if (cands.some((c: { email?: string | null }) => (c.email || "").toLowerCase() === email)) entra.add(email);
+        }
+        entraKnown = true;
+        console.log(`Entra directory: ${entra.size}/${emails.length} distinct emails resolve to real users.\n`);
+      }
+    } catch (e) {
+      console.log(`⚠ Could not reach the M365 directory (${String((e as Error).message || e)}); PRUNE will be skipped.\n`);
     }
-    entraKnown = !simulatedSeen;
-    if (!entraKnown) console.log("⚠ M365 is in mock/simulated mode — cannot verify Entra membership; PRUNE will be skipped.\n");
-    else console.log(`Entra directory: ${entra.size}/${emails.length} distinct emails resolve to real users.\n`);
   }
   const onEntra = (email: string | null) => !!email && entra.has(email.toLowerCase());
 
