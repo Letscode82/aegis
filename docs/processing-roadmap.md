@@ -71,7 +71,7 @@ Priority: 🔴 high (before a real matter) · 🟡 medium · 🟢 later. Status:
 | **PROC-2** | XLSX + PPTX native extraction | Excel/PowerPoint become reviewable text | `xlsx` (SheetJS) + `jszip` (pptx) | 🔴 | ✅ #365 |
 | **PROC-3** | Apache **Tika Server** engine | 1000+ formats + metadata in one component | Tika Server (Docker sidecar), HTTP `/rmeta` | 🔴 | ☐ |
 | **PROC-4** | **OCR** (scanned images / image-PDFs) | Text from scans; closes the last extraction gap | **Tesseract** (via Tika) or Azure Doc Intelligence | 🔴 | ☐ (was the readiness "OCR" item) |
-| **PROC-5** | Hashing + hash-dedup + deNIST | MD5/SHA-1 identity, global dedup, drop NSRL system files | Node crypto + NIST NSRL set | 🟡 | ☐ |
+| **PROC-5** | Hashing + hash-dedup + deNIST | MD5/SHA-256 identity, global dedup, drop NSRL system files | Node crypto + NIST NSRL set | 🟡 | ◧ #367 (pure engine; per-item column + NSRL data pending) |
 | **PROC-6** | Container expansion (PST/MBOX/ZIP) | Ingest exported archives, nested families | `readpst`/`libpff`, `yauzl`, Tika | 🟡 | ☐ |
 | **PROC-7** | **Purview processing mode** | Delegate processing to Advanced Indexing where E5 allows | Purview eDiscovery Premium APIs | 🟡 | ☐ |
 | **PROC-8** | Exception report + processing dashboard | Password-protected/corrupt/unsupported surfaced; processing stats | reads engine `exceptions[]` | 🟡 | ☐ |
@@ -93,10 +93,8 @@ PR with an apply note (never blocks on the user):
    Also fixed a latent OOXML-mis-decode bug. Migration-free.
 3. ✅ **PROC-9 (near-dup)** — MinHash near-dup + language-ID helpers + on-the-fly
    `/near-duplicates` read (PR #366). Per-item persistence deferred (migration).
-4. **PROC-5 (pure parts)** — hashing (SHA-256) + `deNIST` known-hash mechanism
-   (built-in starter set) + dedup-by-hash helper, as pure tested utilities.
-   Wiring them onto `ReviewSetItem` needs a column → that part is an UNMERGED
-   migration PR.
+4. ◧ **PROC-5 (pure parts)** — hashing + `deNIST` + dedup-by-hash helpers (PR
+   #367). Per-item `contentHash` column + full NSRL data are the deferred parts.
 5. **PROC-8 (return path)** — have the engine return `exceptions[]`
    (password-protected / unsupported / corrupt) and thread them out; the
    per-item persistence + dashboard is an UNMERGED migration PR.

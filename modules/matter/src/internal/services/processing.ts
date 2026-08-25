@@ -58,14 +58,26 @@ export class NativeJsEngine implements ProcessingEngine {
     if (!input.contentBytesB64) return { text: null, exception: { code: "EMPTY", reason: "No attachment bytes." } };
     const text = await extractAttachmentText(input.contentType, input.contentBytesB64);
     if (text) return { text, exception: null };
-    // No text — classify why (best-effort) so PROC-8 can report it.
+    // No text — classify why (best-effort) so the processing report is useful.
     const ct = (input.contentType ?? "").toLowerCase();
     const name = (input.filename ?? "").toLowerCase();
+    let head = "";
+    try { head = Buffer.from(input.contentBytesB64, "base64").subarray(0, 4096).toString("latin1"); } catch { /* ignore */ }
+    // Encryption markers: PDF /Encrypt trailer, or OOXML "EncryptedPackage" stream.
+    if (head.includes("/Encrypt") || head.includes("EncryptedPackage") || head.includes("Encrypted")) {
+      return { text: null, exception: { code: "ENCRYPTED", reason: "Password-protected / encrypted — cannot extract." } };
+    }
     const isImage = ct.startsWith("image/") || /\.(png|jpe?g|tiff?|gif|bmp)$/.test(name);
-    const code: ProcessingException["code"] = isImage ? "UNSUPPORTED" : "UNSUPPORTED";
-    const reason = isImage ? "Image/scanned content — needs OCR (PROC-4)." : `No native extractor for ${input.contentType || name || "this type"}.`;
-    return { text: null, exception: { code, reason } };
+    if (isImage) return { text: null, exception: { code: "UNSUPPORTED", reason: "Image/scanned content — needs OCR (PROC-4)." } };
+    return { text: null, exception: { code: "UNSUPPORTED", reason: `No native extractor for ${input.contentType || name || "this type"}.` } };
   }
+}
+
+/** Tally processing exceptions by code — the input to a processing report. */
+export function summarizeExceptions(exceptions: Array<ProcessingException | null | undefined>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const e of exceptions) if (e) out[e.code] = (out[e.code] ?? 0) + 1;
+  return out;
 }
 
 const NATIVE = new NativeJsEngine();
