@@ -37,7 +37,15 @@ const nextConfig = {
     // We run ESLint via turbo; don't block production builds on lint.
     ignoreDuringBuilds: true,
   },
-  webpack: (config, { webpack }) => {
+  // pdf-parse + mammoth are server-only Node deps used for attachment text
+  // extraction. Keep them out of the webpack bundle so Node resolves them at
+  // runtime from node_modules (and the dynamic import()'s try/catch degrades
+  // to "keep the filename" if they're ever absent).
+  webpack: (config, { webpack, isServer }) => {
+    if (isServer) {
+      config.externals = config.externals || [];
+      config.externals.push({ "pdf-parse": "commonjs pdf-parse", mammoth: "commonjs mammoth" });
+    }
     // pdfkit → fontkit → restructure do a *guarded optional* require of
     // `iconv-lite` (only for exotic string encodings we never hit):
     //   try { iconv = require('iconv-lite'); } catch {}
