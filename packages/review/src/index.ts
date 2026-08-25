@@ -45,6 +45,17 @@ export {
 } from "./ai";
 
 export {
+  shingles,
+  minhashSignature,
+  estimateJaccard,
+  nearDuplicateGroups,
+  detectLanguage,
+  type NearDupGroup,
+} from "./similarity";
+
+export { getNearDuplicates, type NearDupResult } from "./near-dup";
+
+export {
   parseAiTags,
   orderedAiTags,
   isConfidentResponsive,
