@@ -62,7 +62,9 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
 
 - ☐ **Person-dedup.** Unique index on `(org, lower(email))` + cleanup pass —
   collapses the duplicate custodian rows at the source.
-- ☐ **ECA-2 concept clustering** (if it needs cluster storage).
+- ✅ **ECA-2 concept clustering** — deterministic TF-IDF clustering + optional
+  Claude theme labels (degrade-safe). Migration-free (on-the-fly, no storage).
+  "Themes" card in the ECA dashboard. 5 tests, suite 58. Merged.
 - ☐ **AIR-6 batch runner** (resumable batches) if it needs schema.
 - ⏸ **Date-window cull** — BUILT, unmerged PR (adds `ReviewSetItem.sentAt`,
   additive migration `20260824130000_reviewsetitem_sentat`). Apply on Neon, then
