@@ -81,6 +81,13 @@ export interface RunReviewSetAiInput {
   dimensions?: ReviewTagKind[];
   /** Only score items not yet coded (default true). */
   pendingOnly?: boolean;
+  /**
+   * Batch-runner mode: score only items that carry no AI route yet
+   * (`aiRoute IS NULL`). Because scoring sets the route, each call makes forward
+   * progress — loop until `remaining` reaches 0 to review a set of any size
+   * without one request running for minutes. Overrides `pendingOnly`.
+   */
+  unscoredOnly?: boolean;
 }
 
 export interface RunReviewSetAiResult {
@@ -91,6 +98,8 @@ export interface RunReviewSetAiResult {
   model: string | null;
   /** How many of the scored items came from the model vs. the fallback. */
   byModel: number;
+  /** Batch mode: items still unscored after this call (0 when the set is done). */
+  remaining: number;
 }
 
 /** Map the RESPONSIVE tag onto the existing aiVerdict for at-a-glance display. */
@@ -106,13 +115,18 @@ export async function runAiReviewOnReviewSet(organizationId: string, reviewSetId
   if (!rs) throw new Error("Review set not found");
   const storedIssues = ((rs.issuesJson as Array<{ key: string; label: string }> | null) ?? []).map((i) => ({ key: i.key, description: i.label }));
 
+  const scopeWhere = input.unscoredOnly
+    ? { aiRoute: null }
+    : input.pendingOnly === false
+      ? {}
+      : { reviewDecision: "PENDING" as const };
   const rows = await prisma.reviewSetItem.findMany({
-    where: { reviewSetId, excludedAt: null, ...(input.pendingOnly === false ? {} : { reviewDecision: "PENDING" }) },
+    where: { reviewSetId, excludedAt: null, ...scopeWhere },
     select: { id: true, title: true, excerpt: true, sourceSystem: true },
     orderBy: [{ createdAt: "asc" }],
     take: MAX_ITEMS_PER_RUN,
   });
-  if (rows.length === 0) return { scored: 0, routes: { total: 0, attorney: 0, reviewer: 0, autoCull: 0 }, degraded: true, model: null, byModel: 0 };
+  if (rows.length === 0) return { scored: 0, routes: { total: 0, attorney: 0, reviewer: 0, autoCull: 0 }, degraded: true, model: null, byModel: 0, remaining: 0 };
 
   const instruction: ReviewInstruction = {
     criteria: (input.criteria || "").trim() || (rs.criteria || "").trim() || `${rs.name}. Collection query: ${rs.queryString}`,
@@ -146,13 +160,17 @@ export async function runAiReviewOnReviewSet(organizationId: string, reviewSetId
     }),
   );
 
+  const remaining = input.unscoredOnly
+    ? await prisma.reviewSetItem.count({ where: { reviewSetId, excludedAt: null, aiRoute: null } })
+    : 0;
+
   const routes = summarizeRoutes(results.map((r) => r.route));
   await logAudit({
     organizationId, actorId: actor.id, actorType: actor.type ?? "USER",
     action: "reviewset.ai_review_run", resourceType: "ReviewSet", resourceId: reviewSetId,
-    afterJson: { scored: results.length, routes, byModel, degraded } as never,
+    afterJson: { scored: results.length, routes, byModel, degraded, remaining } as never,
     metadata: { source: "review", channel: "ediscovery", degraded, model } as never,
   });
 
-  return { scored: results.length, routes, degraded, model, byModel };
+  return { scored: results.length, routes, degraded, model, byModel, remaining };
 }

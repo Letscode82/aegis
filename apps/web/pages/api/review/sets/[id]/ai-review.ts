@@ -15,7 +15,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!actor) return;
   try {
     const b = req.body ?? {};
-    const result = await runAiReviewOnReviewSet(actor.organizationId, id, { criteria: b.criteria, issues: b.issues, dimensions: b.dimensions, pendingOnly: b.pendingOnly }, { id: actor.id, type: "USER" });
+    const result = await runAiReviewOnReviewSet(actor.organizationId, id, { criteria: b.criteria, issues: b.issues, dimensions: b.dimensions, pendingOnly: b.pendingOnly, unscoredOnly: b.unscoredOnly }, { id: actor.id, type: "USER" });
     return res.status(200).json({ ok: true, ...result });
   } catch (err) {
     return res.status(400).json({ ok: false, error: String((err as Error).message || err) });

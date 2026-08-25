@@ -248,6 +248,23 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
       load();
     } catch (e) { toast.error(String((e as Error).message || e)); } finally { setRunningAi(false); }
   };
+  // Batch runner: review the WHOLE set (any size) by looping over unscored items
+  // until none remain — each call scores the next chunk and reports `remaining`.
+  const [batchDone, setBatchDone] = useState<number | null>(null);
+  const runAiAll = async () => {
+    setBatchDone(0);
+    let done = 0, models = 0;
+    try {
+      for (let guard = 0; guard < 500; guard++) {
+        const r = await fetch(`${apiBase}/${reviewSetId}/ai-review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ unscoredOnly: true }) });
+        const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+        done += d.scored; models += d.byModel; setBatchDone(done);
+        if (d.scored === 0 || d.remaining === 0) break;
+      }
+      toast.success(`AI review complete — ${done} document(s) scored${models > 0 ? ` (${models} by Claude)` : ""}`);
+      load();
+    } catch (e) { toast.error(String((e as Error).message || e)); } finally { setBatchDone(null); }
+  };
   const freezeAndProduce = async () => {
     try {
       if (!frozen) { const r = await fetch(`${apiBase}/${reviewSetId}/freeze`, { method: "POST" }); const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error); }
@@ -353,7 +370,10 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
         <div style={{ padding: "16px 18px 12px", display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <div style={{ fontSize: 15, fontWeight: 600 }}>Documents</div>
-            <button disabled={!canMutate || frozen || runningAi} onClick={runAi} style={{ ...ghost(C.bl), padding: "6px 11px", fontSize: 11 }}>{runningAi ? "Running…" : "Run AI review"}</button>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button disabled={!canMutate || frozen || runningAi || batchDone !== null} onClick={runAi} title="Score the current pending documents in one pass (up to 400)" style={{ ...ghost(C.bl), padding: "6px 11px", fontSize: 11 }}>{runningAi ? "Running…" : "Run AI review"}</button>
+              <button disabled={!canMutate || frozen || batchDone !== null || runningAi} onClick={runAiAll} title="Review the entire set in batches — any size, resumable" style={{ ...ghost(C.pp), padding: "6px 11px", fontSize: 11 }}>{batchDone !== null ? `Reviewing… ${batchDone}` : "Review all →"}</button>
+            </div>
           </div>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 7 }}>
             {chip("ALL", "All", counts.all, C.t1)}
