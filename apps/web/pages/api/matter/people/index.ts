@@ -10,7 +10,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission } from "@aegis/auth";
-import { logAudit, prisma } from "@aegis/db";
+import { findOrCreatePersonByEmail, logAudit } from "@aegis/db";
 import { requireActor } from "../../../../lib/matter-actor";
 
 export default async function handler(
@@ -40,52 +40,28 @@ export default async function handler(
       },
     });
   }
-  // Email-uniqueness within an org is a soft contract — Person
-  // doesn't have a unique index on (organizationId, email), so an
-  // explicit duplicate check keeps the picker UX sane.
-  const existing = await prisma.person.findFirst({
-    where: {
-      organizationId: actor.organizationId,
-      email: { equals: body.email.trim(), mode: "insensitive" },
-    },
+  // Guardrail: reuse an existing Person for this (org, email) instead of ever
+  // minting a duplicate — this is the recurrence fix for the duplicate-custodian
+  // problem. Person has no top-level `department` column; the polymorphic
+  // metadata bag carries it for picker UX without a schema bump.
+  const { person, created } = await findOrCreatePersonByEmail(actor.organizationId, {
+    email: body.email.trim(),
+    name: body.name.trim(),
+    type: "EMPLOYEE",
+    metadata: body.department?.trim() ? { department: body.department.trim() } : null,
   });
-  if (existing) {
-    return res.status(409).json({
-      ok: false,
-      error: {
-        code: "DUPLICATE_EMAIL",
-        message: `A person with email ${body.email} already exists.`,
-      },
+  if (created) {
+    await logAudit({
+      organizationId: actor.organizationId,
+      actorId: actor.id,
+      actorType: "USER",
+      action: "person.created",
+      resourceType: "Person",
+      resourceId: person.id,
+      metadata: { source: "hold-wizard" },
     });
   }
-  const created = await prisma.person.create({
-    data: {
-      organizationId: actor.organizationId,
-      name: body.name.trim(),
-      email: body.email.trim(),
-      type: "EMPLOYEE",
-      // Person has no top-level `department` column; the polymorphic
-      // metadata bag carries it for picker UX without a schema bump.
-      metadata: body.department?.trim()
-        ? { department: body.department.trim() }
-        : undefined,
-    },
-    select: {
-      id: true,
-      name: true,
-      email: true,
-      type: true,
-      metadata: true,
-    },
+  return res.status(created ? 201 : 200).json({
+    id: person.id, name: person.name, email: person.email, type: person.type, metadata: person.metadata, reused: !created,
   });
-  await logAudit({
-    organizationId: actor.organizationId,
-    actorId: actor.id,
-    actorType: "USER",
-    action: "person.created",
-    resourceType: "Person",
-    resourceId: created.id,
-    metadata: { source: "hold-wizard" },
-  });
-  return res.status(201).json(created);
 }
