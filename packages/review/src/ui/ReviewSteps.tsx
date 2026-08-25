@@ -134,6 +134,19 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
   const coded = items.filter((i) => i.coded).length;
   const responsive = items.filter((i) => i.codedResponsive === true).length;
   const privileged = items.filter((i) => i.codedPrivileged).length;
+  const aiUncoded = items.filter((i) => !i.coded && i.aiRoute).length;
+  const [accepting, setAccepting] = useState(false);
+  const acceptAllAi = async () => {
+    if (!canMutate || frozen || aiUncoded === 0) return;
+    if (typeof window !== "undefined" && !window.confirm(`Accept the AI's call on all ${aiUncoded} uncoded document(s)? You can still re-code any of them.`)) return;
+    setAccepting(true);
+    try {
+      const r = await fetch(`${apiBase}/${reviewSetId}/accept-ai`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ onlyConfident: false }) });
+      const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      toast.success(`Coded ${d.applied} from AI — ${d.responsive} responsive · ${d.privileged} privileged`);
+      load();
+    } catch (e) { toast.error(String((e as Error).message || e)); } finally { setAccepting(false); }
+  };
 
   const patch = async (id: string, body: Record<string, unknown>) => {
     const r = await fetch(`${apiBase}/${reviewSetId}/items/${id}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -277,7 +290,13 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
     }}>{label}</button>
   );
 
-  const hlTerms = useMemo(() => [...issues.map((i) => i.label), ...PRIV_TERMS, ...(query.trim() ? [query.trim()] : [])], [issues, query]);
+  // Highlight issue labels, privilege terms, the search query, AND the AI's own
+  // citations for the current document — so the exact passage the AI keyed on
+  // lights up in the body.
+  const hlTerms = useMemo(() => {
+    const aiCites = current ? orderedAiTags(current.aiTags).filter((t) => t.value && t.citation).map((t) => t.citation as string) : [];
+    return [...issues.map((i) => i.label), ...PRIV_TERMS, ...aiCites, ...(query.trim() ? [query.trim()] : [])];
+  }, [issues, query, current]);
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
@@ -354,6 +373,9 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
           </div>
           <button disabled={!canMutate || frozen} onClick={selectConfidentAiResponsive} title="Select the AI's confident, cited responsive calls to bulk-confirm" style={{ ...ghost(C.gn), padding: "7px 12px", fontSize: 12, textAlign: "center" }}>
             ✓ Select confident AI-responsive
+          </button>
+          <button disabled={!canMutate || frozen || accepting || aiUncoded === 0} onClick={acceptAllAi} title="Code every uncoded AI-routed document with the AI's own call (responsive + privilege). Human-initiated; re-code anytime." style={{ ...btn(aiUncoded > 0 && canMutate && !frozen ? C.pp : C.br), padding: "8px 12px", fontSize: 12, textAlign: "center" }}>
+            {accepting ? "Coding…" : `⚡ Accept all AI calls (${aiUncoded})`}
           </button>
           <input value={query} onChange={(e) => { setQuery(e.target.value); setCursor(0); }} placeholder="Search subject or custodian…" style={{ ...inputS, padding: "9px 12px", fontSize: 13, borderColor: C.br, background: C.bg }} />
           <button disabled={uncodedInView === 0} onClick={gotoNextUncoded} title="Jump to the next uncoded document (u)" style={{ ...ghost(uncodedInView > 0 ? C.am : C.t4), padding: "7px 12px", fontSize: 12, textAlign: "center" }}>
