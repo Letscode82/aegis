@@ -24,12 +24,21 @@ const money = (n: number, cur: string) => new Intl.NumberFormat(undefined, { sty
 const routeColor = (r: string) => (r === "ATTORNEY" ? C.pp : r === "REVIEWER" ? C.bl : r === "AUTO_CULL" ? C.t4 : C.t3);
 const reasonLabel = (k: string) => k.replace(/_/g, " ").toLowerCase();
 
+interface Cluster { id: string; label: string; topTerms: string[]; size: number }
+
 export const EcaPanel: React.FC<EcaPanelProps> = ({ apiBase, reviewSetId }) => {
   const [d, setD] = useState<Funnel | null>(null);
   const [err, setErr] = useState("");
   // Cost tuner state (kept local; refetch is debounced).
   const [perDoc, setPerDoc] = useState(2);
   const [rate, setRate] = useState(75);
+  const [clusters, setClusters] = useState<{ clusters: Cluster[]; degraded: boolean } | null>(null);
+  const [clustersBusy, setClustersBusy] = useState(false);
+
+  const loadClusters = useCallback(() => {
+    setClustersBusy(true);
+    fetch(`${apiBase}/${reviewSetId}/clusters`).then((r) => r.json()).then((j) => { if (j.ok) setClusters({ clusters: j.clusters, degraded: j.degraded }); }).catch(() => {}).finally(() => setClustersBusy(false));
+  }, [apiBase, reviewSetId]);
 
   const load = useCallback(() => {
     const qs = `?perDocMinutes=${perDoc}&hourlyRate=${rate}`;
@@ -176,6 +185,33 @@ export const EcaPanel: React.FC<EcaPanelProps> = ({ apiBase, reviewSetId }) => {
           {breakdown("By source", d.bySource)}
           {breakdown("By AI route", d.byRoute, routeColor)}
           {breakdown("By issue", d.byIssue, () => C.tl)}
+        </div>
+
+        {/* Themes (ECA-2 concept clustering) */}
+        <div style={{ marginTop: 22, border: `1px solid ${C.br}`, borderRadius: 12, padding: "18px 20px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: clusters ? 14 : 0 }}>
+            <div style={{ fontSize: 11, fontFamily: M, letterSpacing: .6, textTransform: "uppercase", color: C.t3 }}>Themes {clusters ? `· ${clusters.clusters.length}` : ""}{clusters && !clusters.degraded ? " · AI-named" : ""}</div>
+            {!clusters && <button onClick={loadClusters} disabled={clustersBusy} style={{ fontSize: 12, fontWeight: 600, padding: "7px 13px", borderRadius: 8, cursor: "pointer", background: C.cy, color: C.bg, border: "none" }}>{clustersBusy ? "Clustering…" : "✨ Cluster by theme"}</button>}
+            {clusters && <button onClick={loadClusters} disabled={clustersBusy} style={{ fontSize: 11.5, fontWeight: 600, padding: "5px 10px", borderRadius: 7, cursor: "pointer", background: "transparent", color: C.t3, border: `1px solid ${C.br}` }}>{clustersBusy ? "…" : "Recompute"}</button>}
+          </div>
+          {!clusters && !clustersBusy && <div style={{ fontSize: 12, color: C.t4, marginTop: 8 }}>Group the collection into themes from document text — see the shape of the case before reading.</div>}
+          {clusters && clusters.clusters.length === 0 && <div style={{ fontSize: 12, color: C.t4 }}>Not enough text to cluster.</div>}
+          {clusters && clusters.clusters.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
+              {clusters.clusters.map((c) => {
+                const w = Math.round((c.size / Math.max(1, clusters.clusters[0]?.size ?? 1)) * 100);
+                return (
+                  <div key={c.id}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12.5, marginBottom: 3, gap: 10 }}>
+                      <span style={{ color: C.t1, fontWeight: 600, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.label}{c.topTerms.length > 0 && <span style={{ color: C.t4, fontWeight: 400, fontFamily: M, fontSize: 10.5 }}> · {c.topTerms.slice(0, 4).join(", ")}</span>}</span>
+                      <span style={{ fontFamily: M, color: C.t3, flex: "none" }}>{c.size}</span>
+                    </div>
+                    <div style={{ height: 6, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 4, overflow: "hidden" }}><div style={{ width: `${w}%`, height: "100%", background: C.tl }} /></div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </div>

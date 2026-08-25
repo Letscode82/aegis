@@ -168,6 +168,18 @@ export {
 } from "./autopilot";
 
 export {
+  clusterDocuments,
+  type ClusterDoc,
+  type DocCluster,
+  type ClusterOptions,
+} from "./clustering";
+
+export {
+  getReviewSetClusters,
+  type EcaClustersResult,
+} from "./clusters";
+
+export {
   getEcaFunnel,
   resolveCostModel,
   type EcaFunnel,
