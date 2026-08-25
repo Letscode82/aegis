@@ -243,7 +243,8 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
     try {
       const r = await fetch(`${apiBase}/${reviewSetId}/ai-review`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ pendingOnly: false }) });
       const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error);
-      toast.success(`AI review: ${d.scored} scored · ${d.routes.attorney} attorney · ${d.routes.reviewer} reviewer · ${d.routes.autoCull} auto-cull`);
+      const engine = d.degraded ? "deterministic" : `Claude (${d.byModel}/${d.scored})`;
+      toast.success(`AI review · ${engine}: ${d.scored} scored · ${d.routes.attorney} attorney · ${d.routes.reviewer} reviewer · ${d.routes.autoCull} auto-cull`);
       load();
     } catch (e) { toast.error(String((e as Error).message || e)); } finally { setRunningAi(false); }
   };
