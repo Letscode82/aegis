@@ -141,6 +141,11 @@ export {
 } from "./export";
 
 export {
+  acceptAllAiCalls,
+  type AcceptAiResult,
+} from "./accept-ai";
+
+export {
   proposeAgentAction,
   listAgentProposals,
   approveAgentAction,

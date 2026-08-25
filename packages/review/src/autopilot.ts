@@ -440,7 +440,7 @@ async function assembleFindings(
   const graph = (graphStep?.outputJson ?? null) as
     | {
         theory?: string;
-        gaps?: Array<{ severity: string; message: string }>;
+        gaps?: string[];
         recommendations?: string[];
         timeline?: number;
         clusters?: number;
@@ -466,7 +466,7 @@ async function assembleFindings(
   }
   if (graph?.gaps && graph.gaps.length > 0) {
     lines.push(`## Gaps`);
-    for (const g of graph.gaps) lines.push(`- **${g.severity}** — ${g.message}`);
+    for (const g of graph.gaps) lines.push(`- ${g}`);
     lines.push("");
   }
   lines.push(`## Recommended next actions`);
