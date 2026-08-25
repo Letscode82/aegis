@@ -32,6 +32,8 @@ export const CullPanel: React.FC<CullPanelProps> = ({ apiBase, reviewSetId, canM
   const [busy, setBusy] = useState(false);
   const [kw, setKw] = useState("");
   const [srcSel, setSrcSel] = useState<string[]>([]);
+  const [after, setAfter] = useState("");
+  const [before, setBefore] = useState("");
   const load = useCallback(() => {
     fetch(`${apiBase}/${reviewSetId}`).then((r) => r.json()).then((d) => setItems(d.ok ? d.items : [])).catch(() => setItems([]));
   }, [apiBase, reviewSetId]);
@@ -121,6 +123,17 @@ export const CullPanel: React.FC<CullPanelProps> = ({ apiBase, reviewSetId, canM
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                   <input value={kw} onChange={(e) => setKw(e.target.value)} placeholder="patterns (comma-separated) — matches subject / body" style={{ flex: 1, minWidth: 220, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 7, color: C.t1, fontFamily: F, fontSize: 12.5, padding: "8px 10px", outline: "none" }} />
                   <button disabled={busy || !canMutate || !kw.trim()} onClick={() => { runCull({ action: "keyword", patterns: kw }, (d) => `Excluded ${d.excluded ?? 0} by keyword`); }} style={cbtn(kw.trim() && canMutate ? C.am : C.br)}>Exclude matches</button>
+                </div>
+              </div>
+
+              {/* Date-window cull */}
+              <div style={{ background: C.cd, border: `1px solid ${C.br}`, borderRadius: 12, padding: "16px 18px", marginBottom: 14 }}>
+                <div style={{ fontSize: 11, fontFamily: M, letterSpacing: .5, textTransform: "uppercase", color: C.t3, marginBottom: 4 }}>Date-window cull</div>
+                <div style={{ fontSize: 11.5, color: C.t4, marginBottom: 10 }}>Exclude dated items outside the window. Undated items (files, some chats) are never dropped.</div>
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "center" }}>
+                  <label style={{ fontSize: 11, color: C.t3, display: "inline-flex", alignItems: "center", gap: 5 }}>After <input type="date" value={after} onChange={(e) => setAfter(e.target.value)} style={{ background: C.bg, border: `1px solid ${C.br}`, borderRadius: 7, color: C.t1, fontFamily: F, fontSize: 12.5, padding: "7px 9px", outline: "none", width: 150 }} /></label>
+                  <label style={{ fontSize: 11, color: C.t3, display: "inline-flex", alignItems: "center", gap: 5 }}>Before <input type="date" value={before} onChange={(e) => setBefore(e.target.value)} style={{ background: C.bg, border: `1px solid ${C.br}`, borderRadius: 7, color: C.t1, fontFamily: F, fontSize: 12.5, padding: "7px 9px", outline: "none", width: 150 }} /></label>
+                  <button disabled={busy || !canMutate || (!after && !before)} onClick={() => runCull({ action: "date", after: after || null, before: before || null }, (d) => `Excluded ${d.excluded ?? 0} outside the window`)} style={{ ...cbtn((after || before) && canMutate ? C.am : C.br), marginLeft: "auto" }}>Exclude outside window</button>
                 </div>
               </div>
 

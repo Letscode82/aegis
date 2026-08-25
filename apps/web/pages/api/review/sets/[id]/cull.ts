@@ -5,7 +5,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission } from "@aegis/auth";
-import { applyThreadNearDupCull, applyKeywordCull, applySourceTypeCull, clearCull, listExclusions } from "@aegis/review";
+import { applyThreadNearDupCull, applyKeywordCull, applySourceTypeCull, applyDateWindowCull, clearCull, listExclusions } from "@aegis/review";
 import { requireActorAny } from "../../../../../lib/matter-actor";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -33,6 +33,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       } else if (action === "source") {
         const sourceTypes = Array.isArray(body.sourceTypes) ? body.sourceTypes : [];
         result = await applySourceTypeCull(actor.organizationId, id, sourceTypes, who);
+      } else if (action === "date") {
+        result = await applyDateWindowCull(actor.organizationId, id, { before: body.before || null, after: body.after || null }, who);
       } else {
         result = await applyThreadNearDupCull(actor.organizationId, id, who);
       }

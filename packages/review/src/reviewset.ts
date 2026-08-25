@@ -98,24 +98,30 @@ export async function persistReviewSet(
   );
   type ItemRow = {
     id: string; organizationId: string; reviewSetId: string; sourceType: string; sourceSystem: string; title: string;
-    excerpt: string | null; graphId: string | null; webUrl: string | null;
+    excerpt: string | null; graphId: string | null; webUrl: string | null; sentAt: Date | null;
     familyId: string | null; familyRole: string | null; threadId: string | null; isInclusive: boolean | null; dedupKey: string | null;
+  };
+  const toDate = (iso: string | null | undefined): Date | null => {
+    if (!iso) return null;
+    const t = Date.parse(iso);
+    return Number.isNaN(t) ? null : new Date(t);
   };
   const rows: ItemRow[] = [];
   for (const p of parents) {
     const a = assign.get(p.id)!;
     const atts = p.hit.attachments ?? [];
     const hasFamily = atts.length > 0;
+    const sentAt = toDate(p.hit.sentAt);
     rows.push({
       id: p.id, organizationId, reviewSetId: rs.id, sourceType: p.hit.sourceType, sourceSystem: p.hit.sourceSystem,
-      title: p.hit.title, excerpt: p.hit.excerpt ?? null, graphId: p.hit.graphId ?? null, webUrl: p.hit.webUrl ?? null,
+      title: p.hit.title, excerpt: p.hit.excerpt ?? null, graphId: p.hit.graphId ?? null, webUrl: p.hit.webUrl ?? null, sentAt,
       familyId: hasFamily ? p.id : null, familyRole: hasFamily ? "PARENT" : null,
       threadId: a.threadId, isInclusive: a.isInclusive, dedupKey: a.dedupKey,
     });
     for (const att of atts) {
       rows.push({
         id: randomUUID(), organizationId, reviewSetId: rs.id, sourceType: p.hit.sourceType, sourceSystem: p.hit.sourceSystem,
-        title: att.name, excerpt: att.text || (att.contentType ? `Attachment · ${att.contentType}` : "Attachment"), graphId: null, webUrl: null,
+        title: att.name, excerpt: att.text || (att.contentType ? `Attachment · ${att.contentType}` : "Attachment"), graphId: null, webUrl: null, sentAt,
         familyId: p.id, familyRole: "ATTACHMENT", threadId: a.threadId, isInclusive: a.isInclusive, dedupKey: null,
       });
     }

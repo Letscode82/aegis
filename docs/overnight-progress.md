@@ -64,9 +64,9 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
   collapses the duplicate custodian rows at the source.
 - ☐ **ECA-2 concept clustering** (if it needs cluster storage).
 - ☐ **AIR-6 batch runner** (resumable batches) if it needs schema.
-- ☐ **Date-window + sender-domain cull** — needs `sentAt` + `fromAddress`/
-  `senderDomain` columns persisted on ReviewSetItem (collection captures `sentAt`
-  on hits but doesn't store it as a column today). Migration + backfill.
+- ⏸ **Date-window cull** — BUILT, unmerged PR (adds `ReviewSetItem.sentAt`,
+  additive migration `20260824130000_reviewsetitem_sentat`). Apply on Neon, then
+  merge. (Sender-domain cull still deferred — hits don't carry the sender.)
 
 ## Log
 - (start) Queue created. Beginning item 1.
@@ -80,4 +80,5 @@ Legend: ☐ pending · ▶ in progress · ✅ merged · ⏸ built, awaiting user
 - item 7 ✅ merged PR #347 — AI Validation dashboard (aggregateValidationRuns, suite 49) + /review/validation page.
 - item 8 ✅ merged PR #348 — collection workspace crisp Stepper (navigator mode).
 - item 9 ✅ merged PR #349 — theme toggle (Blue dark ↔ Facebook Lite), build-verified.
-- item 10 ✅ — DSAR portal tracker uses the crisp Stepper; sequential flows unified on the shared Stepper. **Migration-free queue (items 1-10) COMPLETE.** Next: deferred migration items (build, PR, do NOT merge).
+- item 10 ✅ merged PR #350 — DSAR portal Stepper. **Migration-free queue (items 1-10) COMPLETE — 10 PRs merged (#341-#350).**
+- deferred: date-window cull ⏸ BUILT as unmerged PR (needs `sentAt` migration on Neon). Person-dedup + ECA-2 left for design review (Person-merge across 10 FK relations w/ unique-constraint collisions is too risky to auto-author; ECA-2 needs an embeddings design). Loop stopping — nothing safe left to auto-merge.
