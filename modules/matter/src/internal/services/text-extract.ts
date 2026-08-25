@@ -2,9 +2,10 @@
  * Best-effort attachment / file text extraction (CW-1). Turns a downloaded
  * attachment's bytes into review-searchable text so the AI review, keyword
  * highlighting, and coding can see INSIDE documents — not just their filenames.
- * Text/CSV/JSON/XML/HTML decode directly (zero dependency); PDF (pdf-parse) and
- * DOCX (mammoth) are extracted via degrade-safe dynamic import — if the parser
- * is unavailable or throws, the item simply keeps its filename. Image OCR
+ * Text/CSV/JSON/XML/HTML decode directly (zero dependency); PDF (pdf-parse),
+ * DOCX (mammoth), XLSX (SheetJS), and PPTX (jszip) are extracted via degrade-
+ * safe dynamic import — if the parser is unavailable or throws, the item simply
+ * keeps its filename. Image OCR
  * (scanned pages) needs a cloud OCR service (e.g. Azure Document Intelligence)
  * and is a documented follow-up. Everything is wrapped: any failure returns
  * null and the item keeps its filename.
@@ -51,6 +52,43 @@ async function extractDocx(buf: Buffer): Promise<string | null> {
   }
 }
 
+/** Extract text from an XLSX buffer via SheetJS (dynamic, degrade-safe). */
+async function extractXlsx(buf: Buffer): Promise<string | null> {
+  try {
+    const XLSX = (await import("xlsx")) as unknown as {
+      read: (b: Buffer, o: { type: "buffer" }) => { SheetNames: string[]; Sheets: Record<string, unknown> };
+      utils: { sheet_to_csv: (s: unknown) => string };
+    };
+    const wb = XLSX.read(buf, { type: "buffer" });
+    const parts: string[] = [];
+    for (const name of wb.SheetNames) {
+      const csv = XLSX.utils.sheet_to_csv(wb.Sheets[name]);
+      if (csv && csv.trim()) parts.push(`[${name}] ${csv}`);
+    }
+    return clean(parts.join("\n"));
+  } catch {
+    return null;
+  }
+}
+
+/** Extract text from a PPTX buffer (unzip slides + pull <a:t> runs). */
+async function extractPptx(buf: Buffer): Promise<string | null> {
+  try {
+    const JSZipMod = (await import("jszip")) as unknown as { default: { loadAsync: (b: Buffer) => Promise<{ files: Record<string, { async: (t: "string") => Promise<string> }> }> } };
+    const zip = await JSZipMod.default.loadAsync(buf);
+    const slides = Object.keys(zip.files).filter((f) => /^ppt\/slides\/slide\d+\.xml$/.test(f)).sort();
+    const parts: string[] = [];
+    for (const f of slides) {
+      const xml = await zip.files[f]!.async("string");
+      const texts = Array.from(xml.matchAll(/<a:t[^>]*>([\s\S]*?)<\/a:t>/g)).map((m) => m[1] ?? "");
+      if (texts.length) parts.push(texts.join(" "));
+    }
+    return clean(parts.join("\n"));
+  } catch {
+    return null;
+  }
+}
+
 /** Magic-byte sniff as a fallback when the contentType is missing/generic. */
 function sniff(buf: Buffer): "pdf" | "zip" | null {
   if (buf.length >= 4 && buf[0] === 0x25 && buf[1] === 0x50 && buf[2] === 0x44 && buf[3] === 0x46) return "pdf"; // %PDF
@@ -67,14 +105,20 @@ export async function extractAttachmentText(contentType: string | null | undefin
   if (buf.length === 0 || buf.length > MAX_BYTES) return null;
   const ct = (contentType || "").toLowerCase();
   try {
-    if (ct.startsWith("text/") || ct.includes("json") || ct.includes("xml") || ct.includes("csv") || ct.includes("html") || ct.includes("rtf")) {
+    // Binary + Office Open XML FIRST — their contentType contains
+    // "openxmlformats" (→ "xml"), so they must be matched before the generic
+    // text-XML branch below, which would otherwise return raw zip bytes.
+    const magic = sniff(buf);
+    if (ct.includes("pdf") || magic === "pdf") return await extractPdf(buf);
+    if (ct.includes("wordprocessingml") || ct.includes("msword")) return await extractDocx(buf);
+    if (ct.includes("spreadsheetml") || ct.includes("ms-excel")) return await extractXlsx(buf);
+    if (ct.includes("presentationml") || ct.includes("ms-powerpoint")) return await extractPptx(buf);
+    // Plain text formats (exclude the OOXML "openxml" false-positive on xml).
+    if (ct.startsWith("text/") || ct.includes("json") || ct.includes("csv") || ct.includes("html") || ct.includes("rtf") || (ct.includes("xml") && !ct.includes("openxmlformats"))) {
       const raw = buf.toString("utf8");
       return ct.includes("html") ? htmlToText(raw) : clean(raw);
     }
-    const magic = sniff(buf);
-    if (ct.includes("pdf") || magic === "pdf") return await extractPdf(buf);
-    if (ct.includes("wordprocessingml") || ct.includes("msword") || ct.endsWith("docx")) return await extractDocx(buf);
-    // A generic zip that is actually a .docx (Office Open XML) — try DOCX.
+    // A generic zip with no/opaque contentType — try DOCX (most common).
     if (magic === "zip" && (ct === "" || ct.includes("zip") || ct.includes("octet-stream"))) return await extractDocx(buf);
   } catch { return null; }
   return null;
