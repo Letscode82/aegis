@@ -16,6 +16,7 @@
 export { prisma } from "./client";
 export { logAudit, type LogAuditInput, type AuditActorType } from "./audit";
 export { sha256Hex, bodyHash } from "./hash";
+export { findOrCreatePersonByEmail, type FindOrCreatePersonInput } from "./person";
 export {
   encryptSecret,
   decryptSecret,
