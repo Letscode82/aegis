@@ -67,7 +67,7 @@ Priority: 🔴 high (before a real matter) · 🟡 medium · 🟢 later. Status:
 
 | ID | Item | Delivers | Enabling tech | Pri | Status |
 |---|---|---|---|---|---|
-| **PROC-1** | ProcessingEngine interface + factory | Pluggable native/Tika/Purview processing per org | factory pattern (like `m365-factory`) | 🔴 | ☐ |
+| **PROC-1** | ProcessingEngine interface + factory | Pluggable native/Tika/Purview processing per org | factory pattern (like `m365-factory`) | 🔴 | ✅ #364 |
 | **PROC-2** | XLSX + PPTX native extraction | Excel/PowerPoint become reviewable text | `xlsx` (SheetJS) + unzip/`pptx` parse | 🔴 | ☐ |
 | **PROC-3** | Apache **Tika Server** engine | 1000+ formats + metadata in one component | Tika Server (Docker sidecar), HTTP `/rmeta` | 🔴 | ☐ |
 | **PROC-4** | **OCR** (scanned images / image-PDFs) | Text from scans; closes the last extraction gap | **Tesseract** (via Tika) or Azure Doc Intelligence | 🔴 | ☐ (was the readiness "OCR" item) |
@@ -87,8 +87,8 @@ Buildable without any external service or user action — the loop works these,
 merging migration-free items and leaving any schema/infra item as an UNMERGED
 PR with an apply note (never blocks on the user):
 
-1. **PROC-1** — ProcessingEngine interface + factory + `NativeJsEngine`
-   (refactor current extraction behind it). Migration-free.
+1. ✅ **PROC-1** — ProcessingEngine interface + factory + `NativeJsEngine`
+   (PR #364). Migration-free.
 2. **PROC-2** — XLSX (SheetJS) + PPTX native extraction. Migration-free (text
    flows into the existing excerpt).
 3. **PROC-9 (near-dup)** — pure MinHash/shingle near-duplicate + language-ID
