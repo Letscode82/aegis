@@ -81,6 +81,29 @@ Priority: 🔴 high (before a real matter) · 🟡 medium · 🟢 later. Status:
 | HARD-2 | Real hold-notice email send | Custodian notices actually delivered | Graph `sendMail` / SES / SMTP | 🟡 | ⏸ |
 | HARD-3 | Live RelativityOne API push | One-click push (not just load-file export) | RelativityOne Import API + token | 🟢 | ⏸ |
 
+## Overnight autonomous build order (no infra / creds needed)
+
+Buildable without any external service or user action — the loop works these,
+merging migration-free items and leaving any schema/infra item as an UNMERGED
+PR with an apply note (never blocks on the user):
+
+1. **PROC-1** — ProcessingEngine interface + factory + `NativeJsEngine`
+   (refactor current extraction behind it). Migration-free.
+2. **PROC-2** — XLSX (SheetJS) + PPTX native extraction. Migration-free (text
+   flows into the existing excerpt).
+3. **PROC-9 (near-dup)** — pure MinHash/shingle near-duplicate + language-ID
+   helpers, computed on the fly (surfacing only; persistence deferred).
+4. **PROC-5 (pure parts)** — hashing (SHA-256) + `deNIST` known-hash mechanism
+   (built-in starter set) + dedup-by-hash helper, as pure tested utilities.
+   Wiring them onto `ReviewSetItem` needs a column → that part is an UNMERGED
+   migration PR.
+5. **PROC-8 (return path)** — have the engine return `exceptions[]`
+   (password-protected / unsupported / corrupt) and thread them out; the
+   per-item persistence + dashboard is an UNMERGED migration PR.
+
+SKIP (need infra/creds/user): PROC-3 (Tika Server), PROC-4 (OCR sidecar/cloud),
+PROC-6 (PST/MBOX native libs), PROC-7 (Purview APIs), all HARD-*.
+
 ## Recommended sequencing
 
 1. **PROC-1** (the factory) — cheap, unlocks everything else cleanly.
