@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { NativeJsEngine, nativeProcessingEngine, getProcessingEngineForOrg } from "../src/internal/services/processing";
+import { NativeJsEngine, nativeProcessingEngine, getProcessingEngineForOrg, summarizeExceptions } from "../src/internal/services/processing";
 
 const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64");
 
@@ -41,5 +41,23 @@ describe("getProcessingEngineForOrg", () => {
     const eng = await getProcessingEngineForOrg("org-1");
     expect(eng.name).toBe("native-js");
     expect(eng).toBe(nativeProcessingEngine());
+  });
+});
+
+describe("exception classification + summary (PROC-8)", () => {
+  const eng = new NativeJsEngine();
+  it("flags an encrypted OOXML package as ENCRYPTED", async () => {
+    const b = Buffer.from("PK EncryptedPackage payload", "latin1").toString("base64");
+    const r = await eng.extract({ contentType: "application/octet-stream", filename: "secret.docx", contentBytesB64: b });
+    expect(r.exception?.code).toBe("ENCRYPTED");
+  });
+  it("summarizeExceptions tallies by code", () => {
+    const out = summarizeExceptions([
+      { code: "UNSUPPORTED", reason: "" },
+      { code: "UNSUPPORTED", reason: "" },
+      { code: "ENCRYPTED", reason: "" },
+      null,
+    ]);
+    expect(out).toEqual({ UNSUPPORTED: 2, ENCRYPTED: 1 });
   });
 });

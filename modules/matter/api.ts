@@ -1044,6 +1044,7 @@ export {
   getProcessingEngineForOrg,
   nativeProcessingEngine,
   NativeJsEngine,
+  summarizeExceptions,
   type ProcessingEngine,
   type ProcessingExtractInput,
   type ProcessingResult,
