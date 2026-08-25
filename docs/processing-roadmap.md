@@ -75,7 +75,7 @@ Priority: 🔴 high (before a real matter) · 🟡 medium · 🟢 later. Status:
 | **PROC-6** | Container expansion (PST/MBOX/ZIP) | Ingest exported archives, nested families | `readpst`/`libpff`, `yauzl`, Tika | 🟡 | ☐ |
 | **PROC-7** | **Purview processing mode** | Delegate processing to Advanced Indexing where E5 allows | Purview eDiscovery Premium APIs | 🟡 | ☐ |
 | **PROC-8** | Exception report + processing dashboard | Password-protected/corrupt/unsupported surfaced; processing stats | reads engine `exceptions[]` | 🟡 | ☐ |
-| **PROC-9** | Language ID + near-dup | Per-doc language; near-duplicate flag beyond exact dedup | Tika/CLD; shingling/MinHash | 🟢 | ☐ |
+| **PROC-9** | Language ID + near-dup | Per-doc language; near-duplicate flag beyond exact dedup | Tika/CLD; shingling/MinHash | 🟢 | ✅ #366 (pure + on-the-fly read; persistence pending) |
 | RDY-OCR | (folded into PROC-4) | — | — | — | ↳ PROC-4 |
 | HARD-1 | KMS envelope encryption for M365 secrets | Production-grade secret storage | KMS (Azure Key Vault / AWS KMS) | 🟡 | ⏸ (first paying client) |
 | HARD-2 | Real hold-notice email send | Custodian notices actually delivered | Graph `sendMail` / SES / SMTP | 🟡 | ⏸ |
@@ -91,8 +91,8 @@ PR with an apply note (never blocks on the user):
    (PR #364). Migration-free.
 2. ✅ **PROC-2** — XLSX (SheetJS) + PPTX (jszip) native extraction (PR #365).
    Also fixed a latent OOXML-mis-decode bug. Migration-free.
-3. **PROC-9 (near-dup)** — pure MinHash/shingle near-duplicate + language-ID
-   helpers, computed on the fly (surfacing only; persistence deferred).
+3. ✅ **PROC-9 (near-dup)** — MinHash near-dup + language-ID helpers + on-the-fly
+   `/near-duplicates` read (PR #366). Per-item persistence deferred (migration).
 4. **PROC-5 (pure parts)** — hashing (SHA-256) + `deNIST` known-hash mechanism
    (built-in starter set) + dedup-by-hash helper, as pure tested utilities.
    Wiring them onto `ReviewSetItem` needs a column → that part is an UNMERGED
