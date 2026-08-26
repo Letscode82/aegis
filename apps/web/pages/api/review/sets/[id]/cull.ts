@@ -5,7 +5,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission } from "@aegis/auth";
-import { applyThreadNearDupCull, applyKeywordCull, applySourceTypeCull, applyDateWindowCull, clearCull, listExclusions } from "@aegis/review";
+import { applyThreadNearDupCull, applyKeywordCull, applySourceTypeCull, applyDateWindowCull, applyContentDedupCull, applyDeNistCull, clearCull, listExclusions } from "@aegis/review";
 import { requireActorAny } from "../../../../../lib/matter-actor";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -35,6 +35,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         result = await applySourceTypeCull(actor.organizationId, id, sourceTypes, who);
       } else if (action === "date") {
         result = await applyDateWindowCull(actor.organizationId, id, { before: body.before || null, after: body.after || null }, who);
+      } else if (action === "content-dedup") {
+        result = await applyContentDedupCull(actor.organizationId, id, who);
+      } else if (action === "denist") {
+        result = await applyDeNistCull(actor.organizationId, id, who);
       } else {
         result = await applyThreadNearDupCull(actor.organizationId, id, who);
       }

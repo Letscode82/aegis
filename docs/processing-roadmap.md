@@ -104,6 +104,19 @@ per-item columns (contentHash / near-dup / language / exception) + their
 dashboards are **deferred migrations**; PROC-3 (Tika Server), PROC-4 (OCR),
 PROC-6 (PST/MBOX), PROC-7 (Purview) need **infrastructure/credentials**.
 
+## Pipeline wiring (PROC-5/8/9 → real) — MIGRATION PR, apply then merge
+
+Wires the engines into collection: adds `contentHash` / `language` /
+`processingException` on `ReviewSetItem` (migration
+`20260826120000_reviewsetitem_processing`), computes them at collect time
+(persistReviewSet + the Graph client via `NativeJsEngine`), and adds
+**content-dedup + deNIST** cull passes that use the stored hash. Apply on Neon
+then merge:
+
+```
+pnpm --filter @aegis/db exec prisma migrate deploy
+```
+
 SKIP (need infra/creds/user): PROC-3 (Tika Server), PROC-4 (OCR sidecar/cloud),
 PROC-6 (PST/MBOX native libs), PROC-7 (Purview APIs), all HARD-*.
 

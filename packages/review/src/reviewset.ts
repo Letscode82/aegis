@@ -12,6 +12,8 @@
  */
 import { randomUUID } from "node:crypto";
 import { prisma, logAudit } from "@aegis/db";
+import { contentHash } from "./hashing";
+import { detectLanguage } from "./similarity";
 import type { ReviewSetOrigin } from "@aegis/db";
 import { assignThreadingAndDedup } from "./threading";
 
@@ -30,7 +32,7 @@ export interface ReviewCollectedItem {
   webUrl?: string | null;
   conversationId?: string | null;
   sentAt?: string | null;
-  attachments?: Array<{ name: string; size?: number | null; contentType?: string | null; text?: string | null }>;
+  attachments?: Array<{ name: string; size?: number | null; contentType?: string | null; text?: string | null; exception?: string | null }>;
 }
 
 export interface ReviewSetSummary {
@@ -99,7 +101,18 @@ export async function persistReviewSet(
   type ItemRow = {
     id: string; organizationId: string; reviewSetId: string; sourceType: string; sourceSystem: string; title: string;
     excerpt: string | null; graphId: string | null; webUrl: string | null; sentAt: Date | null;
+    contentHash: string | null; language: string | null; processingException: string | null;
     familyId: string | null; familyRole: string | null; threadId: string | null; isInclusive: boolean | null; dedupKey: string | null;
+  };
+  // Processing signals (PROC-5/8/9): content hash + language when there's text;
+  // exception code when extraction failed. Computed once per item at collect.
+  const proc = (text: string | null, exception?: string | null) => {
+    const t = (text ?? "").trim();
+    return {
+      contentHash: t ? contentHash(t) : null,
+      language: t ? detectLanguage(t) : null,
+      processingException: exception ?? null,
+    };
   };
   const toDate = (iso: string | null | undefined): Date | null => {
     if (!iso) return null;
@@ -115,6 +128,7 @@ export async function persistReviewSet(
     rows.push({
       id: p.id, organizationId, reviewSetId: rs.id, sourceType: p.hit.sourceType, sourceSystem: p.hit.sourceSystem,
       title: p.hit.title, excerpt: p.hit.excerpt ?? null, graphId: p.hit.graphId ?? null, webUrl: p.hit.webUrl ?? null, sentAt,
+      ...proc(p.hit.excerpt ?? null),
       familyId: hasFamily ? p.id : null, familyRole: hasFamily ? "PARENT" : null,
       threadId: a.threadId, isInclusive: a.isInclusive, dedupKey: a.dedupKey,
     });
@@ -122,6 +136,7 @@ export async function persistReviewSet(
       rows.push({
         id: randomUUID(), organizationId, reviewSetId: rs.id, sourceType: p.hit.sourceType, sourceSystem: p.hit.sourceSystem,
         title: att.name, excerpt: att.text || (att.contentType ? `Attachment · ${att.contentType}` : "Attachment"), graphId: null, webUrl: null, sentAt,
+        ...proc(att.text ?? null, att.exception ?? null),
         familyId: p.id, familyRole: "ATTACHMENT", threadId: a.threadId, isInclusive: a.isInclusive, dedupKey: null,
       });
     }

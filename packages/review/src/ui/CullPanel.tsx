@@ -126,6 +126,16 @@ export const CullPanel: React.FC<CullPanelProps> = ({ apiBase, reviewSetId, canM
                 </div>
               </div>
 
+              {/* Content-hash dedup + deNIST (PROC-5) */}
+              <div style={{ background: C.cd, border: `1px solid ${C.br}`, borderRadius: 12, padding: "16px 18px", marginBottom: 14 }}>
+                <div style={{ fontSize: 11, fontFamily: M, letterSpacing: .5, textTransform: "uppercase", color: C.t3, marginBottom: 4 }}>Hash-based passes</div>
+                <div style={{ fontSize: 11.5, color: C.t4, marginBottom: 10 }}>Exact-content dedup by SHA-256 (keeps one per identical document); deNIST drops known system / non-substantive files.</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button disabled={busy || !canMutate} onClick={() => runCull({ action: "content-dedup" }, (d) => `Excluded ${d.excluded ?? 0} exact-content duplicate(s)`)} style={cbtn(canMutate ? C.am : C.br)}>Dedup by content hash</button>
+                  <button disabled={busy || !canMutate} onClick={() => runCull({ action: "denist" }, (d) => `DeNIST removed ${d.excluded ?? 0} system file(s)`)} style={cghost(C.t2)}>DeNIST (system files)</button>
+                </div>
+              </div>
+
               {/* Date-window cull */}
               <div style={{ background: C.cd, border: `1px solid ${C.br}`, borderRadius: 12, padding: "16px 18px", marginBottom: 14 }}>
                 <div style={{ fontSize: 11, fontFamily: M, letterSpacing: .5, textTransform: "uppercase", color: C.t3, marginBottom: 4 }}>Date-window cull</div>

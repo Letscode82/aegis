@@ -2838,6 +2838,13 @@ model ReviewSetItem {
   /// Item date (mailbox sentAt), captured at collection for date-window culling
   /// and chronology. Null for undated sources (files, some chats).
   sentAt         DateTime?
+  /// Processing (PROC-5/8/9), captured at collection. contentHash (SHA-256 of
+  /// the item text) drives hash-dedup + deNIST; language is the detected ISO
+  /// code; processingException is the extraction failure code
+  /// (ENCRYPTED / UNSUPPORTED / EMPTY) or null when text extracted cleanly.
+  contentHash    String?
+  language       String?
+  processingException String?
   aiVerdict      DSARReviewVerdict?
   aiScore        Float?
   aiRationale    String?

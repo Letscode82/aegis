@@ -6,6 +6,7 @@
  */
 import { prisma, logAudit } from "@aegis/db";
 import type { Actor } from "./reviewset";
+import { dedupByHash, deNIST } from "./hashing";
 
 export interface ApplyCullResult { threadSuppressed: number; nearDuplicate: number; total: number }
 
@@ -143,6 +144,42 @@ export async function applySourceTypeCull(organizationId: string, reviewSetId: s
     metadata: { source: "review", channel: "ediscovery" } as never,
   });
   return { excluded: ids.length, total: ids.length };
+}
+
+/** Exact-content dedup: exclude items whose contentHash repeats (keep one).
+ *  Reversible + chain-sealed. Uses the PROC-5 hash captured at collection. */
+export async function applyContentDedupCull(organizationId: string, reviewSetId: string, actor: Actor): Promise<CullPassResult> {
+  const rs = await prisma.reviewSet.findFirst({ where: { id: reviewSetId, organizationId }, select: { id: true } });
+  if (!rs) throw new Error("Review set not found");
+  const items = await prisma.reviewSetItem.findMany({ where: { reviewSetId, excludedAt: null, contentHash: { not: null } }, select: { id: true, contentHash: true } });
+  const { groups } = dedupByHash(items.map((i) => ({ id: i.id, hash: i.contentHash! })));
+  const dropIds = groups.flatMap((g) => g.drop);
+  const now = new Date();
+  if (dropIds.length) await prisma.reviewSetItem.updateMany({ where: { id: { in: dropIds } }, data: { excludedAt: now, exclusionReason: "CONTENT_DUPLICATE" } });
+  await logAudit({
+    organizationId, actorId: actor.id, actorType: actor.type ?? "USER",
+    action: "reviewset.cull_applied", resourceType: "ReviewSet", resourceId: reviewSetId,
+    afterJson: { kind: "content_dedup", excluded: dropIds.length } as never,
+    metadata: { source: "review", channel: "ediscovery" } as never,
+  });
+  return { excluded: dropIds.length, total: dropIds.length };
+}
+
+/** DeNIST: exclude known system / non-substantive files by content hash. */
+export async function applyDeNistCull(organizationId: string, reviewSetId: string, actor: Actor): Promise<CullPassResult> {
+  const rs = await prisma.reviewSet.findFirst({ where: { id: reviewSetId, organizationId }, select: { id: true } });
+  if (!rs) throw new Error("Review set not found");
+  const items = await prisma.reviewSetItem.findMany({ where: { reviewSetId, excludedAt: null, contentHash: { not: null } }, select: { id: true, contentHash: true } });
+  const { removed } = deNIST(items.map((i) => ({ id: i.id, hash: i.contentHash! })));
+  const now = new Date();
+  if (removed.length) await prisma.reviewSetItem.updateMany({ where: { id: { in: removed } }, data: { excludedAt: now, exclusionReason: "SYSTEM_FILE" } });
+  await logAudit({
+    organizationId, actorId: actor.id, actorType: actor.type ?? "USER",
+    action: "reviewset.cull_applied", resourceType: "ReviewSet", resourceId: reviewSetId,
+    afterJson: { kind: "denist", excluded: removed.length } as never,
+    metadata: { source: "review", channel: "ediscovery" } as never,
+  });
+  return { excluded: removed.length, total: removed.length };
 }
 
 /** Restore every culled item back into review. */
