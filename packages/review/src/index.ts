@@ -88,6 +88,8 @@ export {
   applyKeywordCull,
   applySourceTypeCull,
   applyDateWindowCull,
+  applyContentDedupCull,
+  applyDeNistCull,
   selectKeywordCullIds,
   selectSourceTypeCullIds,
   selectDateWindowCullIds,

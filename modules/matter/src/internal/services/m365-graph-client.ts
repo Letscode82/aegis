@@ -43,7 +43,8 @@ import {
 } from "./m365-graph-errors";
 import { withGraphAudit } from "./m365-graph-audit";
 import { fetchFirstPage } from "./m365-graph-pagination";
-import { extractAttachmentText, htmlToText } from "./text-extract";
+import { htmlToText } from "./text-extract";
+import { nativeProcessingEngine } from "./processing";
 import { estimatePurviewCollectionViaGraph } from "./m365-graph-purview-estimate";
 
 /** Maximum tries on `applyHold` polling before declaring "applying". */
@@ -899,16 +900,19 @@ export class M365GraphClient implements M365Client {
           const excerpt = fullBody || m.bodyPreview || null;
           // Best-effort attachment enumeration + text extraction — a failure
           // (permissions, size, parse) must not sink the collection.
-          let attachments: Array<{ name: string; size?: number | null; contentType?: string | null; text?: string | null }> | undefined;
+          let attachments: Array<{ name: string; size?: number | null; contentType?: string | null; text?: string | null; exception?: string | null }> | undefined;
           if (m.hasAttachments && m.id) {
             const att = await this.safeUserGet<{ value?: Array<{ name?: string; size?: number; contentType?: string; contentBytes?: string; "@odata.type"?: string }> }>(
               `/users/${userId}/messages/${m.id}/attachments?$select=name,size,contentType,contentBytes`,
               "Mail.Read",
             ).catch(() => null);
-            attachments = await Promise.all((att?.value ?? []).map(async (a) => ({
-              name: a.name || "attachment", size: a.size ?? null, contentType: a.contentType ?? null,
-              text: await extractAttachmentText(a.contentType, a.contentBytes).catch(() => null),
-            })));
+            const engine = nativeProcessingEngine();
+            attachments = await Promise.all((att?.value ?? []).map(async (a) => {
+              // Engine extraction captures both text AND the failure reason
+              // (ENCRYPTED / UNSUPPORTED / EMPTY) for the processing report.
+              const r = await engine.extract({ filename: a.name, contentType: a.contentType, contentBytesB64: a.contentBytes }).catch(() => ({ text: null, exception: null } as { text: string | null; exception: { code: string } | null }));
+              return { name: a.name || "attachment", size: a.size ?? null, contentType: a.contentType ?? null, text: r.text, exception: r.exception?.code ?? null };
+            }));
             if (attachments.length === 0) attachments = undefined;
           }
           hits.push({ sourceType: "MAILBOX", sourceSystem: `Exchange · ${label}`, title: m.subject || "(no subject)", excerpt, graphId: m.id ?? null, webUrl: m.webLink ?? null, conversationId: m.conversationId ?? null, sentAt: m.receivedDateTime ?? null, attachments });
