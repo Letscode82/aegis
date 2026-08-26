@@ -14,7 +14,7 @@ interface Funnel {
   collected: number;
   funnel: Array<{ key: string; label: string; count: number; pctOfCollected: number }>;
   excluded: number; excludedByReason: Row[]; coded: number; responsive: number; privileged: number;
-  bySource: Row[]; byRoute: Row[]; byIssue: Row[];
+  bySource: Row[]; byRoute: Row[]; byIssue: Row[]; byLanguage: Row[]; byException: Row[];
   cost: { perDocMinutes: number; hourlyRate: number; currency: string };
   estimate: { reviewDocs: number; hours: number; cost: number; culledDocs: number; hoursSaved: number; costSaved: number };
 }
@@ -34,6 +34,13 @@ export const EcaPanel: React.FC<EcaPanelProps> = ({ apiBase, reviewSetId }) => {
   const [rate, setRate] = useState(75);
   const [clusters, setClusters] = useState<{ clusters: Cluster[]; degraded: boolean } | null>(null);
   const [clustersBusy, setClustersBusy] = useState(false);
+  const [nearDup, setNearDup] = useState<{ groups: number; docs: number } | null>(null);
+  const [nearDupBusy, setNearDupBusy] = useState(false);
+
+  const scanNearDup = useCallback(() => {
+    setNearDupBusy(true);
+    fetch(`${apiBase}/${reviewSetId}/near-duplicates`).then((r) => r.json()).then((j) => { if (j.ok) setNearDup({ groups: j.groups.length, docs: j.duplicateDocs }); }).catch(() => {}).finally(() => setNearDupBusy(false));
+  }, [apiBase, reviewSetId]);
 
   const loadClusters = useCallback(() => {
     setClustersBusy(true);
@@ -185,6 +192,24 @@ export const EcaPanel: React.FC<EcaPanelProps> = ({ apiBase, reviewSetId }) => {
           {breakdown("By source", d.bySource)}
           {breakdown("By AI route", d.byRoute, routeColor)}
           {breakdown("By issue", d.byIssue, () => C.tl)}
+        </div>
+
+        {/* Processing report (PROC-8/9) */}
+        <div style={{ marginTop: 22, border: `1px solid ${C.br}`, borderRadius: 12, padding: "18px 20px" }}>
+            <div style={{ fontSize: 11, fontFamily: M, letterSpacing: .6, textTransform: "uppercase", color: C.t3, marginBottom: 14 }}>Processing report</div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              {breakdown("Languages", d.byLanguage.length ? d.byLanguage : [{ key: "—", count: 0 }], () => C.tl)}
+              {breakdown("Extraction exceptions", d.byException.length ? d.byException : [{ key: "none", count: 0 }], () => C.am)}
+              <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, padding: "16px 18px", flex: "1 1 230px", minWidth: 220 }}>
+                <div style={{ fontSize: 11, fontFamily: M, letterSpacing: .6, textTransform: "uppercase", color: C.t3, marginBottom: 12 }}>Near-duplicates</div>
+                {nearDup === null ? (
+                  <button onClick={scanNearDup} disabled={nearDupBusy} style={{ fontSize: 12, fontWeight: 600, padding: "7px 12px", borderRadius: 8, cursor: "pointer", background: "transparent", color: C.cy, border: `1px solid ${C.cy}` }}>{nearDupBusy ? "Scanning…" : "Scan near-duplicates"}</button>
+                ) : (
+                  <div style={{ fontSize: 13, color: C.t2 }}><span style={{ fontFamily: SR, fontSize: 22, fontWeight: 600, color: nearDup.groups ? C.am : C.gn }}>{nearDup.groups}</span> group(s) · {nearDup.docs} near-dup doc(s)<div style={{ fontSize: 11, color: C.t4, marginTop: 4 }}>Edited/quoted variants beyond exact dedup. Cull exact copies in the Cull tab.</div></div>
+                )}
+              </div>
+            </div>
+            <div style={{ fontSize: 11, color: C.t4, marginTop: 10 }}>Language + exceptions are captured at collection. Exceptions (encrypted / unsupported / needs-OCR) keep the filename but aren't full-text searchable.</div>
         </div>
 
         {/* Themes (ECA-2 concept clustering) */}

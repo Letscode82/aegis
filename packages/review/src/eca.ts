@@ -33,6 +33,9 @@ export interface EcaFunnel {
   bySource: EcaBreakdownRow[];
   byRoute: EcaBreakdownRow[];
   byIssue: EcaBreakdownRow[];
+  /** Processing report (PROC-8/9): document language + extraction exceptions. */
+  byLanguage: EcaBreakdownRow[];
+  byException: EcaBreakdownRow[];
   cost: EcaCostModel;
   estimate: EcaEstimate;
 }
@@ -73,6 +76,7 @@ export async function getEcaFunnel(organizationId: string, reviewSetId: string, 
       sourceSystem: true, aiRoute: true, aiVerdict: true, codingJson: true,
       isInclusive: true, dedupKey: true, excludedAt: true, exclusionReason: true,
       reviewDecision: true, codedResponsive: true, codedPrivileged: true,
+      language: true, processingException: true,
     },
   });
 
@@ -131,6 +135,8 @@ export async function getEcaFunnel(organizationId: string, reviewSetId: string, 
     bySource: tally(items.map((it) => ({ key: it.sourceSystem }))),
     byRoute: tally(live.map((it) => ({ key: it.aiRoute }))),
     byIssue: tally(byIssueRows),
+    byLanguage: tally(live.filter((it) => it.language).map((it) => ({ key: it.language }))),
+    byException: tally(items.filter((it) => it.processingException).map((it) => ({ key: it.processingException }))),
     cost: model, estimate,
   };
 }
