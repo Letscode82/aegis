@@ -88,10 +88,14 @@ const NATIVE = new NativeJsEngine();
  * degrade to native so nothing breaks.
  */
 export async function getProcessingEngineForOrg(_organizationId?: string): Promise<ProcessingEngine> {
-  // TikaEngine (PROC-3): use when a Tika Server is configured.
-  if (process.env.TIKA_SERVER_URL) {
-    // TODO(PROC-3): return new TikaEngine(process.env.TIKA_SERVER_URL) once built.
-    // Falls through to native until then.
+  // TikaEngine (PROC-3/4): broad-format extraction + OCR when a Tika Server is
+  // configured. Lazy-imported so the native-only path carries no dependency on
+  // the Tika module. The engine itself degrades to native on any transport
+  // failure, so a mis-set URL or a down sidecar never stalls collection.
+  const tikaUrl = process.env.TIKA_SERVER_URL;
+  if (tikaUrl) {
+    const { getTikaEngine } = await import("./tika-engine");
+    return getTikaEngine(tikaUrl);
   }
   // PurviewEngine (PROC-7): use when the org has eDiscovery Premium + opted in.
   // TODO(PROC-7): return new PurviewEngine(...) once built.

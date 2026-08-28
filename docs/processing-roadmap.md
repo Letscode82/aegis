@@ -69,8 +69,8 @@ Priority: 🔴 high (before a real matter) · 🟡 medium · 🟢 later. Status:
 |---|---|---|---|---|---|
 | **PROC-1** | ProcessingEngine interface + factory | Pluggable native/Tika/Purview processing per org | factory pattern (like `m365-factory`) | 🔴 | ✅ #364 |
 | **PROC-2** | XLSX + PPTX native extraction | Excel/PowerPoint become reviewable text | `xlsx` (SheetJS) + `jszip` (pptx) | 🔴 | ✅ #365 |
-| **PROC-3** | Apache **Tika Server** engine | 1000+ formats + metadata in one component | Tika Server (Docker sidecar), HTTP `/rmeta` | 🔴 | ☐ |
-| **PROC-4** | **OCR** (scanned images / image-PDFs) | Text from scans; closes the last extraction gap | **Tesseract** (via Tika) or Azure Doc Intelligence | 🔴 | ☐ (was the readiness "OCR" item) |
+| **PROC-3** | Apache **Tika Server** engine | 1000+ formats + metadata in one component | Tika Server (Docker sidecar), HTTP `/rmeta` | 🔴 | ◧ code done (`TikaEngine`, gated behind `TIKA_SERVER_URL`, degrades to native); needs a running sidecar |
+| **PROC-4** | **OCR** (scanned images / image-PDFs) | Text from scans; closes the last extraction gap | **Tesseract** (via Tika `-full`) or Azure Doc Intelligence | 🔴 | ◧ rides PROC-3 — OCR is automatic when the sidecar is the `apache/tika:latest-full` image |
 | **PROC-5** | Hashing + hash-dedup + deNIST | MD5/SHA-256 identity, global dedup, drop NSRL system files | Node crypto + NIST NSRL set | 🟡 | ◧ #367 (pure engine; per-item column + NSRL data pending) |
 | **PROC-6** | Container expansion (PST/MBOX/ZIP) | Ingest exported archives, nested families | `readpst`/`libpff`, `yauzl`, Tika | 🟡 | ☐ |
 | **PROC-7** | **Purview processing mode** | Delegate processing to Advanced Indexing where E5 allows | Purview eDiscovery Premium APIs | 🟡 | ☐ |
@@ -119,6 +119,25 @@ pnpm --filter @aegis/db exec prisma migrate deploy
 
 SKIP (need infra/creds/user): PROC-3 (Tika Server), PROC-4 (OCR sidecar/cloud),
 PROC-6 (PST/MBOX native libs), PROC-7 (Purview APIs), all HARD-*.
+
+## Standing up the Tika sidecar (PROC-3/4 runtime)
+
+The `TikaEngine` is built and wired — `getProcessingEngineForOrg` returns it
+whenever `TIKA_SERVER_URL` is set, and it falls back to native on any transport
+failure, so a mis-set URL or a down sidecar never stalls collection. To turn it
+on, run a Tika Server the app can reach and point the env var at it:
+
+```bash
+# OCR-capable image (bundles Tesseract) — required for scanned images / image-PDFs
+docker run -d --name aegis-tika -p 9998:9998 apache/tika:latest-full
+# then, in the app environment:
+TIKA_SERVER_URL=http://localhost:9998
+```
+
+Cannot live on Vercel (no long-running containers) — run it on a machine/VM the
+app can reach over a **private** network (Tika Server has no auth; never expose
+9998 publicly). Health check: `GET $TIKA_SERVER_URL/version` → `Apache Tika 2.x`
+(exposed in code as `tikaVersion()`).
 
 ## Recommended sequencing
 
