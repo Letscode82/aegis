@@ -42,6 +42,22 @@ export {
   type CurrentUser,
   type CurrentOrganization,
 } from "./context";
+export {
+  enqueueProcessingJob,
+  claimNextProcessingJob,
+  heartbeatProcessingJob,
+  completeProcessingJob,
+  failProcessingJob,
+  getProcessingJob,
+  getProcessingQueueCounts,
+  isTerminalJobStatus,
+  retryBackoffMs,
+  decideAfterFailure,
+  DEFAULT_LEASE_MS,
+  type EnqueueProcessingJobInput,
+  type ClaimOptions,
+  type JobQueueCounts,
+} from "./processing-queue";
 
 // Re-export the generated Prisma namespace + enum types so callers don't
 // have to depend on @prisma/client directly. Keeps the module-isolation
@@ -94,6 +110,7 @@ export {
   ConsentMechanism,
   PrivacyIncidentSeverity,
   PrivacyIncidentStatus,
+  ProcessingJobStatus,
 } from "@prisma/client";
 
 // Generated model types (Organization, User, Matter, IntakeTicket, etc.).
@@ -173,4 +190,5 @@ export type {
   KnowledgePackVersion,
   KnowledgeItem,
   KnowledgeCohort,
+  ProcessingJob,
 } from "@prisma/client";
