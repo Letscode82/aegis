@@ -43,6 +43,58 @@ function pickFile(files: ExportFileMeta[], which: "reports" | "items"): ExportFi
   return pool.sort((a, b) => (a.size ?? 0) - (b.size ?? 0))[0] ?? null;
 }
 
+export interface ExportDownloadProbe {
+  fileName: string | null;
+  urlHost: string | null;
+  httpStatus: number;
+  ok: boolean;
+  contentType: string | null;
+  contentLength: string | null;
+  byteLength: number;
+  firstBytesHex: string;
+  firstBytesText: string;
+  looksLikeZip: boolean;
+}
+
+/**
+ * Diagnostic: fetch the export download URL and report the raw response
+ * (status / content-type / first bytes) WITHOUT unzipping — so we can see what
+ * the proxy actually returns when the bytes aren't a valid zip (redirect body,
+ * HTML/JSON error, wrong token audience, etc.).
+ */
+export async function probeExportDownload(
+  organizationId: string,
+  caseId: string,
+  opts: { operationId?: string; which?: "reports" | "items" } = {},
+): Promise<ExportDownloadProbe> {
+  const op = await getReviewSetExportStatus(organizationId, caseId, opts.operationId);
+  if (!op) throw new Error("No export operation found for this case");
+  const which = opts.which ?? "reports";
+  const file = pickFile(op.files, which);
+  if (!file?.downloadUrl) throw new Error(`No ${which} file with a download URL`);
+
+  const { accessToken } = await getFreshDelegatedAccessToken(organizationId);
+  const res = await fetch(file.downloadUrl, {
+    headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/octet-stream" },
+  });
+  const buf = Buffer.from(await res.arrayBuffer());
+  const head = buf.subarray(0, 16);
+  let urlHost: string | null = null;
+  try { urlHost = new URL(file.downloadUrl).host; } catch { /* ignore */ }
+  return {
+    fileName: file.fileName,
+    urlHost,
+    httpStatus: res.status,
+    ok: res.ok,
+    contentType: res.headers.get("content-type"),
+    contentLength: res.headers.get("content-length"),
+    byteLength: buf.length,
+    firstBytesHex: head.toString("hex"),
+    firstBytesText: buf.subarray(0, 300).toString("utf8").replace(/[^\x20-\x7e\n]/g, "."),
+    looksLikeZip: head[0] === 0x50 && head[1] === 0x4b, // "PK"
+  };
+}
+
 export async function inspectExportPackage(
   organizationId: string,
   caseId: string,
