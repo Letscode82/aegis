@@ -20,14 +20,19 @@ export type IngestActor = { id: string | null; type?: "USER" | "AGENT" | "SYSTEM
 export interface IngestArchiveInput {
   fileName: string;
   contentType?: string | null;
-  /** base64 of the archive bytes. */
-  bytesB64: string;
+  /** base64 of the archive bytes (inline path, small files). */
+  bytesB64?: string | null;
+  /** Vercel Blob URL to fetch the archive from (A2 — bypasses the request cap). */
+  blobUrl?: string | null;
   matterId?: string | null;
   name?: string | null;
 }
 
 /** ~3.5 MB archive cap — base64 inflates ~33%, keeping the POST under Vercel's ~4.5 MB request limit. */
 export const MAX_ARCHIVE_BYTES = 3_500_000;
+/** Blob-path cap — bypasses the request limit; still bounded by serverless memory
+ *  until the chunked/worker path (A3) lands. */
+export const MAX_BLOB_ARCHIVE_BYTES = 40_000_000;
 const MAX_ITEMS = 500;
 
 // ── MBOX parsing (compact, best-effort) ─────────────────────────────
@@ -249,15 +254,32 @@ export async function ingestArchive(
   actor: IngestActor,
 ): Promise<ReviewSetSummary> {
   let buf: Buffer;
-  try {
-    buf = Buffer.from(input.bytesB64, "base64");
-  } catch {
-    throw new Error("Archive bytes are not valid base64.");
+  if (input.blobUrl) {
+    // A2 — fetch from Vercel Blob (bypasses the request-body limit).
+    let res: Response;
+    try {
+      res = await fetch(input.blobUrl);
+    } catch (err) {
+      throw new Error(`Could not fetch the uploaded archive: ${String((err as Error)?.message ?? err)}`);
+    }
+    if (!res.ok) throw new Error(`Could not fetch the uploaded archive (HTTP ${res.status}).`);
+    buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length > MAX_BLOB_ARCHIVE_BYTES) {
+      throw new Error(`Archive is ${buf.length} bytes, over the ${MAX_BLOB_ARCHIVE_BYTES}-byte processing cap — the chunked/worker path (A3) is needed for larger.`);
+    }
+  } else if (input.bytesB64) {
+    try {
+      buf = Buffer.from(input.bytesB64, "base64");
+    } catch {
+      throw new Error("Archive bytes are not valid base64.");
+    }
+    if (buf.length > MAX_ARCHIVE_BYTES) {
+      throw new Error(`Archive is ${buf.length} bytes, over the ${MAX_ARCHIVE_BYTES}-byte inline cap — upload via Blob (A2) for larger.`);
+    }
+  } else {
+    throw new Error("Provide either bytesB64 (inline) or blobUrl (Blob upload).");
   }
   if (buf.length === 0) throw new Error("Empty upload.");
-  if (buf.length > MAX_ARCHIVE_BYTES) {
-    throw new Error(`Archive is ${buf.length} bytes, over the ${MAX_ARCHIVE_BYTES}-byte inline cap — larger archives need the Blob-upload/worker path.`);
-  }
 
   const kind = detectKind(input.fileName, buf);
   if (!kind) throw new Error(`Unsupported archive "${input.fileName}". Supported: .zip, .mbox, .pst.`);
