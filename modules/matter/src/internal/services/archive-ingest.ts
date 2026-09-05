@@ -14,6 +14,7 @@
 import { persistReviewSet, type ReviewCollectedItem, type ReviewSetSummary } from "@aegis/review";
 import { nativeProcessingEngine } from "./processing";
 import { htmlToText } from "./text-extract";
+import { mapLimit, extractConcurrency } from "./map-limit";
 
 export type IngestActor = { id: string | null; type?: "USER" | "AGENT" | "SYSTEM" };
 
@@ -140,22 +141,20 @@ async function ingestZip(buf: Buffer): Promise<ReviewCollectedItem[]> {
   };
   const zip = await JSZipMod.default.loadAsync(buf);
   const engine = nativeProcessingEngine();
-  const items: ReviewCollectedItem[] = [];
-  for (const [name, entry] of Object.entries(zip.files)) {
-    if (entry.dir) continue;
-    if (items.length >= MAX_ITEMS) break;
+  const entries = Object.entries(zip.files).filter(([, e]) => !e.dir).slice(0, MAX_ITEMS);
+  // A5: extract entries with bounded concurrency (fast through Tika/native).
+  return mapLimit(entries, extractConcurrency(), async ([name, entry]) => {
     const ext = extFor(name);
     const contentBytesB64 = await entry.async("base64");
     const { text, exception } = await engine.extract({ filename: name, contentType: contentTypeForExt(ext), contentBytesB64 });
-    items.push({
+    return {
       sourceType: "FILE",
       sourceSystem: "upload:zip",
       title: name,
       excerpt: text,
       exception: exception?.code ?? null,
-    });
-  }
-  return items;
+    } as ReviewCollectedItem;
+  });
 }
 
 function ingestMbox(text: string): ReviewCollectedItem[] {
