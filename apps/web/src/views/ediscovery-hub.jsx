@@ -32,10 +32,39 @@ export function EDiscoveryHub() {
   const [source, setSource] = useState("ALL");
   const [stage, setStage] = useState("ALL");
   const [showNew, setShowNew] = useState(false);
+  const [ingestBusy, setIngestBusy] = useState(false);
+  const [ingestErr, setIngestErr] = useState("");
 
   useEffect(() => {
     fetch("/api/review/collections").then((r) => r.json()).then((d) => setRows(d.ok ? d.collections : [])).catch(() => setRows([]));
   }, []);
+
+  // PROC-6: ingest an uploaded ZIP / MBOX archive → review set.
+  async function onIngestFile(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = ""; // allow re-selecting the same file
+    if (!file) return;
+    setIngestErr("");
+    if (file.size > 3_500_000) {
+      setIngestErr(`"${file.name}" is ${(file.size / 1e6).toFixed(1)} MB — over the ~3.5 MB inline cap. Larger archives need the worker path.`);
+      return;
+    }
+    setIngestBusy(true);
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      let bin = "";
+      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+      const bytesB64 = btoa(bin);
+      const r = await fetch("/api/review/ingest-archive", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileName: file.name, contentType: file.type, bytesB64 }) });
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error?.message || "Ingest failed");
+      window.location.href = `/review/collections/${d.reviewSet.id}`;
+    } catch (err) {
+      setIngestErr(String(err?.message || err));
+    } finally {
+      setIngestBusy(false);
+    }
+  }
 
   const filtered = useMemo(() => (rows || []).filter((c) => (source === "ALL" || c.origin === source) && (stage === "ALL" || c.stage === stage)), [rows, source, stage]);
   const counts = useMemo(() => {
@@ -58,8 +87,15 @@ export function EDiscoveryHub() {
           <div style={{ fontFamily: SR, fontSize: 28, fontWeight: 600, marginBottom: 4 }}>Collect &amp; Review</div>
           <div style={{ fontSize: 13.5, color: C.t3, marginBottom: 20 }}>Every collection — from legal holds, DSARs, and investigations — flows through one pipeline: Collect → Cull → Review → Produce.</div>
         </div>
-        <button onClick={() => setShowNew(true)} style={{ flex: "none", padding: "10px 16px", background: C.bl, color: C.bg, border: "none", borderRadius: 8, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ New collection</button>
+        <div style={{ flex: "none", display: "flex", gap: 8, alignItems: "center" }}>
+          <label title="Ingest an exported ZIP or MBOX archive into a new review set" style={{ padding: "10px 16px", background: "transparent", color: C.cy, border: `1px solid ${C.cy}`, borderRadius: 8, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: ingestBusy ? "default" : "pointer", opacity: ingestBusy ? 0.6 : 1 }}>
+            {ingestBusy ? "Ingesting…" : "Ingest archive"}
+            <input type="file" accept=".zip,.mbox,.eml" onChange={onIngestFile} disabled={ingestBusy} style={{ display: "none" }} />
+          </label>
+          <button onClick={() => setShowNew(true)} style={{ padding: "10px 16px", background: C.bl, color: C.bg, border: "none", borderRadius: 8, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ New collection</button>
+        </div>
       </div>
+      {ingestErr && <div style={{ color: "#f87171", fontSize: 12.5, marginBottom: 10 }}>{ingestErr}</div>}
       {showNew && <NewCollectionModal onClose={() => setShowNew(false)} />}
 
       {/* filters */}
