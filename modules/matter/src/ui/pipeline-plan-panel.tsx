@@ -10,7 +10,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { C, F, M } from "@aegis/ui";
 
 type Engine = "native" | "tika" | "purview" | "aegis-ai";
-interface PlanStage { stage: string; engine: Engine; reason: string; fallback: Engine | null }
+interface PlanStage { stage: string; engine: Engine; reason: string; fallback: Engine | null; economics?: { cost: string; speed: string } }
 interface Capabilities {
   m365: { connected: boolean; mode: string; tenantIdMasked: string | null };
   ediscovery: { connected: boolean; accountUpn: string | null; expired: boolean };
@@ -101,6 +101,12 @@ export const PipelinePlanPanel: React.FC = () => {
                   <div style={{ fontSize: 11, fontFamily: M, letterSpacing: .6, textTransform: "uppercase", color: C.t3, marginBottom: 10 }}>{STAGE_LABEL[s.stage] ?? s.stage}</div>
                   <div style={{ display: "inline-block", fontSize: 12, fontWeight: 700, color: C.bg, background: col, borderRadius: 6, padding: "3px 10px", marginBottom: 10 }}>{ENGINE_LABEL[s.engine] ?? s.engine}</div>
                   <div style={{ fontSize: 12.5, color: C.t2, lineHeight: 1.45 }}>{s.reason}</div>
+                  {s.economics ? (
+                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.br}44`, display: "flex", flexDirection: "column", gap: 3 }}>
+                      <div style={{ fontSize: 11, color: C.t3, fontFamily: M }}>💲 {s.economics.cost}</div>
+                      <div style={{ fontSize: 11, color: C.t3, fontFamily: M }}>⚡ {s.economics.speed}</div>
+                    </div>
+                  ) : null}
                   {s.fallback ? <div style={{ fontSize: 11, color: C.t4, marginTop: 8, fontFamily: M }}>fallback → {ENGINE_LABEL[s.fallback] ?? s.fallback}</div> : null}
                 </div>
               );

@@ -1063,11 +1063,13 @@ export {
 } from "./src/internal/services/pipeline-capabilities";
 export {
   resolveMatterPipelinePlan,
+  ENGINE_ECONOMICS,
   type MatterPipelinePlan,
   type PlanStage,
   type PipelinePlanHints,
   type PipelineStageKey,
   type PipelineEngineChoice,
+  type EngineEconomics,
 } from "./src/internal/services/pipeline-plan";
 
 // ── Archive ingest (PROC-6): ZIP + MBOX → review set ───────────────
