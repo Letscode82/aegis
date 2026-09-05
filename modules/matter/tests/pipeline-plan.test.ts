@@ -52,4 +52,14 @@ describe("resolveMatterPipelinePlan (B2)", () => {
     const p = resolveMatterPipelinePlan(caps({ tikaExtract: true, purviewPreserve: true }));
     expect(p.summary).toMatch(/Collect:.*Preserve:.*Process:.*Review:/);
   });
+
+  it("every stage carries cost + speed economics (B6)", () => {
+    const p = resolveMatterPipelinePlan(caps({ tikaExtract: true, purviewPreserve: true }));
+    for (const s of p.stages) {
+      expect(s.economics.cost).toBeTruthy();
+      expect(s.economics.speed).toBeTruthy();
+    }
+    // Tika process should read as "no E5"; Purview should read as needing Premium.
+    expect(stage(p, "process").economics.cost).toMatch(/no E5/i);
+  });
 });
