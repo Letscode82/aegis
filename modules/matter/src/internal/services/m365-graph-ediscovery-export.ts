@@ -158,6 +158,49 @@ export async function startReviewSetExport(
   return { posted: true, operation };
 }
 
+export interface CaseOperationSummary {
+  id: string;
+  odataType: string | null;
+  action: string | null;
+  status: string | null;
+  percentProgress: number | null;
+  createdDateTime: string | null;
+  outputName: string | null;
+  fileCount: number;
+}
+
+/**
+ * Diagnostic: list ALL case operations (unfiltered), so we can see the real
+ * `@odata.type` / `action` / `status` shapes Purview returns for exports. Used
+ * while finalising how export operations are identified.
+ */
+export async function listCaseOperations(
+  organizationId: string,
+  caseId: string,
+): Promise<CaseOperationSummary[]> {
+  const creds = await resolveCredentialsForOrg(organizationId);
+  const tenantId = creds?.tenantId ?? null;
+  const graph = delegatedGraph(organizationId);
+  const endpoint = `/security/cases/ediscoveryCases/${caseId}/operations`;
+  const res = await audited(organizationId, tenantId, endpoint, "GET", async () => {
+    try {
+      return (await graph.api(endpoint).get()) as GraphCollection;
+    } catch (err) {
+      throw mapGraphError(err, endpoint);
+    }
+  });
+  return (res.value ?? []).map((o) => ({
+    id: String(o.id ?? ""),
+    odataType: str(o, "@odata.type"),
+    action: str(o, "action"),
+    status: str(o, "status"),
+    percentProgress: num(o.percentProgress),
+    createdDateTime: str(o, "createdDateTime"),
+    outputName: str(o, "outputName"),
+    fileCount: Array.isArray(o.exportFileMetadata) ? (o.exportFileMetadata as unknown[]).length : 0,
+  }));
+}
+
 /** Steps 2–3: poll an export operation (by id, or the newest one for the case). */
 export async function getReviewSetExportStatus(
   organizationId: string,

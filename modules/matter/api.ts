@@ -1066,10 +1066,12 @@ export {
 export {
   startReviewSetExport,
   getReviewSetExportStatus,
+  listCaseOperations,
   type ExportOperation,
   type ExportFileMeta,
   type StartExportResult,
   type ReviewSetExportOptions,
+  type CaseOperationSummary,
 } from "./src/internal/services/m365-graph-ediscovery-export";
 
 // ── M365 mailbox access (Intake P4b) ──────────────────────────────
