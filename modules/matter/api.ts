@@ -1062,6 +1062,16 @@ export {
   type EdiscoveryReviewSetSummary,
 } from "./src/internal/services/m365-graph-ediscovery-explorer";
 
+// ── Purview review-set export: trigger + poll (PROC-7b increment 2a) ─
+export {
+  startReviewSetExport,
+  getReviewSetExportStatus,
+  type ExportOperation,
+  type ExportFileMeta,
+  type StartExportResult,
+  type ReviewSetExportOptions,
+} from "./src/internal/services/m365-graph-ediscovery-export";
+
 // ── M365 mailbox access (Intake P4b) ──────────────────────────────
 // Intake reaches Graph mail through these (never its own client).
 export {
