@@ -1042,6 +1042,7 @@ export async function searchM365DirectoryUsers(
 // ── Processing engine (PROC-1) ─────────────────────────────────────
 export {
   getProcessingEngineForOrg,
+  getProcessingStatusForOrg,
   nativeProcessingEngine,
   NativeJsEngine,
   summarizeExceptions,
@@ -1049,6 +1050,8 @@ export {
   type ProcessingExtractInput,
   type ProcessingResult,
   type ProcessingException,
+  type ProcessingMode,
+  type ProcessingStatus,
 } from "./src/internal/services/processing";
 
 // ── M365 mailbox access (Intake P4b) ──────────────────────────────

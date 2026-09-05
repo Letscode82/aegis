@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { NativeJsEngine, nativeProcessingEngine, getProcessingEngineForOrg, summarizeExceptions } from "../src/internal/services/processing";
+import { NativeJsEngine, nativeProcessingEngine, getProcessingEngineForOrg, getProcessingStatusForOrg, summarizeExceptions } from "../src/internal/services/processing";
 
 const b64 = (s: string) => Buffer.from(s, "utf8").toString("base64");
 
@@ -38,9 +38,24 @@ describe("NativeJsEngine", () => {
 
 describe("getProcessingEngineForOrg", () => {
   it("returns the native engine by default", async () => {
+    const prev = process.env.TIKA_SERVER_URL;
+    delete process.env.TIKA_SERVER_URL;
     const eng = await getProcessingEngineForOrg("org-1");
     expect(eng.name).toBe("native-js");
     expect(eng).toBe(nativeProcessingEngine());
+    if (prev !== undefined) process.env.TIKA_SERVER_URL = prev;
+  });
+});
+
+describe("getProcessingStatusForOrg", () => {
+  it("reports native mode when no Tika sidecar is configured", async () => {
+    const prev = process.env.TIKA_SERVER_URL;
+    delete process.env.TIKA_SERVER_URL;
+    const s = await getProcessingStatusForOrg("org-1");
+    expect(s.mode).toBe("native");
+    expect(s.engine).toBe("native-js");
+    expect(s.tika).toBeUndefined();
+    if (prev !== undefined) process.env.TIKA_SERVER_URL = prev;
   });
 });
 

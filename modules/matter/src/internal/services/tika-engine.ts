@@ -150,11 +150,21 @@ export class TikaEngine implements ProcessingEngine {
   }
 }
 
-/** GET /version — a shallow health probe (no document processing). */
-export async function tikaVersion(baseUrl: string, fetchImpl: FetchImpl = fetch): Promise<string> {
-  const res = await fetchImpl(`${baseUrl.replace(/\/+$/, "")}/version`, { method: "GET" });
-  if (!res.ok) throw new Error(`Tika /version returned HTTP ${res.status}`);
-  return (await res.text()).trim();
+/**
+ * GET /version — a shallow health probe (no document processing). Bounded by
+ * `timeoutMs` (default 10s) so a sleeping / slow-to-wake sidecar surfaces as a
+ * timeout rather than hanging the caller.
+ */
+export async function tikaVersion(baseUrl: string, fetchImpl: FetchImpl = fetch, timeoutMs = 10_000): Promise<string> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetchImpl(`${baseUrl.replace(/\/+$/, "")}/version`, { method: "GET", signal: controller.signal });
+    if (!res.ok) throw new Error(`Tika /version returned HTTP ${res.status}`);
+    return (await res.text()).trim();
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 // ---- per-org engine cache (mirror the M365 client cache) ----
