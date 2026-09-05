@@ -1077,6 +1077,7 @@ export {
   ingestArchive,
   parseMbox,
   MAX_ARCHIVE_BYTES,
+  MAX_BLOB_ARCHIVE_BYTES,
   type IngestArchiveInput,
   type ParsedEmail,
 } from "./src/internal/services/archive-ingest";

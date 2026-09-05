@@ -25,8 +25,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const b = (req.body ?? {}) as Record<string, unknown>;
   const fileName = typeof b.fileName === "string" ? b.fileName : "";
   const bytesB64 = typeof b.bytesB64 === "string" ? b.bytesB64 : "";
-  if (!fileName || !bytesB64) {
-    return res.status(400).json({ ok: false, error: { code: "MISSING_PARAMS", message: "fileName and bytesB64 are required" } });
+  const blobUrl = typeof b.blobUrl === "string" ? b.blobUrl : "";
+  if (!fileName || (!bytesB64 && !blobUrl)) {
+    return res.status(400).json({ ok: false, error: { code: "MISSING_PARAMS", message: "fileName and one of bytesB64 / blobUrl are required" } });
   }
 
   try {
@@ -35,7 +36,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       {
         fileName,
         contentType: typeof b.contentType === "string" ? b.contentType : null,
-        bytesB64,
+        bytesB64: bytesB64 || null,
+        blobUrl: blobUrl || null,
         matterId: typeof b.matterId === "string" ? b.matterId : null,
         name: typeof b.name === "string" ? b.name : null,
       },

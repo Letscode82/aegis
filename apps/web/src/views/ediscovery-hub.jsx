@@ -45,17 +45,27 @@ export function EDiscoveryHub() {
     e.target.value = ""; // allow re-selecting the same file
     if (!file) return;
     setIngestErr("");
-    if (file.size > 3_500_000) {
-      setIngestErr(`"${file.name}" is ${(file.size / 1e6).toFixed(1)} MB — over the ~3.5 MB inline cap. Larger archives need the worker path.`);
+    const INLINE_CAP = 3_500_000;
+    const MAX_CAP = 40_000_000;
+    if (file.size > MAX_CAP) {
+      setIngestErr(`"${file.name}" is ${(file.size / 1e6).toFixed(1)} MB — over the ${MAX_CAP / 1e6} MB cap. The chunked/worker path is coming for larger archives.`);
       return;
     }
     setIngestBusy(true);
     try {
-      const bytes = new Uint8Array(await file.arrayBuffer());
-      let bin = "";
-      for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
-      const bytesB64 = btoa(bin);
-      const r = await fetch("/api/review/ingest-archive", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ fileName: file.name, contentType: file.type, bytesB64 }) });
+      let body;
+      if (file.size > INLINE_CAP) {
+        // Large → upload straight to Blob (bypasses the request limit), then ingest by URL.
+        const { upload } = await import("@vercel/blob/client");
+        const blob = await upload(file.name, file, { access: "public", handleUploadUrl: "/api/review/ingest-archive/blob-upload" });
+        body = { fileName: file.name, contentType: file.type, blobUrl: blob.url };
+      } else {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        let bin = "";
+        for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+        body = { fileName: file.name, contentType: file.type, bytesB64: btoa(bin) };
+      }
+      const r = await fetch("/api/review/ingest-archive", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const d = await r.json();
       if (!d.ok) throw new Error(d.error?.message || "Ingest failed");
       window.location.href = `/review/collections/${d.reviewSet.id}`;
