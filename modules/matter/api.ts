@@ -1054,6 +1054,14 @@ export {
   type ProcessingStatus,
 } from "./src/internal/services/processing";
 
+// ── Purview eDiscovery explorer (PROC-7b increment 1) ──────────────
+export {
+  exploreEdiscovery,
+  type EdiscoveryExplore,
+  type EdiscoveryCaseSummary,
+  type EdiscoveryReviewSetSummary,
+} from "./src/internal/services/m365-graph-ediscovery-explorer";
+
 // ── M365 mailbox access (Intake P4b) ──────────────────────────────
 // Intake reaches Graph mail through these (never its own client).
 export {
