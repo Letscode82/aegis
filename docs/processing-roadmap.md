@@ -74,7 +74,7 @@ Priority: 🔴 high (before a real matter) · 🟡 medium · 🟢 later. Status:
 | **PROC-5** | Hashing + hash-dedup + deNIST | MD5/SHA-256 identity, global dedup, drop NSRL system files | Node crypto + NIST NSRL set | 🟡 | ◧ #367 (pure engine; per-item column + NSRL data pending) |
 | **PROC-6** | Container expansion (PST/MBOX/ZIP) | Ingest exported archives, nested families | `readpst`/`libpff`, `yauzl`, Tika | 🟡 | ☐ |
 | **PROC-7a** | **Purview mode selection + license gate** | Per-deployment `AEGIS_PROCESSING_MODE` (native/tika/purview/auto); `purview` engages only when the delegated eDiscovery account is connected, else falls back | env switch + delegated-auth gate (4c.1) | 🟡 | ◧ mode seam + gate + health status; per-org column deferred |
-| **PROC-7b** | **Purview processing read-back** | Read Purview's indexed text for items collected via an eDiscovery review set | Purview eDiscovery Premium review-set APIs + live E5 | 🟡 | ☐ needs a connected E5 tenant |
+| **PROC-7b** | **Purview processing read-back** | Read Purview's indexed text for items collected via an eDiscovery review set | Purview eDiscovery Premium review-set APIs + live E5 | 🟡 | ⛔ **BLOCKED by Microsoft** — export download is portal-gated (see finding below); API path works up to export, content download does not |
 | **PROC-8** | Exception report + processing dashboard | Password-protected/corrupt/unsupported surfaced; processing stats | reads engine `exceptions[]` | 🟡 | ◧ #368 (classification + summarizeExceptions; per-item persistence + dashboard pending) |
 | **PROC-9** | Language ID + near-dup | Per-doc language; near-duplicate flag beyond exact dedup | Tika/CLD; shingling/MinHash | 🟢 | ✅ #366 (pure + on-the-fly read; persistence pending) |
 | RDY-OCR | (folded into PROC-4) | — | — | — | ↳ PROC-4 |
@@ -139,6 +139,43 @@ Cannot live on Vercel (no long-running containers) — run it on a machine/VM th
 app can reach over a **private** network (Tika Server has no auth; never expose
 9998 publicly). Health check: `GET $TIKA_SERVER_URL/version` → `Apache Tika 2.x`
 (exposed in code as `tikaVersion()`).
+
+## PROC-7b finding — Purview read-back is portal-gated (validated on a live E5 tenant)
+
+Validated end-to-end against a connected E5 tenant (Sep 2026). Every step of
+the Purview processing path works via the delegated Graph API **except the
+final content download**:
+
+- ✅ Connect delegated eDiscovery · ✅ list cases / custodians / searches /
+  review sets · ✅ trigger review-set export (`POST …/reviewSets/{id}/export`)
+  · ✅ poll the `contentExport` operation to `succeeded` · ✅ read
+  `exportFileMetadata[]` (fileName + size + downloadUrl).
+- ⛔ **Download the export package** — the `downloadUrl` points at
+  `*.proxyservice.ediscovery.svc.cloud.microsoft`, a **different resource**
+  than `graph.microsoft.com`. Fetching it with the delegated Graph bearer
+  token returns **HTTP 200 with an Azure AD "Sign in to your account" HTML
+  page** (`content-type: text/html`), not the zip. The proxy only honors an
+  **interactive browser AAD session**, not the server-to-server delegated
+  token the rest of the eDiscovery API accepts.
+
+**Conclusion.** Reading Purview's processed content back into AEGIS
+programmatically is **blocked by Microsoft's API design**, not by our code.
+The export packages are intended for portal/browser download. Automating it
+would require a token for the (undocumented) eDiscovery download resource the
+service account was never consented to — and even then the URLs are
+portal-oriented. Learnings also surfaced along the way: `exportOptions`
+requires `originalFiles` to also emit `text`; the operation discriminator is
+`action = "contentExport"` (the `@odata.type` is omitted in the operations
+list); `exportFileMetadata` only appears when the operation is fetched by id.
+
+**Product takeaway.** "Purview-as-processor kept in-app" is **not seamless**:
+triggering + tracking works by API, but pulling processed content back
+requires a manual portal download + re-upload. **AEGIS-native (Tika) mode has
+no such seam** — collected content is extracted straight into the review set.
+This is a genuine differentiator for native mode and a fair caveat for
+E5 clients who want to keep Purview. PROC-7a (mode selection + license gate)
+stays useful; PROC-7b full read-back is parked pending a Microsoft-supported
+programmatic download path.
 
 ## Recommended sequencing
 
