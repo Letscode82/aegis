@@ -8,7 +8,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission } from "@aegis/auth";
-import { inspectExportPackage } from "@aegis/matter";
+import { inspectExportPackage, probeExportDownload } from "@aegis/matter";
 import { requireActorAny } from "../../../../../lib/matter-actor";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -26,6 +26,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const maxDownloadBytes = typeof req.query.maxBytes === "string" && !Number.isNaN(Number(req.query.maxBytes)) ? Number(req.query.maxBytes) : undefined;
 
   try {
+    if (req.query.probe === "1") {
+      const probe = await probeExportDownload(actor.organizationId, caseId, { operationId, which });
+      return res.status(200).json({ ok: true, probe });
+    }
     const result = await inspectExportPackage(actor.organizationId, caseId, { operationId, which, maxDownloadBytes });
     return res.status(200).json({ ok: true, ...result });
   } catch (err) {

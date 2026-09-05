@@ -1075,8 +1075,10 @@ export {
 } from "./src/internal/services/m365-graph-ediscovery-export";
 export {
   inspectExportPackage,
+  probeExportDownload,
   type ExportPackageInspection,
   type ExportZipEntry,
+  type ExportDownloadProbe,
 } from "./src/internal/services/m365-graph-ediscovery-download";
 
 // ── M365 mailbox access (Intake P4b) ──────────────────────────────
