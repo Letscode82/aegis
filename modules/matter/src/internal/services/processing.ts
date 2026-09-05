@@ -82,24 +82,59 @@ export function summarizeExceptions(exceptions: Array<ProcessingException | null
 
 const NATIVE = new NativeJsEngine();
 
+export type ProcessingMode = "native" | "tika" | "purview";
+/** The configured intent — `auto` picks the best available (Tika if a sidecar is set, else native). */
+export type ConfiguredProcessingMode = ProcessingMode | "auto";
+
 /**
- * Select the processing engine for an organisation. Native today; the Tika and
- * Purview engines slot in here (PROC-3/4/7) — until built/configured they
- * degrade to native so nothing breaks.
+ * Read the org/deployment's configured processing mode from
+ * `AEGIS_PROCESSING_MODE` (PROC-7). `auto` (the default) picks Tika when a
+ * sidecar is configured, else native. `purview` is opt-in only — never auto-
+ * selected — and engages only when the org's delegated eDiscovery account is
+ * connected (see `getProcessingEngineForOrg`).
+ *
+ * This is a per-deployment env switch today; a per-org column is the multi-
+ * tenant follow-up (PROC-7, deferred migration).
  */
-export async function getProcessingEngineForOrg(_organizationId?: string): Promise<ProcessingEngine> {
-  // TikaEngine (PROC-3/4): broad-format extraction + OCR when a Tika Server is
-  // configured. Lazy-imported so the native-only path carries no dependency on
-  // the Tika module. The engine itself degrades to native on any transport
-  // failure, so a mis-set URL or a down sidecar never stalls collection.
+export function resolveConfiguredMode(): ConfiguredProcessingMode {
+  const v = (process.env.AEGIS_PROCESSING_MODE ?? "").trim().toLowerCase();
+  if (v === "native" || v === "tika" || v === "purview") return v;
+  return "auto";
+}
+
+/** The base byte-extractor: Tika when a sidecar is configured, else native. */
+async function baseEngine(): Promise<ProcessingEngine> {
   const tikaUrl = process.env.TIKA_SERVER_URL;
   if (tikaUrl) {
     const { getTikaEngine } = await import("./tika-engine");
     return getTikaEngine(tikaUrl);
   }
-  // PurviewEngine (PROC-7): use when the org has eDiscovery Premium + opted in.
-  // TODO(PROC-7): return new PurviewEngine(...) once built.
   return NATIVE;
+}
+
+/**
+ * Select the processing engine for an organisation (PROC-1/3/4/7).
+ *
+ * - `native` → in-process extraction.
+ * - `tika` / `auto` → Tika sidecar when configured, else native. Tika degrades
+ *   to native on any transport failure, so a down sidecar never stalls.
+ * - `purview` → Purview mode, but ONLY when the org's delegated eDiscovery
+ *   service account is connected; otherwise falls back to the base engine so
+ *   collection never stalls. (Purview processes bytes asynchronously inside
+ *   review sets, so the engine delegates direct-byte extraction to the base
+ *   engine — the review-set read-back is PROC-7b, gated on a live E5 tenant.)
+ */
+export async function getProcessingEngineForOrg(organizationId?: string): Promise<ProcessingEngine> {
+  const mode = resolveConfiguredMode();
+  if (mode === "native") return NATIVE;
+  if (mode === "purview") {
+    const { PurviewProcessingEngine, getPurviewProcessingStatus } = await import("./purview-engine");
+    const status = await getPurviewProcessingStatus(organizationId);
+    if (status.connected) return new PurviewProcessingEngine(await baseEngine());
+    return baseEngine(); // selected purview but not connected/licensed — degrade
+  }
+  // tika | auto
+  return baseEngine();
 }
 
 /** The always-available native engine (for callers that don't need the factory). */
@@ -107,10 +142,10 @@ export function nativeProcessingEngine(): ProcessingEngine {
   return NATIVE;
 }
 
-export type ProcessingMode = "native" | "tika" | "purview";
-
 export interface ProcessingStatus {
-  /** Which engine the factory selects for this org right now. */
+  /** The configured intent (`AEGIS_PROCESSING_MODE`). */
+  configuredMode: ConfiguredProcessingMode;
+  /** The engine actually selected right now (after fallback). */
   mode: ProcessingMode;
   engine: string;
   /** Present when a Tika sidecar is configured — a shallow /version probe. */
@@ -120,16 +155,26 @@ export interface ProcessingStatus {
     version: string | null;
     error: string | null;
   };
+  /** Present when configured mode is `purview` — the eDiscovery connection gate. */
+  purview?: {
+    connected: boolean;
+    accountUpn: string | null;
+    expired: boolean;
+    reason: string | null;
+  };
 }
 
 /**
- * Health/status for the processing pipeline — which engine is active, and for
- * Tika a shallow `/version` probe. Mirrors `getM365ConnectionStatus`. The probe
- * is bounded so a sleeping sidecar surfaces as `reachable:false` (timeout)
- * rather than hanging the request. Does not process any document.
+ * Health/status for the processing pipeline — configured intent, the engine
+ * actually selected (after fallback), a bounded Tika `/version` probe, and for
+ * `purview` the eDiscovery connection gate. Mirrors `getM365ConnectionStatus`;
+ * processes no document.
  */
-export async function getProcessingStatusForOrg(_organizationId?: string): Promise<ProcessingStatus> {
+export async function getProcessingStatusForOrg(organizationId?: string): Promise<ProcessingStatus> {
+  const configuredMode = resolveConfiguredMode();
   const tikaUrl = process.env.TIKA_SERVER_URL;
+
+  let tika: ProcessingStatus["tika"];
   if (tikaUrl) {
     const { tikaVersion } = await import("./tika-engine");
     let reachable = false;
@@ -143,7 +188,22 @@ export async function getProcessingStatusForOrg(_organizationId?: string): Promi
         ? "timeout — the Tika sidecar did not respond in time (it may be asleep; retry)"
         : String((e as Error)?.message ?? e);
     }
-    return { mode: "tika", engine: "tika", tika: { url: tikaUrl, reachable, version, error } };
+    tika = { url: tikaUrl, reachable, version, error };
   }
-  return { mode: "native", engine: NATIVE.name };
+
+  let purview: ProcessingStatus["purview"];
+  let mode: ProcessingMode;
+  if (configuredMode === "purview") {
+    const { getPurviewProcessingStatus } = await import("./purview-engine");
+    const ps = await getPurviewProcessingStatus(organizationId);
+    purview = ps;
+    mode = ps.connected ? "purview" : (tikaUrl ? "tika" : "native");
+  } else if (configuredMode === "native") {
+    mode = "native";
+  } else {
+    // tika | auto
+    mode = tikaUrl ? "tika" : "native";
+  }
+
+  return { configuredMode, mode, engine: mode === "native" ? NATIVE.name : mode, tika, purview };
 }

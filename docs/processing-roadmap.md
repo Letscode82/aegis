@@ -73,7 +73,8 @@ Priority: 🔴 high (before a real matter) · 🟡 medium · 🟢 later. Status:
 | **PROC-4** | **OCR** (scanned images / image-PDFs) | Text from scans; closes the last extraction gap | **Tesseract** (via Tika `-full`) or Azure Doc Intelligence | 🔴 | ◧ rides PROC-3 — OCR is automatic when the sidecar is the `apache/tika:latest-full` image |
 | **PROC-5** | Hashing + hash-dedup + deNIST | MD5/SHA-256 identity, global dedup, drop NSRL system files | Node crypto + NIST NSRL set | 🟡 | ◧ #367 (pure engine; per-item column + NSRL data pending) |
 | **PROC-6** | Container expansion (PST/MBOX/ZIP) | Ingest exported archives, nested families | `readpst`/`libpff`, `yauzl`, Tika | 🟡 | ☐ |
-| **PROC-7** | **Purview processing mode** | Delegate processing to Advanced Indexing where E5 allows | Purview eDiscovery Premium APIs | 🟡 | ☐ |
+| **PROC-7a** | **Purview mode selection + license gate** | Per-deployment `AEGIS_PROCESSING_MODE` (native/tika/purview/auto); `purview` engages only when the delegated eDiscovery account is connected, else falls back | env switch + delegated-auth gate (4c.1) | 🟡 | ◧ mode seam + gate + health status; per-org column deferred |
+| **PROC-7b** | **Purview processing read-back** | Read Purview's indexed text for items collected via an eDiscovery review set | Purview eDiscovery Premium review-set APIs + live E5 | 🟡 | ☐ needs a connected E5 tenant |
 | **PROC-8** | Exception report + processing dashboard | Password-protected/corrupt/unsupported surfaced; processing stats | reads engine `exceptions[]` | 🟡 | ◧ #368 (classification + summarizeExceptions; per-item persistence + dashboard pending) |
 | **PROC-9** | Language ID + near-dup | Per-doc language; near-duplicate flag beyond exact dedup | Tika/CLD; shingling/MinHash | 🟢 | ✅ #366 (pure + on-the-fly read; persistence pending) |
 | RDY-OCR | (folded into PROC-4) | — | — | — | ↳ PROC-4 |
