@@ -28,6 +28,9 @@ export interface ReviewCollectedItem {
   sourceSystem: string;
   title: string;
   excerpt: string | null;
+  /** Extraction exception code for the top-level item (PROC-5/8) — e.g. an
+   *  ingested archive file that couldn't be read. Attachments carry their own. */
+  exception?: string | null;
   graphId?: string | null;
   webUrl?: string | null;
   conversationId?: string | null;
@@ -128,7 +131,7 @@ export async function persistReviewSet(
     rows.push({
       id: p.id, organizationId, reviewSetId: rs.id, sourceType: p.hit.sourceType, sourceSystem: p.hit.sourceSystem,
       title: p.hit.title, excerpt: p.hit.excerpt ?? null, graphId: p.hit.graphId ?? null, webUrl: p.hit.webUrl ?? null, sentAt,
-      ...proc(p.hit.excerpt ?? null),
+      ...proc(p.hit.excerpt ?? null, p.hit.exception ?? null),
       familyId: hasFamily ? p.id : null, familyRole: hasFamily ? "PARENT" : null,
       threadId: a.threadId, isInclusive: a.isInclusive, dedupKey: a.dedupKey,
     });
