@@ -33,6 +33,8 @@ export interface ExportFileMeta {
 export interface ExportOperation {
   id: string;
   odataType: string | null;
+  /** caseOperation action — Purview labels review-set exports "contentExport". */
+  action: string | null;
   status: string | null;
   percentProgress: number | null;
   createdDateTime: string | null;
@@ -77,6 +79,7 @@ function toExportOperation(o: GraphObject): ExportOperation {
   return {
     id: String(o.id ?? ""),
     odataType: str(o, "@odata.type"),
+    action: str(o, "action"),
     status: str(o, "status"),
     percentProgress: num(o.percentProgress),
     createdDateTime: str(o, "createdDateTime"),
@@ -86,8 +89,14 @@ function toExportOperation(o: GraphObject): ExportOperation {
   };
 }
 
+/**
+ * Purview returns `@odata.type: null` in the operations *list* — the reliable
+ * discriminator for a review-set export is `action` = "contentExport".
+ */
 function isExportOp(o: GraphObject): boolean {
-  return String(o["@odata.type"] ?? "").toLowerCase().includes("export");
+  const action = String(o.action ?? "").toLowerCase();
+  const type = String(o["@odata.type"] ?? "").toLowerCase();
+  return action.includes("export") || type.includes("export");
 }
 
 async function audited<T>(organizationId: string, tenantId: string | null, endpoint: string, method: string, fn: () => Promise<T>): Promise<T> {
@@ -120,9 +129,27 @@ async function findNewestExportOperation(
       throw mapGraphError(err, endpoint);
     }
   });
-  const ops = (res.value ?? []).filter(isExportOp).map(toExportOperation);
-  ops.sort((a, b) => (b.createdDateTime ?? "").localeCompare(a.createdDateTime ?? ""));
-  return ops[0] ?? null;
+  const exportOps = (res.value ?? []).filter(isExportOp);
+  exportOps.sort((a, b) => String(b.createdDateTime ?? "").localeCompare(String(a.createdDateTime ?? "")));
+  const newest = exportOps[0];
+  if (!newest) return null;
+  const newestId = String(newest.id ?? "");
+  if (!newestId) return toExportOperation(newest);
+  // The operations *list* is a summary (no exportFileMetadata). Hydrate the
+  // newest export by id to pull the download URLs.
+  const byId = `/security/cases/ediscoveryCases/${caseId}/operations/${newestId}`;
+  try {
+    const full = await audited(organizationId, tenantId, byId, "GET", async () => {
+      try {
+        return (await graph.api(byId).get()) as GraphObject;
+      } catch (err) {
+        throw mapGraphError(err, byId);
+      }
+    });
+    return toExportOperation(full);
+  } catch {
+    return toExportOperation(newest);
+  }
 }
 
 /** Step 1: trigger a review-set export, then surface the newest export operation. */
