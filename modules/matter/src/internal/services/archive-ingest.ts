@@ -164,10 +164,77 @@ function ingestMbox(text: string): ReviewCollectedItem[] {
   }));
 }
 
-function detectKind(fileName: string, buf: Buffer): "zip" | "mbox" | null {
+// ── PST (Outlook) — pure-JS via pst-extractor ───────────────────────
+async function ingestPst(buf: Buffer): Promise<ReviewCollectedItem[]> {
+  type PstAttachment = { longFilename?: string; filename?: string };
+  type PstMsg = {
+    subject?: string; body?: string; bodyHTML?: string;
+    senderName?: string; senderEmailAddress?: string; displayTo?: string;
+    clientSubmitTime?: Date | null; messageDeliveryTime?: Date | null;
+    numberOfAttachments?: number; getAttachment(i: number): PstAttachment;
+  };
+  type PstFolder = {
+    contentCount: number; hasSubfolders: boolean;
+    getSubFolders(): PstFolder[]; getNextChild(): unknown;
+  };
+  const mod = (await import("pst-extractor")) as unknown as {
+    PSTFile: new (b: Buffer) => { getRootFolder(): PstFolder };
+    PSTMessage: new (...args: unknown[]) => object;
+  };
+  const { PSTFile, PSTMessage } = mod;
+
+  const items: ReviewCollectedItem[] = [];
+  const pst = new PSTFile(buf);
+
+  const walk = (folder: PstFolder) => {
+    if (items.length >= MAX_ITEMS) return;
+    if (folder.contentCount > 0) {
+      let child = folder.getNextChild();
+      while (child && items.length < MAX_ITEMS) {
+        if (child instanceof PSTMessage) {
+          const m = child as unknown as PstMsg;
+          const when = m.clientSubmitTime ?? m.messageDeliveryTime ?? null;
+          const body = (m.body && m.body.trim()) || (m.bodyHTML ? htmlToText(m.bodyHTML) ?? "" : "");
+          const attachmentNames: string[] = [];
+          const n = m.numberOfAttachments ?? 0;
+          for (let i = 0; i < n; i++) {
+            try {
+              const a = m.getAttachment(i);
+              const fn = a.longFilename || a.filename;
+              if (fn) attachmentNames.push(fn);
+            } catch { /* skip unreadable attachment */ }
+          }
+          items.push({
+            sourceType: "EMAIL",
+            sourceSystem: "upload:pst",
+            title: (m.subject && m.subject.trim()) || "(no subject)",
+            excerpt: body || null,
+            sentAt: when ? when.toISOString() : null,
+            attachments: attachmentNames.map((name) => ({ name, text: null })),
+          });
+        }
+        child = folder.getNextChild();
+      }
+    }
+    if (folder.hasSubfolders) {
+      for (const sub of folder.getSubFolders()) {
+        if (items.length >= MAX_ITEMS) break;
+        walk(sub);
+      }
+    }
+  };
+
+  walk(pst.getRootFolder());
+  return items;
+}
+
+function detectKind(fileName: string, buf: Buffer): "zip" | "mbox" | "pst" | null {
   if (buf.length >= 4 && buf[0] === 0x50 && buf[1] === 0x4b && (buf[2] === 0x03 || buf[2] === 0x05 || buf[2] === 0x07)) return "zip";
+  // PST magic: "!BDN"
+  if (buf.length >= 4 && buf[0] === 0x21 && buf[1] === 0x42 && buf[2] === 0x44 && buf[3] === 0x4e) return "pst";
   const ext = extFor(fileName);
   if (ext === "zip") return "zip";
+  if (ext === "pst" || ext === "ost") return "pst";
   if (ext === "mbox" || ext === "eml") return "mbox";
   // Heuristic: looks like an email header block.
   const head = buf.subarray(0, 256).toString("latin1");
@@ -193,9 +260,12 @@ export async function ingestArchive(
   }
 
   const kind = detectKind(input.fileName, buf);
-  if (!kind) throw new Error(`Unsupported archive "${input.fileName}". Supported in this release: .zip, .mbox (PST is coming).`);
+  if (!kind) throw new Error(`Unsupported archive "${input.fileName}". Supported: .zip, .mbox, .pst.`);
 
-  const items = kind === "zip" ? await ingestZip(buf) : ingestMbox(buf.toString("utf8"));
+  const items =
+    kind === "zip" ? await ingestZip(buf)
+    : kind === "pst" ? await ingestPst(buf)
+    : ingestMbox(buf.toString("utf8"));
   if (items.length === 0) throw new Error("No items found in the archive.");
 
   return persistReviewSet(

@@ -44,7 +44,7 @@ const nextConfig = {
   webpack: (config, { webpack, isServer }) => {
     if (isServer) {
       config.externals = config.externals || [];
-      config.externals.push({ "pdf-parse": "commonjs pdf-parse", mammoth: "commonjs mammoth", xlsx: "commonjs xlsx", jszip: "commonjs jszip" });
+      config.externals.push({ "pdf-parse": "commonjs pdf-parse", mammoth: "commonjs mammoth", xlsx: "commonjs xlsx", jszip: "commonjs jszip", "pst-extractor": "commonjs pst-extractor" });
     }
     // pdfkit → fontkit → restructure do a *guarded optional* require of
     // `iconv-lite` (only for exotic string encodings we never hit):
