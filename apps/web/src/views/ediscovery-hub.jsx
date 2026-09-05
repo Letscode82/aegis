@@ -90,7 +90,7 @@ export function EDiscoveryHub() {
         <div style={{ flex: "none", display: "flex", gap: 8, alignItems: "center" }}>
           <label title="Ingest an exported ZIP or MBOX archive into a new review set" style={{ padding: "10px 16px", background: "transparent", color: C.cy, border: `1px solid ${C.cy}`, borderRadius: 8, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: ingestBusy ? "default" : "pointer", opacity: ingestBusy ? 0.6 : 1 }}>
             {ingestBusy ? "Ingesting…" : "Ingest archive"}
-            <input type="file" accept=".zip,.mbox,.eml" onChange={onIngestFile} disabled={ingestBusy} style={{ display: "none" }} />
+            <input type="file" accept=".zip,.mbox,.eml,.pst" onChange={onIngestFile} disabled={ingestBusy} style={{ display: "none" }} />
           </label>
           <button onClick={() => setShowNew(true)} style={{ padding: "10px 16px", background: C.bl, color: C.bg, border: "none", borderRadius: 8, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ New collection</button>
         </div>
