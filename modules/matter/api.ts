@@ -1054,13 +1054,21 @@ export {
   type ProcessingStatus,
 } from "./src/internal/services/processing";
 
-// ── Pipeline planner (B1): per-org capability detection ────────────
+// ── Pipeline planner (B1/B2): capability detection + per-matter plan ─
 export {
   getOrgProcessingCapabilities,
   deriveEngines,
   type OrgProcessingCapabilities,
   type PipelineEngines,
 } from "./src/internal/services/pipeline-capabilities";
+export {
+  resolveMatterPipelinePlan,
+  type MatterPipelinePlan,
+  type PlanStage,
+  type PipelinePlanHints,
+  type PipelineStageKey,
+  type PipelineEngineChoice,
+} from "./src/internal/services/pipeline-plan";
 
 // ── Archive ingest (PROC-6): ZIP + MBOX → review set ───────────────
 export {
