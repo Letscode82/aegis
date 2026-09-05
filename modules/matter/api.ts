@@ -1073,6 +1073,11 @@ export {
   type ReviewSetExportOptions,
   type CaseOperationSummary,
 } from "./src/internal/services/m365-graph-ediscovery-export";
+export {
+  inspectExportPackage,
+  type ExportPackageInspection,
+  type ExportZipEntry,
+} from "./src/internal/services/m365-graph-ediscovery-download";
 
 // ── M365 mailbox access (Intake P4b) ──────────────────────────────
 // Intake reaches Graph mail through these (never its own client).
