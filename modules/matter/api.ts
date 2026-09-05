@@ -1054,6 +1054,15 @@ export {
   type ProcessingStatus,
 } from "./src/internal/services/processing";
 
+// ── Archive ingest (PROC-6): ZIP + MBOX → review set ───────────────
+export {
+  ingestArchive,
+  parseMbox,
+  MAX_ARCHIVE_BYTES,
+  type IngestArchiveInput,
+  type ParsedEmail,
+} from "./src/internal/services/archive-ingest";
+
 // ── Purview eDiscovery explorer (PROC-7b increment 1) ──────────────
 export {
   exploreEdiscovery,
