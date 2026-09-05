@@ -1082,6 +1082,7 @@ export {
   type ParsedEmail,
 } from "./src/internal/services/archive-ingest";
 export { mapLimit, extractConcurrency } from "./src/internal/services/map-limit";
+export { benchmarkExtraction, type BenchmarkResult } from "./src/internal/services/benchmark";
 
 // ── Purview eDiscovery explorer (PROC-7b increment 1) ──────────────
 export {
