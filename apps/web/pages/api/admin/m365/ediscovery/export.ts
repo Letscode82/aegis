@@ -14,7 +14,7 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission } from "@aegis/auth";
-import { startReviewSetExport, getReviewSetExportStatus } from "@aegis/matter";
+import { startReviewSetExport, getReviewSetExportStatus, listCaseOperations } from "@aegis/matter";
 import { requireActorAny } from "../../../../../lib/matter-actor";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -45,7 +45,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         return res.status(400).json({ ok: false, error: { code: "MISSING_PARAMS", message: "caseId is required" } });
       }
       const operation = await getReviewSetExportStatus(actor.organizationId, caseId, operationId);
-      return res.status(200).json({ ok: true, operation });
+      // Also dump all case operations (unfiltered) so we can see the real
+      // export operation shape when `operation` comes back null.
+      const operations = await listCaseOperations(actor.organizationId, caseId).catch(() => []);
+      return res.status(200).json({ ok: true, operation, operations });
     }
 
     res.setHeader("Allow", "GET, POST");
