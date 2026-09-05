@@ -106,3 +106,44 @@ export async function getProcessingEngineForOrg(_organizationId?: string): Promi
 export function nativeProcessingEngine(): ProcessingEngine {
   return NATIVE;
 }
+
+export type ProcessingMode = "native" | "tika" | "purview";
+
+export interface ProcessingStatus {
+  /** Which engine the factory selects for this org right now. */
+  mode: ProcessingMode;
+  engine: string;
+  /** Present when a Tika sidecar is configured — a shallow /version probe. */
+  tika?: {
+    url: string;
+    reachable: boolean;
+    version: string | null;
+    error: string | null;
+  };
+}
+
+/**
+ * Health/status for the processing pipeline — which engine is active, and for
+ * Tika a shallow `/version` probe. Mirrors `getM365ConnectionStatus`. The probe
+ * is bounded so a sleeping sidecar surfaces as `reachable:false` (timeout)
+ * rather than hanging the request. Does not process any document.
+ */
+export async function getProcessingStatusForOrg(_organizationId?: string): Promise<ProcessingStatus> {
+  const tikaUrl = process.env.TIKA_SERVER_URL;
+  if (tikaUrl) {
+    const { tikaVersion } = await import("./tika-engine");
+    let reachable = false;
+    let version: string | null = null;
+    let error: string | null = null;
+    try {
+      version = await tikaVersion(tikaUrl);
+      reachable = true;
+    } catch (e) {
+      error = (e as Error)?.name === "AbortError"
+        ? "timeout — the Tika sidecar did not respond in time (it may be asleep; retry)"
+        : String((e as Error)?.message ?? e);
+    }
+    return { mode: "tika", engine: "tika", tika: { url: tikaUrl, reachable, version, error } };
+  }
+  return { mode: "native", engine: NATIVE.name };
+}
