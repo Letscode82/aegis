@@ -11,6 +11,7 @@ export const NAV=[
   {id:"investigations",label:"Investigations",icon:"⊙",c:C.pp,group:"OPERATIONS"},
   {id:"ediscovery",label:"eDiscovery",icon:"◫",c:C.cy,group:"OPERATIONS"},
   {id:"contracts",label:"Contracts",icon:"▤",c:C.bl,group:"OPERATIONS"},
+  {id:"trademark",label:"Trademarks",icon:"™",c:C.pp,group:"OPERATIONS"},
   {id:"regulatory",label:"Regulatory",icon:"▥",c:C.tl,group:"OPERATIONS"},
   {id:"ocm",label:"Outside Counsel",icon:"▦",c:C.am,group:"OPERATIONS"},
   {id:"spend",label:"Legal Spend",icon:"▧",c:C.am,group:"OPERATIONS"},

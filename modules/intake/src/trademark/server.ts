@@ -141,6 +141,72 @@ export async function screenTrademark(mark: string, classes: number[] = []): Pro
   };
 }
 
+export interface TrademarkPortfolioMark {
+  id: string;
+  wordMark: string;
+  normalizedMark: string;
+  source: string;
+  niceClasses: number[];
+  status: string;
+  ownerName: string | null;
+  registeredAt: string | null;
+  refreshedAt: string;
+}
+
+/**
+ * Portfolio listing for the Trademark tab. Reads the TrademarkMark index
+ * (the same table the knock-out screen matches against), lazily loading the
+ * code-shipped bootstrap marks the first time an empty environment is hit so
+ * the tab is never blank. `search` matches the normalized mark (substring);
+ * `status` filters LIVE/DEAD/PENDING. Bounded read — this is a demo/bootstrap
+ * scale index, not a full registry mirror.
+ */
+export async function listTrademarkMarks(
+  opts: { search?: string; status?: string; limit?: number } = {},
+): Promise<{ marks: TrademarkPortfolioMark[]; total: number; bySource: Record<string, number>; listAsOf: string | null }> {
+  try {
+    const count0 = await prisma.trademarkMark.count();
+    if (count0 === 0) await seedTrademarkMarksIfEmpty().catch(() => 0);
+  } catch {
+    return { marks: [], total: 0, bySource: {}, listAsOf: null };
+  }
+
+  const where: { normalizedMark?: { contains: string }; status?: string } = {};
+  const q = normalizeMark(String(opts.search || ""));
+  if (q) where.normalizedMark = { contains: q };
+  if (opts.status && opts.status !== "ALL") where.status = opts.status;
+  const limit = Math.min(Math.max(Math.floor(opts.limit ?? 200), 1), 1000);
+
+  const [rows, total, grouped] = await Promise.all([
+    prisma.trademarkMark.findMany({ where, take: limit, orderBy: [{ refreshedAt: "desc" }, { wordMark: "asc" }] }),
+    prisma.trademarkMark.count({ where }),
+    prisma.trademarkMark.groupBy({ by: ["source"], _count: { _all: true } }),
+  ]);
+
+  const bySource: Record<string, number> = {};
+  for (const g of grouped) bySource[g.source] = g._count._all;
+  const listAsOf = rows.length
+    ? new Date(rows.reduce((acc, r) => (r.refreshedAt > acc ? r.refreshedAt : acc), rows[0]!.refreshedAt)).toISOString()
+    : null;
+
+  return {
+    marks: rows.map((r) => ({
+      id: r.id,
+      wordMark: r.wordMark,
+      normalizedMark: r.normalizedMark,
+      source: r.source,
+      niceClasses: r.niceClasses,
+      status: r.status,
+      ownerName: r.ownerName ?? null,
+      registeredAt: r.registeredAt ? new Date(r.registeredAt).toISOString() : null,
+      refreshedAt: new Date(r.refreshedAt).toISOString(),
+    })),
+    total,
+    bySource,
+    listAsOf,
+  };
+}
+
 /** Admin visibility: which registries are wired + local cache health. */
 export async function getRegistryStatus(): Promise<{ configured: string[]; localMarks: number; bySource: Record<string, number>; listAsOf: string | null }> {
   let configured: string[] = [];

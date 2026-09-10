@@ -12,6 +12,7 @@ import { MissionControlView, BoardReportView, CyberView, ArchitectureView, RiskG
 import { BrainDemoView, RegulatoryDemoView } from "./views/gc-suite-demos.jsx";
 import { MatterManagementShell, AuditLogShell } from "./views/matter-shell.jsx";
 import { EDiscoveryHub } from "./views/ediscovery-hub.jsx";
+import { TrademarkHub } from "./views/trademark-hub.jsx";
 import { InvestigationsHub } from "./views/investigations-hub.jsx";
 import { AdminUsersShell, AdminRolesShell } from "./views/admin-shell.jsx";
 import { UserBadge } from "./views/user-badge.jsx";
@@ -49,6 +50,7 @@ export default function App(){
     dsar:DsarView,
     investigations:InvestigationsHub,
     ediscovery:EDiscoveryHub,
+    trademark:TrademarkHub,
     architecture:ArchitectureView,
     users:AdminUsersShell,roles:AdminRolesShell,audit:AuditLogShell};
   // In the intake-only profile, any view outside the allowed set (e.g. a
