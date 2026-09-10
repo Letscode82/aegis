@@ -4,6 +4,21 @@ Answering: *"work on contracts, ensure the contracts agent works in CLM
 and both are the same; what's best to have in contracts; and the pending
 counterparty review portal."*
 
+> **Status (current).** This plan is delivered. CTR-1 through CTR-20 have
+> shipped — repository, CLM-ladder→Contract spawn, the Counterparty Review
+> portal (CTR-3, no longer pending), obligations/key-dates/renewals, clause
+> library + version diff, approval ladder, integrity, amendments, comments,
+> `.docx` export, third-party review, risk assessment, AI draft, e-signature,
+> word-diff, guide, sample templates, email surface, and the renewal/
+> obligation sweep worker. See `modules/contracts/api.ts` for the shipped
+> public surface. **The one deliberately deferred item is real outbound
+> email delivery** — review invites, signature invites, renewal notices and
+> the weekly digest degrade-to-logged (`notify.ts` / `digest.ts`) until a
+> mail provider is configured; the chain-sealed `contract.email.*` audit
+> rows record intent today. Wiring a provider (e.g. Graph `sendMail`) is the
+> sole remaining build. The sections below are the original plan, kept for
+> rationale; the "pending item" framing in them is historical.
+
 ## The core problem: two contract worlds today
 
 1. **The real one (intake).** A contract request enters via New Request
@@ -64,7 +79,7 @@ playbook set, one governance path. No duplicate contract logic.
 9. **Spend link** — contract value drives the matter budget; `@aegis/spend`
    already owns invoices/budgets against the same matter.
 
-## The Counterparty Review portal (the pending item)
+## The Counterparty Review portal (shipped — CTR-3)
 
 The external negotiation touchpoint for **NDA and CLM** — the one piece
 of the request→matter journey with no surface today.
@@ -105,6 +120,13 @@ internal workflow.
   wire renewal/notice alerts to Mission Control.
 - **CTR-5 — Clause library + version diff.** Playbook clause bank; doc
   version history + side-by-side redline.
+
+All five above shipped, followed by **CTR-6…CTR-20** (approval ladder,
+integrity, amendments, comments, `.docx` export, third-party review, risk
+assessment, AI draft, e-signature, word-diff, guide, sample templates,
+email surface, renewal/obligation sweep worker). The module is
+feature-complete; **real outbound email delivery is the one deferred piece**
+(see *Status* at the top).
 
 ## Module-count note
 
