@@ -101,6 +101,7 @@ model Organization {
   reviewProfiles         ReviewProfile[]
   investigations         Investigation[]
   caseFacts              CaseFact[]
+  processingJobs         ProcessingJob[]
 
   @@index([name])
 }
@@ -3511,4 +3512,74 @@ model KnowledgeCohort {
 
   @@unique([packId, key])
   @@index([packId])
+}
+
+/// ══════════════════════════════════════════════════════════════════
+/// Scale processing queue (Track A / A1).
+///
+/// The persistent Railway worker (docs/scale-worker-runbook.md) drains
+/// this queue so large collections / archives / OCR runs finish past
+/// Vercel's serverless caps. Vercel enqueues a ProcessingJob and polls
+/// its status for the UI; the worker claims the next QUEUED job (the
+/// claim serialises on the row + a lease so two workers never double-run
+/// one job), checkpoints `progressJson` as it goes (a restart resumes
+/// from the cursor), then marks it SUCCEEDED / FAILED. The `kind` field
+/// is the dispatch key; `payloadJson` is the opaque, kind-specific input
+/// the worker interprets (A3 chunked ingest, A4 job-driven collection).
+/// ══════════════════════════════════════════════════════════════════
+
+enum ProcessingJobStatus {
+  QUEUED
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELLED
+}
+
+model ProcessingJob {
+  id             String              @id @default(cuid())
+  organizationId String
+  /// Dispatch key the worker branches on, e.g. ARCHIVE_INGEST |
+  /// COLLECTION | AI_REVIEW. Kept a plain string (not an enum) so a new
+  /// job kind ships without a migration — the worker owns the taxonomy.
+  kind           String
+  status         ProcessingJobStatus @default(QUEUED)
+  /// Opaque, kind-specific input the worker interprets. Never contains a
+  /// secret — the worker resolves credentials from the org row itself.
+  payloadJson    Json
+  /// Checkpoint the worker updates as it advances (processed count,
+  /// resume cursor, per-source status). Drives both restart-resume and
+  /// the UI progress poll. Null until the worker first checkpoints.
+  progressJson   Json?
+  /// Optional links for UI drill-in / cascade. Both nullable — a job may
+  /// run before its review set exists (it may create one).
+  reviewSetId    String?
+  matterId       String?
+  /// Lease-based claim: the worker stamps claimedBy/claimedAt on a
+  /// successful claim and refreshes heartbeatAt while it runs. A claim
+  /// older than the lease TTL with a stale heartbeat is reclaimable, so
+  /// a dead worker never strands a job. attempts guards a poison job.
+  attempts       Int                 @default(0)
+  maxAttempts    Int                 @default(3)
+  priority       Int                 @default(0)
+  /// Not eligible to claim until this time (backoff / scheduled start).
+  availableAt    DateTime            @default(now())
+  claimedBy      String?
+  claimedAt      DateTime?
+  heartbeatAt    DateTime?
+  startedAt      DateTime?
+  finishedAt     DateTime?
+  /// Failure message on the last failed attempt (for the UI + audit).
+  error          String?
+  /// Actor who enqueued, for audit attribution. Null for system enqueues.
+  enqueuedById   String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@index([status, availableAt, priority])
+  @@index([reviewSetId])
+  @@index([matterId])
 }
