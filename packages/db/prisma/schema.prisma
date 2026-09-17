@@ -86,6 +86,7 @@ model Organization {
   consents                ConsentRecord[]
   ropas                   DataProcessingActivity[]
   incidents               PrivacyIncident[]
+  privacyAssessments      PrivacyAssessment[]
 
   holdPolicy             OrganizationHoldPolicy?
   holdNoticeTemplates    HoldNoticeTemplate[]
@@ -3582,4 +3583,72 @@ model ProcessingJob {
   @@index([status, availableAt, priority])
   @@index([reviewSetId])
   @@index([matterId])
+}
+
+/// ══════════════════════════════════════════════════════════════════
+/// Privacy assessments (module #10 — PIA / DPIA engine).
+///
+/// The proactive-risk counterpart to DSAR. A privacy assessment
+/// (PIA / DPIA / transfer-impact / legitimate-interest / AI / vendor)
+/// runs a templated questionnaire, computes a risk band from the
+/// answers, tracks mitigations, and gates final sign-off behind a human
+/// approver (privacy:dpia:approve). Optionally links to the RoPA
+/// activity it covers (DataProcessingActivity) — the "one brain" join.
+/// Extends the Privacy module; never a 12th module.
+/// ══════════════════════════════════════════════════════════════════
+
+enum PrivacyAssessmentType {
+  PIA
+  DPIA
+  TIA
+  LIA
+  AI
+  VENDOR
+}
+
+enum PrivacyAssessmentStatus {
+  DRAFT
+  IN_REVIEW
+  APPROVED
+  REJECTED
+}
+
+enum PrivacyAssessmentRisk {
+  LOW
+  MEDIUM
+  HIGH
+  SEVERE
+}
+
+model PrivacyAssessment {
+  id             String                  @id @default(cuid())
+  organizationId String
+  type           PrivacyAssessmentType
+  title          String
+  status         PrivacyAssessmentStatus @default(DRAFT)
+  /// What is being assessed — a project, processing activity, vendor, or AI system.
+  subject        String?
+  /// Optional link to the RoPA activity this assessment covers.
+  processingActivityId String?
+  /// Questionnaire answers: [{ questionId, question, answer, riskWeight }].
+  answersJson    Json                    @default("[]")
+  /// Computed from the answers; null until first scored.
+  riskLevel      PrivacyAssessmentRisk?
+  riskScore      Int?
+  /// Screening outcome (PIA → DPIA trigger): true when high-risk thresholds hit.
+  dpiaRequired   Boolean?
+  /// Mitigations / actions: [{ text, owner, done }].
+  mitigationsJson Json                   @default("[]")
+  assignedToUserId String?
+  createdById    String?
+  approvedById   String?
+  approvedAt     DateTime?
+  approvalNote   String?
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+  @@index([organizationId, type])
 }
