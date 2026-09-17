@@ -8,5 +8,6 @@ export { DsarView } from "./dsar-view.jsx";
 export { PrivacyShell } from "./privacy-shell.jsx";
 export { AssessmentsView } from "./assessments-view.jsx";
 export { RopaView } from "./ropa-view.jsx";
+export { IncidentsView } from "./incidents-view.jsx";
 export { DsarPortalStatus, DsarPortalIntake } from "./dsar-portal.jsx";
 export { DsarReviewWorkspace } from "./DsarReviewWorkspace";
