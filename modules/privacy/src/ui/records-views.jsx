@@ -127,3 +127,57 @@ export function AiSystemsView() {
     render: (r) => <div><div style={{ fontSize: 13.5 }}>{r.name} {badge(TIER_COL[r.riskTier] || C.t3, r.riskTier)}{badge(C.t3, r.status)}{!r.humanOversight && badge(C.rd, "no oversight")}</div><div style={{ fontSize: 10.5, color: C.t3, fontFamily: M, marginTop: 3 }}>{r.purpose || "—"}{r.owner ? ` · ${r.owner}` : ""}</div></div>,
   }} />;
 }
+
+const DPA_COL = { NONE: C.rd, REQUESTED: C.am, SIGNED: C.gn, EXPIRED: C.rd };
+const PROC_TIER_COL = { LOW: C.gn, MEDIUM: C.tl, HIGH: C.am, CRITICAL: C.rd };
+
+export function ProcessorsView() {
+  return <RecordsSurface cfg={{
+    endpoint: "processors", title: "Processor Register", singular: "processor",
+    subtitle: "Processors & sub-processors with DPA status, location and risk tier.", empty: "No processors registered.",
+    fields: [
+      { key: "name", label: "Name", type: "text" },
+      { key: "role", label: "Role", type: "select", options: ["PROCESSOR", "SUB_PROCESSOR", "CONTROLLER", "JOINT_CONTROLLER"] },
+      { key: "purpose", label: "Purpose", type: "text" }, { key: "location", label: "Location (country)", type: "text" },
+      { key: "dpaStatus", label: "DPA status", type: "select", options: ["NONE", "REQUESTED", "SIGNED", "EXPIRED"] },
+      { key: "riskTier", label: "Risk tier", type: "select", options: ["LOW", "MEDIUM", "HIGH", "CRITICAL"] },
+      { key: "safeguards", label: "Safeguards", type: "text" }, { key: "contactEmail", label: "Contact email", type: "text" },
+      { key: "subProcessors", label: "Sub-processors", type: "tags" }, { key: "notes", label: "Notes", type: "text" },
+    ],
+    render: (r) => <div><div style={{ fontSize: 13.5 }}>{r.name} {badge(PROC_TIER_COL[r.riskTier] || C.t3, r.riskTier)}{badge(DPA_COL[r.dpaStatus] || C.t3, `DPA ${r.dpaStatus}`)}</div><div style={{ fontSize: 10.5, color: C.t3, fontFamily: M, marginTop: 3 }}>{r.role.replace(/_/g, " ").toLowerCase()}{r.location ? ` · ${r.location}` : ""}{r.purpose ? ` · ${r.purpose}` : ""}</div></div>,
+  }} />;
+}
+
+const CAT_COL = { STRICTLY_NECESSARY: C.gn, FUNCTIONAL: C.tl, ANALYTICS: C.bl, MARKETING: C.am };
+
+export function CookiesView() {
+  return <RecordsSurface cfg={{
+    endpoint: "cookies", title: "Cookie & Tracker Registry", singular: "cookie",
+    subtitle: "Cookie/tracker inventory by category with consent requirement. (Automated scanning is a separate SDK surface.)", empty: "No cookies registered.",
+    fields: [
+      { key: "name", label: "Name", type: "text" },
+      { key: "category", label: "Category", type: "select", options: ["STRICTLY_NECESSARY", "FUNCTIONAL", "ANALYTICS", "MARKETING"] },
+      { key: "provider", label: "Provider", type: "text" }, { key: "purpose", label: "Purpose", type: "text" },
+      { key: "domain", label: "Domain", type: "text" }, { key: "durationDays", label: "Duration (days)", type: "number" },
+      { key: "consentRequired", label: "Consent", type: "bool", checkLabel: "Consent required before set", default: true },
+    ],
+    render: (r) => <div><div style={{ fontSize: 13.5 }}>{r.name} {badge(CAT_COL[r.category] || C.t3, r.category.replace(/_/g, " "))}{r.consentRequired && badge(C.am, "consent")}</div><div style={{ fontSize: 10.5, color: C.t3, fontFamily: M, marginTop: 3 }}>{r.provider || "—"}{r.domain ? ` · ${r.domain}` : ""}{r.durationDays != null ? ` · ${r.durationDays}d` : ""}</div></div>,
+  }} />;
+}
+
+const TRAIN_COL = { DRAFT: C.t3, ACTIVE: C.bl, COMPLETED: C.gn, OVERDUE: C.rd };
+
+export function TrainingView() {
+  return <RecordsSurface cfg={{
+    endpoint: "training", title: "Training & Awareness", singular: "course",
+    subtitle: "Privacy training programs with assignment/completion tracking. (Content delivery is an external LMS.)", empty: "No training programs yet.",
+    fields: [
+      { key: "courseName", label: "Course name", type: "text" }, { key: "audience", label: "Audience", type: "text" },
+      { key: "cadence", label: "Cadence", type: "select", options: ["ANNUAL", "ONBOARDING", "QUARTERLY", "AD_HOC"] },
+      { key: "status", label: "Status", type: "select", options: ["DRAFT", "ACTIVE", "COMPLETED", "OVERDUE"] },
+      { key: "assignedCount", label: "Assigned", type: "number" }, { key: "completedCount", label: "Completed", type: "number" },
+      { key: "dueDate", label: "Due date (YYYY-MM-DD)", type: "text" }, { key: "notes", label: "Notes", type: "text" },
+    ],
+    render: (r) => { const pct = r.assignedCount > 0 ? Math.round((r.completedCount / r.assignedCount) * 100) : 0; return <div><div style={{ fontSize: 13.5 }}>{r.courseName} {badge(TRAIN_COL[r.status] || C.t3, r.status)}</div><div style={{ fontSize: 10.5, color: C.t3, fontFamily: M, marginTop: 3 }}>{r.cadence.replace(/_/g, " ").toLowerCase()}{r.audience ? ` · ${r.audience}` : ""} · {r.completedCount}/{r.assignedCount} complete ({pct}%)</div></div>; },
+  }} />;
+}
