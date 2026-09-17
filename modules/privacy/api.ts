@@ -194,3 +194,14 @@ export {
   type IncidentInput,
   type IncidentClock,
 } from "./src/internal/incidents";
+
+// Consent & preference management
+export {
+  listConsents,
+  recordConsent,
+  withdrawConsent,
+  CONSENT_MECHANISMS,
+  type ConsentDTO,
+  type ConsentSummary,
+  type RecordConsentInput,
+} from "./src/internal/consent";
