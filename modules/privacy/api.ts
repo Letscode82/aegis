@@ -169,3 +169,14 @@ export {
   type AssessmentMitigation,
   type AssessmentDTO,
 } from "./src/internal/assessments";
+
+// RoPA / Data Map (records of processing activities)
+export {
+  listRopa,
+  getRopa,
+  createRopa,
+  updateRopa,
+  deleteRopa,
+  type RopaDTO,
+  type RopaInput,
+} from "./src/internal/ropa";
