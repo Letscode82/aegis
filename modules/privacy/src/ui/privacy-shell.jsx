@@ -5,6 +5,7 @@ import { AssessmentsView } from "./assessments-view.jsx";
 import { RopaView } from "./ropa-view.jsx";
 import { IncidentsView } from "./incidents-view.jsx";
 import { ConsentView } from "./consent-view.jsx";
+import { RetentionView, TransfersView, AiSystemsView } from "./records-views.jsx";
 
 /**
  * Privacy command center (module #10). Promotes the old standalone "Privacy ·
@@ -22,7 +23,9 @@ const SECTIONS = [
   { id: "ropa", label: "Data Map / RoPA", status: "live", desc: "Article 30 records of processing, systems inventory, data-flow and cross-border transfer mapping." },
   { id: "consent", label: "Consent", status: "live", desc: "Consent capture, receipts, and preference management with proof-of-consent audit." },
   { id: "incidents", label: "Incidents & Breach", status: "live", desc: "Incident intake, breach-risk assessment, and the 72-hour regulatory notification clock." },
-  { id: "retention", label: "Retention", status: "soon", desc: "Retention schedules and hold-aware disposal workflows." },
+  { id: "retention", label: "Retention", status: "live", desc: "Retention schedules with disposal action (delete / anonymize / review) and disposal trigger." },
+  { id: "transfers", label: "Transfers", status: "live", desc: "Cross-border transfer register with mechanism (SCC / adequacy / BCR) and per-transfer status." },
+  { id: "ai-systems", label: "AI Systems", status: "live", desc: "AI / automated-decision system inventory with risk tier and human-oversight tracking." },
 ];
 
 function Kpi({ label, value, color, go, to }) {
@@ -101,6 +104,9 @@ export function PrivacyShell() {
       {tab === "ropa" && <RopaView />}
       {tab === "incidents" && <IncidentsView />}
       {tab === "consent" && <ConsentView />}
+      {tab === "retention" && <RetentionView />}
+      {tab === "transfers" && <TransfersView />}
+      {tab === "ai-systems" && <AiSystemsView />}
     </div>
   );
 }
