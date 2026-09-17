@@ -55,3 +55,11 @@ export {
   type CounselRateCardEntry,
   type CounselScorecard,
 } from "./src/internal/counsel";
+
+export {
+  updateVendorRateCard,
+  addTimekeeper,
+  updateTimekeeper,
+  removeTimekeeper,
+  type AddTimekeeperInput,
+} from "./src/internal/counsel-manage";
