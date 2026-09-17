@@ -24,6 +24,7 @@
     "@aegis/ai-review": "workspace:*",
     "@aegis/db": "workspace:*",
     "@aegis/review": "workspace:*",
+    "@aegis/spend": "workspace:*",
     "@aegis/ui": "workspace:*",
     "@azure/identity": "4.4.1",
     "@azure/msal-node": "2.16.3",

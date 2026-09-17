@@ -22,6 +22,7 @@ import {
   type MatterStatus,
   type MatterType,
 } from "@aegis/db";
+import { getMatterSpendSummary } from "@aegis/spend";
 import type { MatterActor, MatterCostBasis, MatterMatch } from "../types";
 import { recordMatterEvent } from "./timeline";
 
@@ -78,12 +79,13 @@ export async function getMattersByCounterpartyService(
   });
 }
 
-// ── getMatterCostBasis — Spend stub ────────────────────────────────
+// ── getMatterCostBasis — real, via @aegis/spend ────────────────────
 //
-// Real implementation lands in Step 6 (Spend module), where it will
-// call @aegis/spend.getMatterSpendSummary(matterId). For 4a we read
-// the locally-stored Budget row and SUM(invoices.amount) so the
-// Matter dashboard shows realistic numbers.
+// Sunset of the 4a stub (see CLAUDE.md documented-exceptions). Cost basis
+// now comes from the Spend module's public surface — a single call into
+// @aegis/spend.getMatterSpendSummary — rather than this module reading
+// Budget/Invoice directly. Matter → Spend is the sanctioned dependency
+// direction (PRODUCT.md module-dependencies).
 
 export async function getMatterCostBasisService(
   matterId: string,
@@ -96,29 +98,12 @@ export async function getMatterCostBasisService(
     throw new Error(`Matter ${matterId} not found`);
   }
 
-  const [budget, spent] = await Promise.all([
-    prisma.budget.findFirst({
-      where: {
-        organizationId: matter.organizationId,
-        scope: "MATTER",
-        scopeId: matterId,
-      },
-      orderBy: [{ period: "desc" }],
-    }),
-    prisma.invoice.aggregate({
-      where: {
-        matterId,
-        status: { in: ["APPROVED", "PAID"] },
-      },
-      _sum: { amount: true },
-    }),
-  ]);
-
+  const summary = await getMatterSpendSummary(matter.organizationId, matterId);
   return {
     matterId,
-    budgetAllocated: budget?.allocatedAmount ?? 0,
-    spentToDate: spent._sum.amount ?? 0,
-    source: "stub",
+    budgetAllocated: summary.budgetAllocated,
+    spentToDate: summary.approvedInvoiceTotal,
+    source: "spend-api",
     currency: "USD",
   };
 }
