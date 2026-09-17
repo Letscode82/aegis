@@ -149,3 +149,23 @@ export { getDsarValidation, type DsarValidation } from "./src/internal/validatio
 
 // Defensibility export
 export { getDsarDefensibilityExport, type DsarDefensibilityExport } from "./src/internal/export";
+
+// Privacy assessments (PIA / DPIA / TIA / LIA / AI / vendor)
+export {
+  getAssessmentTemplates,
+  listAssessments,
+  getAssessment,
+  createAssessment,
+  updateAssessment,
+  transitionAssessment,
+  deleteAssessment,
+  scoreAssessment,
+  ASSESSMENT_TEMPLATES,
+  type AssessmentType,
+  type RiskLevel,
+  type AssessmentTemplate,
+  type TemplateQuestion,
+  type AssessmentAnswer,
+  type AssessmentMitigation,
+  type AssessmentDTO,
+} from "./src/internal/assessments";

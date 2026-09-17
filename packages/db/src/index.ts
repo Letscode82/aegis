@@ -111,6 +111,9 @@ export {
   PrivacyIncidentSeverity,
   PrivacyIncidentStatus,
   ProcessingJobStatus,
+  PrivacyAssessmentType,
+  PrivacyAssessmentStatus,
+  PrivacyAssessmentRisk,
 } from "@prisma/client";
 
 // Generated model types (Organization, User, Matter, IntakeTicket, etc.).
@@ -191,4 +194,5 @@ export type {
   KnowledgeItem,
   KnowledgeCohort,
   ProcessingJob,
+  PrivacyAssessment,
 } from "@prisma/client";
