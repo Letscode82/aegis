@@ -11,6 +11,7 @@ import { prisma } from "@aegis/db";
 import { runInvoiceReview, type ReviewContext, type ReviewLineItem } from "./review/rules";
 
 export interface CounselTimekeeper {
+  id: string;
   personId: string;
   name: string;
   title: string;
@@ -67,6 +68,7 @@ export async function getOutsideCounselOverview(organizationId: string): Promise
   const tkIdsByVendor: Record<string, string[]> = {};
   for (const t of timekeepers) {
     (tksByVendor[t.vendorId] ||= []).push({
+      id: t.id,
       personId: t.personId,
       name: nameById[t.personId] || t.personId,
       title: t.title,
