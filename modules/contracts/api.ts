@@ -183,6 +183,7 @@ export {
   getContractsOverview,
   getContractDetail,
   listObligations,
+  listDataProcessingAgreements,
   listCounterpartiesForPicker,
   type CounterpartyOption,
   type ContractsOverview,
@@ -193,6 +194,7 @@ export {
   type ObligationRow,
   type ObligationQueue,
   type ObligationFilter,
+  type DpaSummary,
 } from "./src/internal/reads";
 
 // Obligation lifecycle state machine (Phase 2) — the guard + allowed

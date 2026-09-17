@@ -420,3 +420,50 @@ export async function getContractDetail(organizationId: string, contractId: stri
     allowedTransitions: allowedContractTransitions(c.status),
   };
 }
+
+/* ── Data Processing Agreements (Privacy cross-link) ─────────────────────
+ * A DPA is a Contract whose type marks it a data-processing agreement. The
+ * Privacy module reads this through @aegis/contracts.api (never Contract
+ * internals) to surface DPAs alongside the processing activities they cover
+ * — the "one brain" join, no ContractParty / DPA table re-implemented. */
+
+export interface DpaSummary {
+  id: string;
+  title: string;
+  status: string;
+  counterpartyId: string | null;
+  counterpartyName: string | null;
+  effectiveDate: string | null;
+  expiryDate: string | null;
+  daysToExpiry: number | null;
+  governingLaw: string | null;
+}
+
+/** Contracts recognised as data-processing agreements — type is free-text,
+ *  so match the canonical "DPA" plus common spellings, case-insensitive. */
+export async function listDataProcessingAgreements(organizationId: string): Promise<DpaSummary[]> {
+  const rows = await prisma.contract.findMany({
+    where: {
+      organizationId,
+      OR: [
+        { type: { equals: "DPA", mode: "insensitive" } },
+        { type: { contains: "processing agreement", mode: "insensitive" } },
+        { type: { contains: "data processing", mode: "insensitive" } },
+      ],
+    },
+    include: { counterparty: { select: { id: true, name: true } } },
+    orderBy: [{ createdAt: "desc" }],
+  });
+  const now = new Date();
+  return rows.map((c) => ({
+    id: c.id,
+    title: c.title,
+    status: c.status,
+    counterpartyId: c.counterpartyId,
+    counterpartyName: c.counterparty?.name ?? null,
+    effectiveDate: c.effectiveDate ? c.effectiveDate.toISOString() : null,
+    expiryDate: c.expiryDate ? c.expiryDate.toISOString() : null,
+    daysToExpiry: daysToExpiry(now, c.expiryDate),
+    governingLaw: c.governingLaw ?? null,
+  }));
+}
