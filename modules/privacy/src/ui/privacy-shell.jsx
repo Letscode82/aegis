@@ -5,7 +5,7 @@ import { AssessmentsView } from "./assessments-view.jsx";
 import { RopaView } from "./ropa-view.jsx";
 import { IncidentsView } from "./incidents-view.jsx";
 import { ConsentView } from "./consent-view.jsx";
-import { RetentionView, TransfersView, AiSystemsView } from "./records-views.jsx";
+import { RetentionView, TransfersView, AiSystemsView, ProcessorsView, CookiesView, TrainingView } from "./records-views.jsx";
 import { DpasView, ObligationsView } from "./crosslink-views.jsx";
 
 /**
@@ -29,6 +29,9 @@ const SECTIONS = [
   { id: "ai-systems", label: "AI Systems", status: "live", desc: "AI / automated-decision system inventory with risk tier and human-oversight tracking." },
   { id: "dpas", label: "DPAs", status: "live", desc: "Data-processing agreements from the Contracts module — the processor contracts behind your activities." },
   { id: "obligations", label: "Obligations", status: "live", desc: "Privacy-law obligations from the shared obligations ledger — the platform's one brain, privacy slice." },
+  { id: "processors", label: "Processors", status: "live", desc: "Processor & sub-processor register with DPA status, location and risk tier." },
+  { id: "cookies", label: "Cookies", status: "live", desc: "Cookie & tracker registry by category with consent requirement." },
+  { id: "training", label: "Training", status: "live", desc: "Privacy training & awareness programs with assignment / completion tracking." },
 ];
 
 function Kpi({ label, value, color, go, to }) {
@@ -112,6 +115,9 @@ export function PrivacyShell() {
       {tab === "ai-systems" && <AiSystemsView />}
       {tab === "dpas" && <DpasView />}
       {tab === "obligations" && <ObligationsView />}
+      {tab === "processors" && <ProcessorsView />}
+      {tab === "cookies" && <CookiesView />}
+      {tab === "training" && <TrainingView />}
     </div>
   );
 }

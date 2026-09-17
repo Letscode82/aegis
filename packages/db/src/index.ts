@@ -119,6 +119,12 @@ export {
   TransferStatus,
   AiSystemRiskTier,
   AiSystemStatus,
+  ProcessorRole,
+  ProcessorDpaStatus,
+  ProcessorRiskTier,
+  CookieCategory,
+  TrainingCadence,
+  TrainingStatus,
 } from "@prisma/client";
 
 // Generated model types (Organization, User, Matter, IntakeTicket, etc.).
@@ -203,4 +209,7 @@ export type {
   RetentionSchedule,
   DataTransfer,
   AiSystem,
+  PrivacyProcessor,
+  CookieRecord,
+  PrivacyTrainingRecord,
 } from "@prisma/client";

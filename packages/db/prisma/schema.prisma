@@ -90,6 +90,9 @@ model Organization {
   retentionSchedules      RetentionSchedule[]
   dataTransfers           DataTransfer[]
   aiSystems               AiSystem[]
+  privacyProcessors       PrivacyProcessor[]
+  cookieRecords           CookieRecord[]
+  privacyTrainings        PrivacyTrainingRecord[]
 
   holdPolicy             OrganizationHoldPolicy?
   holdNoticeTemplates    HoldNoticeTemplate[]
@@ -3751,5 +3754,113 @@ model AiSystem {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, riskTier])
+  @@index([organizationId, status])
+}
+
+// ── Privacy program completion (module #10) ──────────────────────────────
+// Processor / sub-processor register (#12), cookie & tracker registry (#14),
+// and privacy training & awareness tracker (#15). All additive; each keeps
+// organizationId as a plain scalar with a cascade FK to Organization.
+
+enum ProcessorRole {
+  CONTROLLER
+  PROCESSOR
+  SUB_PROCESSOR
+  JOINT_CONTROLLER
+}
+
+enum ProcessorDpaStatus {
+  NONE
+  REQUESTED
+  SIGNED
+  EXPIRED
+}
+
+enum ProcessorRiskTier {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model PrivacyProcessor {
+  id             String             @id @default(cuid())
+  organizationId String
+  name           String
+  role           ProcessorRole      @default(PROCESSOR)
+  purpose        String?
+  location       String?
+  dpaStatus      ProcessorDpaStatus @default(NONE)
+  riskTier       ProcessorRiskTier  @default(MEDIUM)
+  safeguards     String?
+  contactEmail   String?
+  subProcessors  Json               @default("[]")
+  notes          String?
+  active         Boolean            @default(true)
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, riskTier])
+  @@index([organizationId, dpaStatus])
+}
+
+enum CookieCategory {
+  STRICTLY_NECESSARY
+  FUNCTIONAL
+  ANALYTICS
+  MARKETING
+}
+
+model CookieRecord {
+  id              String         @id @default(cuid())
+  organizationId  String
+  name            String
+  category        CookieCategory @default(FUNCTIONAL)
+  provider        String?
+  purpose         String?
+  domain          String?
+  durationDays    Int?
+  consentRequired Boolean        @default(true)
+  active          Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, category])
+}
+
+enum TrainingCadence {
+  ONBOARDING
+  ANNUAL
+  QUARTERLY
+  AD_HOC
+}
+
+enum TrainingStatus {
+  DRAFT
+  ACTIVE
+  COMPLETED
+  OVERDUE
+}
+
+model PrivacyTrainingRecord {
+  id             String          @id @default(cuid())
+  organizationId String
+  courseName     String
+  audience       String?
+  cadence        TrainingCadence @default(ANNUAL)
+  status         TrainingStatus  @default(DRAFT)
+  assignedCount  Int             @default(0)
+  completedCount Int             @default(0)
+  dueDate        DateTime?
+  notes          String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
   @@index([organizationId, status])
 }

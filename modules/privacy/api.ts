@@ -222,3 +222,11 @@ export {
   listPrivacyDpas, listPrivacyObligations,
   type DpaSummary, type PrivacyObligationDTO,
 } from "./src/internal/crosslinks";
+
+// Privacy program completion — processor register, cookie registry, training
+export {
+  listProcessors, upsertProcessor, deleteProcessor,
+  listCookies, upsertCookie, deleteCookie,
+  listTrainings, upsertTraining, deleteTraining,
+  type ProcessorDTO, type CookieDTO, type TrainingDTO,
+} from "./src/internal/program-records";
