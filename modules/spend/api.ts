@@ -40,8 +40,12 @@ export {
   runAndPersistReview,
   approveInvoice,
   rejectInvoice,
+  proposeInvoiceJudgment,
+  getInvoiceJudgment,
+  resolveInvoiceJudgment,
   type InvoiceDetail,
   type InvoiceDetailLine,
+  type JudgmentDecisionDTO,
 } from "./src/internal/review/service";
 
 export {

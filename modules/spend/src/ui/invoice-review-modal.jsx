@@ -41,13 +41,28 @@ export function InvoiceReviewModal({ invoiceId, onClose, onDone }) {
       });
       const d = await r.json();
       if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
-      onDone && onDone();
+      if (onDone) onDone();
       onClose();
+    } catch (e) { setError(String(e.message || e)); } finally { setBusy(false); }
+  };
+
+  const judge = async (action, extra = {}) => {
+    setBusy(true); setError(null);
+    try {
+      const r = await fetch(`/api/spend/invoices/${encodeURIComponent(invoiceId)}/judgment`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, ...extra }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      load();
     } catch (e) { setError(String(e.message || e)); } finally { setBusy(false); }
   };
 
   const review = detail?.review;
   const canAct = detail && detail.status !== "APPROVED" && detail.status !== "PAID" && detail.status !== "REJECTED";
+  const hasJudgmentFlags = review && review.flags.some((f) => f.severity === "judgment" && f.lineId);
+  const jd = detail?.judgment;
 
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(11,16,32,.9)", zIndex: 120, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
@@ -95,6 +110,48 @@ export function InvoiceReviewModal({ invoiceId, onClose, onDone }) {
                 <div key={i} style={{ marginTop: 8, padding: "7px 9px", background: C.amG, borderLeft: `2px solid ${C.am}`, borderRadius: 3, fontSize: 10.5, color: C.t2 }}>◑ {f.message}</div>
               ))}
             </div>
+
+            {/* AI billing judgment (SP-4) */}
+            {(hasJudgmentFlags || jd) && (
+              <div style={{ padding: "12px 18px", borderTop: `1px solid ${C.br}`, background: C.s1 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+                  <div style={{ fontSize: 9.5, fontFamily: M, color: C.am, letterSpacing: 1.5, textTransform: "uppercase" }}>◑ AI billing judgment</div>
+                  {jd && <span style={{ fontSize: 9, fontFamily: M, color: C.t3 }}>{jd.status.replace(/_/g, " ").toLowerCase()}{jd.confidence != null ? ` · ${Math.round(jd.confidence * 100)}% conf` : ""}{jd.degraded ? " · fallback" : ""}</span>}
+                </div>
+
+                {!jd && hasJudgmentFlags && canAct && (
+                  <div style={{ marginTop: 8, display: "flex", alignItems: "center", gap: 10 }}>
+                    <div style={{ fontSize: 11, color: C.t3 }}>Judgment flags need a human call. Run the AI judge for a recommended short-pay.</div>
+                    <div onClick={busy ? undefined : () => judge("propose")} style={{ padding: "7px 12px", border: `1px solid ${C.am}`, color: C.am, fontSize: 10, fontFamily: M, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700, borderRadius: 3, cursor: busy ? "default" : "pointer", opacity: busy ? .6 : 1, whiteSpace: "nowrap" }}>✦ Run AI judge</div>
+                  </div>
+                )}
+
+                {jd && jd.perLine.length > 0 && (
+                  <div style={{ marginTop: 8 }}>
+                    {jd.perLine.map((p) => (
+                      <div key={p.lineId} style={{ display: "flex", justifyContent: "space-between", gap: 10, padding: "4px 0", fontSize: 10.5, color: C.t2 }}>
+                        <span style={{ flex: 1 }}>{p.rationale}</span>
+                        <span style={{ fontFamily: M, color: C.gn, whiteSpace: "nowrap" }}>−{money(p.recommendedReduction)}</span>
+                      </div>
+                    ))}
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: 4, paddingTop: 4, borderTop: `1px solid ${C.br}33`, fontSize: 11 }}>
+                      <span style={{ color: C.t3, fontFamily: M }}>{jd.status === "PENDING" ? "Recommended" : "Approved"} judgment short-pay</span>
+                      <span style={{ fontFamily: M, color: C.gn }}>{money(jd.approvedTotal != null ? jd.approvedTotal : jd.totalRecommendedReduction)}{jd.approvedByName ? ` · ${jd.approvedByName}` : ""}</span>
+                    </div>
+                  </div>
+                )}
+
+                {jd && jd.status === "PENDING" && canAct && (
+                  <div style={{ marginTop: 8, display: "flex", gap: 8 }}>
+                    <div onClick={busy ? undefined : () => judge("approve", { decisionId: jd.id })} style={{ padding: "7px 12px", background: C.am, color: C.bg, fontSize: 10, fontFamily: M, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700, borderRadius: 3, cursor: busy ? "default" : "pointer", opacity: busy ? .6 : 1 }}>✓ Approve reductions</div>
+                    <div onClick={busy ? undefined : () => judge("reject", { decisionId: jd.id })} style={{ padding: "7px 12px", border: `1px solid ${C.br}`, color: C.t2, fontSize: 10, fontFamily: M, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700, borderRadius: 3, cursor: busy ? "default" : "pointer" }}>Decline</div>
+                  </div>
+                )}
+                {jd && (jd.status === "APPROVED" || jd.status === "APPROVED_WITH_OVERRIDE") && canAct && (
+                  <div style={{ marginTop: 6, fontSize: 9.5, color: C.t4, fontFamily: M }}>Approved reductions apply to the invoice when you Approve below.</div>
+                )}
+              </div>
+            )}
 
             {/* Actions */}
             <div style={{ padding: "12px 18px", borderTop: `1px solid ${C.br}`, display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
