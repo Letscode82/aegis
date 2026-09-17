@@ -41,6 +41,7 @@ function Bar({ pct, color }) {
 
 export function SpendDashboard() {
   const [data, setData] = useState(null);
+  const [analytics, setAnalytics] = useState(null);
   const [error, setError] = useState(null);
   const [openInvoice, setOpenInvoice] = useState(null);
 
@@ -49,6 +50,10 @@ export function SpendDashboard() {
       .then((r) => (r.ok ? r.json() : r.json().then((d) => Promise.reject(d.error || `HTTP ${r.status}`))))
       .then((d) => setData(d.overview))
       .catch((e) => setError(String(e)));
+    fetch("/api/spend/analytics")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setAnalytics(d && d.ok ? d.analytics : null))
+      .catch(() => setAnalytics(null));
   }, []);
   useEffect(() => { load(); }, [load]);
 
@@ -72,6 +77,36 @@ export function SpendDashboard() {
         <Kpi label="AI-proposed savings" value={money(t.potentialSavings)} sub="deterministic flags · needs approval" color={C.gn} />
         <Kpi label="Budget" value={`${t.budgetAllocated > 0 ? Math.round((t.budgetSpent / t.budgetAllocated) * 100) : 0}%`} sub={`${money(t.budgetSpent)} of ${money(t.budgetAllocated)}`} color={C.tl} />
       </div>
+
+      {/* GC analytics (SP-6) */}
+      {analytics && (
+        <div style={{ background: C.cd, border: `1px solid ${C.br}`, borderRadius: 6, padding: 16, marginBottom: 14 }}>
+          <div style={{ fontSize: 11, fontFamily: M, color: C.t3, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 600, marginBottom: 12 }}>GC analytics</div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px, 1fr))", gap: 12, marginBottom: 14 }}>
+            <div><div style={{ fontSize: 8.5, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase" }}>Reduction rate</div><div style={{ fontSize: 20, fontFamily: SR, color: C.gn, marginTop: 2 }}>{analytics.reductionRatePct}%</div></div>
+            <div><div style={{ fontSize: 8.5, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase" }}>Realized savings</div><div style={{ fontSize: 20, fontFamily: SR, color: C.gn, marginTop: 2 }}>{money(analytics.realizedSavings)}</div><div style={{ fontSize: 9, color: C.t4, fontFamily: M }}>{analytics.realizedInvoiceCount} approved</div></div>
+            <div><div style={{ fontSize: 8.5, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase" }}>Avg cycle time</div><div style={{ fontSize: 20, fontFamily: SR, color: C.t1, marginTop: 2 }}>{analytics.avgCycleDays != null ? `${analytics.avgCycleDays}d` : "—"}</div></div>
+            <div><div style={{ fontSize: 8.5, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase" }}>Budget used</div><div style={{ fontSize: 20, fontFamily: SR, color: analytics.overBudgetCount > 0 ? C.rd : C.tl, marginTop: 2 }}>{analytics.budgetUtilizationPct}%</div><div style={{ fontSize: 9, color: C.t4, fontFamily: M }}>{analytics.overBudgetCount} over budget</div></div>
+          </div>
+          {analytics.byPractice.length > 0 && (
+            <div>
+              <div style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Spend by practice</div>
+              {analytics.byPractice.map((p) => {
+                const max = Math.max(1, ...analytics.byPractice.map((x) => x.billed));
+                return (
+                  <div key={p.practice} style={{ marginBottom: 7 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10.5, marginBottom: 2 }}>
+                      <span style={{ color: C.t2 }}>{p.practice.replace(/_/g, " ")}</span>
+                      <span style={{ fontFamily: M, color: C.t2 }}>{money(p.billed)}</span>
+                    </div>
+                    <Bar pct={(p.billed / max) * 100} color={C.am} />
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
         {/* Spend by firm */}

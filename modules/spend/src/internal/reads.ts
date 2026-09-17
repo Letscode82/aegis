@@ -194,3 +194,109 @@ export async function getSpendOverview(organizationId: string): Promise<SpendOve
     budgets: budgetSummaries,
   };
 }
+
+/* ── SP-6 · GC spend analytics ────────────────────────────────────────── */
+
+export interface SpendAnalytics {
+  billed: number;
+  proposedSavings: number;
+  reductionRatePct: number;
+  realizedSavings: number;
+  realizedInvoiceCount: number;
+  avgCycleDays: number | null;
+  budgetAllocated: number;
+  budgetSpent: number;
+  budgetUtilizationPct: number;
+  overBudgetCount: number;
+  byMatter: Array<{ matterId: string; title: string; billed: number }>;
+  byPractice: Array<{ practice: string; billed: number }>;
+}
+
+/**
+ * GC analytics roll-up: reduction/realization rate, average review cycle
+ * time, budget accuracy, and spend by matter + practice. Pure reads over
+ * existing tables (invoices scrubbed by the engine for proposed savings;
+ * realized savings from the chain-sealed approval audit rows). Gated like
+ * the other spend reads.
+ */
+export async function getSpendAnalytics(organizationId: string): Promise<SpendAnalytics> {
+  const [invoices, budgets, timekeepers, approvals] = await Promise.all([
+    prisma.invoice.findMany({
+      where: { vendor: { organizationId } },
+      include: { matter: { select: { id: true, title: true, type: true } }, lineItems: true },
+    }),
+    prisma.budget.findMany({ where: { organizationId, scope: "MATTER" } }),
+    prisma.timekeeper.findMany({ where: { vendor: { organizationId } } }),
+    prisma.auditLog.findMany({ where: { organizationId, action: "spend.invoice.approved" }, select: { afterJson: true } }),
+  ]);
+
+  const rateByTk: Record<string, number> = Object.fromEntries(timekeepers.map((t) => [t.personId, t.defaultRate]));
+  const tksByVendor: Record<string, string[]> = {};
+  for (const t of timekeepers) (tksByVendor[t.vendorId] ||= []).push(t.personId);
+  const remainingByMatter = (matterId: string): number | null => {
+    const b = budgets.find((x) => x.scopeId === matterId);
+    return b ? round2(b.allocatedAmount - b.spentAmount) : null;
+  };
+
+  let billed = 0;
+  let proposedSavings = 0;
+  const byMatterMap: Record<string, { title: string; billed: number }> = {};
+  const byPracticeMap: Record<string, number> = {};
+
+  for (const inv of invoices) {
+    billed = round2(billed + inv.amount);
+    const m = byMatterMap[inv.matterId] || { title: inv.matter.title, billed: 0 };
+    m.billed = round2(m.billed + inv.amount);
+    byMatterMap[inv.matterId] = m;
+    const practice = String(inv.matter.type || "OTHER");
+    byPracticeMap[practice] = round2((byPracticeMap[practice] || 0) + inv.amount);
+
+    if (inv.status === "SUBMITTED" || inv.status === "IN_REVIEW") {
+      const lines: ReviewLineItem[] = inv.lineItems.map((li) => ({
+        id: li.id, timekeeperId: li.timekeeperId, hours: li.hours, rate: li.rate,
+        amount: round2(li.hours * li.rate), description: li.description, date: li.date.toISOString(),
+      }));
+      const ctx: ReviewContext = {
+        invoiceId: inv.id, currency: inv.currency,
+        periodStart: inv.periodStart.toISOString(), periodEnd: inv.periodEnd.toISOString(),
+        approvedRateByTimekeeper: rateByTk, approvedTimekeeperIds: tksByVendor[inv.vendorId] || [],
+        budgetRemaining: remainingByMatter(inv.matterId),
+      };
+      proposedSavings = round2(proposedSavings + runInvoiceReview(lines, ctx).proposedShortPay);
+    }
+  }
+
+  // Realized savings from the chain-sealed approval audit rows.
+  let realizedSavings = 0;
+  let realizedInvoiceCount = 0;
+  for (const a of approvals) {
+    const sp = Number((a.afterJson as { shortPay?: unknown } | null)?.shortPay);
+    if (Number.isFinite(sp)) { realizedSavings = round2(realizedSavings + sp); realizedInvoiceCount++; }
+  }
+
+  // Review cycle time — submitted → approved.
+  const cycleDays: number[] = [];
+  for (const inv of invoices) {
+    if (inv.approvedAt) cycleDays.push((inv.approvedAt.getTime() - inv.submittedAt.getTime()) / 86_400_000);
+  }
+  const avgCycleDays = cycleDays.length ? Math.round((cycleDays.reduce((s, n) => s + n, 0) / cycleDays.length) * 10) / 10 : null;
+
+  const budgetAllocated = round2(budgets.reduce((s, b) => s + b.allocatedAmount, 0));
+  const budgetSpent = round2(budgets.reduce((s, b) => s + b.spentAmount, 0));
+  const overBudgetCount = budgets.filter((b) => b.spentAmount > b.allocatedAmount + 0.01).length;
+
+  return {
+    billed,
+    proposedSavings,
+    reductionRatePct: billed > 0 ? Math.round((proposedSavings / billed) * 1000) / 10 : 0,
+    realizedSavings,
+    realizedInvoiceCount,
+    avgCycleDays,
+    budgetAllocated,
+    budgetSpent,
+    budgetUtilizationPct: budgetAllocated > 0 ? Math.round((budgetSpent / budgetAllocated) * 100) : 0,
+    overBudgetCount,
+    byMatter: Object.entries(byMatterMap).map(([matterId, v]) => ({ matterId, title: v.title, billed: v.billed })).sort((a, b) => b.billed - a.billed).slice(0, 8),
+    byPractice: Object.entries(byPracticeMap).map(([practice, b]) => ({ practice, billed: b })).sort((a, b) => b.billed - a.billed),
+  };
+}
