@@ -258,6 +258,9 @@ importers:
       '@aegis/review':
         specifier: workspace:*
         version: link:../../packages/review
+      '@aegis/spend':
+        specifier: workspace:*
+        version: link:../spend
       '@aegis/ui':
         specifier: workspace:*
         version: link:../../packages/ui

@@ -300,3 +300,38 @@ export async function getSpendAnalytics(organizationId: string): Promise<SpendAn
     byPractice: Object.entries(byPracticeMap).map(([practice, b]) => ({ practice, billed: b })).sort((a, b) => b.billed - a.billed),
   };
 }
+
+/* ── Matter ↔ Spend link (sunsets the matter cost-basis stub) ─────────── */
+
+export interface MatterSpendSummary {
+  matterId: string;
+  budgetAllocated: number;
+  budgetSpent: number;
+  approvedInvoiceTotal: number;
+  approvedInvoiceCount: number;
+  currency: string;
+}
+
+/**
+ * Cost basis for one matter, from the Spend module's own data — the matter
+ * budget plus the total of its APPROVED/PAID invoices. Replaces the matter
+ * module's direct Budget/Invoice reads (the documented cross-module stub).
+ */
+export async function getMatterSpendSummary(organizationId: string, matterId: string): Promise<MatterSpendSummary> {
+  const [budget, agg] = await Promise.all([
+    prisma.budget.findFirst({ where: { organizationId, scope: "MATTER", scopeId: matterId }, orderBy: [{ period: "desc" }] }),
+    prisma.invoice.aggregate({
+      where: { matterId, status: { in: ["APPROVED", "PAID"] }, vendor: { organizationId } },
+      _sum: { amount: true },
+      _count: { _all: true },
+    }),
+  ]);
+  return {
+    matterId,
+    budgetAllocated: round2(budget?.allocatedAmount ?? 0),
+    budgetSpent: round2(budget?.spentAmount ?? 0),
+    approvedInvoiceTotal: round2(agg._sum.amount ?? 0),
+    approvedInvoiceCount: agg._count._all,
+    currency: "USD",
+  };
+}
