@@ -87,6 +87,9 @@ model Organization {
   ropas                   DataProcessingActivity[]
   incidents               PrivacyIncident[]
   privacyAssessments      PrivacyAssessment[]
+  retentionSchedules      RetentionSchedule[]
+  dataTransfers           DataTransfer[]
+  aiSystems               AiSystem[]
 
   holdPolicy             OrganizationHoldPolicy?
   holdNoticeTemplates    HoldNoticeTemplate[]
@@ -3651,4 +3654,102 @@ model PrivacyAssessment {
 
   @@index([organizationId, status])
   @@index([organizationId, type])
+}
+
+/// ══════════════════════════════════════════════════════════════════
+/// Privacy records completion (module #10): retention schedules, cross-
+/// border transfer register, and an AI-system inventory. All extend the
+/// Privacy module; never a 12th module.
+/// ══════════════════════════════════════════════════════════════════
+
+enum RetentionAction {
+  DELETE
+  ANONYMIZE
+  REVIEW
+}
+
+model RetentionSchedule {
+  id                  String          @id @default(cuid())
+  organizationId      String
+  name                String
+  dataCategory        String
+  retentionPeriodDays Int
+  action              RetentionAction @default(DELETE)
+  /// When the clock starts — free text (e.g. "from last use", "contract end").
+  trigger             String?
+  /// Systems/activities this applies to (labels).
+  appliesTo           Json            @default("[]")
+  notes               String?
+  active              Boolean         @default(true)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, active])
+}
+
+enum TransferMechanism {
+  SCC
+  ADEQUACY
+  BCR
+  DEROGATION
+  NONE
+}
+enum TransferStatus {
+  ACTIVE
+  UNDER_REVIEW
+  SUSPENDED
+}
+
+model DataTransfer {
+  id                 String            @id @default(cuid())
+  organizationId     String
+  name               String
+  destinationCountry String
+  mechanism          TransferMechanism @default(NONE)
+  status             TransferStatus    @default(ACTIVE)
+  safeguards         String?
+  /// Optional link to the Transfer Impact Assessment (PrivacyAssessment id).
+  tiaAssessmentId    String?
+  notes              String?
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, status])
+}
+
+enum AiSystemRiskTier {
+  MINIMAL
+  LIMITED
+  HIGH
+  UNACCEPTABLE
+}
+enum AiSystemStatus {
+  PILOT
+  IN_USE
+  RETIRED
+}
+
+model AiSystem {
+  id              String           @id @default(cuid())
+  organizationId  String
+  name            String
+  purpose         String?
+  riskTier        AiSystemRiskTier @default(LIMITED)
+  status          AiSystemStatus   @default(PILOT)
+  humanOversight  Boolean          @default(true)
+  owner           String?
+  /// Optional link to the AI impact assessment (PrivacyAssessment id).
+  assessmentId    String?
+  notes           String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, riskTier])
+  @@index([organizationId, status])
 }

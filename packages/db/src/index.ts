@@ -114,6 +114,11 @@ export {
   PrivacyAssessmentType,
   PrivacyAssessmentStatus,
   PrivacyAssessmentRisk,
+  RetentionAction,
+  TransferMechanism,
+  TransferStatus,
+  AiSystemRiskTier,
+  AiSystemStatus,
 } from "@prisma/client";
 
 // Generated model types (Organization, User, Matter, IntakeTicket, etc.).
@@ -195,4 +200,7 @@ export type {
   KnowledgeCohort,
   ProcessingJob,
   PrivacyAssessment,
+  RetentionSchedule,
+  DataTransfer,
+  AiSystem,
 } from "@prisma/client";

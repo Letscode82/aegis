@@ -208,3 +208,11 @@ export {
 
 // Privacy program summary (Overview KPIs)
 export { getPrivacyProgramSummary, type PrivacyProgramSummary } from "./src/internal/program";
+
+// Privacy records completion — retention, transfers, AI-system inventory
+export {
+  listRetention, upsertRetention, deleteRetention,
+  listTransfers, upsertTransfer, deleteTransfer,
+  listAiSystems, upsertAiSystem, deleteAiSystem,
+  type RetentionDTO, type TransferDTO, type AiSystemDTO,
+} from "./src/internal/records";
