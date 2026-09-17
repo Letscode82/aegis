@@ -7,7 +7,7 @@ import { ALL_APPROVALS, ALL_ALERTS } from "./data/aggregate";
 import { DailyView, AlertsView, ApprovalsView, LitigationView as _LitigationView, ComplianceView as _ComplianceView, GovernanceView } from "./views/v72";
 import { SpendDashboard, OutsideCounselView } from "@aegis/spend/ui";
 import { ContractsRepository } from "@aegis/contracts/ui";
-import { DsarView } from "@aegis/privacy/ui";
+import { PrivacyShell } from "@aegis/privacy/ui";
 import { MissionControlView, BoardReportView, CyberView, ArchitectureView, RiskGraphView, ScenariosView } from "./views/v8";
 import { BrainDemoView, RegulatoryDemoView } from "./views/gc-suite-demos.jsx";
 import { MatterManagementShell, AuditLogShell } from "./views/matter-shell.jsx";
@@ -48,7 +48,8 @@ export default function App(){
     regulatory:RegulatoryDemoView,graph:RiskGraphView,scenarios:ScenariosView,
     ocm:OutsideCounselView,spend:SpendDashboard,governance:GovernanceView,
     cyber:CyberView,brain:BrainDemoView,board:BoardReportView,
-    dsar:DsarView,
+    privacy:PrivacyShell,
+    dsar:PrivacyShell,
     investigations:InvestigationsHub,
     ediscovery:EDiscoveryHub,
     trademark:TrademarkHub,
