@@ -21,6 +21,7 @@
     "@aegis/db": "workspace:*",
     "@aegis/email": "workspace:*",
     "@aegis/ai-review": "workspace:*",
+    "@aegis/contracts": "workspace:*",
     "@aegis/matter": "workspace:*",
     "@aegis/review": "workspace:*",
     "@aegis/validation": "workspace:*",

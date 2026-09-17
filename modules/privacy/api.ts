@@ -216,3 +216,9 @@ export {
   listAiSystems, upsertAiSystem, deleteAiSystem,
   type RetentionDTO, type TransferDTO, type AiSystemDTO,
 } from "./src/internal/records";
+
+// Cross-links — DPAs (Contracts) + privacy-law obligations (shared entity)
+export {
+  listPrivacyDpas, listPrivacyObligations,
+  type DpaSummary, type PrivacyObligationDTO,
+} from "./src/internal/crosslinks";
