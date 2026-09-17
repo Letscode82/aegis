@@ -180,3 +180,17 @@ export {
   type RopaDTO,
   type RopaInput,
 } from "./src/internal/ropa";
+
+// Incidents & breach (72-hour regulator-notification clock)
+export {
+  listIncidents,
+  getIncident,
+  createIncident,
+  updateIncident,
+  markRegulatorNotified,
+  computeClock,
+  BREACH_NOTIFY_HOURS,
+  type IncidentDTO,
+  type IncidentInput,
+  type IncidentClock,
+} from "./src/internal/incidents";
