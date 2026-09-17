@@ -205,3 +205,6 @@ export {
   type ConsentSummary,
   type RecordConsentInput,
 } from "./src/internal/consent";
+
+// Privacy program summary (Overview KPIs)
+export { getPrivacyProgramSummary, type PrivacyProgramSummary } from "./src/internal/program";

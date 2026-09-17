@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { C, F, M, SR } from "@aegis/ui";
 import { DsarView } from "./dsar-view.jsx";
 import { AssessmentsView } from "./assessments-view.jsx";
@@ -25,7 +25,20 @@ const SECTIONS = [
   { id: "retention", label: "Retention", status: "soon", desc: "Retention schedules and hold-aware disposal workflows." },
 ];
 
+function Kpi({ label, value, color, go, to }) {
+  return (
+    <div onClick={to ? () => go(to) : undefined} style={{ flex: 1, minWidth: 120, padding: "12px 14px", background: C.cd, border: `1px solid ${C.br}`, borderRadius: 8, cursor: to ? "pointer" : "default" }}>
+      <div style={{ fontSize: 22, fontFamily: SR, color: color || C.t1, lineHeight: 1 }}>{value}</div>
+      <div style={{ fontSize: 9, fontFamily: M, color: C.t3, letterSpacing: .8, textTransform: "uppercase", marginTop: 5 }}>{label}</div>
+    </div>
+  );
+}
+
 function Overview({ go }) {
+  const [s, setS] = useState(null);
+  useEffect(() => {
+    fetch("/api/privacy/overview").then((r) => (r.ok ? r.json() : null)).then((d) => setS(d && d.ok ? d.summary : null)).catch(() => setS(null));
+  }, []);
   return (
     <div>
       <div style={{ marginBottom: 18 }}>
@@ -33,6 +46,16 @@ function Overview({ go }) {
         <div style={{ fontSize: 24, fontFamily: SR, color: C.t1, lineHeight: 1.2 }}>Privacy program, <em style={{ color: C.tl, fontStyle: "italic" }}>one brain</em></div>
         <div style={{ fontSize: 12, color: C.t3, fontFamily: M, marginTop: 4 }}>Every privacy record shares the platform&apos;s entities and chain-sealed audit — no siloed privacy database.</div>
       </div>
+      {s && (
+        <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 18 }}>
+          <Kpi label="Open DSARs" value={s.dsar.open} color={s.dsar.open > 0 ? C.am : C.gn} go={go} to="dsar" />
+          <Kpi label="Assessments in review" value={s.assessments.inReview} color={C.bl} go={go} to="assessments" />
+          <Kpi label="High-risk assessments" value={s.assessments.highRisk} color={s.assessments.highRisk > 0 ? C.rd : C.gn} go={go} to="assessments" />
+          <Kpi label="RoPA activities" value={s.ropa.activities} go={go} to="ropa" />
+          <Kpi label="Breach clock at risk" value={s.incidents.breaching} color={s.incidents.breaching > 0 ? C.rd : C.gn} go={go} to="incidents" />
+          <Kpi label="Active consents" value={s.consent.active} color={C.gn} go={go} to="consent" />
+        </div>
+      )}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 12 }}>
         {SECTIONS.filter((s) => s.id !== "overview").map((s) => {
           const live = s.status === "live";
