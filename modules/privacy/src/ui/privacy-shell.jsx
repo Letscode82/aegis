@@ -2,6 +2,7 @@ import { useState } from "react";
 import { C, F, M, SR } from "@aegis/ui";
 import { DsarView } from "./dsar-view.jsx";
 import { AssessmentsView } from "./assessments-view.jsx";
+import { RopaView } from "./ropa-view.jsx";
 
 /**
  * Privacy command center (module #10). Promotes the old standalone "Privacy ·
@@ -16,7 +17,7 @@ const SECTIONS = [
   { id: "overview", label: "Overview", status: "live" },
   { id: "dsar", label: "Data Subject Requests", status: "live", desc: "Intake, identity verification, AI relevance review, and login-less delivery for access / erasure / portability requests." },
   { id: "assessments", label: "Assessments", status: "live", desc: "PIA · DPIA · transfer (TIA) · legitimate-interest (LIA) · AI · vendor assessments with templates, risk scoring, and a human approval gate." },
-  { id: "ropa", label: "Data Map / RoPA", status: "soon", desc: "Article 30 records of processing, systems inventory, data-flow and cross-border transfer mapping." },
+  { id: "ropa", label: "Data Map / RoPA", status: "live", desc: "Article 30 records of processing, systems inventory, data-flow and cross-border transfer mapping." },
   { id: "consent", label: "Consent", status: "soon", desc: "Consent capture, receipts, and preference management with proof-of-consent audit." },
   { id: "incidents", label: "Incidents & Breach", status: "soon", desc: "Incident intake, breach-risk assessment, and the 72-hour regulatory notification clock." },
   { id: "retention", label: "Retention", status: "soon", desc: "Retention schedules and hold-aware disposal workflows." },
@@ -72,6 +73,7 @@ export function PrivacyShell() {
       {tab === "overview" && <Overview go={setTab} />}
       {tab === "dsar" && <DsarView />}
       {tab === "assessments" && <AssessmentsView />}
+      {tab === "ropa" && <RopaView />}
     </div>
   );
 }
