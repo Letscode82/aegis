@@ -1962,7 +1962,7 @@ async function main() {
 
   const pr = await seedPrivacy(org.id);
   console.log(
-    `[seed] dsars=${pr.dsar} data_locations=${pr.locations} consents=${pr.consents} ropas=${pr.ropas} incidents=${pr.incidents}`,
+    `[seed] dsars=${pr.dsar} data_locations=${pr.locations} consents=${pr.consents} ropas=${pr.ropas} incidents=${pr.incidents} dpas=${pr.dpas} obligations=${pr.obligations} retentions=${pr.retentions} transfers=${pr.transfers} ai_systems=${pr.aiSystems} processors=${pr.processors} cookies=${pr.cookies} trainings=${pr.trainings}`,
   );
 
   const ru = await seedRolesAndTestUsers(org.id);
@@ -2971,7 +2971,126 @@ async function seedPrivacy(orgId: string) {
     },
   });
 
-  return { dsar: 1, locations: locations.length, reviewItems: reviewItems.length, consents: 1, ropas: 2, incidents: 1 };
+  // ── Privacy program completion demo data ────────────────────────────
+  // So every Privacy-hub tab renders with realistic rows in the demo.
+  const day = 24 * 60 * 60 * 1000;
+
+  // DPAs — data-processing agreements (Contracts of type "DPA"), surfaced by
+  // the DPAs cross-link. Linked to the two dataProcessor counterparties.
+  const dpas = [
+    { id: "ct-dpa-saigon", title: "Saigon Tech Labs — Data Processing Agreement", counterpartyId: "cp-saigon", expiryDays: 240, governingLaw: "Ireland (EU SCCs)" },
+    { id: "ct-dpa-datastream", title: "DataStream AI — Data Processing Agreement", counterpartyId: "cp-datastream", expiryDays: 45, governingLaw: "Delaware, USA" },
+  ];
+  for (const d of dpas) {
+    await prisma.contract.upsert({
+      where: { id: d.id },
+      update: { type: "DPA" },
+      create: {
+        id: d.id, organizationId: orgId, title: d.title, type: "DPA", status: "ACTIVE",
+        counterpartyId: d.counterpartyId, effectiveDate: new Date(Date.now() - 300 * day),
+        expiryDate: new Date(Date.now() + d.expiryDays * day), governingLaw: d.governingLaw,
+      },
+    });
+  }
+
+  // Privacy-law obligations — the privacy slice of the shared Obligation ledger.
+  const obligations = [
+    { id: "ob-priv-ropa", sourceId: "gdpr-art-30", description: "Annual review of the Record of Processing Activities (GDPR Art. 30)", dueDays: 60, status: "OPEN" },
+    { id: "ob-priv-dpia", sourceId: "gdpr-art-35", description: "Complete DPIA for the resume-screening AI before go-live (GDPR Art. 35)", dueDays: 20, status: "IN_PROGRESS" },
+    { id: "ob-priv-ccpa", sourceId: "ccpa-1798.130", description: "Refresh the public privacy policy — 12-month update (CCPA §1798.130)", dueDays: -8, status: "OPEN" },
+  ];
+  for (const o of obligations) {
+    await prisma.obligation.upsert({
+      where: { id: o.id },
+      update: { status: o.status as never },
+      create: { id: o.id, organizationId: orgId, sourceType: "PRIVACY_LAW", sourceId: o.sourceId, description: o.description, dueDate: new Date(Date.now() + o.dueDays * day), status: o.status as never, type: "OTHER" },
+    });
+  }
+
+  // Retention schedules (#9).
+  const retentions = [
+    { id: "ret-support", name: "Support tickets", dataCategory: "support-ticket", retentionPeriodDays: 365, action: "DELETE", trigger: "from ticket close", appliesTo: ["Zendesk"] },
+    { id: "ret-marketing", name: "Marketing engagement events", dataCategory: "email-events", retentionPeriodDays: 730, action: "ANONYMIZE", trigger: "from last interaction", appliesTo: ["Marketing-DB"] },
+    { id: "ret-hr", name: "Employee records (post-departure)", dataCategory: "employment", retentionPeriodDays: 2555, action: "REVIEW", trigger: "from termination date", appliesTo: ["HRIS"] },
+  ];
+  for (const r of retentions) {
+    await prisma.retentionSchedule.upsert({
+      where: { id: r.id }, update: {},
+      create: { id: r.id, organizationId: orgId, name: r.name, dataCategory: r.dataCategory, retentionPeriodDays: r.retentionPeriodDays, action: r.action as never, trigger: r.trigger, appliesTo: r.appliesTo },
+    });
+  }
+
+  // Cross-border transfers (#8).
+  const transfers = [
+    { id: "tr-saigon", name: "Support analytics → Saigon Tech Labs", destinationCountry: "VN", mechanism: "SCC", status: "ACTIVE", safeguards: "EU SCCs 2021 + TIA on file" },
+    { id: "tr-datastream", name: "ML training → DataStream AI", destinationCountry: "US", mechanism: "ADEQUACY", status: "ACTIVE", safeguards: "EU-US Data Privacy Framework certified" },
+    { id: "tr-supportco", name: "Overflow support → offshore BPO", destinationCountry: "PH", mechanism: "NONE", status: "UNDER_REVIEW", safeguards: "No mechanism in place — flagged for TIA" },
+  ];
+  for (const t of transfers) {
+    await prisma.dataTransfer.upsert({
+      where: { id: t.id }, update: {},
+      create: { id: t.id, organizationId: orgId, name: t.name, destinationCountry: t.destinationCountry, mechanism: t.mechanism as never, status: t.status as never, safeguards: t.safeguards },
+    });
+  }
+
+  // AI-system inventory (#4).
+  const aiSystems = [
+    { id: "ai-intake", name: "Intake request classifier", purpose: "Triage & route inbound legal requests", riskTier: "LIMITED", status: "IN_USE", humanOversight: true, owner: "Legal Ops" },
+    { id: "ai-contract", name: "Contract clause risk scorer", purpose: "Flag deviating clauses for review", riskTier: "HIGH", status: "IN_USE", humanOversight: true, owner: "Contracts" },
+    { id: "ai-resume", name: "Resume-screening pilot", purpose: "Rank applicants for legal-team roles", riskTier: "HIGH", status: "PILOT", humanOversight: false, owner: "People Ops" },
+  ];
+  for (const a of aiSystems) {
+    await prisma.aiSystem.upsert({
+      where: { id: a.id }, update: {},
+      create: { id: a.id, organizationId: orgId, name: a.name, purpose: a.purpose, riskTier: a.riskTier as never, status: a.status as never, humanOversight: a.humanOversight, owner: a.owner },
+    });
+  }
+
+  // Processor / sub-processor register (#12).
+  const processors = [
+    { id: "pp-saigon", name: "Saigon Tech Labs", role: "PROCESSOR", purpose: "Support-ticket analytics", location: "VN", dpaStatus: "SIGNED", riskTier: "MEDIUM", contactEmail: "privacy@saigontech.example", subProcessors: ["AWS ap-southeast-1"] },
+    { id: "pp-datastream", name: "DataStream AI", role: "SUB_PROCESSOR", purpose: "ML model training (anonymised)", location: "US", dpaStatus: "SIGNED", riskTier: "HIGH", contactEmail: "dpo@datastream.example", subProcessors: [] },
+    { id: "pp-zendesk", name: "Zendesk", role: "PROCESSOR", purpose: "Customer support platform", location: "US", dpaStatus: "REQUESTED", riskTier: "MEDIUM", contactEmail: "privacy@zendesk.example", subProcessors: ["AWS us-east-1"] },
+  ];
+  for (const p of processors) {
+    await prisma.privacyProcessor.upsert({
+      where: { id: p.id }, update: {},
+      create: { id: p.id, organizationId: orgId, name: p.name, role: p.role as never, purpose: p.purpose, location: p.location, dpaStatus: p.dpaStatus as never, riskTier: p.riskTier as never, contactEmail: p.contactEmail, subProcessors: p.subProcessors },
+    });
+  }
+
+  // Cookie & tracker registry (#14).
+  const cookies = [
+    { id: "ck-session", name: "aegis_session", category: "STRICTLY_NECESSARY", provider: "AEGIS", purpose: "Authenticated session", domain: "app.aegis.example", durationDays: 1, consentRequired: false },
+    { id: "ck-ga", name: "_ga", category: "ANALYTICS", provider: "Google Analytics", purpose: "Usage analytics", domain: ".aegis.example", durationDays: 730, consentRequired: true },
+    { id: "ck-intercom", name: "intercom-session", category: "FUNCTIONAL", provider: "Intercom", purpose: "In-app support chat", domain: ".aegis.example", durationDays: 7, consentRequired: true },
+    { id: "ck-fbp", name: "_fbp", category: "MARKETING", provider: "Meta", purpose: "Ad conversion tracking", domain: ".aegis.example", durationDays: 90, consentRequired: true },
+  ];
+  for (const c of cookies) {
+    await prisma.cookieRecord.upsert({
+      where: { id: c.id }, update: {},
+      create: { id: c.id, organizationId: orgId, name: c.name, category: c.category as never, provider: c.provider, purpose: c.purpose, domain: c.domain, durationDays: c.durationDays, consentRequired: c.consentRequired },
+    });
+  }
+
+  // Training & awareness programs (#15).
+  const trainings = [
+    { id: "tr-gdpr", courseName: "Annual GDPR & data-protection training", audience: "All staff", cadence: "ANNUAL", status: "ACTIVE", assignedCount: 120, completedCount: 98, dueDays: 30 },
+    { id: "tr-onboard", courseName: "Privacy-by-design onboarding", audience: "New hires", cadence: "ONBOARDING", status: "COMPLETED", assignedCount: 15, completedCount: 15, dueDays: -20 },
+    { id: "tr-incident", courseName: "Incident-response tabletop", audience: "Legal + Security", cadence: "QUARTERLY", status: "OVERDUE", assignedCount: 40, completedCount: 12, dueDays: -5 },
+  ];
+  for (const t of trainings) {
+    await prisma.privacyTrainingRecord.upsert({
+      where: { id: t.id }, update: { status: t.status as never },
+      create: { id: t.id, organizationId: orgId, courseName: t.courseName, audience: t.audience, cadence: t.cadence as never, status: t.status as never, assignedCount: t.assignedCount, completedCount: t.completedCount, dueDate: new Date(Date.now() + t.dueDays * day) },
+    });
+  }
+
+  return {
+    dsar: 1, locations: locations.length, reviewItems: reviewItems.length, consents: 1, ropas: 2, incidents: 1,
+    dpas: dpas.length, obligations: obligations.length, retentions: retentions.length, transfers: transfers.length,
+    aiSystems: aiSystems.length, processors: processors.length, cookies: cookies.length, trainings: trainings.length,
+  };
 }
 
 // ───────────────────────────────────────────────────────────────────
