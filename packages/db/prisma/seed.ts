@@ -983,9 +983,28 @@ async function seedLegalHold(
   });
 
   // ── Custodians on the hold (mixed acknowledgment states) ────
+  // Reconcile rows left by earlier seed generations first: an existing row can
+  // hold a canonical id under a stale (legalHoldId, personId), or occupy this
+  // hold's (legalHoldId, personId) under a non-canonical id. Either makes the
+  // id-keyed upserts below collide on the compound unique. Clearing both classes
+  // on this hold (cascades to their CustodianDataSource rows, which are
+  // re-seeded below) lets the upserts land cleanly and keeps the seed idempotent
+  // against a diverged database. Fresh databases match nothing here — no-op.
+  await prisma.legalHoldCustodian.deleteMany({
+    where: {
+      legalHoldId: hold.id,
+      NOT: {
+        OR: [
+          { id: "lhc-priya", personId: custodianA.id },
+          { id: "lhc-marcus", personId: custodianB.id },
+          { id: "lhc-rhea", personId: custodianC.id },
+        ],
+      },
+    },
+  });
   const lhcA = await prisma.legalHoldCustodian.upsert({
-    where: { legalHoldId_personId: { legalHoldId: hold.id, personId: custodianA.id } },
-    update: {},
+    where: { id: "lhc-priya" },
+    update: { legalHoldId: hold.id, personId: custodianA.id },
     create: {
       id: "lhc-priya",
       legalHoldId: hold.id,
@@ -1002,8 +1021,8 @@ async function seedLegalHold(
     },
   });
   const lhcB = await prisma.legalHoldCustodian.upsert({
-    where: { legalHoldId_personId: { legalHoldId: hold.id, personId: custodianB.id } },
-    update: {},
+    where: { id: "lhc-marcus" },
+    update: { legalHoldId: hold.id, personId: custodianB.id },
     create: {
       id: "lhc-marcus",
       legalHoldId: hold.id,
@@ -1013,8 +1032,8 @@ async function seedLegalHold(
     },
   });
   const lhcC = await prisma.legalHoldCustodian.upsert({
-    where: { legalHoldId_personId: { legalHoldId: hold.id, personId: custodianC.id } },
-    update: {},
+    where: { id: "lhc-rhea" },
+    update: { legalHoldId: hold.id, personId: custodianC.id },
     create: {
       id: "lhc-rhea",
       legalHoldId: hold.id,
