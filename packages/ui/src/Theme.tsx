@@ -1,11 +1,11 @@
 /**
- * ThemeProvider + toggle — runtime Blue(dark) ↔ Facebook-Lite(light) switch.
+ * ThemeProvider + toggle — runtime RelativityOne(light) ↔ Blue(dark) switch.
  *
  * The token object `C` is shared and read at render time everywhere, so
  * switching themes = mutate `C` in place (applyThemeTokens) + remount the tree
  * so every component re-reads the new values. The choice persists in
- * localStorage. A floating pill toggle is rendered so the control is available
- * on every page without wiring each header.
+ * localStorage. Default is the RelativityOne light theme. A floating pill
+ * toggle is rendered so the control is available on every page.
  */
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 // eslint-disable-next-line import/no-unresolved
@@ -19,7 +19,7 @@ interface ThemeContextValue {
   setTheme: (t: ThemeName) => void;
   toggle: () => void;
 }
-const ThemeContext = createContext<ThemeContextValue>({ theme: "dark", setTheme: () => {}, toggle: () => {} });
+const ThemeContext = createContext<ThemeContextValue>({ theme: "light", setTheme: () => {}, toggle: () => {} });
 
 export function useTheme(): ThemeContextValue {
   return useContext(ThemeContext);
@@ -33,16 +33,16 @@ function paintBody(): void {
 }
 
 export const ThemeProvider: React.FC<{ children?: React.ReactNode }> = ({ children }) => {
-  const [theme, setThemeState] = useState<ThemeName>("dark");
+  const [theme, setThemeState] = useState<ThemeName>("light");
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    let saved: ThemeName = "dark";
+    let saved: ThemeName = "light";
     try {
       const s = window.localStorage.getItem(STORAGE_KEY);
       if (s === "light" || s === "dark") saved = s;
     } catch {
-      /* storage disabled — dark default */
+      /* storage disabled — RelativityOne light default */
     }
     applyThemeTokens(saved);
     paintBody();
@@ -74,7 +74,7 @@ const ThemeToggle: React.FC<{ theme: ThemeName; onToggle: () => void }> = ({ the
     type="button"
     onClick={onToggle}
     aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-    title={`Switch to ${theme === "dark" ? "Facebook Lite (light)" : "Blue (dark)"} mode`}
+    title={`Switch to ${theme === "dark" ? "RelativityOne (light)" : "Blue (dark)"} mode`}
     style={{
       position: "fixed", right: 16, bottom: 16, zIndex: 4000,
       display: "flex", alignItems: "center", gap: 8,
@@ -85,6 +85,6 @@ const ThemeToggle: React.FC<{ theme: ThemeName; onToggle: () => void }> = ({ the
     }}
   >
     <span aria-hidden="true" style={{ fontSize: 14 }}>{theme === "dark" ? "🌙" : "☀️"}</span>
-    {theme === "dark" ? "Blue" : "Lite"}
+    {theme === "dark" ? "Blue" : "RelativityOne"}
   </button>
 );

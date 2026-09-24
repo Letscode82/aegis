@@ -17,28 +17,31 @@ export const DARK_PALETTE = {
   t1: "#F4EFE6", t2: "#C8CDD9", t3: "#8B93AE", t4: "#5A6380",
 };
 
-// Light — a Facebook-style palette (FB blue #1877F2, #F0F2F5 page, white cards).
+// Light — a RelativityOne-inspired palette: a cool light-gray canvas, crisp
+// white surfaces, a confident azure primary (#1268C8) with a cyan accent
+// (#0093D0), neutral borders and dark-slate text. This is the default theme.
 export const LIGHT_PALETTE = {
-  bg: "#F0F2F5", s1: "#FFFFFF", s2: "#F7F8FA", cd: "#FFFFFF", cdH: "#F0F2F5", br: "#DADDE1", brL: "#CED0D4",
-  bl: "#1877F2", blG: "rgba(24,119,242,.10)", tl: "#039BE5", tlG: "rgba(3,155,229,.10)",
-  am: "#F7B928", amG: "rgba(247,185,40,.12)", rd: "#FA383E", rdG: "rgba(250,56,62,.10)",
-  gn: "#31A24C", gnG: "rgba(49,162,76,.10)", pp: "#8B46FF", ppG: "rgba(139,70,255,.10)",
-  rs: "#F5533D", or: "#F5533D", cy: "#039BE5", em: "#F5533D", emG: "rgba(245,83,61,.12)",
-  bone: "#FFFFFF", bone2: "#F0F2F5",
-  t1: "#050505", t2: "#1C1E21", t3: "#65676B", t4: "#8A8D91",
+  bg: "#F2F4F7", s1: "#FFFFFF", s2: "#EDF1F6", cd: "#FFFFFF", cdH: "#F2F4F7", br: "#E2E6EC", brL: "#CDD4DE",
+  bl: "#1268C8", blG: "rgba(18,104,200,.10)", tl: "#0093D0", tlG: "rgba(0,147,208,.10)",
+  am: "#C67A00", amG: "rgba(198,122,0,.12)", rd: "#C23934", rdG: "rgba(194,57,52,.10)",
+  gn: "#1B8A5A", gnG: "rgba(27,138,90,.10)", pp: "#6B40C7", ppG: "rgba(107,64,199,.10)",
+  rs: "#0093D0", or: "#0093D0", cy: "#0093D0", em: "#0093D0", emG: "rgba(0,147,208,.14)",
+  bone: "#FFFFFF", bone2: "#F2F4F7",
+  t1: "#1A2230", t2: "#3A4453", t3: "#667085", t4: "#98A2B3",
 };
 
 export const THEMES = { dark: DARK_PALETTE, light: LIGHT_PALETTE };
 
-// The live token object. Starts on dark (the SSR-safe default).
-export const C = { ...DARK_PALETTE };
+// The live token object. Starts on the RelativityOne light theme (default).
+export const C = { ...LIGHT_PALETTE };
 
 /** Mutate `C` in place to the named theme. Returns the applied theme name
- *  ("dark" for any unknown name). Safe to call on server or client. */
+ *  ("light" — the RelativityOne default — for any unknown name). Safe on
+ *  server or client. */
 export function applyThemeTokens(name) {
-  const palette = THEMES[name] || DARK_PALETTE;
+  const palette = THEMES[name] || LIGHT_PALETTE;
   Object.assign(C, palette);
-  return THEMES[name] ? name : "dark";
+  return THEMES[name] ? name : "light";
 }
 
 export const F = `'Inter',system-ui,sans-serif`;

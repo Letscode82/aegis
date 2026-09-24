@@ -9,7 +9,7 @@
 export { C, F, M, SR, applyThemeTokens, THEMES, DARK_PALETTE, LIGHT_PALETTE } from "./theme/tokens.js";
 export { CSS } from "./theme/global-css.js";
 
-// Runtime theme toggle (Blue dark ↔ Facebook Lite).
+// Runtime theme toggle (RelativityOne light ↔ Blue dark).
 export { ThemeProvider, useTheme } from "./Theme";
 
 // Atoms — display

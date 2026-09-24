@@ -48,7 +48,7 @@ export const M: string;
 export const SR: string;
 export const CSS: string;
 
-// Theme system (Blue dark ↔ Facebook Lite)
+// Theme system (RelativityOne light ↔ Blue dark)
 export type ThemeName = "dark" | "light";
 export const THEMES: Record<ThemeName, typeof C>;
 export const DARK_PALETTE: typeof C;
