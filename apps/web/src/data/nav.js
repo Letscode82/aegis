@@ -23,6 +23,7 @@ export const NAV=[
   {id:"graph",label:"Risk Graph",icon:"◈",c:C.em,group:"INTELLIGENCE"},
   {id:"scenarios",label:"Scenarios",icon:"◉",c:C.em,group:"INTELLIGENCE"},
   {id:"brain",label:"Company Brain",icon:"◎",c:C.tl,group:"INTELLIGENCE"},
+  {id:"activity",label:"Activity",icon:"◷",c:C.gn,group:"INTELLIGENCE",permission:"audit:read_all"},
   {id:"board",label:"Board Pack",icon:"◇",c:C.pp,group:"INTELLIGENCE"},
   {id:"divider3"},
   {id:"architecture",label:"Architecture",icon:"▶",c:C.pp,group:"PLATFORM"},
