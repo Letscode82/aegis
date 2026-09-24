@@ -17,17 +17,20 @@ export const DARK_PALETTE = {
   t1: "#F4EFE6", t2: "#C8CDD9", t3: "#8B93AE", t4: "#5A6380",
 };
 
-// Light ("Lite") — a clean, professional light palette: a cool light-gray canvas, crisp
-// white surfaces, a confident azure primary (#1268C8) with a cyan accent
-// (#0093D0), neutral borders and dark-slate text. This is the default theme.
+// Light ("Lite") — a clean, professional light palette tuned for long
+// reading sessions: a soft cool-gray canvas, crisp white surfaces, one
+// confident azure primary (#1B6FD4, RelativityOne/Facebook-family) that
+// doubles as the accent, muted semantic colors, and gentle borders. The
+// previous neon cyan (#0093D0) is retired — it was doing emphasis, links
+// and accents everywhere and read as harsh. This is the default theme.
 export const LIGHT_PALETTE = {
-  bg: "#F2F4F7", s1: "#FFFFFF", s2: "#EDF1F6", cd: "#FFFFFF", cdH: "#F2F4F7", br: "#E2E6EC", brL: "#CDD4DE",
-  bl: "#1268C8", blG: "rgba(18,104,200,.10)", tl: "#0093D0", tlG: "rgba(0,147,208,.10)",
-  am: "#C67A00", amG: "rgba(198,122,0,.12)", rd: "#C23934", rdG: "rgba(194,57,52,.10)",
-  gn: "#1B8A5A", gnG: "rgba(27,138,90,.10)", pp: "#6B40C7", ppG: "rgba(107,64,199,.10)",
-  rs: "#0093D0", or: "#0093D0", cy: "#0093D0", em: "#0093D0", emG: "rgba(0,147,208,.14)",
-  bone: "#FFFFFF", bone2: "#F2F4F7",
-  t1: "#1A2230", t2: "#3A4453", t3: "#667085", t4: "#98A2B3",
+  bg: "#F4F6FA", s1: "#FFFFFF", s2: "#EDF1F7", cd: "#FFFFFF", cdH: "#F6F8FC", br: "#E4E8EF", brL: "#CBD3DF",
+  bl: "#1B6FD4", blG: "rgba(27,111,212,.10)", tl: "#2C82B8", tlG: "rgba(44,130,184,.10)",
+  am: "#B26A00", amG: "rgba(178,106,0,.12)", rd: "#C43D38", rdG: "rgba(196,61,56,.10)",
+  gn: "#1E8A57", gnG: "rgba(30,138,87,.10)", pp: "#6A46C0", ppG: "rgba(106,70,192,.10)",
+  rs: "#2C82B8", or: "#2C82B8", cy: "#2C82B8", em: "#1B6FD4", emG: "rgba(27,111,212,.13)",
+  bone: "#FFFFFF", bone2: "#F4F6FA",
+  t1: "#1B2432", t2: "#425061", t3: "#647085", t4: "#98A2B3",
 };
 
 export const THEMES = { dark: DARK_PALETTE, light: LIGHT_PALETTE };
