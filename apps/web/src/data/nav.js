@@ -1,6 +1,7 @@
 import { C } from "@aegis/ui";
 
 export const NAV=[
+  {id:"onelegal",label:"ONE Legal",icon:"✦",c:C.em,group:"EXECUTIVE"},
   {id:"mission",label:"Mission Control",icon:"◎",c:C.em,group:"EXECUTIVE"},
   {id:"today",label:"Today",icon:"◉",c:C.bl,group:"EXECUTIVE"},
   {id:"alerts",label:"Alerts",icon:"▲",c:C.rd,group:"EXECUTIVE"},
@@ -45,7 +46,7 @@ export const NAV=[
 // surface plus the admin tools Intake needs (Users / Roles / Audit Log,
 // still permission-gated). Set NEXT_PUBLIC_AEGIS_PROFILE=intake.
 // Default "full" renders every module nav entry as before.
-export const INTAKE_PROFILE_VIEWS = new Set(["intake", "users", "roles", "audit"]);
+export const INTAKE_PROFILE_VIEWS = new Set(["onelegal", "intake", "users", "roles", "audit"]);
 
 export function resolveProfile() {
   const p =

@@ -19,6 +19,7 @@ import { AdminUsersShell, AdminRolesShell } from "./views/admin-shell.jsx";
 import { UserBadge } from "./views/user-badge.jsx";
 import { PreviewRoleSwitcher, PreviewRoleBanner } from "./views/preview-role-switcher.jsx";
 import { CommandBar } from "./CommandBar.jsx";
+import { CommandConsole } from "./CommandConsole.jsx";
 import { WorkFeedView } from "./views/work-feed.jsx";
 
 // Reads `?view=...` on first mount so deep links (e.g. /matter/[id]
@@ -143,7 +144,9 @@ export default function App(){
         </div>
       </div>
       <PreviewRoleBanner/>
-      <div style={{flex:1,overflow:"auto",padding:18}} key={view}><Comp/></div>
+      {effectiveView==="onelegal"
+        ? <div style={{flex:1,minHeight:0,overflow:"hidden"}} key={view}><CommandConsole embedded onNavigate={setView} onAsk={()=>setCopilotOpen(true)}/></div>
+        : <div style={{flex:1,overflow:"auto",padding:18}} key={view}><Comp/></div>}
     </div>
     <AICopilot open={copilotOpen} setOpen={setCopilotOpen}/>
   </div>;
