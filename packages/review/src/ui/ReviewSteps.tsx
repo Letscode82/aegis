@@ -6,7 +6,7 @@
  * routes each document; a human still codes it behind the PENDING → coded gate.
  */
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { C, F, M, SR, useToast } from "@aegis/ui";
+import { C, F, M, SR, useToast, useReviewKeyboard } from "@aegis/ui";
 import { orderedAiTags, isConfidentResponsive, hasConfidentCall, type AiTagView } from "../ai-tags";
 import { buildConcordanceDat, buildOpticonOpt, type LoadFileManifest } from "../export";
 
@@ -272,22 +272,15 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
     } catch (e) { toast.error(String((e as Error).message || e)); }
   };
 
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      const t = e.target as HTMLElement;
-      if (t?.tagName === "INPUT" || t?.tagName === "TEXTAREA" || t?.tagName === "SELECT") return;
-      const k = e.key.toLowerCase();
-      if (k === "j" || e.key === "ArrowDown") { e.preventDefault(); setCursor((c) => Math.min(filtered.length - 1, c + 1)); }
-      else if (k === "k" || e.key === "ArrowUp") { e.preventDefault(); setCursor((c) => Math.max(0, c - 1)); }
-      else if (k === "r") { e.preventDefault(); code({ responsive: true }, true); }
-      else if (k === "n") { e.preventDefault(); code({ responsive: false }, true); }
-      else if (k === "p") { e.preventDefault(); code({ privileged: !current?.codedPrivileged }, false); }
-      else if (k === "x") { e.preventDefault(); code({ redact: !current?.redact }, false); }
-      else if (k === "u") { e.preventDefault(); gotoNextUncoded(); }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [filtered.length, code, current, gotoNextUncoded]);
+  useReviewKeyboard([
+    { keys: ["j", "ArrowDown"], run: () => setCursor((c) => Math.min(filtered.length - 1, c + 1)) },
+    { keys: ["k", "ArrowUp"], run: () => setCursor((c) => Math.max(0, c - 1)) },
+    { keys: ["r"], run: () => code({ responsive: true }, true) },
+    { keys: ["n"], run: () => code({ responsive: false }, true) },
+    { keys: ["p"], run: () => code({ privileged: !current?.codedPrivileged }, false) },
+    { keys: ["x"], run: () => code({ redact: !current?.redact }, false) },
+    { keys: ["u"], run: () => gotoNextUncoded() },
+  ]);
 
   const chip = (key: RouteFilter, label: string, n: number, col: string) => (
     <button onClick={() => { setFilter(key); setCursor(0); }} style={{
