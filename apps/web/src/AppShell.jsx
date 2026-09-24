@@ -19,6 +19,7 @@ import { AdminUsersShell, AdminRolesShell } from "./views/admin-shell.jsx";
 import { UserBadge } from "./views/user-badge.jsx";
 import { PreviewRoleSwitcher, PreviewRoleBanner } from "./views/preview-role-switcher.jsx";
 import { CommandBar } from "./CommandBar.jsx";
+import { WorkFeedView } from "./views/work-feed.jsx";
 
 // Reads `?view=...` on first mount so deep links (e.g. /matter/[id]
 // rewriting to /?view=matters&matterId=...) land in the right tile.
@@ -48,7 +49,7 @@ export default function App(){
     intake:IntakeView,matters:MatterManagementShell,contracts:ContractsRepository,
     regulatory:RegulatoryDemoView,graph:RiskGraphView,scenarios:ScenariosView,
     ocm:OutsideCounselView,spend:SpendDashboard,governance:GovernanceView,
-    cyber:CyberView,brain:BrainDemoView,board:BoardReportView,
+    cyber:CyberView,brain:BrainDemoView,board:BoardReportView,activity:WorkFeedView,
     privacy:PrivacyShell,
     dsar:PrivacyShell,
     investigations:InvestigationsHub,
