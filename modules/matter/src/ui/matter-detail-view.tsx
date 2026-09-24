@@ -19,8 +19,10 @@ import type {
   MatterStatus,
 } from "./types";
 import { HoldListTab, HoldDetailPage, HoldCreateForm } from "./legal-hold";
+import { MatterSpaceHome } from "./MatterSpaceHome";
 
 type TabKey =
+  | "home"
   | "overview"
   | "team"
   | "tasks"
@@ -31,6 +33,7 @@ type TabKey =
   | "m365";
 
 const TAB_LABELS: Record<TabKey, string> = {
+  home: "Home",
   overview: "Overview",
   team: "Team",
   tasks: "Tasks",
@@ -63,7 +66,7 @@ export const MatterDetailView: React.FC<MatterDetailViewProps> = ({
 }) => {
   const [matter, setMatter] = useState<MatterDTO | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [tab, setTab] = useState<TabKey>("overview");
+  const [tab, setTab] = useState<TabKey>("home");
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -196,6 +199,7 @@ export const MatterDetailView: React.FC<MatterDetailViewProps> = ({
         ))}
       </div>
 
+      {tab === "home" && <MatterSpaceHome matter={matter} matterId={matterId} onNavigateTab={setTab} />}
       {tab === "overview" && <OverviewPanel matter={matter} />}
       {tab === "team" && <TeamPanel matterId={matterId} />}
       {tab === "tasks" && <TasksPanel matterId={matterId} onChanged={refresh} />}
