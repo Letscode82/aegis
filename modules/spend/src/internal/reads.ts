@@ -335,3 +335,35 @@ export async function getMatterSpendSummary(organizationId: string, matterId: st
     currency: "USD",
   };
 }
+
+export interface MatterInvoiceRow {
+  id: string;
+  vendorName: string;
+  amount: number;
+  currency: string;
+  status: string;
+  periodStart: string;
+  periodEnd: string;
+}
+
+/**
+ * Every invoice on one matter (newest period first) — the per-matter invoice
+ * list behind the matter workspace's Spend tab. Same org-scoping as the rest
+ * of the Spend reads (vendor.organizationId).
+ */
+export async function listMatterInvoices(organizationId: string, matterId: string): Promise<MatterInvoiceRow[]> {
+  const rows = await prisma.invoice.findMany({
+    where: { matterId, vendor: { organizationId } },
+    include: { vendor: { select: { name: true } } },
+    orderBy: [{ periodEnd: "desc" }],
+  });
+  return rows.map((i) => ({
+    id: i.id,
+    vendorName: i.vendor?.name ?? "—",
+    amount: round2(i.amount),
+    currency: i.currency ?? "USD",
+    status: i.status,
+    periodStart: i.periodStart.toISOString(),
+    periodEnd: i.periodEnd.toISOString(),
+  }));
+}
