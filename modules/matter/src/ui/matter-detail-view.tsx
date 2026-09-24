@@ -983,39 +983,77 @@ const TimelinePanel: React.FC<{ matterId: string }> = ({ matterId }) => {
   );
 };
 
-// ── Spend stub ────────────────────────────────────────────────────
+// ── Spend (cross-module, Spend #6) ────────────────────────────────
+
+const INV_STATUS_COLOR: Record<string, string> = {
+  SUBMITTED: C.bl, IN_REVIEW: C.am, APPROVED: C.gn, REJECTED: C.rd, PAID: C.tl,
+};
 
 const SpendPanel: React.FC<{ matterId: string }> = ({ matterId }) => {
   const [data, setData] = useState<{
-    budgetAllocated: number;
-    spentToDate: number;
-    source: string;
+    summary: { budgetAllocated: number; budgetSpent: number; approvedInvoiceTotal: number; approvedInvoiceCount: number; currency: string };
+    invoices: Array<{ id: string; vendorName: string; amount: number; currency: string; status: string; periodStart: string; periodEnd: string }>;
   } | null>(null);
+  const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    fetch(`/api/matter/${matterId}/cost-basis`)
-      .then((r) => r.json())
-      .then(setData)
-      .catch(() => setData({ budgetAllocated: 0, spentToDate: 0, source: "stub" }));
+    fetch(`/api/matter/${matterId}/spend`)
+      .then((r) => (r.ok ? r.json() : r.json().then((d) => Promise.reject(d.error || `HTTP ${r.status}`))))
+      .then((d) => setData({ summary: d.summary, invoices: d.invoices }))
+      .catch((e) => setError(String(e)));
   }, [matterId]);
+
+  const money = (n: number) => `$${Number(n || 0).toLocaleString()}`;
+  const s = data?.summary;
+  const pct = s && s.budgetAllocated > 0 ? Math.min(100, Math.round((s.budgetSpent / s.budgetAllocated) * 100)) : 0;
+  const barColor = pct >= 90 ? C.rd : pct >= 70 ? C.am : C.gn;
+
   return (
     <Card>
-      <SH icon="💰" title="Spend" sub={data?.source === "stub" ? "Stub data — Spend module wires in Step 6" : undefined} />
-      {!data && <div style={{ color: C.t3, fontSize: 11 }}>Loading…</div>}
-      {data && (
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-          <div>
-            <div style={{ fontSize: 10, color: C.t3, fontFamily: F }}>Budget allocated</div>
-            <div style={{ fontFamily: M, fontSize: 18, color: C.am }}>
-              ${data.budgetAllocated.toLocaleString()}
+      <SH icon="💰" title="Spend" sub="Budget vs actual + invoices, from the Spend module" />
+      {error && <div style={{ color: C.rd, fontSize: 11, fontFamily: M }}>⚠ {error}</div>}
+      {!data && !error && <div style={{ color: C.t3, fontSize: 11 }}>Loading…</div>}
+      {s && (
+        <>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 14, marginBottom: 14 }}>
+            <div>
+              <div style={{ fontSize: 10, color: C.t3, fontFamily: F }}>Budget allocated</div>
+              <div style={{ fontFamily: M, fontSize: 18, color: C.am }}>{money(s.budgetAllocated)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: C.t3, fontFamily: F }}>Spent to date</div>
+              <div style={{ fontFamily: M, fontSize: 18, color: barColor }}>{money(s.budgetSpent)}</div>
+            </div>
+            <div>
+              <div style={{ fontSize: 10, color: C.t3, fontFamily: F }}>Approved invoices</div>
+              <div style={{ fontFamily: M, fontSize: 18, color: C.gn }}>{money(s.approvedInvoiceTotal)}</div>
+              <div style={{ fontSize: 9.5, color: C.t4, fontFamily: M }}>{s.approvedInvoiceCount} invoice{s.approvedInvoiceCount === 1 ? "" : "s"}</div>
             </div>
           </div>
-          <div>
-            <div style={{ fontSize: 10, color: C.t3, fontFamily: F }}>Spent to date</div>
-            <div style={{ fontFamily: M, fontSize: 18, color: C.or }}>
-              ${data.spentToDate.toLocaleString()}
+          {s.budgetAllocated > 0 && (
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, color: C.t3, fontFamily: M, marginBottom: 3 }}>
+                <span>Budget utilization</span><span style={{ color: barColor }}>{pct}%</span>
+              </div>
+              <div style={{ height: 7, background: C.s1, borderRadius: 4, overflow: "hidden" }}>
+                <div style={{ width: `${pct}%`, height: "100%", background: barColor }} />
+              </div>
             </div>
-          </div>
-        </div>
+          )}
+          <div style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Invoices</div>
+          {data.invoices.length === 0 ? (
+            <div style={{ fontSize: 11, color: C.t4, fontFamily: M }}>No invoices on this matter yet.</div>
+          ) : (
+            <div style={{ display: "grid", gap: 4 }}>
+              {data.invoices.map((inv) => (
+                <div key={inv.id} style={{ display: "grid", gridTemplateColumns: "1fr 90px 90px", gap: 8, alignItems: "center", fontSize: 11.5, padding: "6px 8px", borderBottom: `1px solid ${C.br}33` }}>
+                  <span style={{ color: C.t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{inv.vendorName}</span>
+                  <span style={{ fontFamily: M, color: C.t2 }}>{money(inv.amount)}</span>
+                  <span style={{ fontFamily: M, fontSize: 9, letterSpacing: 0.5, color: INV_STATUS_COLOR[inv.status] || C.t3 }}>{inv.status.replace("_", " ")}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
     </Card>
   );

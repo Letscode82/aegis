@@ -31,12 +31,14 @@ export {
   getSpendOverview,
   getSpendAnalytics,
   getMatterSpendSummary,
+  listMatterInvoices,
   type SpendOverview,
   type SpendFirmSummary,
   type SpendInvoiceSummary,
   type SpendBudgetSummary,
   type SpendAnalytics,
   type MatterSpendSummary,
+  type MatterInvoiceRow,
 } from "./src/internal/reads";
 
 export {
