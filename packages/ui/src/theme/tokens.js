@@ -17,7 +17,7 @@ export const DARK_PALETTE = {
   t1: "#F4EFE6", t2: "#C8CDD9", t3: "#8B93AE", t4: "#5A6380",
 };
 
-// Light — a RelativityOne-inspired palette: a cool light-gray canvas, crisp
+// Light ("Lite") — a clean, professional light palette: a cool light-gray canvas, crisp
 // white surfaces, a confident azure primary (#1268C8) with a cyan accent
 // (#0093D0), neutral borders and dark-slate text. This is the default theme.
 export const LIGHT_PALETTE = {
@@ -32,11 +32,11 @@ export const LIGHT_PALETTE = {
 
 export const THEMES = { dark: DARK_PALETTE, light: LIGHT_PALETTE };
 
-// The live token object. Starts on the RelativityOne light theme (default).
+// The live token object. Starts on the Lite light theme (the default).
 export const C = { ...LIGHT_PALETTE };
 
 /** Mutate `C` in place to the named theme. Returns the applied theme name
- *  ("light" — the RelativityOne default — for any unknown name). Safe on
+ *  ("light" — the Lite default — for any unknown name). Safe on
  *  server or client. */
 export function applyThemeTokens(name) {
   const palette = THEMES[name] || LIGHT_PALETTE;

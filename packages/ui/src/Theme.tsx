@@ -1,10 +1,10 @@
 /**
- * ThemeProvider + toggle — runtime RelativityOne(light) ↔ Blue(dark) switch.
+ * ThemeProvider + toggle — runtime Lite(light) ↔ Blue(dark) switch.
  *
  * The token object `C` is shared and read at render time everywhere, so
  * switching themes = mutate `C` in place (applyThemeTokens) + remount the tree
  * so every component re-reads the new values. The choice persists in
- * localStorage. Default is the RelativityOne light theme. A floating pill
+ * localStorage. Default is the Lite light theme. A floating pill
  * toggle is rendered so the control is available on every page.
  */
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
@@ -42,7 +42,7 @@ export const ThemeProvider: React.FC<{ children?: React.ReactNode }> = ({ childr
       const s = window.localStorage.getItem(STORAGE_KEY);
       if (s === "light" || s === "dark") saved = s;
     } catch {
-      /* storage disabled — RelativityOne light default */
+      /* storage disabled — Lite light default */
     }
     applyThemeTokens(saved);
     paintBody();
@@ -74,7 +74,7 @@ const ThemeToggle: React.FC<{ theme: ThemeName; onToggle: () => void }> = ({ the
     type="button"
     onClick={onToggle}
     aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} mode`}
-    title={`Switch to ${theme === "dark" ? "RelativityOne (light)" : "Blue (dark)"} mode`}
+    title={`Switch to ${theme === "dark" ? "Lite (light)" : "Blue (dark)"} mode`}
     style={{
       position: "fixed", right: 16, bottom: 16, zIndex: 4000,
       display: "flex", alignItems: "center", gap: 8,
@@ -85,6 +85,6 @@ const ThemeToggle: React.FC<{ theme: ThemeName; onToggle: () => void }> = ({ the
     }}
   >
     <span aria-hidden="true" style={{ fontSize: 14 }}>{theme === "dark" ? "🌙" : "☀️"}</span>
-    {theme === "dark" ? "Blue" : "RelativityOne"}
+    {theme === "dark" ? "Blue" : "Lite"}
   </button>
 );
