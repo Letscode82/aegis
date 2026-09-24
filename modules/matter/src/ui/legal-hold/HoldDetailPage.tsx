@@ -252,7 +252,7 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
   );
 
   return (
-    <div style={{ display: "grid", gap: 14, padding: 14 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 14, padding: 14, minWidth: 0 }}>
       {onBack && (
         <span
           onClick={onBack}
@@ -406,7 +406,7 @@ export const HoldDetailPage: React.FC<HoldDetailPageProps> = ({
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: wide ? "1fr 320px" : "1fr",
+          gridTemplateColumns: wide ? "minmax(0, 1fr) 320px" : "minmax(0, 1fr)",
           gap: 14,
           alignItems: "start",
         }}
