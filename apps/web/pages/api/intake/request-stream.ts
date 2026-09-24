@@ -19,7 +19,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
-import { classifyIntakeRegex } from "@aegis/ai";
+import { classifyIntakeRegex, classifyIntakeLaya } from "@aegis/ai";
 import { intakeStorageSet } from "@aegis/intake/server";
 
 const TICKETS_KEY = "aegis:tickets:v1";
@@ -72,12 +72,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const desc = text.slice(0, 500);
     send({ type: "step", key: "read", state: "done" });
 
-    // Step 2 — classify: run the deterministic classifier.
+    // Step 2 — classify: Laya (System-1) first, deterministic regex as the
+    // floor, default last. Laya returns null when disabled / unavailable /
+    // low-confidence, so this degrades cleanly.
     send({ type: "step", key: "classify", state: "active" });
-    const regex = classifyIntakeRegex(desc, dept) as
-      | { cat: string; priority: string; team: string; sla: string; slaHours: number; rule: string; conf: number; risk: string; note: string; hrs: number; source?: string }
-      | null;
-    const triage = regex || {
+    type Triage = { cat: string; priority: string; team: string; sla: string; slaHours: number; rule: string; conf: number; risk: string; note: string; hrs: number; source?: string };
+    const regex = classifyIntakeRegex(desc, dept) as Triage | null;
+    const laya = (await classifyIntakeLaya(desc, dept)) as Triage | null;
+    const triage: Triage = laya || regex || {
       cat: bodyType || "General Inquiry",
       priority: "Medium",
       team: "Triage Queue",
@@ -90,7 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       hrs: 2,
       source: "copilot",
     };
-    send({ type: "step", key: "classify", state: "done", detail: `→ ${triage.cat}` });
+    send({ type: "step", key: "classify", state: "done", detail: `→ ${triage.cat}${laya ? " · Laya" : ""}` });
 
     // Step 3 — route: destination resolved from the classification.
     send({ type: "step", key: "route", state: "active" });
@@ -166,7 +168,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           confidence: triage.conf,
           risk: triage.risk,
           routingRule: triage.rule,
-          matched: !!regex,
+          matched: !!(laya || regex),
         },
         spawned: { matters, contracts },
       },

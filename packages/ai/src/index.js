@@ -22,3 +22,8 @@ export {
 } from "./claude.js";
 
 export { classifyIntakeRegex } from "./classify-regex.js";
+
+// Laya — self-hosted System-1 typed-decision engine for intake triage
+// (JEV-compatible, Apache-2.0). Degrades to the regex classifier when
+// `LAYA_URL` is unset or the service is unavailable.
+export { classifyIntakeLaya, isLayaConfigured } from "./laya.js";
