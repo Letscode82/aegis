@@ -1156,3 +1156,16 @@ export type {
   IssueWithProgressInput,
   RetryDataSourceInput,
 } from "./src/internal/legal-hold";
+
+// Workspace assistant (WS-4) — scoped ask context + Document-backed artifacts.
+export {
+  getMatterAskContext,
+  listMatterArtifacts,
+  getMatterArtifact,
+  createMatterArtifact,
+} from "./src/internal/workspace-assistant";
+export type {
+  MatterAskContext,
+  MatterArtifactDTO,
+  MatterArtifactDetail,
+} from "./src/internal/workspace-assistant";
