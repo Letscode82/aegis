@@ -14,7 +14,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
-import { classifyIntakeRegex } from "@aegis/ai";
+import { classifyIntakeRegex, classifyIntakeLaya } from "@aegis/ai";
 import { intakeStorageSet } from "@aegis/intake/server";
 
 const TICKETS_KEY = "aegis:tickets:v1";
@@ -36,10 +36,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const dept = String(body.dept || "").trim();
 
     const desc = text.slice(0, 500);
-    const regex = classifyIntakeRegex(desc, dept) as
-      | { cat: string; priority: string; team: string; sla: string; slaHours: number; rule: string; conf: number; risk: string; note: string; hrs: number; source?: string }
-      | null;
-    const triage = regex || {
+    // Laya (System-1) first, deterministic regex as the floor, default last.
+    // Laya returns null when disabled / unavailable / low-confidence.
+    type Triage = { cat: string; priority: string; team: string; sla: string; slaHours: number; rule: string; conf: number; risk: string; note: string; hrs: number; source?: string };
+    const regex = classifyIntakeRegex(desc, dept) as Triage | null;
+    const laya = (await classifyIntakeLaya(desc, dept)) as Triage | null;
+    const triage: Triage = laya || regex || {
       cat: body.type || "General Inquiry",
       priority: "Medium",
       team: "Triage Queue",
@@ -106,7 +108,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         confidence: triage.conf,
         risk: triage.risk,
         routingRule: triage.rule,
-        matched: !!regex,
+        matched: !!(laya || regex),
       },
       spawned: {
         matters: (result && result.spawnedMatters) || [],
