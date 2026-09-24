@@ -50,3 +50,61 @@ export async function getPrivacyProgramSummary(organizationId: string): Promise<
     consent: { active: consentActive, withdrawn: consentWithdrawn },
   };
 }
+
+/**
+ * Program-wide defensibility export (privacy hardening). A pure builder that
+ * turns the program summary into a self-contained, deterministic compliance
+ * report: section rollups, a human-readable attention list, and a 0-100
+ * posture score. Pure (no DB) so it is fully unit-testable; the route pairs
+ * it with getPrivacyProgramSummary.
+ */
+export interface PrivacyProgramExport {
+  $schema: "aegis.privacy.program.defensibility.v1";
+  generatedAt: string;
+  organization: string;
+  summary: PrivacyProgramSummary;
+  posture: {
+    score: number;
+    openTotal: number;
+    attentionItems: string[];
+  };
+}
+
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+export function buildPrivacyProgramExport(
+  summary: PrivacyProgramSummary,
+  meta: { organization: string; generatedAt?: string },
+): PrivacyProgramExport {
+  const attentionItems: string[] = [];
+  // Ordered most-urgent first.
+  if (summary.incidents.breaching > 0)
+    attentionItems.push(`${plural(summary.incidents.breaching, "incident")} past the 72-hour regulator-notification clock`);
+  if (summary.assessments.highRisk > 0)
+    attentionItems.push(`${plural(summary.assessments.highRisk, "high-risk assessment")} outstanding`);
+  if (summary.dsar.open > 0)
+    attentionItems.push(`${plural(summary.dsar.open, "DSAR")} open`);
+  if (summary.assessments.inReview > 0)
+    attentionItems.push(`${plural(summary.assessments.inReview, "assessment")} awaiting review`);
+  if (summary.incidents.open > 0)
+    attentionItems.push(`${plural(summary.incidents.open, "privacy incident")} open`);
+
+  // Deterministic 0-100 posture: start clean, subtract weighted penalties.
+  let score = 100;
+  score -= summary.incidents.breaching * 25; // breach clock is the heaviest
+  score -= summary.assessments.highRisk * 8;
+  score -= summary.dsar.open * 4;
+  score -= summary.incidents.open * 3;
+  score -= summary.assessments.inReview * 2;
+  score = Math.max(0, Math.min(100, score));
+
+  const openTotal = summary.dsar.open + summary.assessments.inReview + summary.incidents.open;
+
+  return {
+    $schema: "aegis.privacy.program.defensibility.v1",
+    generatedAt: meta.generatedAt || new Date().toISOString(),
+    organization: meta.organization,
+    summary,
+    posture: { score, openTotal, attentionItems },
+  };
+}

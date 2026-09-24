@@ -207,7 +207,7 @@ export {
 } from "./src/internal/consent";
 
 // Privacy program summary (Overview KPIs)
-export { getPrivacyProgramSummary, type PrivacyProgramSummary } from "./src/internal/program";
+export { getPrivacyProgramSummary, buildPrivacyProgramExport, type PrivacyProgramSummary, type PrivacyProgramExport } from "./src/internal/program";
 
 // Privacy records completion — retention, transfers, AI-system inventory
 export {
