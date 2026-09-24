@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { C, F, M, SR, Dot, CSS } from "@aegis/ui";
-import { AICopilot, IntakeView } from "@aegis/intake";
+import { IntakeView } from "@aegis/intake";
 import { useCurrentUser } from "@aegis/auth/react";
 import { NAV, navForProfile, resolveProfile, INTAKE_PROFILE_VIEWS } from "./data/nav";
 import { ALL_APPROVALS, ALL_ALERTS } from "./data/aggregate";
@@ -38,7 +38,6 @@ export default function App(){
   const PROFILE=resolveProfile();
   const isIntakeOnly=PROFILE==="intake";
   const[view,setView]=useState(()=>initialViewFromUrl(isIntakeOnly?"intake":"mission"));
-  const[copilotOpen,setCopilotOpen]=useState(false);
   const[time,setTime]=useState(new Date());
   const{has,loading:authLoading}=useCurrentUser();
   useEffect(()=>{const t=setInterval(()=>setTime(new Date()),1000);return()=>clearInterval(t)},[]);
@@ -134,20 +133,18 @@ export default function App(){
           <div style={{fontSize:8,fontFamily:M,color:C.t4,letterSpacing:2,textTransform:"uppercase"}}>{NAV.find(n=>n.id===effectiveView)?.group||"MODULE"}</div>
           <span style={{fontSize:14,fontFamily:SR,fontWeight:400,color:C.t1,letterSpacing:.3}}>{NAV.find(n=>n.id===effectiveView)?.label||"Today"}</span>
         </div>
-        <CommandBar onNavigate={setView} onAsk={()=>setCopilotOpen(true)}/>
+        {effectiveView==="onelegal" ? <div style={{flex:1,margin:"0 20px"}}/> : <CommandBar onNavigate={setView}/>}
         <div style={{display:"flex",alignItems:"center",gap:16,flexShrink:0}}>
           <div style={{display:"flex",alignItems:"center",gap:6}}><Dot c={C.em} p/><span style={{fontSize:9,color:C.em,fontFamily:M,letterSpacing:2,textTransform:"uppercase"}}>LIVE</span></div>
           <span style={{fontSize:10.5,color:C.t3,fontFamily:M,letterSpacing:.5}}>{time.toLocaleTimeString("en-US",{hour12:false})} · {time.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"})}</span>
-          <div onClick={()=>setCopilotOpen(true)} style={{padding:"6px 14px",border:`1px solid ${C.em}`,color:C.em,fontSize:10,fontFamily:M,letterSpacing:1.5,cursor:"pointer",textTransform:"uppercase",transition:"all .12s"}} onMouseEnter={e=>{e.currentTarget.style.background=C.em;e.currentTarget.style.color=C.bg}} onMouseLeave={e=>{e.currentTarget.style.background="transparent";e.currentTarget.style.color=C.em}}>◎ Ask Aurora</div>
           <PreviewRoleSwitcher/>
           <UserBadge/>
         </div>
       </div>
       <PreviewRoleBanner/>
       {effectiveView==="onelegal"
-        ? <div style={{flex:1,minHeight:0,overflow:"hidden"}} key={view}><CommandConsole embedded onNavigate={setView} onAsk={()=>setCopilotOpen(true)}/></div>
+        ? <div style={{flex:1,minHeight:0,overflow:"hidden"}} key={view}><CommandConsole embedded onNavigate={setView}/></div>
         : <div style={{flex:1,overflow:"auto",padding:18}} key={view}><Comp/></div>}
     </div>
-    <AICopilot open={copilotOpen} setOpen={setCopilotOpen}/>
   </div>;
 }
