@@ -414,28 +414,23 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       )}
 
       {turns.length === 0 ? (
-        /* ── Landing ──────────────────────────────────────────────── */
-        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", justifyContent: "center", padding: "24px 20px" }}>
-          <div style={{ maxWidth: 680, margin: "0 auto", width: "100%", animation: "ccIn .3s ease" }}>
+        /* ── Landing (vertically + horizontally centered, Claude-style) ── */
+        <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px" }}>
+          <div style={{ maxWidth: 640, width: "100%", margin: "0 auto", textAlign: "center", animation: "ccIn .3s ease" }}>
             <div style={{ fontSize: 30, marginBottom: 14, color: C.em }} aria-hidden="true">✦</div>
-            <div style={{ fontFamily: SR, fontSize: 32, lineHeight: 1.15, color: C.t1 }}>{greeting}{firstName ? `, ${firstName}` : ""}.</div>
-            <div style={{ fontFamily: SR, fontSize: 32, lineHeight: 1.15, color: C.t3, marginBottom: 16 }}>What do you need handled?</div>
-            <div style={{ fontSize: 13.5, color: C.t3, lineHeight: 1.6, marginBottom: 22, maxWidth: 560 }}>
+            <div style={{ fontFamily: SR, fontSize: 34, lineHeight: 1.15, color: C.t1 }}>{greeting}{firstName ? `, ${firstName}` : ""}.</div>
+            <div style={{ fontFamily: SR, fontSize: 34, lineHeight: 1.15, color: C.t3, marginBottom: 16 }}>What do you need handled?</div>
+            <div style={{ fontSize: 13.5, color: C.t3, lineHeight: 1.6, marginBottom: 24, maxWidth: 520, marginLeft: "auto", marginRight: "auto" }}>
               Describe a legal request and I&rsquo;ll plan it, file it, and route it — or just ask a question and I&rsquo;ll answer it. One front door for everything legal.
             </div>
             {composer(true)}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 18 }}>
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 18, justifyContent: "center" }}>
               {EXAMPLES.map((ex) => (
                 <button key={ex.text} type="button" onClick={() => startTurn(ex.text)} style={exampleChip}>
                   <span style={{ color: C.tl, marginRight: 7 }} aria-hidden="true">{ex.icon}</span>{ex.text}
                 </button>
               ))}
             </div>
-            {handleAsk && (
-              <div style={{ marginTop: 20 }}>
-                <button type="button" onClick={handleAsk} style={{ background: "transparent", color: C.t3, border: "none", padding: "6px 2px", fontFamily: M, fontSize: 10.5, letterSpacing: 0.5, textTransform: "uppercase", cursor: "pointer" }}>◎ Or open the full Aurora copilot →</button>
-              </div>
-            )}
           </div>
         </div>
       ) : (
