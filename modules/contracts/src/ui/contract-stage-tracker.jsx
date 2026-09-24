@@ -89,13 +89,13 @@ export function ContractStageDots({ status }) {
   const curColor = term ? C.rd : exp ? C.am : C.cy;
   const label = term ? "Terminated" : exp ? "Expired" : CONTRACT_STAGES[cur].label;
   return (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }} title={`Stage ${cur + 1}/7 · ${label}`}>
-      <span style={{ display: "inline-flex", gap: 2 }}>
+    <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, overflow: "hidden" }} title={`Stage ${cur + 1}/7 · ${label}`}>
+      <span style={{ display: "inline-flex", gap: 2, flexShrink: 0 }}>
         {CONTRACT_STAGES.map((_, i) => (
           <span key={i} style={{ width: 7, height: 4, borderRadius: 1, background: i < cur ? C.gn : i === cur ? curColor : `${C.br}` }} />
         ))}
       </span>
-      <span style={{ fontFamily: M, fontSize: 9, color: curColor, letterSpacing: .3 }}>{label}</span>
+      <span style={{ fontFamily: M, fontSize: 9, color: curColor, letterSpacing: .3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{label}</span>
     </span>
   );
 }

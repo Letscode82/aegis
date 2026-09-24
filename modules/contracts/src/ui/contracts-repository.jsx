@@ -244,13 +244,13 @@ export function ContractsRepository() {
 
       {/* Table */}
       <div style={{ background: C.cd, border: `1px solid ${C.br}`, borderRadius: 6, padding: 14 }}>
-        <div style={{ display: "grid", gridTemplateColumns: "1.8fr 1.2fr 132px 90px 95px 90px 1fr", gap: 8, fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", padding: "0 4px 8px", borderBottom: `1px solid ${C.br}` }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1.7fr 1.05fr 100px 158px 82px 94px 0.85fr", gap: 8, fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", padding: "0 4px 8px", borderBottom: `1px solid ${C.br}` }}>
           <span>Contract</span><span>Counterparty</span><span>Value</span><span>Stage</span><span>Risk</span><span>Expiry</span><span>Signals</span>
         </div>
         {filtered.length === 0 ? (
           <div style={{ padding: 24, textAlign: "center", color: C.t4, fontFamily: M, fontSize: 11 }}>No contracts match.</div>
         ) : filtered.map((c) => (
-          <div key={c.id} onClick={() => openContract(c.id)} style={{ display: "grid", gridTemplateColumns: "1.8fr 1.2fr 132px 90px 95px 90px 1fr", gap: 8, fontSize: 11, alignItems: "center", padding: "10px 4px", borderBottom: `1px solid ${C.br}33`, cursor: "pointer" }} onMouseEnter={(e) => (e.currentTarget.style.background = C.s1)} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+          <div key={c.id} onClick={() => openContract(c.id)} style={{ display: "grid", gridTemplateColumns: "1.7fr 1.05fr 100px 158px 82px 94px 0.85fr", gap: 8, fontSize: 11, alignItems: "center", padding: "10px 4px", borderBottom: `1px solid ${C.br}33`, cursor: "pointer" }} onMouseEnter={(e) => (e.currentTarget.style.background = C.s1)} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
             <span style={{ color: C.t1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
               {c.title}
               <span style={{ color: C.t4, fontFamily: M, fontSize: 9, marginLeft: 6 }}>{c.type}</span>
@@ -262,7 +262,7 @@ export function ContractsRepository() {
               title={c.riskScore?.score != null
                 ? `Clause-derived risk ${c.riskScore.score}/100 (${c.riskScore.band}) · ${c.riskScore.deviationCount} deviation${c.riskScore.deviationCount === 1 ? "" : "s"}`
                 : "No clauses extracted yet — unscored"}
-              style={{ fontFamily: M, fontSize: 9.5, fontWeight: 700, color: RISK_COLOR[c.riskScore?.band] || RISK_COLOR[c.risk] || C.t3 }}
+              style={{ fontFamily: M, fontSize: 9.5, fontWeight: 700, color: RISK_COLOR[c.riskScore?.band] || RISK_COLOR[c.risk] || C.t3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
             >
               {c.riskScore?.score != null ? c.riskScore.score : "—"}
               <span style={{ fontSize: 8, color: C.t4, marginLeft: 4, fontWeight: 600 }}>{c.riskScore?.band && c.riskScore.band !== "UNSCORED" ? c.riskScore.band : c.risk}</span>
