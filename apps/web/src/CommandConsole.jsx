@@ -74,6 +74,7 @@ export function CommandConsole({ open, initialText, onClose, onNavigate, onAsk }
   const [input, setInput] = useState("");
   const scrollRef = useRef(null);
   const startedRef = useRef(false);
+  const inputRef = useRef(null);
 
   const patchStep = useCallback((turnId, key, state, detail) => {
     setTurns((ts) => ts.map((t) => t.id !== turnId ? t : { ...t, steps: t.steps.map((s) => s.key === key ? { ...s, state, ...(detail !== undefined ? { detail } : {}) } : s) }));
@@ -194,6 +195,15 @@ export function CommandConsole({ open, initialText, onClose, onNavigate, onAsk }
     if (!open) { startedRef.current = false; setTurns([]); setInput(""); }
   }, [open, initialText, startTurn]);
 
+  // Focus the composer when the console opens as its own page, so the user can
+  // start typing immediately (the header omnibox is only a trigger).
+  useEffect(() => {
+    if (open && !initialText) {
+      const id = setTimeout(() => inputRef.current?.focus(), 40);
+      return () => clearTimeout(id);
+    }
+  }, [open, initialText]);
+
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [turns]);
@@ -250,11 +260,12 @@ export function CommandConsole({ open, initialText, onClose, onNavigate, onAsk }
       <div style={{ borderTop: `1px solid ${C.br}`, padding: "12px 20px", flexShrink: 0 }}>
         <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", gap: 8, alignItems: "center" }}>
           <input
+            ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter" && input.trim().length >= 3) { startTurn(input); setInput(""); } }}
-            placeholder="File another request…"
-            aria-label="File another request"
+            placeholder={turns.length === 0 ? "Describe any legal request — an NDA, a dispute, a vendor review…" : "File another request…"}
+            aria-label="File a legal request"
             style={{ flex: 1, minWidth: 0, background: C.cd, border: `1px solid ${C.br}`, borderRadius: 8, color: C.t1, fontFamily: F, fontSize: 12.5, padding: "10px 12px", outline: "none" }}
           />
           <button type="button" onClick={() => { if (input.trim().length >= 3) { startTurn(input); setInput(""); } }} style={{ ...primaryBtn, flexShrink: 0 }}>Route ⏎</button>
