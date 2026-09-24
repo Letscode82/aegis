@@ -1,13 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { C, F, M, SR } from "@aegis/ui";
+import { callClaude, friendlyAIError } from "@aegis/ai";
 
-// Command Console (WS-1, agentic) — the full-screen front door, built to feel
-// like a first-class AI workspace (Harvey / Legora / Claude): a welcoming
-// landing with example prompts, a roomy centered conversation, and each
-// request planned into steps that light up and tick off as the REAL
-// /api/intake/request-stream pipeline executes server-side (SSE; classify →
-// route → file → dispatch). The routed result card deep-links straight to the
-// filed ticket. Falls back to the synchronous route if streaming is blocked.
+// Command Console (WS-1, agentic) — "ONE Legal", the full-page front door,
+// built to feel like a first-class AI workspace (Harvey / Legora / Claude).
+//
+// It is intent-aware. A REQUEST ("create an NDA for Acme") is planned into
+// steps that stream from the real /api/intake/request-stream pipeline and
+// ends in a routed ticket card that deep-links to the ticket. A QUESTION
+// ("what can you do?", "how does a legal hold work?") is ANSWERED — it does
+// NOT file a ticket. Capability questions get a built-in overview; other
+// questions are answered via @aegis/ai (routes through /api/claude), with a
+// graceful fallback when the model is unavailable.
+//
+// Renders two ways: as a nav destination (`embedded`, filling the content
+// area) and as a full-screen overlay opened from the header omnibox.
 
 const wait = (ms) => new Promise((res) => setTimeout(res, ms));
 let TURN_SEQ = 0;
@@ -21,6 +28,30 @@ const EXAMPLES = [
   { icon: "◷", text: "File a privacy DSAR for a data subject" },
   { icon: "▤", text: "Draft an SOW for outside counsel" },
 ];
+
+// What AEGIS can take on — the capability answer.
+const CAPABILITIES = [
+  { k: "Intake & routing", v: "File any legal request in plain language — I classify it, apply your routing rules, and send it to the right desk." },
+  { k: "Contracts", v: "Draft or review NDAs, MSAs, SOWs, DPAs, and run third-party paper through the clause playbook." },
+  { k: "Matters & Legal Hold", v: "Open a matter, issue or release a legal hold, and track custodians." },
+  { k: "Privacy", v: "File and track DSARs and flag privacy incidents." },
+  { k: "Risk & vendors", v: "Screen vendors for sanctions and flag regulatory obligations." },
+  { k: "Ask anything", v: "Or just ask a question about a matter, a policy, or how something works — I'll answer, not file a ticket." },
+];
+
+// ── Intent classification (client-side, deterministic) ────────────────
+// A QUESTION is answered; anything else is filed. Imperative phrasing
+// ("can you draft an NDA?") is still a request even though it ends in "?".
+const CAPABILITY_RE = /(what can (you|aegis|i)|what do you do|how does (this|aegis|it) work|what is this|who are you|what are you|your capabilities|^help$|^help me$|^hi$|^hey$|^hello$)/i;
+const QUESTION_RE = /\?\s*$|^(what|whats|what's|how|why|who|whom|whose|when|where|which|can|could|do|does|did|is|are|am|should|would|will|tell me|explain|show me|list|help)\b/i;
+const IMPERATIVE_RE = /^(please\s+)?(create|draft|review|file|start|open|prepare|set ?up|renew|terminate|flag|screen|onboard|redline|negotiate|raise|issue|log|submit|make|generate|build)\b|^(i|we)\s+(need|want|would like|require)\b|\b(can|could|please)\s+you\s+(create|draft|review|file|start|prepare|renew|flag|screen|set ?up|make|open|handle|generate|build)\b/i;
+
+function classifyIntent(text) {
+  const t = text.trim().toLowerCase();
+  if (CAPABILITY_RE.test(t)) return "capability";
+  if (QUESTION_RE.test(t) && !IMPERATIVE_RE.test(t)) return "ask";
+  return "file";
+}
 
 function baseSteps() {
   return [
@@ -89,7 +120,60 @@ function ResultCard({ result, onOpenTicket, onOpenCockpit, onFollowUp, onAsk }) 
   );
 }
 
-export function CommandConsole({ open, initialText, onClose, onNavigate, onAsk }) {
+// Answer card for a QUESTION turn (capability overview, streamed answer, or
+// the graceful fallback) — never files a ticket.
+function AnswerCard({ turn, onExample, onFileInstead, onAsk }) {
+  if (turn.capability) {
+    return (
+      <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16 }}>
+        <div style={{ fontSize: 13.5, color: C.t1, lineHeight: 1.6, marginBottom: 12 }}>
+          I&rsquo;m <strong>AEGIS</strong> — your one front door for legal. Describe what you need and I&rsquo;ll plan it, file it, and route it. Here&rsquo;s what I can take on:
+        </div>
+        <div style={{ display: "grid", gap: 8, marginBottom: 14 }}>
+          {CAPABILITIES.map((cap) => (
+            <div key={cap.k} style={{ display: "flex", gap: 10, alignItems: "baseline" }}>
+              <span style={{ fontSize: 10.5, fontFamily: M, color: C.tl, letterSpacing: 0.3, minWidth: 148, flexShrink: 0 }}>{cap.k}</span>
+              <span style={{ fontSize: 12.5, color: C.t2, lineHeight: 1.5 }}>{cap.v}</span>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 8 }}>Try one</div>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+          {EXAMPLES.slice(0, 4).map((ex) => (
+            <button key={ex.text} type="button" onClick={() => onExample(ex.text)} style={chipBtn}><span style={{ color: C.tl, marginRight: 6 }} aria-hidden="true">{ex.icon}</span>{ex.text}</button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  if (turn.answerLoading) {
+    return (
+      <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16, display: "flex", alignItems: "center", gap: 10, color: C.t3, fontFamily: M, fontSize: 12 }}>
+        <span style={{ width: 12, height: 12, borderRadius: "50%", border: `2px solid ${C.br}`, borderTopColor: C.em, display: "inline-block", animation: "sp .7s linear infinite" }} />
+        Thinking…
+      </div>
+    );
+  }
+  return (
+    <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16 }}>
+      {turn.answerError ? (
+        <div style={{ color: C.t2, fontSize: 13, lineHeight: 1.6 }}>
+          <div style={{ color: C.am, fontFamily: M, fontSize: 11.5, marginBottom: 8 }}>⚠ {turn.answerError}</div>
+          I couldn&rsquo;t answer that just now — but I can still file it as a request, or hand it to Aurora for a deeper look.
+        </div>
+      ) : (
+        <div style={{ fontSize: 13.5, color: C.t1, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{turn.answer}</div>
+      )}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14, alignItems: "center" }}>
+        <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase" }}>Next</span>
+        <button type="button" onClick={() => onFileInstead(turn.request)} style={chipBtn}>File this as a request →</button>
+        {onAsk && <button type="button" onClick={onAsk} style={chipBtn}>◎ Continue in Aurora</button>}
+      </div>
+    </div>
+  );
+}
+
+export function CommandConsole({ open, embedded, initialText, onClose, onNavigate, onAsk }) {
   const [turns, setTurns] = useState([]);
   const [input, setInput] = useState("");
   const [me, setMe] = useState(null);
@@ -97,11 +181,13 @@ export function CommandConsole({ open, initialText, onClose, onNavigate, onAsk }
   const startedRef = useRef(false);
   const inputRef = useRef(null);
 
-  const patchStep = useCallback((turnId, key, state, detail) => {
-    setTurns((ts) => ts.map((t) => t.id !== turnId ? t : { ...t, steps: t.steps.map((s) => s.key === key ? { ...s, state, ...(detail !== undefined ? { detail } : {}) } : s) }));
-  }, []);
+  const isOpen = embedded || open;
+
   const patchTurn = useCallback((turnId, patch) => {
     setTurns((ts) => ts.map((t) => (t.id === turnId ? { ...t, ...patch } : t)));
+  }, []);
+  const patchStep = useCallback((turnId, key, state, detail) => {
+    setTurns((ts) => ts.map((t) => t.id !== turnId ? t : { ...t, steps: t.steps.map((s) => s.key === key ? { ...s, state, ...(detail !== undefined ? { detail } : {}) } : s) }));
   }, []);
 
   // Insert the "dispatch" step (only present when the pipeline spawns
@@ -127,8 +213,7 @@ export function CommandConsole({ open, initialText, onClose, onNavigate, onAsk }
     }
   }, [patchStep, patchTurn, ensureDispatchStep]);
 
-  // Synchronous fallback — mirrors the streamed plan over the one-shot route
-  // when SSE is unavailable (older proxy, blocked stream, non-2xx).
+  // Synchronous fallback — mirrors the streamed plan over the one-shot route.
   const runSync = useCallback(async (turnId, text) => {
     const p = fetch("/api/intake/request", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) })
       .then((r) => r.json().then((d) => ({ ok: r.ok, d })));
@@ -151,10 +236,9 @@ export function CommandConsole({ open, initialText, onClose, onNavigate, onAsk }
     patchTurn(turnId, { result: d });
   }, [patchStep, patchTurn, ensureDispatchStep]);
 
-  // Stream the real pipeline over SSE — each step lights up when its
-  // server-side work actually completes. Parses `data:` frames off the
-  // fetch body reader (POST body isn't supported by EventSource).
-  const run = useCallback(async (turnId, text) => {
+  // Stream the real pipeline over SSE — each step lights up as its server-side
+  // work completes. Parses `data:` frames off the fetch body reader.
+  const runFile = useCallback(async (turnId, text) => {
     let response;
     try {
       response = await fetch("/api/intake/request-stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
@@ -163,7 +247,6 @@ export function CommandConsole({ open, initialText, onClose, onNavigate, onAsk }
     }
     const ctype = response.headers.get("content-type") || "";
     if (!response.ok || !response.body || !ctype.includes("text/event-stream")) {
-      // Non-stream response (e.g. 401/403 JSON or a proxy that buffered it).
       if (!response.ok) {
         let msg = "Request failed";
         try { const j = await response.json(); msg = j.error || msg; } catch { /* ignore */ }
@@ -187,10 +270,7 @@ export function CommandConsole({ open, initialText, onClose, onNavigate, onAsk }
           buffer = buffer.slice(idx + 2);
           const dataLine = frame.split("\n").find((l) => l.startsWith("data: "));
           if (!dataLine) continue;
-          try {
-            applyFrame(turnId, JSON.parse(dataLine.slice(6)));
-            sawFrame = true;
-          } catch { /* skip malformed frame */ }
+          try { applyFrame(turnId, JSON.parse(dataLine.slice(6))); sawFrame = true; } catch { /* skip malformed */ }
         }
       }
     } catch (e) {
@@ -199,50 +279,80 @@ export function CommandConsole({ open, initialText, onClose, onNavigate, onAsk }
     }
   }, [runSync, applyFrame, patchStep, patchTurn]);
 
-  const startTurn = useCallback((text) => {
+  // Answer a QUESTION — capability overview (built-in) or a model answer that
+  // degrades gracefully. Never files a ticket.
+  const runAsk = useCallback(async (turnId, text, capability) => {
+    if (capability) { patchTurn(turnId, { answerLoading: false, capability: true }); return; }
+    patchTurn(turnId, { answerLoading: true });
+    try {
+      const system = "You are AEGIS, an in-house legal-operations assistant for a corporate General Counsel team. Answer the user's question concisely and practically — 2-4 short paragraphs or a tight bulleted list. You help file and route legal requests (NDAs, contracts, legal holds, DSARs, vendor/sanctions checks, matters) and can explain the platform and general legal-ops process. Do not give definitive legal advice; note when a qualified lawyer should review. Never invent specific case facts, names, or numbers.";
+      const answer = await callClaude(text, { system, maxTokens: 700 });
+      patchTurn(turnId, { answer: (answer || "").trim(), answerLoading: false });
+    } catch (e) {
+      patchTurn(turnId, { answerLoading: false, answerError: friendlyAIError(e) });
+    }
+  }, [patchTurn]);
+
+  // Force-file text as a request (used by "File this as a request →").
+  const fileRequest = useCallback((text) => {
     const t = text.trim();
     if (t.length < 3) return;
     const id = ++TURN_SEQ;
-    setTurns((ts) => [...ts, { id, request: t, steps: baseSteps(), result: null, error: null }]);
+    setTurns((ts) => [...ts, { id, kind: "file", request: t, steps: baseSteps(), result: null, error: null }]);
     setInput("");
-    run(id, t);
-  }, [run]);
+    runFile(id, t);
+  }, [runFile]);
 
-  // Auto-run the seeded request once when the console opens.
+  // Route a submission by intent: question → answer, else → file.
+  const startTurn = useCallback((text) => {
+    const t = text.trim();
+    if (t.length < 3) return;
+    const intent = classifyIntent(t);
+    setInput("");
+    if (intent === "file") { fileRequest(t); return; }
+    const id = ++TURN_SEQ;
+    const capability = intent === "capability";
+    setTurns((ts) => [...ts, { id, kind: "ask", request: t, answer: null, answerLoading: !capability, answerError: null, capability }]);
+    runAsk(id, t, capability);
+  }, [fileRequest, runAsk]);
+
+  // Auto-run a seeded request once when opened from the omnibox.
   useEffect(() => {
-    if (open && initialText && !startedRef.current) {
+    if (isOpen && initialText && !startedRef.current) {
       startedRef.current = true;
       startTurn(initialText);
     }
-    if (!open) { startedRef.current = false; setTurns([]); setInput(""); }
-  }, [open, initialText, startTurn]);
+    if (!isOpen) { startedRef.current = false; setTurns([]); setInput(""); }
+  }, [isOpen, initialText, startTurn]);
 
-  // Focus the composer when the console opens as its own page.
+  // Focus the composer when opened with no seed.
   useEffect(() => {
-    if (open && !initialText) {
+    if (isOpen && !initialText) {
       const id = setTimeout(() => inputRef.current?.focus(), 40);
       return () => clearTimeout(id);
     }
-  }, [open, initialText]);
+  }, [isOpen, initialText]);
 
   // Best-effort: greet the signed-in user by name.
   useEffect(() => {
-    if (!open) return;
+    if (!isOpen) return;
     fetch("/api/auth/current-user").then((r) => r.json()).then((d) => setMe(d?.user ?? null)).catch(() => {});
-  }, [open]);
+  }, [isOpen]);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [turns]);
 
+  // Esc closes only the overlay variant (the embedded page has no close).
   useEffect(() => {
-    function onKey(e) { if (e.key === "Escape" && open) onClose(); }
+    if (embedded) return;
+    function onKey(e) { if (e.key === "Escape" && open && onClose) onClose(); }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
+  }, [embedded, open, onClose]);
 
-  // Navigate the app to the filed ticket's detail (deep-link) or the cockpit,
-  // closing the console first so the destination isn't left under the overlay.
+  // Navigate to the filed ticket's detail (deep-link) or the cockpit, closing
+  // the overlay first so the destination isn't left underneath it.
   const goIntake = useCallback((ticketId) => {
     try {
       const u = new URL(window.location.href);
@@ -256,10 +366,11 @@ export function CommandConsole({ open, initialText, onClose, onNavigate, onAsk }
   }, [onClose, onNavigate]);
 
   const focusComposer = useCallback(() => inputRef.current?.focus(), []);
+  const handleAsk = onAsk ? () => { if (onClose) onClose(); onAsk(); } : null;
 
-  if (!open) return null;
+  if (!isOpen) return null;
 
-  const busy = turns.some((t) => !t.result && !t.error);
+  const busy = turns.some((t) => (t.kind === "ask" ? t.answerLoading : (!t.result && !t.error)));
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const firstName = (me?.name || "").trim().split(/\s+/)[0] || "";
@@ -272,16 +383,20 @@ export function CommandConsole({ open, initialText, onClose, onNavigate, onAsk }
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter" && input.trim().length >= 3) startTurn(input); }}
-        placeholder={turns.length === 0 ? "Describe any legal request — an NDA, a dispute, a vendor review…" : "File another request…"}
-        aria-label="File a legal request"
+        placeholder={turns.length === 0 ? "Describe a request, or ask a question…" : "Ask a question or file another request…"}
+        aria-label="Ask AEGIS or file a legal request"
         style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: C.t1, fontFamily: F, fontSize: big ? 15 : 13, padding: "8px 0" }}
       />
       <button type="button" onClick={() => { if (input.trim().length >= 3) startTurn(input); }} disabled={input.trim().length < 3} style={{ ...primaryBtn, opacity: input.trim().length < 3 ? 0.5 : 1, flexShrink: 0 }}>Route ⏎</button>
     </div>
   );
 
+  const shell = embedded
+    ? { position: "relative", height: "100%", background: C.bg, display: "flex", flexDirection: "column", fontFamily: F, color: C.t1 }
+    : { position: "fixed", inset: 0, zIndex: 300, background: C.bg, display: "flex", flexDirection: "column", fontFamily: F, color: C.t1 };
+
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 300, background: C.bg, display: "flex", flexDirection: "column", fontFamily: F, color: C.t1 }}>
+    <div style={shell}>
       <style>{`@keyframes ccIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}@keyframes ccBar{0%{left:-40%}100%{left:100%}}`}</style>
 
       {/* Activity bar */}
@@ -289,24 +404,24 @@ export function CommandConsole({ open, initialText, onClose, onNavigate, onAsk }
         {busy && <span style={{ position: "absolute", top: 0, width: "40%", height: "100%", background: C.em, animation: "ccBar 1.1s ease-in-out infinite" }} />}
       </div>
 
-      {/* Header */}
-      <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderBottom: `1px solid ${C.br}`, flexShrink: 0 }}>
-        <span style={{ fontFamily: SR, fontSize: 17 }}>AEGIS</span>
-        <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1.5, textTransform: "uppercase" }}>One front door</span>
-        <button type="button" onClick={onClose} aria-label="Close" style={{ marginLeft: "auto", background: "transparent", border: `1px solid ${C.br}`, color: C.t2, borderRadius: 6, padding: "5px 12px", fontFamily: M, fontSize: 10, letterSpacing: 0.6, textTransform: "uppercase", cursor: "pointer" }}>← Esc</button>
-      </div>
+      {/* Header (overlay variant only — the embedded page uses the AppShell header) */}
+      {!embedded && (
+        <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderBottom: `1px solid ${C.br}`, flexShrink: 0 }}>
+          <span style={{ fontFamily: SR, fontSize: 17 }}>AEGIS</span>
+          <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1.5, textTransform: "uppercase" }}>One front door</span>
+          <button type="button" onClick={onClose} aria-label="Close" style={{ marginLeft: "auto", background: "transparent", border: `1px solid ${C.br}`, color: C.t2, borderRadius: 6, padding: "5px 12px", fontFamily: M, fontSize: 10, letterSpacing: 0.6, textTransform: "uppercase", cursor: "pointer" }}>← Esc</button>
+        </div>
+      )}
 
       {turns.length === 0 ? (
         /* ── Landing ──────────────────────────────────────────────── */
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", justifyContent: "center", padding: "24px 20px" }}>
           <div style={{ maxWidth: 680, margin: "0 auto", width: "100%", animation: "ccIn .3s ease" }}>
-            <div style={{ fontSize: 30, marginBottom: 14 }} aria-hidden="true">✦</div>
-            <div style={{ fontFamily: SR, fontSize: 32, lineHeight: 1.15, color: C.t1 }}>
-              {greeting}{firstName ? `, ${firstName}` : ""}.
-            </div>
+            <div style={{ fontSize: 30, marginBottom: 14, color: C.em }} aria-hidden="true">✦</div>
+            <div style={{ fontFamily: SR, fontSize: 32, lineHeight: 1.15, color: C.t1 }}>{greeting}{firstName ? `, ${firstName}` : ""}.</div>
             <div style={{ fontFamily: SR, fontSize: 32, lineHeight: 1.15, color: C.t3, marginBottom: 16 }}>What do you need handled?</div>
             <div style={{ fontSize: 13.5, color: C.t3, lineHeight: 1.6, marginBottom: 22, maxWidth: 560 }}>
-              Describe any legal request in plain language. AEGIS plans it into steps, files it into intake, routes it to the right desk, and spins up the matter or contract it needs — all on one screen.
+              Describe a legal request and I&rsquo;ll plan it, file it, and route it — or just ask a question and I&rsquo;ll answer it. One front door for everything legal.
             </div>
             {composer(true)}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 18 }}>
@@ -316,9 +431,9 @@ export function CommandConsole({ open, initialText, onClose, onNavigate, onAsk }
                 </button>
               ))}
             </div>
-            {onAsk && (
+            {handleAsk && (
               <div style={{ marginTop: 20 }}>
-                <button type="button" onClick={() => { onClose(); onAsk(); }} style={{ background: "transparent", color: C.t3, border: "none", padding: "6px 2px", fontFamily: M, fontSize: 10.5, letterSpacing: 0.5, textTransform: "uppercase", cursor: "pointer" }}>◎ Or just ask Aurora a question →</button>
+                <button type="button" onClick={handleAsk} style={{ background: "transparent", color: C.t3, border: "none", padding: "6px 2px", fontFamily: M, fontSize: 10.5, letterSpacing: 0.5, textTransform: "uppercase", cursor: "pointer" }}>◎ Or open the full Aurora copilot →</button>
               </div>
             )}
           </div>
@@ -334,23 +449,23 @@ export function CommandConsole({ open, initialText, onClose, onNavigate, onAsk }
                   <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 12 }}>
                     <div style={{ maxWidth: "80%", background: C.em, color: C.bg, borderRadius: "14px 14px 4px 14px", padding: "10px 14px", fontSize: 13.5, lineHeight: 1.5 }}>{t.request}</div>
                   </div>
-                  {/* agent plan */}
+                  {/* agent response */}
                   <div style={{ display: "flex", gap: 12 }}>
                     <span style={{ fontSize: 16, flexShrink: 0, marginTop: 2, color: C.em }} aria-hidden="true">✦</span>
                     <div style={{ minWidth: 0, flex: 1 }}>
-                      <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: "14px 16px" }}>
-                        <div style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>Plan</div>
-                        {t.steps.map((s) => <StepRow key={s.key} step={s} />)}
-                      </div>
-                      {t.error && <div style={{ marginTop: 10, color: C.rd, fontFamily: M, fontSize: 12, background: C.rdG, border: `1px solid ${C.rd}44`, borderRadius: 8, padding: "9px 11px" }}>⚠ {t.error}</div>}
-                      {t.result && (
-                        <ResultCard
-                          result={t.result}
-                          onOpenTicket={goIntake}
-                          onOpenCockpit={() => goIntake(null)}
-                          onFollowUp={focusComposer}
-                          onAsk={onAsk ? () => { onClose(); onAsk(); } : null}
-                        />
+                      {t.kind === "ask" ? (
+                        <AnswerCard turn={t} onExample={startTurn} onFileInstead={fileRequest} onAsk={handleAsk} />
+                      ) : (
+                        <>
+                          <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: "14px 16px" }}>
+                            <div style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>Plan</div>
+                            {t.steps.map((s) => <StepRow key={s.key} step={s} />)}
+                          </div>
+                          {t.error && <div style={{ marginTop: 10, color: C.rd, fontFamily: M, fontSize: 12, background: C.rdG, border: `1px solid ${C.rd}44`, borderRadius: 8, padding: "9px 11px" }}>⚠ {t.error}</div>}
+                          {t.result && (
+                            <ResultCard result={t.result} onOpenTicket={goIntake} onOpenCockpit={() => goIntake(null)} onFollowUp={focusComposer} onAsk={handleAsk} />
+                          )}
+                        </>
                       )}
                     </div>
                   </div>
@@ -363,9 +478,9 @@ export function CommandConsole({ open, initialText, onClose, onNavigate, onAsk }
           <div style={{ borderTop: `1px solid ${C.br}`, padding: "12px 20px", flexShrink: 0 }}>
             <div style={{ maxWidth: 760, margin: "0 auto" }}>
               {composer(false)}
-              {onAsk && (
+              {handleAsk && (
                 <div style={{ textAlign: "center", marginTop: 8 }}>
-                  <button type="button" onClick={() => { onClose(); onAsk(); }} style={{ background: "transparent", border: "none", color: C.t4, fontFamily: M, fontSize: 9.5, letterSpacing: 0.5, textTransform: "uppercase", cursor: "pointer" }}>◎ Ask Aurora instead</button>
+                  <button type="button" onClick={handleAsk} style={{ background: "transparent", border: "none", color: C.t4, fontFamily: M, fontSize: 9.5, letterSpacing: 0.5, textTransform: "uppercase", cursor: "pointer" }}>◎ Open Aurora copilot</button>
                 </div>
               )}
             </div>
