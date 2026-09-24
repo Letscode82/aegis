@@ -117,7 +117,7 @@ export const CustodianRow: React.FC<CustodianRowProps> = ({
         aria-label={`${custodian.personName}, ${status}, ${sourceCount} data source${sourceCount === 1 ? "" : "s"}, ${preservedSourceCount} preserved`}
         style={{
           display: "grid",
-          gridTemplateColumns: "20px 1.6fr 130px 110px 130px 90px",
+          gridTemplateColumns: "20px minmax(0, 1.6fr) 130px 110px 130px 90px",
           gap: 10,
           padding: "9px 10px",
           alignItems: "center",

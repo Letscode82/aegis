@@ -101,7 +101,7 @@ export const MatterDetailView: React.FC<MatterDetailViewProps> = ({
   }
 
   return (
-    <div style={{ display: "grid", gap: 14, padding: 14 }}>
+    <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 14, padding: 14, minWidth: 0 }}>
       <Card>
         <div
           style={{

@@ -509,7 +509,7 @@ export const CustodiansPanel: React.FC<CustodiansPanelProps> = ({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "32px 20px 1.6fr 130px 110px 130px 90px",
+              gridTemplateColumns: "32px 20px minmax(0, 1.6fr) 130px 110px 130px 90px",
               gap: 10,
               padding: "6px 10px",
               fontSize: 9.5,
