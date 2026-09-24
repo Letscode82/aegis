@@ -1,28 +1,17 @@
-import { useEffect, useRef } from "react";
+import { useReviewKeyboard } from "@aegis/ui";
 
-export function useKeyboardShortcuts(handlers,enabled=true){
-  const handlersRef=useRef(handlers);
-  handlersRef.current=handlers;
-  useEffect(()=>{
-    if(!enabled||typeof document==="undefined") return;
-    const onKeydown=(e)=>{
-      // Skip when typing in inputs/textareas/selects/contenteditable
-      const tn=e.target?.tagName;
-      if(tn==="INPUT"||tn==="TEXTAREA"||tn==="SELECT") return;
-      if(e.target?.isContentEditable) return;
-      // Skip modifier-key combos (cmd/ctrl/alt) except for handlers that explicitly want them
-      if(e.metaKey||e.ctrlKey||e.altKey) return;
-
-      // Build key string: handle arrows + letter keys
-      let k=e.key;
-      if(k==="ArrowDown") k="ArrowDown";
-      else if(k==="ArrowUp") k="ArrowUp";
-      else k=k.length===1?k.toLowerCase():k;
-
-      const h=handlersRef.current[k];
-      if(h){ e.preventDefault(); h(e); }
-    };
-    document.addEventListener("keydown",onKeydown);
-    return()=>document.removeEventListener("keydown",onKeydown);
-  },[enabled]);
+// Intake keyboard shortcuts — a thin adapter over the shared
+// `useReviewKeyboard` hook (@aegis/ui) so there is ONE keyboard-navigation
+// implementation across every AEGIS review surface (eDiscovery coding,
+// invoice + contract cockpits, intake triage). This preserves the intake
+// cockpit's existing API — a `{ key: handler }` map plus an `enabled` flag —
+// and its exact behavior: skip typing in inputs / textareas / selects /
+// contenteditable, ignore modifier chords, match keys case-insensitively
+// (letters, arrows, "?", "/", " ", "Escape"). null / non-function handlers
+// are ignored, matching the previous `if (handler)` guard.
+export function useKeyboardShortcuts(handlers, enabled = true) {
+  const bindings = Object.entries(handlers || {})
+    .filter(([, run]) => typeof run === "function")
+    .map(([key, run]) => ({ keys: [key], run }));
+  useReviewKeyboard(bindings, { enabled });
 }
