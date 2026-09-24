@@ -4,10 +4,12 @@ import { C, F, M, SR } from "@aegis/ui";
 // Command Console (WS-1, agentic) — the full-screen front door. A request
 // becomes a chat turn: the user's ask, then an agent PLAN whose steps light
 // up and tick off one-by-one (Gen-AI feel, à la Harvey / Legora / Claude),
-// ending in the routed result. Each turn calls the real /api/intake/request
-// pipeline; the step details are filled from the actual classification,
-// routing and dispatch outcome. You can keep filing requests in the same
-// conversation.
+// ending in the routed result. Each turn streams the real
+// /api/intake/request-stream pipeline over SSE: every step lights up the
+// moment its server-side work actually completes (classify, route, file,
+// dispatch), rather than on a client-side timer. If streaming is
+// unavailable it falls back to the synchronous /api/intake/request route.
+// You can keep filing requests in the same conversation.
 
 const wait = (ms) => new Promise((res) => setTimeout(res, ms));
 let TURN_SEQ = 0;
@@ -80,7 +82,32 @@ export function CommandConsole({ open, initialText, onClose, onNavigate, onAsk }
     setTurns((ts) => ts.map((t) => (t.id === turnId ? { ...t, ...patch } : t)));
   }, []);
 
-  const run = useCallback(async (turnId, text) => {
+  // Insert the "dispatch" step (only present when the pipeline spawns
+  // downstream work) just before the terminal "done" step.
+  const ensureDispatchStep = useCallback((turnId) => {
+    setTurns((ts) => ts.map((t) => {
+      if (t.id !== turnId || t.steps.some((s) => s.key === "dispatch")) return t;
+      const doneIdx = t.steps.findIndex((s) => s.key === "done");
+      const at = doneIdx === -1 ? t.steps.length : doneIdx;
+      const dispatch = { key: "dispatch", label: "Dispatching to the module", state: "pending", detail: null };
+      return { ...t, steps: [...t.steps.slice(0, at), dispatch, ...t.steps.slice(at)] };
+    }));
+  }, []);
+
+  const applyFrame = useCallback((turnId, frame) => {
+    if (frame.type === "step") {
+      if (frame.key === "dispatch") ensureDispatchStep(turnId);
+      patchStep(turnId, frame.key, frame.state, frame.detail);
+    } else if (frame.type === "result") {
+      patchTurn(turnId, { result: frame.result });
+    } else if (frame.type === "error") {
+      patchTurn(turnId, { error: frame.error });
+    }
+  }, [patchStep, patchTurn, ensureDispatchStep]);
+
+  // Synchronous fallback — mirrors the streamed plan over the one-shot route
+  // when SSE is unavailable (older proxy, blocked stream, non-2xx).
+  const runSync = useCallback(async (turnId, text) => {
     const p = fetch("/api/intake/request", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) })
       .then((r) => r.json().then((d) => ({ ok: r.ok, d })));
     await patchStep(turnId, "read", "active"); await wait(450); await patchStep(turnId, "read", "done");
@@ -94,13 +121,61 @@ export function CommandConsole({ open, initialText, onClose, onNavigate, onAsk }
     await patchStep(turnId, "file", "active"); await wait(500); await patchStep(turnId, "file", "done", `→ ${d.ticketId}`);
     const spawnN = (d.spawned?.matters?.length || 0) + (d.spawned?.contracts?.length || 0);
     if (spawnN > 0) {
-      setTurns((ts) => ts.map((t) => t.id !== turnId ? t : { ...t, steps: [...t.steps.slice(0, -1), { key: "dispatch", label: "Dispatching to the module", state: "pending", detail: null }, t.steps[t.steps.length - 1]] }));
+      ensureDispatchStep(turnId);
       await patchStep(turnId, "dispatch", "active"); await wait(500);
       await patchStep(turnId, "dispatch", "done", `→ ${d.spawned.matters.length} matter(s), ${d.spawned.contracts.length} contract(s)`);
     }
     await patchStep(turnId, "done", "active"); await wait(300); await patchStep(turnId, "done", "done");
     patchTurn(turnId, { result: d });
-  }, [patchStep, patchTurn]);
+  }, [patchStep, patchTurn, ensureDispatchStep]);
+
+  // Stream the real pipeline over SSE — each step lights up when its
+  // server-side work actually completes. Parses `data:` frames off the
+  // fetch body reader (POST body isn't supported by EventSource).
+  const run = useCallback(async (turnId, text) => {
+    let response;
+    try {
+      response = await fetch("/api/intake/request-stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+    } catch {
+      return runSync(turnId, text);
+    }
+    const ctype = response.headers.get("content-type") || "";
+    if (!response.ok || !response.body || !ctype.includes("text/event-stream")) {
+      // Non-stream response (e.g. 401/403 JSON or a proxy that buffered it).
+      if (!response.ok) {
+        let msg = "Request failed";
+        try { const j = await response.json(); msg = j.error || msg; } catch { /* ignore */ }
+        patchStep(turnId, "classify", "error"); patchTurn(turnId, { error: msg });
+        return;
+      }
+      return runSync(turnId, text);
+    }
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    let sawFrame = false;
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buffer.indexOf("\n\n")) >= 0) {
+          const frame = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 2);
+          const dataLine = frame.split("\n").find((l) => l.startsWith("data: "));
+          if (!dataLine) continue;
+          try {
+            applyFrame(turnId, JSON.parse(dataLine.slice(6)));
+            sawFrame = true;
+          } catch { /* skip malformed frame */ }
+        }
+      }
+    } catch (e) {
+      if (!sawFrame) return runSync(turnId, text);
+      patchTurn(turnId, { error: String(e.message || e) });
+    }
+  }, [runSync, applyFrame, patchStep, patchTurn]);
 
   const startTurn = useCallback((text) => {
     const t = text.trim();
