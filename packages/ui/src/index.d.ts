@@ -155,6 +155,32 @@ export class PanelBoundary extends React.Component<PanelBoundaryProps> {}
 // useIsNarrow (W4-3)
 export function useIsNarrow(maxWidthPx?: number): boolean;
 
+// Review cockpit (PR-R1) — shared Relativity-style review shell + kbd hook.
+export interface ReviewKeyBinding {
+  keys: string[];
+  run: (e: KeyboardEvent) => void;
+  label?: string;
+}
+export function useReviewKeyboard(
+  bindings: ReviewKeyBinding[],
+  options?: { enabled?: boolean },
+): void;
+export interface ReviewCockpitProps {
+  title?: ReactNode;
+  subtitle?: ReactNode;
+  badge?: ReactNode;
+  onBack?: () => void;
+  progress?: { done: number; total: number; label?: string };
+  legend?: Array<{ keys: string[]; label: string }>;
+  queue?: ReactNode;
+  viewer?: ReactNode;
+  coding?: ReactNode;
+  leftWidth?: number;
+  rightWidth?: number;
+  stackAt?: number;
+}
+export const ReviewCockpit: React.FC<ReviewCockpitProps>;
+
 // pressable (W4-4)
 export function pressable(
   fn: (e?: unknown) => void,

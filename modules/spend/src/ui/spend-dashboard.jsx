@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { C, F, M, SR } from "@aegis/ui";
-import { InvoiceReviewModal } from "./invoice-review-modal.jsx";
+import { InvoiceReviewCockpit } from "./invoice-review-cockpit.jsx";
 
 // ── Legal Spend & Outside-Counsel dashboard (SP-2) ───────────────────
 //
@@ -43,7 +43,7 @@ export function SpendDashboard() {
   const [data, setData] = useState(null);
   const [analytics, setAnalytics] = useState(null);
   const [error, setError] = useState(null);
-  const [openInvoice, setOpenInvoice] = useState(null);
+  const [openIndex, setOpenIndex] = useState(null);
 
   const load = useCallback(() => {
     fetch("/api/spend/overview")
@@ -148,8 +148,8 @@ export function SpendDashboard() {
         <div style={{ display: "grid", gridTemplateColumns: "1.4fr 1.6fr 90px 90px 80px 1fr", gap: 8, fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", padding: "0 4px 8px", borderBottom: `1px solid ${C.br}` }}>
           <span>Firm</span><span>Matter</span><span>Amount</span><span>Status</span><span>Flags</span><span>Proposed savings</span>
         </div>
-        {data.invoices.map((inv) => (
-          <div key={inv.id} onClick={() => setOpenInvoice(inv.id)} title="Open invoice review" style={{ display: "grid", gridTemplateColumns: "1.4fr 1.6fr 90px 90px 80px 1fr", gap: 8, fontSize: 11, alignItems: "center", padding: "9px 4px", borderBottom: `1px solid ${C.br}33`, cursor: "pointer" }} onMouseEnter={(e) => (e.currentTarget.style.background = C.s1)} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
+        {data.invoices.map((inv, i) => (
+          <div key={inv.id} onClick={() => setOpenIndex(i)} title="Open invoice review" style={{ display: "grid", gridTemplateColumns: "1.4fr 1.6fr 90px 90px 80px 1fr", gap: 8, fontSize: 11, alignItems: "center", padding: "9px 4px", borderBottom: `1px solid ${C.br}33`, cursor: "pointer" }} onMouseEnter={(e) => (e.currentTarget.style.background = C.s1)} onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}>
             <span style={{ color: C.t1 }}>{inv.vendorName}</span>
             <span style={{ color: C.t2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{inv.matterTitle}</span>
             <span style={{ fontFamily: M, color: C.t1 }}>{money(inv.amount)}</span>
@@ -188,11 +188,12 @@ export function SpendDashboard() {
         Click an invoice to review it. Deterministic flags (⚑) feed the proposed short-pay; AI-judgment flags (◑) are advisory. Every approve / reject is chain-sealed.
       </div>
 
-      {openInvoice && (
-        <InvoiceReviewModal
-          invoiceId={openInvoice}
-          onClose={() => setOpenInvoice(null)}
-          onDone={load}
+      {openIndex !== null && (
+        <InvoiceReviewCockpit
+          invoices={data.invoices}
+          startIndex={openIndex}
+          onClose={() => setOpenIndex(null)}
+          onChanged={load}
         />
       )}
     </div>
