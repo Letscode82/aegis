@@ -12,6 +12,7 @@ import { AuthorContractModal } from "./author-contract-modal.jsx";
 import { ReviewThirdPartyModal } from "./review-third-party-modal.jsx";
 import { AiDraftModal } from "./ai-draft-modal.jsx";
 import { ContractStageDots, CONTRACT_STAGES, stageCounts, stageIndexForStatus } from "./contract-stage-tracker.jsx";
+import { ContractReviewCockpit } from "./contract-review-cockpit.jsx";
 
 // ── Contract repository (CTR-1) ──────────────────────────────────────
 //
@@ -62,6 +63,7 @@ export function ContractsRepository() {
   const [showReview, setShowReview] = useState(false);
   const [showAiDraft, setShowAiDraft] = useState(false);
   const [tab, setTab] = useState("contracts"); // "contracts" | "obligations"
+  const [reviewCockpit, setReviewCockpit] = useState(false);
 
   const load = useCallback(() => {
     fetch("/api/contracts/overview")
@@ -139,12 +141,21 @@ export function ContractsRepository() {
 
   return (
     <div style={{ fontFamily: F, color: C.t1 }}>
+      {reviewCockpit && (
+        <ContractReviewCockpit
+          contracts={data.contracts.filter((c) => c.status === "IN_REVIEW" || c.status === "IN_NEGOTIATION")}
+          startIndex={0}
+          onClose={() => setReviewCockpit(false)}
+          onChanged={load}
+        />
+      )}
       <div style={{ marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
         <div>
           <div style={{ fontSize: 10, fontFamily: M, letterSpacing: 2, color: C.bl, textTransform: "uppercase" }}>Legal · Contract Lifecycle Management</div>
           <div style={{ fontSize: 24, fontFamily: SR, color: C.t1, lineHeight: 1.2 }}>The contract <em style={{ color: C.bl, fontStyle: "italic" }}>system of record</em></div>
         </div>
         <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
+          {canManage && <button onClick={() => setReviewCockpit(true)} style={{ padding: "7px 13px", background: "transparent", color: C.gn, border: `1px solid ${C.gn}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" }}>▶ Review queue</button>}
           <button onClick={() => setShowPlaybook(true)} style={{ padding: "7px 13px", background: "transparent", color: C.bl, border: `1px solid ${C.bl}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" }}>📖 Playbook</button>
           <button onClick={() => setShowTemplates(true)} style={{ padding: "7px 13px", background: "transparent", color: C.tl, border: `1px solid ${C.tl}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" }}>📄 Templates</button>
           {canManage && <button onClick={() => setShowAiDraft(true)} style={{ padding: "7px 13px", background: "transparent", color: C.pp || C.bl, border: `1px solid ${C.pp || C.bl}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" }}>✨ Draft with AI</button>}
