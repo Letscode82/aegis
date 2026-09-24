@@ -27,12 +27,16 @@ interface Item {
   codedResponsive: boolean | null; codedPrivileged: boolean; redact: boolean;
   issues: string[]; confidentiality: string | null; privilegeBasis: string | null; reviewNote: string | null;
   familyId: string | null; familyRole: string | null; threadId: string | null; isInclusive: boolean | null; dedupKey: string | null;
+  batchId: string | null; assignedToUserId: string | null; qcStatus: string | null;
   excluded?: boolean;
 }
 type Issue = { key: string; label: string };
 type ProfileOpt = { id: string; name: string; version: number };
+type BatchOpt = { id: string; name: string; assignedToUserId: string | null; itemCount: number };
 type RouteFilter = "ALL" | "ATTORNEY" | "REVIEWER" | "AUTO_CULL";
 type CodeFilter = "ALL" | "UNCODED" | "CODED" | "RESPONSIVE" | "PRIVILEGED";
+// Batch queue filter: everything, my assigned items, still-unbatched, or one batch.
+type BatchFilter = "ALL" | "MINE" | "UNBATCHED" | string;
 const CONFIDENTIALITY = ["None", "Confidential", "Highly Confidential", "Attorneys' Eyes Only"];
 const PRIV_TERMS = ["privileged", "attorney-client", "confidential", "work product", "outside counsel", "legal advice"];
 
@@ -60,6 +64,9 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
   const [cursor, setCursor] = useState(0);
   const [filter, setFilter] = useState<RouteFilter>("ALL");
   const [codeFilter, setCodeFilter] = useState<CodeFilter>("ALL");
+  const [batchFilter, setBatchFilter] = useState<BatchFilter>("ALL");
+  const [batches, setBatches] = useState<BatchOpt[]>([]);
+  const [me, setMe] = useState<string | null>(null);
   const [confidentOnly, setConfidentOnly] = useState(false);
   const [query, setQuery] = useState("");
   const [sortByPriority, setSortByPriority] = useState(true);
@@ -89,6 +96,17 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
     fetch(profilesBase).then((r) => r.json()).then((d) => { if (d.ok) setProfiles(d.profiles || []); }).catch(() => {});
   }, [profilesBase]);
   useEffect(() => { loadProfiles(); }, [loadProfiles]);
+
+  // Batches + the current reviewer's id back the "My queue" filter. Both are
+  // neutral across the hold + DSAR mounts (shared /batches endpoint; the
+  // app-level current-user route). Best-effort — the cockpit works unbatched.
+  const loadBatches = useCallback(() => {
+    fetch(`${apiBase}/${reviewSetId}/batches`).then((r) => r.json()).then((d) => { if (d.ok) setBatches(d.batches || []); }).catch(() => {});
+  }, [apiBase, reviewSetId]);
+  useEffect(() => { loadBatches(); }, [loadBatches]);
+  useEffect(() => {
+    fetch("/api/auth/current-user").then((r) => r.json()).then((d) => setMe(d?.user?.id ?? null)).catch(() => {});
+  }, []);
 
   const frozen = status !== "OPEN";
   const counts = useMemo(() => ({
@@ -120,13 +138,17 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
       if (codeFilter === "RESPONSIVE" && i.codedResponsive !== true) return false;
       if (codeFilter === "PRIVILEGED" && !i.codedPrivileged) return false;
       if (confidentOnly && !hasConfidentCall(i.aiTags)) return false;
+      if (batchFilter === "MINE" && !(me && i.assignedToUserId === me)) return false;
+      if (batchFilter === "UNBATCHED" && i.batchId) return false;
+      if (batchFilter !== "ALL" && batchFilter !== "MINE" && batchFilter !== "UNBATCHED" && i.batchId !== batchFilter) return false;
       if (hideSuppressed && derived.suppressed.has(i.id)) return false;
       if (query.trim()) { const q = query.toLowerCase(); return i.title.toLowerCase().includes(q) || (i.sourceSystem || "").toLowerCase().includes(q); }
       return true;
     });
     if (sortByPriority) list = [...list].sort((a, b) => aiPriority(b) - aiPriority(a));
     return list;
-  }, [items, filter, codeFilter, confidentOnly, query, sortByPriority, hideSuppressed, derived]);
+  }, [items, filter, codeFilter, confidentOnly, query, sortByPriority, hideSuppressed, derived, batchFilter, me]);
+  const mineCount = useMemo(() => (me ? items.filter((i) => i.assignedToUserId === me).length : 0), [items, me]);
   const uncodedInView = useMemo(() => filtered.filter((i) => !i.coded).length, [filtered]);
   useEffect(() => { if (cursor >= filtered.length) setCursor(0); }, [filtered.length, cursor]);
   const current = filtered[cursor];
@@ -385,6 +407,19 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
               background: confidentOnly ? `${C.cy}22` : "transparent", color: confidentOnly ? C.cy : C.t3, border: `1px solid ${confidentOnly ? C.cy : C.br}`,
             }}>AI-confident</button>
           </div>
+          {batches.length > 0 && (
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <button onClick={() => { setBatchFilter((v) => (v === "MINE" ? "ALL" : "MINE")); setCursor(0); }} disabled={!me || mineCount === 0} title="Show only the documents assigned to you across all batches" style={{
+                fontSize: 11.5, fontWeight: 600, padding: "5px 11px", borderRadius: 20, cursor: me && mineCount > 0 ? "pointer" : "default", whiteSpace: "nowrap",
+                background: batchFilter === "MINE" ? `${C.tl}22` : "transparent", color: batchFilter === "MINE" ? C.tl : (me && mineCount > 0 ? C.t2 : C.t4), border: `1px solid ${batchFilter === "MINE" ? C.tl : C.br}`,
+              }}>◧ My queue{mineCount > 0 ? ` (${mineCount})` : ""}</button>
+              <select value={batchFilter === "MINE" ? "ALL" : batchFilter} onChange={(e) => { setBatchFilter(e.target.value); setCursor(0); }} title="Filter by review batch" style={{ ...inputS, flex: 1, minWidth: 0, padding: "6px 9px", fontSize: 12 }}>
+                <option value="ALL">All batches</option>
+                <option value="UNBATCHED">Unbatched</option>
+                {batches.map((b) => <option key={b.id} value={b.id}>{b.name} ({b.itemCount})</option>)}
+              </select>
+            </div>
+          )}
           <button disabled={!canMutate || frozen} onClick={selectConfidentAiResponsive} title="Select the AI's confident, cited responsive calls to bulk-confirm" style={{ ...ghost(C.gn), padding: "7px 12px", fontSize: 12, textAlign: "center" }}>
             ✓ Select confident AI-responsive
           </button>
