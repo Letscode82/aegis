@@ -2593,6 +2593,22 @@ export function IntakeView(){
     setSel(id); // Inbox sel is the ticket ID; IntakeDetail resolves it.
     setTab("inbox");
   },[]);
+
+  // Deep link from the Command Console: ?intakeTicket=<id> opens that filed
+  // ticket's detail on mount (the console navigates here after routing a
+  // request), then strips the param so a refresh doesn't reopen it.
+  useEffect(()=>{
+    try{
+      const p=new URLSearchParams(window.location.search);
+      const tid=p.get("intakeTicket");
+      if(tid){
+        openTicketById(tid);
+        const u=new URL(window.location.href);
+        u.searchParams.delete("intakeTicket");
+        window.history.replaceState({},"",u);
+      }
+    }catch{ /* URL API unavailable — no deep link */ }
+  },[openTicketById]);
   useEffect(()=>{
     let mounted=true;
     fetch("/api/intake/routing-rules")
