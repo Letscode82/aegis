@@ -173,6 +173,121 @@ function AnswerCard({ turn, onExample, onFileInstead, onAsk }) {
   );
 }
 
+// Show the workspace rail only when there's room (embedded full page, wide viewport).
+function useWide(min = 1080) {
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia(`(min-width:${min}px)`);
+    const on = () => setWide(mq.matches);
+    on();
+    if (mq.addEventListener) { mq.addEventListener("change", on); return () => mq.removeEventListener("change", on); }
+    mq.addListener(on); return () => mq.removeListener(on);
+  }, [min]);
+  return wide;
+}
+
+// Console capabilities, surfaced in the rail's Skills section. The one whose
+// category matches the latest routed request is highlighted.
+const SKILLS = [
+  { label: "Intake triage & routing", cats: ["General Inquiry", "Vendor DD", "Vendor Contract", "Regulatory — EU", "Finance — Debt / Covenant", "IP / Trademark / OSS", "Employment — Sensitive"] },
+  { label: "NDA auto-draft", cats: ["NDA — Standard"] },
+  { label: "Contract review", cats: ["Vendor Contract"] },
+  { label: "Legal hold", cats: ["Litigation — Non-Court"] },
+  { label: "Privacy / DSAR", cats: ["Privacy — DPIA / GDPR"] },
+  { label: "Sanctions screen", cats: ["Compliance — Sanctions"] },
+  { label: "Answer questions", cats: [] },
+];
+
+function RailSection({ title, children }) {
+  return (
+    <div style={{ marginBottom: 22 }}>
+      <div style={{ fontSize: 10, fontFamily: M, color: C.t3, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 600, marginBottom: 10 }}>{title}</div>
+      {children}
+    </div>
+  );
+}
+
+// Cowork-style right rail (à la Claude): Progress / Working folder / Context /
+// Skills, all derived from the live turns — no separate state.
+function WorkspaceRail({ turns, onOpenTicket, onNavigate }) {
+  const last = turns[turns.length - 1] || null;
+  const progress = (() => {
+    if (!last) return [];
+    if (last.kind === "ask") return [
+      { label: "Understanding your question", state: "done" },
+      { label: last.answerLoading ? "Answering" : "Answered", state: last.answerLoading ? "active" : "done" },
+    ];
+    return last.steps.map((s) => ({ label: s.label, state: s.state }));
+  })();
+
+  const artifacts = [];
+  for (const t of turns) {
+    if (t.kind !== "file" || !t.result) continue;
+    artifacts.push({ kind: "ticket", label: t.result.ticketId, sub: t.result.classification?.category || "Intake ticket", onClick: () => onOpenTicket(t.result.ticketId) });
+    for (const m of (t.result.spawned?.matters || [])) artifacts.push({ kind: "matter", label: m.title || m.number || m.id || "Matter", sub: "Matter", onClick: onNavigate ? () => onNavigate("matters") : null });
+    for (const c of (t.result.spawned?.contracts || [])) artifacts.push({ kind: "contract", label: c.title || c.id || "Contract", sub: "Contract", onClick: onNavigate ? () => onNavigate("contracts") : null });
+  }
+
+  let lastCat = null, lastRule = null;
+  for (let i = turns.length - 1; i >= 0; i--) {
+    const t = turns[i];
+    if (t.kind === "file" && t.result) { lastCat = t.result.classification?.category || null; lastRule = t.result.classification?.routingRule || null; break; }
+  }
+
+  const dot = (state) => state === "done" ? <span style={{ color: C.gn }}>✓</span>
+    : state === "active" ? <span style={{ width: 10, height: 10, borderRadius: "50%", border: `2px solid ${C.br}`, borderTopColor: C.em, display: "inline-block", animation: "sp .7s linear infinite" }} />
+    : state === "error" ? <span style={{ color: C.rd }}>✕</span>
+    : <span style={{ width: 8, height: 8, borderRadius: "50%", border: `1.5px solid ${C.br}`, display: "inline-block" }} />;
+  const fileIcon = (k) => k === "ticket" ? "🎫" : k === "matter" ? "▣" : k === "contract" ? "▤" : "▪";
+
+  return (
+    <div style={{ width: 300, flexShrink: 0, borderLeft: `1px solid ${C.br}`, background: C.s1, overflowY: "auto", padding: "20px 18px", minHeight: 0 }}>
+      <RailSection title="Progress">
+        {progress.length === 0 ? <div style={{ fontSize: 12, color: C.t4 }}>No active task — file a request or ask a question.</div> :
+          progress.map((p, i) => (
+            <div key={i} style={{ display: "flex", alignItems: "center", gap: 9, padding: "4px 0" }}>
+              <span style={{ width: 14, display: "inline-flex", justifyContent: "center", fontSize: 12 }} aria-hidden="true">{dot(p.state)}</span>
+              <span style={{ fontSize: 12, color: p.state === "done" ? C.t3 : p.state === "error" ? C.rd : C.t1, textDecoration: p.state === "done" ? "line-through" : "none", textDecorationColor: C.t4 }}>{p.label}</span>
+            </div>
+          ))}
+      </RailSection>
+
+      <RailSection title="Working folder">
+        {artifacts.length === 0 ? <div style={{ fontSize: 12, color: C.t4 }}>Nothing filed yet.</div> :
+          artifacts.map((a, i) => (
+            <button key={i} type="button" onClick={a.onClick || undefined} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 9, padding: "7px 8px", marginBottom: 4, background: C.cd, border: `1px solid ${C.br}`, borderRadius: 8, cursor: a.onClick ? "pointer" : "default" }}>
+              <span aria-hidden="true" style={{ fontSize: 13 }}>{fileIcon(a.kind)}</span>
+              <span style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 12, color: C.t1, fontFamily: M, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{a.label}</div>
+                <div style={{ fontSize: 10, color: C.t4 }}>{a.sub}</div>
+              </span>
+            </button>
+          ))}
+      </RailSection>
+
+      <RailSection title="Context">
+        {["Intake pipeline", lastRule ? `Routing · ${lastRule}` : "Routing rules", "Audit chain · sealed", "Matter / Contract auto-spawn"].map((c, i) => (
+          <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 12, color: C.t2 }}>
+            <span style={{ color: C.tl }} aria-hidden="true">◦</span>{c}
+          </div>
+        ))}
+      </RailSection>
+
+      <RailSection title="Skills">
+        {SKILLS.map((s) => {
+          const active = lastCat && s.cats.includes(lastCat);
+          return (
+            <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 12, color: active ? C.t1 : C.t3, fontWeight: active ? 600 : 400 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: active ? C.em : C.br, display: "inline-block", flexShrink: 0 }} />{s.label}
+            </div>
+          );
+        })}
+      </RailSection>
+    </div>
+  );
+}
+
 export function CommandConsole({ open, embedded, initialText, onClose, onNavigate, onAsk }) {
   const [turns, setTurns] = useState([]);
   const [input, setInput] = useState("");
@@ -182,6 +297,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   const inputRef = useRef(null);
 
   const isOpen = embedded || open;
+  const wide = useWide(1080);
 
   const patchTurn = useCallback((turnId, patch) => {
     setTurns((ts) => ts.map((t) => (t.id === turnId ? { ...t, ...patch } : t)));
@@ -413,6 +529,8 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
         </div>
       )}
 
+      <div style={{ flex: 1, display: "flex", minHeight: 0 }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
       {turns.length === 0 ? (
         /* ── Landing (vertically + horizontally centered, Claude-style) ── */
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px" }}>
@@ -482,6 +600,9 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
           </div>
         </>
       )}
+        </div>
+        {embedded && wide && <WorkspaceRail turns={turns} onOpenTicket={goIntake} onNavigate={onNavigate} />}
+      </div>
     </div>
   );
 }
