@@ -18,6 +18,7 @@
  */
 import { Permission } from "@aegis/auth";
 import { createMatter, type MatterType } from "@aegis/matter";
+import { createContract } from "@aegis/contracts";
 
 export interface OneLegalUser { id: string; organizationId: string }
 export interface ToolResult { resourceId: string; resourceLabel: string; label: string; navigate: string }
@@ -68,9 +69,39 @@ const matterCreate: OneLegalTool<MatterArgs> = {
   },
 };
 
+// Contract type is a free string on the Contract entity ("NDA" | "MSA" | …),
+// so there's no enum to violate — infer a sensible label from the request.
+function inferContractType(text: string): string {
+  const t = text.toLowerCase();
+  if (/\bnda\b|non.?disclos|confidential/.test(t)) return "NDA";
+  if (/\bmsa\b|master service/.test(t)) return "MSA";
+  if (/\bsow\b|statement of work/.test(t)) return "SOW";
+  if (/\bdpa\b|data processing/.test(t)) return "DPA";
+  if (/licen[cs]/.test(t)) return "License";
+  if (/supply|supplier/.test(t)) return "Supply";
+  return "Agreement";
+}
+
+interface ContractArgs { title: string; type: string }
+
+const contractDraft: OneLegalTool<ContractArgs> = {
+  id: "contracts.draft",
+  label: "Draft a contract",
+  kind: "write",
+  permission: Permission.ContractsCreate,
+  resourceType: "Contract",
+  deriveArgs: (text) => ({ title: inferTitle(text), type: inferContractType(text) }),
+  summary: (args) => `Draft a ${args.type} — "${args.title}" (starts in DRAFT)`,
+  run: async (args, user) => {
+    const c = await createContract(user.organizationId, { title: args.title, type: args.type }, { id: user.id, type: "USER" });
+    return { resourceId: c.id, resourceLabel: c.title || c.id, label: `Contract · ${args.type}`, navigate: "contracts" };
+  },
+};
+
 // The registry. Keyed by tool id.
 export const TOOLS: Record<string, OneLegalTool<unknown>> = {
   [matterCreate.id]: matterCreate as OneLegalTool<unknown>,
+  [contractDraft.id]: contractDraft as OneLegalTool<unknown>,
 };
 
 export function getTool(id: string): OneLegalTool<unknown> | undefined {
@@ -82,6 +113,9 @@ export function getTool(id: string): OneLegalTool<unknown> | undefined {
 export function selectToolId(text: string): string | null {
   const t = text.toLowerCase();
   if (/\b(open|start|create|file|spin up)\b[^.]*\bmatter\b/.test(t) || /\bmatter\b[^.]*\b(for|on)\b/.test(t) || /\b(sued|lawsuit|litigation matter)\b/.test(t)) return "matter.create";
+  // Draft-a-contract: needs an authoring verb so "review a third-party MSA"
+  // (a review, not a create) falls through to the intake pipeline.
+  if (/\b(draft|create|prepare|author|generate|write|new)\b[^.]*\b(nda|msa|sow|dpa|contract|agreement|licen[cs]e)\b/.test(t)) return "contracts.draft";
   return null;
 }
 
