@@ -19,6 +19,7 @@
 import { Permission } from "@aegis/auth";
 import { createMatter, type MatterType } from "@aegis/matter";
 import { createContract } from "@aegis/contracts";
+import { createDsarRequest } from "@aegis/privacy";
 
 export interface OneLegalUser { id: string; organizationId: string }
 export interface ToolResult { resourceId: string; resourceLabel: string; label: string; navigate: string }
@@ -98,10 +99,42 @@ const contractDraft: OneLegalTool<ContractArgs> = {
   },
 };
 
+// DSAR request type is an enum; infer from the request, default to ACCESS.
+function inferDsarType(text: string): string {
+  const t = text.toLowerCase();
+  if (/eras|delet|right to be forgotten|forget/.test(t)) return "ERASURE";
+  if (/correct|rectif/.test(t)) return "CORRECTION";
+  if (/portab|export my data/.test(t)) return "PORTABILITY";
+  if (/\bobject\b/.test(t)) return "OBJECT";
+  if (/restrict/.test(t)) return "RESTRICT_PROCESSING";
+  return "ACCESS";
+}
+
+interface DsarArgs { requestType: string; jurisdiction: string }
+
+const dsarCreate: OneLegalTool<DsarArgs> = {
+  id: "privacy.dsar.create",
+  label: "File a DSAR",
+  kind: "write",
+  permission: Permission.PrivacyDsarFulfill,
+  resourceType: "DataSubjectRequest",
+  deriveArgs: (text) => ({ requestType: inferDsarType(text), jurisdiction: "US" }),
+  summary: (args) => `File a ${args.requestType} DSAR (${args.jurisdiction}) — capture the requester's identity in Privacy`,
+  run: async (args, user) => {
+    const d = await createDsarRequest(
+      user.organizationId,
+      { requestType: args.requestType as never, jurisdiction: args.jurisdiction, requesterName: "(requester — capture in Privacy)", source: "internal" },
+      { id: user.id, type: "USER" },
+    );
+    return { resourceId: d.id, resourceLabel: d.id, label: `DSAR · ${args.requestType}`, navigate: "privacy" };
+  },
+};
+
 // The registry. Keyed by tool id.
 export const TOOLS: Record<string, OneLegalTool<unknown>> = {
   [matterCreate.id]: matterCreate as OneLegalTool<unknown>,
   [contractDraft.id]: contractDraft as OneLegalTool<unknown>,
+  [dsarCreate.id]: dsarCreate as OneLegalTool<unknown>,
 };
 
 export function getTool(id: string): OneLegalTool<unknown> | undefined {
@@ -116,6 +149,7 @@ export function selectToolId(text: string): string | null {
   // Draft-a-contract: needs an authoring verb so "review a third-party MSA"
   // (a review, not a create) falls through to the intake pipeline.
   if (/\b(draft|create|prepare|author|generate|write|new)\b[^.]*\b(nda|msa|sow|dpa|contract|agreement|licen[cs]e)\b/.test(t)) return "contracts.draft";
+  if (/\bdsar\b|data subject (access|request|erasure)|right to (be forgotten|erasure|access)|(access|erasure|deletion) request/.test(t)) return "privacy.dsar.create";
   return null;
 }
 
