@@ -65,6 +65,14 @@ function looksCompound(text) {
   return false;
 }
 
+// Mirrors the server tool selectors so single tool-y requests also route
+// through /plan (to surface a governed tool proposal), while pure intake
+// requests stay on the instant path.
+function looksToolish(text) {
+  const t = text.trim().toLowerCase();
+  return /\b(open|start|create|file|spin up)\b[^.]*\bmatter\b/.test(t) || /\bmatter\b[^.]*\b(for|on)\b/.test(t) || /\b(sued|lawsuit|litigation matter)\b/.test(t);
+}
+
 function baseSteps() {
   return [
     { key: "read", label: "Reading your request", state: "pending", detail: null },
@@ -136,13 +144,14 @@ function ResultCard({ result, onOpenTicket, onOpenCockpit, onFollowUp, onAsk }) 
 // running the governed pipeline in its own slot (Cowork-style).
 function taskDot(task) {
   if (task.error) return <span style={{ color: C.rd, fontSize: 13 }}>✕</span>;
-  if (task.result) return <span style={{ color: C.gn, fontSize: 13 }}>✓</span>;
+  if (task.result || task.toolResult) return <span style={{ color: C.gn, fontSize: 13 }}>✓</span>;
+  if (task.state === "awaiting") return <span style={{ width: 9, height: 9, borderRadius: "50%", background: C.am, display: "inline-block" }} />;
   if (task.state === "running") return <span style={{ width: 12, height: 12, borderRadius: "50%", border: `2px solid ${C.br}`, borderTopColor: C.em, display: "inline-block", animation: "sp .7s linear infinite" }} />;
   return <span style={{ width: 9, height: 9, borderRadius: "50%", border: `1.5px solid ${C.br}`, display: "inline-block" }} />;
 }
 
-function CompoundCard({ turn, onOpenTicket, onOpenCockpit, onFollowUp }) {
-  const done = turn.tasks.filter((t) => t.result || t.error).length;
+function CompoundCard({ turn, onOpenTicket, onOpenCockpit, onFollowUp, onApprove, onFileInstead, onOpenNav }) {
+  const done = turn.tasks.filter((t) => t.result || t.toolResult || t.error).length;
   return (
     <div>
       <div style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>Plan · {done}/{turn.tasks.length} tasks</div>
@@ -154,8 +163,29 @@ function CompoundCard({ turn, onOpenTicket, onOpenCockpit, onFollowUp }) {
               <span style={{ fontSize: 9, fontFamily: M, color: C.t4 }}>{i + 1}</span>
               <span style={{ fontSize: 13, fontWeight: 600, color: C.t1 }}>{task.title}</span>
             </div>
-            <div style={{ paddingLeft: 4 }}>{task.steps.map((s) => <StepRow key={s.key} step={s} />)}</div>
+
+            {/* Governed tool proposal — awaits the human Approve keystroke. */}
+            {task.tool && task.state === "awaiting" ? (
+              <div style={{ border: `1px solid ${C.am}55`, background: C.amG, borderRadius: 10, padding: "10px 12px" }}>
+                <div style={{ fontSize: 9, fontFamily: M, color: C.am, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 5 }}>Proposed action · needs your approval</div>
+                <div style={{ fontSize: 12.5, color: C.t1, marginBottom: 10 }}>{task.tool.argsSummary}</div>
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <button type="button" onClick={() => onApprove(task)} style={primaryBtn}>Approve &amp; run →</button>
+                  <button type="button" onClick={() => onFileInstead(task)} style={ghostBtn}>File as ticket instead</button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ paddingLeft: 4 }}>{task.steps.map((s) => <StepRow key={s.key} step={s} />)}</div>
+            )}
+
             {task.error && <div style={{ marginTop: 8, color: C.rd, fontFamily: M, fontSize: 12, background: C.rdG, border: `1px solid ${C.rd}44`, borderRadius: 8, padding: "8px 10px" }}>⚠ {task.error}</div>}
+            {task.toolResult && (
+              <div style={{ marginTop: 10, border: `1px solid ${C.br}`, borderRadius: 10, background: C.bg, padding: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                <span style={{ fontSize: 13, fontFamily: SR }}>Created {task.toolResult.resourceLabel}</span>
+                <span style={{ fontSize: 9, fontFamily: M, color: C.gn, border: `1px solid ${C.gn}`, borderRadius: 4, padding: "1px 7px", letterSpacing: 0.5, textTransform: "uppercase" }}>{task.toolResult.label}</span>
+                <button type="button" onClick={() => onOpenNav(task.toolResult.navigate)} style={{ ...primaryBtn, marginLeft: "auto" }}>Open →</button>
+              </div>
+            )}
             {task.result && <ResultCard result={task.result} onOpenTicket={onOpenTicket} onOpenCockpit={onOpenCockpit} onFollowUp={onFollowUp} onAsk={null} />}
           </div>
         ))}
@@ -262,7 +292,7 @@ function WorkspaceRail({ turns, onOpenTicket, onNavigate }) {
       { label: "Understanding your question", state: "done" },
       { label: last.answerLoading ? "Answering" : "Answered", state: last.answerLoading ? "active" : "done" },
     ];
-    if (last.kind === "compound") return last.tasks.map((tk) => ({ label: tk.title, state: tk.error ? "error" : tk.result ? "done" : tk.state === "running" ? "active" : "pending" }));
+    if (last.kind === "compound") return last.tasks.map((tk) => ({ label: tk.title, state: tk.error ? "error" : (tk.result || tk.toolResult) ? "done" : (tk.state === "running" || tk.state === "awaiting") ? "active" : "pending" }));
     return last.steps.map((s) => ({ label: s.label, state: s.state }));
   })();
 
@@ -274,6 +304,11 @@ function WorkspaceRail({ turns, onOpenTicket, onNavigate }) {
       artifacts.push({ kind: "ticket", label: r.ticketId, sub: r.classification?.category || "Intake ticket", onClick: () => onOpenTicket(r.ticketId) });
       for (const m of (r.spawned?.matters || [])) artifacts.push({ kind: "matter", label: m.title || m.number || m.id || "Matter", sub: "Matter", onClick: onNavigate ? () => onNavigate("matters") : null });
       for (const c of (r.spawned?.contracts || [])) artifacts.push({ kind: "contract", label: c.title || c.id || "Contract", sub: "Contract", onClick: onNavigate ? () => onNavigate("contracts") : null });
+    }
+    // Governed tool results (OL-2): a created matter/DSAR/etc.
+    if (t.kind === "compound") for (const tk of t.tasks) if (tk.toolResult) {
+      const nav = tk.toolResult.navigate;
+      artifacts.push({ kind: nav === "matters" ? "matter" : nav === "contracts" ? "contract" : "ticket", label: tk.toolResult.resourceLabel, sub: tk.toolResult.label, onClick: onNavigate ? () => onNavigate(nav) : null });
     }
   }
 
@@ -462,13 +497,40 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
 
   const runFile = useCallback((turnId, text) => execRequest(text, sinkTurn(turnId)), [execRequest, sinkTurn]);
 
-  // Compound: run each task sequentially into its own slot of the turn.
+  // Compound: run each task into its own slot. Tasks with a governed tool
+  // proposal WAIT for the human Approve keystroke; the rest run the intake
+  // pipeline immediately.
   const runCompound = useCallback(async (turnId, tasks) => {
     for (const task of tasks) {
+      if (task.tool) { patchTask(turnId, task.id, { state: "awaiting" }); continue; }
       patchTask(turnId, task.id, { state: "running" });
       await execRequest(task.request, sinkTask(turnId, task.id));
       patchTask(turnId, task.id, { state: "done" });
     }
+  }, [execRequest, sinkTask, patchTask]);
+
+  // Human approved a proposed tool → execute it via the governed act route,
+  // which writes the AgentDecision + chain-sealed audit.
+  const approveTask = useCallback(async (turnId, task) => {
+    patchTask(turnId, task.id, { state: "running" });
+    patchTaskStep(turnId, task.id, "read", "done");
+    patchTaskStep(turnId, task.id, "classify", "done", `→ ${task.tool.label}`);
+    patchTaskStep(turnId, task.id, "route", "done");
+    patchTaskStep(turnId, task.id, "file", "active");
+    try {
+      const r = await fetch("/api/one-legal/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ toolId: task.tool.id, text: task.request }) });
+      const d = await r.json();
+      if (!r.ok || !d.ok) { patchTaskStep(turnId, task.id, "file", "error"); patchTask(turnId, task.id, { error: d.error || "Action failed", state: "done" }); return; }
+      patchTaskStep(turnId, task.id, "file", "done", `→ ${d.resourceLabel}`);
+      patchTaskStep(turnId, task.id, "done", "done");
+      patchTask(turnId, task.id, { toolResult: d, state: "done" });
+    } catch (e) { patchTaskStep(turnId, task.id, "file", "error"); patchTask(turnId, task.id, { error: String(e.message || e), state: "done" }); }
+  }, [patchTask, patchTaskStep]);
+
+  // Human declined the tool → fall back to filing the task as an intake ticket.
+  const fileTaskAsTicket = useCallback((turnId, task) => {
+    patchTask(turnId, task.id, { tool: null, state: "running" });
+    execRequest(task.request, sinkTask(turnId, task.id)).then(() => patchTask(turnId, task.id, { state: "done" }));
   }, [execRequest, sinkTask, patchTask]);
 
   // Answer a QUESTION — capability overview (built-in) or a model answer that
@@ -503,11 +565,15 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     try {
       const r = await fetch("/api/one-legal/plan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
       const d = await r.json();
-      if (r.ok && d.ok && Array.isArray(d.tasks) && d.tasks.length > 1) tasks = d.tasks;
+      if (r.ok && d.ok && Array.isArray(d.tasks) && d.tasks.length >= 1) tasks = d.tasks;
     } catch { /* planner unavailable → single turn */ }
     if (!tasks) { fileRequest(text); return; }
+    // Compound window when there are several tasks, or any task proposes a
+    // governed tool worth surfacing for approval.
+    const shouldCompound = tasks.length > 1 || tasks.some((tk) => tk.tool);
+    if (!shouldCompound) { fileRequest(text); return; }
     const id = ++TURN_SEQ;
-    const taskObjs = tasks.slice(0, 5).map((tk, i) => ({ id: `${id}-${i}`, title: tk.title || `Task ${i + 1}`, request: tk.request || text, steps: baseSteps(), result: null, error: null, state: "pending" }));
+    const taskObjs = tasks.slice(0, 5).map((tk, i) => ({ id: `${id}-${i}`, title: tk.title || `Task ${i + 1}`, request: tk.request || text, tool: tk.tool || null, steps: baseSteps(), result: null, toolResult: null, error: null, state: "pending" }));
     setTurns((ts) => [...ts, { id, kind: "compound", request: text, tasks: taskObjs }]);
     runCompound(id, taskObjs);
   }, [fileRequest, runCompound]);
@@ -519,7 +585,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     if (t.length < 3) return;
     const intent = classifyIntent(t);
     setInput("");
-    if (intent === "file") { if (looksCompound(t)) planAndRun(t); else fileRequest(t); return; }
+    if (intent === "file") { if (looksCompound(t) || looksToolish(t)) planAndRun(t); else fileRequest(t); return; }
     const id = ++TURN_SEQ;
     const capability = intent === "capability";
     setTurns((ts) => [...ts, { id, kind: "ask", request: t, answer: null, answerLoading: !capability, answerError: null, capability }]);
@@ -576,11 +642,21 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   }, [onClose, onNavigate]);
 
   const focusComposer = useCallback(() => inputRef.current?.focus(), []);
+  // Navigate to a module (used by tool results, e.g. "Open matter").
+  const goModule = useCallback((view) => {
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.set("view", view);
+      window.history.replaceState({}, "", u);
+    } catch { /* URL API unavailable */ }
+    if (onClose) onClose();
+    if (onNavigate) onNavigate(view);
+  }, [onClose, onNavigate]);
   const handleAsk = onAsk ? () => { if (onClose) onClose(); onAsk(); } : null;
 
   if (!isOpen) return null;
 
-  const busy = turns.some((t) => t.kind === "ask" ? t.answerLoading : t.kind === "compound" ? t.tasks.some((tk) => !tk.result && !tk.error) : (!t.result && !t.error));
+  const busy = turns.some((t) => t.kind === "ask" ? t.answerLoading : t.kind === "compound" ? t.tasks.some((tk) => tk.state === "running") : (!t.result && !t.error));
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const firstName = (me?.name || "").trim().split(/\s+/)[0] || "";
@@ -663,7 +739,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
                       {t.kind === "ask" ? (
                         <AnswerCard turn={t} onExample={startTurn} onFileInstead={fileRequest} onAsk={handleAsk} />
                       ) : t.kind === "compound" ? (
-                        <CompoundCard turn={t} onOpenTicket={goIntake} onOpenCockpit={() => goIntake(null)} onFollowUp={focusComposer} />
+                        <CompoundCard turn={t} onOpenTicket={goIntake} onOpenCockpit={() => goIntake(null)} onFollowUp={focusComposer} onApprove={(task) => approveTask(t.id, task)} onFileInstead={(task) => fileTaskAsTicket(t.id, task)} onOpenNav={goModule} />
                       ) : (
                         <>
                           <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: "14px 16px" }}>

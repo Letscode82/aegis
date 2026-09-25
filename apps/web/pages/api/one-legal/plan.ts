@@ -17,6 +17,7 @@ import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
 import { callClaudeJSON } from "@aegis/ai";
 import { ensureServerClaudeTransport } from "@aegis/ai/server";
+import { toolProposalFor } from "../../../lib/one-legal/tools";
 
 type Task = { title: string; request: string };
 
@@ -85,7 +86,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (!tasks) tasks = deterministicSplit(text);
-    return res.status(200).json({ ok: true, tasks });
+    // Attach a governed tool proposal to each task where one applies (display
+    // only — execution happens via /api/one-legal/act after human Approve).
+    const withTools = tasks.map((tk) => ({ ...tk, tool: toolProposalFor(tk.request) }));
+    return res.status(200).json({ ok: true, tasks: withTools });
   } catch (err) {
     if (err instanceof AccessDeniedError) return res.status(403).json({ ok: false, error: err.decision.message });
     return res.status(400).json({ ok: false, error: String((err as Error).message || err) });
