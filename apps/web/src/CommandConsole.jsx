@@ -53,6 +53,18 @@ function classifyIntent(text) {
   return "file";
 }
 
+// Conservative check for whether a request might contain several asks — used
+// to decide when to pay the /plan round-trip. Simple requests skip it.
+function looksCompound(text) {
+  const t = text.trim();
+  if (/\n/.test(t)) return true;
+  if (/(^|\s)(?:\d+[.)]|[-*•])\s/.test(t)) return true;
+  if (/;/.test(t)) return true;
+  if (t.length > 60 && /\b(and also|and then|then|plus|also)\b/i.test(t)) return true;
+  if (t.length > 80 && /\band\b/i.test(t)) return true;
+  return false;
+}
+
 function baseSteps() {
   return [
     { key: "read", label: "Reading your request", state: "pending", detail: null },
@@ -115,6 +127,38 @@ function ResultCard({ result, onOpenTicket, onOpenCockpit, onFollowUp, onAsk }) 
         <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase" }}>Next</span>
         <button type="button" onClick={onFollowUp} style={chipBtn}>File a related request</button>
         {onAsk && <button type="button" onClick={onAsk} style={chipBtn}>◎ Ask Aurora about this</button>}
+      </div>
+    </div>
+  );
+}
+
+// Compound execution window — a request decomposed into several tasks, each
+// running the governed pipeline in its own slot (Cowork-style).
+function taskDot(task) {
+  if (task.error) return <span style={{ color: C.rd, fontSize: 13 }}>✕</span>;
+  if (task.result) return <span style={{ color: C.gn, fontSize: 13 }}>✓</span>;
+  if (task.state === "running") return <span style={{ width: 12, height: 12, borderRadius: "50%", border: `2px solid ${C.br}`, borderTopColor: C.em, display: "inline-block", animation: "sp .7s linear infinite" }} />;
+  return <span style={{ width: 9, height: 9, borderRadius: "50%", border: `1.5px solid ${C.br}`, display: "inline-block" }} />;
+}
+
+function CompoundCard({ turn, onOpenTicket, onOpenCockpit, onFollowUp }) {
+  const done = turn.tasks.filter((t) => t.result || t.error).length;
+  return (
+    <div>
+      <div style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>Plan · {done}/{turn.tasks.length} tasks</div>
+      <div style={{ display: "grid", gap: 12 }}>
+        {turn.tasks.map((task, i) => (
+          <div key={task.id} style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: "12px 14px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8 }}>
+              <span style={{ width: 16, display: "inline-flex", justifyContent: "center" }} aria-hidden="true">{taskDot(task)}</span>
+              <span style={{ fontSize: 9, fontFamily: M, color: C.t4 }}>{i + 1}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: C.t1 }}>{task.title}</span>
+            </div>
+            <div style={{ paddingLeft: 4 }}>{task.steps.map((s) => <StepRow key={s.key} step={s} />)}</div>
+            {task.error && <div style={{ marginTop: 8, color: C.rd, fontFamily: M, fontSize: 12, background: C.rdG, border: `1px solid ${C.rd}44`, borderRadius: 8, padding: "8px 10px" }}>⚠ {task.error}</div>}
+            {task.result && <ResultCard result={task.result} onOpenTicket={onOpenTicket} onOpenCockpit={onOpenCockpit} onFollowUp={onFollowUp} onAsk={null} />}
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -218,21 +262,25 @@ function WorkspaceRail({ turns, onOpenTicket, onNavigate }) {
       { label: "Understanding your question", state: "done" },
       { label: last.answerLoading ? "Answering" : "Answered", state: last.answerLoading ? "active" : "done" },
     ];
+    if (last.kind === "compound") return last.tasks.map((tk) => ({ label: tk.title, state: tk.error ? "error" : tk.result ? "done" : tk.state === "running" ? "active" : "pending" }));
     return last.steps.map((s) => ({ label: s.label, state: s.state }));
   })();
 
+  // Results produced across the session (single turns + compound tasks).
+  const resultsOf = (t) => t.kind === "file" && t.result ? [t.result] : t.kind === "compound" ? t.tasks.filter((tk) => tk.result).map((tk) => tk.result) : [];
   const artifacts = [];
   for (const t of turns) {
-    if (t.kind !== "file" || !t.result) continue;
-    artifacts.push({ kind: "ticket", label: t.result.ticketId, sub: t.result.classification?.category || "Intake ticket", onClick: () => onOpenTicket(t.result.ticketId) });
-    for (const m of (t.result.spawned?.matters || [])) artifacts.push({ kind: "matter", label: m.title || m.number || m.id || "Matter", sub: "Matter", onClick: onNavigate ? () => onNavigate("matters") : null });
-    for (const c of (t.result.spawned?.contracts || [])) artifacts.push({ kind: "contract", label: c.title || c.id || "Contract", sub: "Contract", onClick: onNavigate ? () => onNavigate("contracts") : null });
+    for (const r of resultsOf(t)) {
+      artifacts.push({ kind: "ticket", label: r.ticketId, sub: r.classification?.category || "Intake ticket", onClick: () => onOpenTicket(r.ticketId) });
+      for (const m of (r.spawned?.matters || [])) artifacts.push({ kind: "matter", label: m.title || m.number || m.id || "Matter", sub: "Matter", onClick: onNavigate ? () => onNavigate("matters") : null });
+      for (const c of (r.spawned?.contracts || [])) artifacts.push({ kind: "contract", label: c.title || c.id || "Contract", sub: "Contract", onClick: onNavigate ? () => onNavigate("contracts") : null });
+    }
   }
 
   let lastCat = null, lastRule = null;
-  for (let i = turns.length - 1; i >= 0; i--) {
-    const t = turns[i];
-    if (t.kind === "file" && t.result) { lastCat = t.result.classification?.category || null; lastRule = t.result.classification?.routingRule || null; break; }
+  for (let i = turns.length - 1; i >= 0 && !lastCat; i--) {
+    const rs = resultsOf(turns[i]);
+    if (rs.length) { const r = rs[rs.length - 1]; lastCat = r.classification?.category || null; lastRule = r.classification?.routingRule || null; }
   }
 
   const dot = (state) => state === "done" ? <span style={{ color: C.gn }}>✓</span>
@@ -318,58 +366,57 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     }));
   }, []);
 
-  const applyFrame = useCallback((turnId, frame) => {
-    if (frame.type === "step") {
-      if (frame.key === "dispatch") ensureDispatchStep(turnId);
-      patchStep(turnId, frame.key, frame.state, frame.detail);
-    } else if (frame.type === "result") {
-      patchTurn(turnId, { result: frame.result });
-    } else if (frame.type === "error") {
-      patchTurn(turnId, { error: frame.error });
-    }
-  }, [patchStep, patchTurn, ensureDispatchStep]);
+  // Task-scoped patchers for the compound (multi-task) execution window.
+  const patchTask = useCallback((turnId, taskId, patch) => {
+    setTurns((ts) => ts.map((t) => t.id !== turnId ? t : { ...t, tasks: t.tasks.map((tk) => tk.id === taskId ? { ...tk, ...patch } : tk) }));
+  }, []);
+  const patchTaskStep = useCallback((turnId, taskId, key, state, detail) => {
+    setTurns((ts) => ts.map((t) => t.id !== turnId ? t : { ...t, tasks: t.tasks.map((tk) => tk.id !== taskId ? tk : { ...tk, steps: tk.steps.map((s) => s.key === key ? { ...s, state, ...(detail !== undefined ? { detail } : {}) } : s) }) }));
+  }, []);
+  const ensureTaskDispatch = useCallback((turnId, taskId) => {
+    setTurns((ts) => ts.map((t) => t.id !== turnId ? t : { ...t, tasks: t.tasks.map((tk) => {
+      if (tk.id !== taskId || tk.steps.some((s) => s.key === "dispatch")) return tk;
+      const di = tk.steps.findIndex((s) => s.key === "done");
+      const at = di === -1 ? tk.steps.length : di;
+      return { ...tk, steps: [...tk.steps.slice(0, at), { key: "dispatch", label: "Dispatching to the module", state: "pending", detail: null }, ...tk.steps.slice(at)] };
+    }) }));
+  }, []);
 
-  // Synchronous fallback — mirrors the streamed plan over the one-shot route.
-  const runSync = useCallback(async (turnId, text) => {
+  // Deterministic sync fallback — mirrors the streamed plan over the one-shot
+  // route, driven into whatever "sink" the caller provides.
+  const execRequestSync = useCallback(async (text, on) => {
     const p = fetch("/api/intake/request", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) })
       .then((r) => r.json().then((d) => ({ ok: r.ok, d })));
-    await patchStep(turnId, "read", "active"); await wait(450); await patchStep(turnId, "read", "done");
-    await patchStep(turnId, "classify", "active"); await wait(600);
+    on.step("read", "active"); await wait(450); on.step("read", "done");
+    on.step("classify", "active"); await wait(600);
     let res;
-    try { res = await p; } catch (e) { patchStep(turnId, "classify", "error"); patchTurn(turnId, { error: String(e.message || e) }); return; }
-    if (!res.ok || !res.d.ok) { patchStep(turnId, "classify", "error"); patchTurn(turnId, { error: res.d?.error || "Request failed" }); return; }
+    try { res = await p; } catch (e) { on.step("classify", "error"); on.error(String(e.message || e)); return; }
+    if (!res.ok || !res.d.ok) { on.step("classify", "error"); on.error(res.d?.error || "Request failed"); return; }
     const d = res.d;
-    await patchStep(turnId, "classify", "done", `→ ${d.classification.category}`);
-    await patchStep(turnId, "route", "active"); await wait(500); await patchStep(turnId, "route", "done", `→ ${d.classification.team} · ${d.classification.priority}`);
-    await patchStep(turnId, "file", "active"); await wait(500); await patchStep(turnId, "file", "done", `→ ${d.ticketId}`);
+    on.step("classify", "done", `→ ${d.classification.category}`);
+    on.step("route", "active"); await wait(500); on.step("route", "done", `→ ${d.classification.team} · ${d.classification.priority}`);
+    on.step("file", "active"); await wait(500); on.step("file", "done", `→ ${d.ticketId}`);
     const spawnN = (d.spawned?.matters?.length || 0) + (d.spawned?.contracts?.length || 0);
-    if (spawnN > 0) {
-      ensureDispatchStep(turnId);
-      await patchStep(turnId, "dispatch", "active"); await wait(500);
-      await patchStep(turnId, "dispatch", "done", `→ ${d.spawned.matters.length} matter(s), ${d.spawned.contracts.length} contract(s)`);
-    }
-    await patchStep(turnId, "done", "active"); await wait(300); await patchStep(turnId, "done", "done");
-    patchTurn(turnId, { result: d });
-  }, [patchStep, patchTurn, ensureDispatchStep]);
+    if (spawnN > 0) { on.dispatch(); on.step("dispatch", "active"); await wait(500); on.step("dispatch", "done", `→ ${d.spawned.matters.length} matter(s), ${d.spawned.contracts.length} contract(s)`); }
+    on.step("done", "active"); await wait(300); on.step("done", "done");
+    on.result(d);
+  }, []);
 
-  // Stream the real pipeline over SSE — each step lights up as its server-side
-  // work completes. Parses `data:` frames off the fetch body reader.
-  const runFile = useCallback(async (turnId, text) => {
+  // One request → the governed intake pipeline (SSE), driven into a sink (a
+  // top-level turn, or one task of a compound turn). Falls back to sync.
+  const execRequest = useCallback(async (text, on) => {
     let response;
     try {
       response = await fetch("/api/intake/request-stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
-    } catch {
-      return runSync(turnId, text);
-    }
+    } catch { return execRequestSync(text, on); }
     const ctype = response.headers.get("content-type") || "";
     if (!response.ok || !response.body || !ctype.includes("text/event-stream")) {
       if (!response.ok) {
         let msg = "Request failed";
         try { const j = await response.json(); msg = j.error || msg; } catch { /* ignore */ }
-        patchStep(turnId, "classify", "error"); patchTurn(turnId, { error: msg });
-        return;
+        on.step("classify", "error"); on.error(msg); return;
       }
-      return runSync(turnId, text);
+      return execRequestSync(text, on);
     }
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -386,14 +433,43 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
           buffer = buffer.slice(idx + 2);
           const dataLine = frame.split("\n").find((l) => l.startsWith("data: "));
           if (!dataLine) continue;
-          try { applyFrame(turnId, JSON.parse(dataLine.slice(6))); sawFrame = true; } catch { /* skip malformed */ }
+          try {
+            const f = JSON.parse(dataLine.slice(6)); sawFrame = true;
+            if (f.type === "step") { if (f.key === "dispatch") on.dispatch(); on.step(f.key, f.state, f.detail); }
+            else if (f.type === "result") on.result(f.result);
+            else if (f.type === "error") on.error(f.error);
+          } catch { /* skip malformed */ }
         }
       }
     } catch (e) {
-      if (!sawFrame) return runSync(turnId, text);
-      patchTurn(turnId, { error: String(e.message || e) });
+      if (!sawFrame) return execRequestSync(text, on);
+      on.error(String(e.message || e));
     }
-  }, [runSync, applyFrame, patchStep, patchTurn]);
+  }, [execRequestSync]);
+
+  const sinkTurn = useCallback((turnId) => ({
+    step: (k, s, d) => patchStep(turnId, k, s, d),
+    dispatch: () => ensureDispatchStep(turnId),
+    result: (d) => patchTurn(turnId, { result: d }),
+    error: (m) => patchTurn(turnId, { error: m }),
+  }), [patchStep, ensureDispatchStep, patchTurn]);
+  const sinkTask = useCallback((turnId, taskId) => ({
+    step: (k, s, d) => patchTaskStep(turnId, taskId, k, s, d),
+    dispatch: () => ensureTaskDispatch(turnId, taskId),
+    result: (d) => patchTask(turnId, taskId, { result: d }),
+    error: (m) => patchTask(turnId, taskId, { error: m }),
+  }), [patchTaskStep, ensureTaskDispatch, patchTask]);
+
+  const runFile = useCallback((turnId, text) => execRequest(text, sinkTurn(turnId)), [execRequest, sinkTurn]);
+
+  // Compound: run each task sequentially into its own slot of the turn.
+  const runCompound = useCallback(async (turnId, tasks) => {
+    for (const task of tasks) {
+      patchTask(turnId, task.id, { state: "running" });
+      await execRequest(task.request, sinkTask(turnId, task.id));
+      patchTask(turnId, task.id, { state: "done" });
+    }
+  }, [execRequest, sinkTask, patchTask]);
 
   // Answer a QUESTION — capability overview (built-in) or a model answer that
   // degrades gracefully. Never files a ticket.
@@ -419,18 +495,36 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     runFile(id, t);
   }, [runFile]);
 
-  // Route a submission by intent: question → answer, else → file.
+  // Decompose a (likely-compound) request into tasks, then run them as a
+  // compound execution window. Falls back to a single turn when the planner
+  // returns one task (or is unavailable).
+  const planAndRun = useCallback(async (text) => {
+    let tasks = null;
+    try {
+      const r = await fetch("/api/one-legal/plan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+      const d = await r.json();
+      if (r.ok && d.ok && Array.isArray(d.tasks) && d.tasks.length > 1) tasks = d.tasks;
+    } catch { /* planner unavailable → single turn */ }
+    if (!tasks) { fileRequest(text); return; }
+    const id = ++TURN_SEQ;
+    const taskObjs = tasks.slice(0, 5).map((tk, i) => ({ id: `${id}-${i}`, title: tk.title || `Task ${i + 1}`, request: tk.request || text, steps: baseSteps(), result: null, error: null, state: "pending" }));
+    setTurns((ts) => [...ts, { id, kind: "compound", request: text, tasks: taskObjs }]);
+    runCompound(id, taskObjs);
+  }, [fileRequest, runCompound]);
+
+  // Route a submission by intent: question → answer; compound request → plan
+  // into tasks; single request → file.
   const startTurn = useCallback((text) => {
     const t = text.trim();
     if (t.length < 3) return;
     const intent = classifyIntent(t);
     setInput("");
-    if (intent === "file") { fileRequest(t); return; }
+    if (intent === "file") { if (looksCompound(t)) planAndRun(t); else fileRequest(t); return; }
     const id = ++TURN_SEQ;
     const capability = intent === "capability";
     setTurns((ts) => [...ts, { id, kind: "ask", request: t, answer: null, answerLoading: !capability, answerError: null, capability }]);
     runAsk(id, t, capability);
-  }, [fileRequest, runAsk]);
+  }, [fileRequest, planAndRun, runAsk]);
 
   // Auto-run a seeded request once when opened from the omnibox.
   useEffect(() => {
@@ -486,7 +580,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
 
   if (!isOpen) return null;
 
-  const busy = turns.some((t) => (t.kind === "ask" ? t.answerLoading : (!t.result && !t.error)));
+  const busy = turns.some((t) => t.kind === "ask" ? t.answerLoading : t.kind === "compound" ? t.tasks.some((tk) => !tk.result && !tk.error) : (!t.result && !t.error));
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const firstName = (me?.name || "").trim().split(/\s+/)[0] || "";
@@ -568,6 +662,8 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
                     <div style={{ minWidth: 0, flex: 1 }}>
                       {t.kind === "ask" ? (
                         <AnswerCard turn={t} onExample={startTurn} onFileInstead={fileRequest} onAsk={handleAsk} />
+                      ) : t.kind === "compound" ? (
+                        <CompoundCard turn={t} onOpenTicket={goIntake} onOpenCockpit={() => goIntake(null)} onFollowUp={focusComposer} />
                       ) : (
                         <>
                           <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: "14px 16px" }}>
