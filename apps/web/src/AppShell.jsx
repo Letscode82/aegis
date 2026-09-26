@@ -37,7 +37,7 @@ export default function App(){
   // the platform still runs underneath). Default "full" is unchanged.
   const PROFILE=resolveProfile();
   const isIntakeOnly=PROFILE==="intake";
-  const[view,setView]=useState(()=>initialViewFromUrl(isIntakeOnly?"intake":"mission"));
+  const[view,setView]=useState(()=>initialViewFromUrl(isIntakeOnly?"intake":"onelegal"));
   const[time,setTime]=useState(new Date());
   const{has,loading:authLoading}=useCurrentUser();
   useEffect(()=>{const t=setInterval(()=>setTime(new Date()),1000);return()=>clearInterval(t)},[]);

@@ -29,6 +29,14 @@ const EXAMPLES = [
   { icon: "▤", text: "Draft an SOW for outside counsel" },
 ];
 
+// Rotating one-liner shown as a pinned tip above the composer on the landing.
+const TIPS = [
+  "Describe a whole situation — “we’re being sued by Acme” — and I’ll break it into tasks.",
+  "Ask a question and I’ll answer it; only real requests get filed and routed.",
+  "I can open a matter, draft a contract, file a DSAR, or start a legal hold — you approve each action.",
+  "Every action I take is logged to the chain-sealed audit ledger and needs your approval.",
+];
+
 // What AEGIS can take on — the capability answer.
 const CAPABILITIES = [
   { k: "Intake & routing", v: "File any legal request in plain language — I classify it, apply your routing rules, and send it to the right desk." },
@@ -688,8 +696,6 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   if (!isOpen) return null;
 
   const busy = turns.some((t) => t.kind === "ask" ? t.answerLoading : t.kind === "compound" ? t.tasks.some((tk) => tk.state === "running") : (!t.result && !t.error));
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const firstName = (me?.name || "").trim().split(/\s+/)[0] || "";
 
   const composer = (big) => (
@@ -736,11 +742,17 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
         /* ── Landing (vertically + horizontally centered, Claude-style) ── */
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px" }}>
           <div style={{ maxWidth: 640, width: "100%", margin: "0 auto", textAlign: "center", animation: "ccIn .3s ease" }}>
-            <div style={{ fontSize: 30, marginBottom: 14, color: C.em }} aria-hidden="true">✦</div>
-            <div style={{ fontFamily: SR, fontSize: 34, lineHeight: 1.15, color: C.t1 }}>{greeting}{firstName ? `, ${firstName}` : ""}.</div>
-            <div style={{ fontFamily: SR, fontSize: 34, lineHeight: 1.15, color: C.t3, marginBottom: 16 }}>What do you need handled?</div>
-            <div style={{ fontSize: 13.5, color: C.t3, lineHeight: 1.6, marginBottom: 24, maxWidth: 520, marginLeft: "auto", marginRight: "auto" }}>
-              Describe a legal request and I&rsquo;ll plan it, file it, and route it — or just ask a question and I&rsquo;ll answer it. One front door for everything legal.
+            <div style={{ fontSize: 46, marginBottom: 18, color: C.em, lineHeight: 1 }} aria-hidden="true">✳</div>
+            <div style={{ fontFamily: SR, fontSize: 38, lineHeight: 1.12, color: C.t1, marginBottom: 6 }}>
+              {firstName ? `${firstName} returns.` : "Welcome to ONE Legal."}
+            </div>
+            <div style={{ fontSize: 13.5, color: C.t3, lineHeight: 1.6, marginBottom: 22, maxWidth: 520, marginLeft: "auto", marginRight: "auto" }}>
+              Your one front door for legal — describe a request and I&rsquo;ll plan, file, and route it, or just ask a question.
+            </div>
+            {/* Pinned tip (à la Cowork's pinned note above the composer). */}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, textAlign: "left", background: C.s2, border: `1px solid ${C.br}`, borderRadius: 12, padding: "10px 14px", marginBottom: 10, maxWidth: 640, marginLeft: "auto", marginRight: "auto" }}>
+              <span style={{ color: C.em, fontSize: 12 }} aria-hidden="true">✦</span>
+              <span style={{ fontSize: 12.5, color: C.t3, lineHeight: 1.5, flex: 1 }}>{TIPS[new Date().getHours() % TIPS.length]}</span>
             </div>
             {composer(true)}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 18, justifyContent: "center" }}>
