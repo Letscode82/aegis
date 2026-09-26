@@ -17,19 +17,24 @@
  * hold, DSAR, contract-draft tools follow the same shape.
  */
 import { Permission } from "@aegis/auth";
-import { createMatter, type MatterType } from "@aegis/matter";
+import { createMatter, createLegalHold, type MatterType } from "@aegis/matter";
 import { createContract } from "@aegis/contracts";
 import { createDsarRequest } from "@aegis/privacy";
 
 export interface OneLegalUser { id: string; organizationId: string }
 export interface ToolResult { resourceId: string; resourceLabel: string; label: string; navigate: string }
+/** Some tools act ON an existing resource (e.g. a legal hold needs a matter).
+ *  When set, the console renders a picker of that kind before Approve, and
+ *  passes the chosen id back as `targetId`. */
+export interface ToolTarget { kind: "matter"; label: string }
 export interface OneLegalTool<A> {
   id: string;
   label: string;
   kind: "write" | "read";
   permission: Permission;
   resourceType: string;
-  deriveArgs: (text: string) => A;
+  needsTarget?: ToolTarget;
+  deriveArgs: (text: string, targetId?: string) => A;
   summary: (args: A) => string;
   run: (args: A, user: OneLegalUser) => Promise<ToolResult>;
 }
@@ -130,11 +135,29 @@ const dsarCreate: OneLegalTool<DsarArgs> = {
   },
 };
 
+interface HoldArgs { matterId: string; title: string; scopeDescription: string }
+
+const legalHoldCreate: OneLegalTool<HoldArgs> = {
+  id: "matter.legalhold.create",
+  label: "Create a legal hold",
+  kind: "write",
+  permission: Permission.MatterLegalHoldIssue,
+  resourceType: "LegalHold",
+  needsTarget: { kind: "matter", label: "Matter" },
+  deriveArgs: (text, targetId) => ({ matterId: targetId || "", title: inferTitle(text) || "Legal hold", scopeDescription: text.replace(/\s+/g, " ").trim().slice(0, 500) }),
+  summary: (args) => `Create a legal hold on the selected matter — "${args.title}" (starts in DRAFT)`,
+  run: async (args, user) => {
+    const h = await createLegalHold({ matterId: args.matterId, title: args.title, scopeDescription: args.scopeDescription }, { id: user.id, organizationId: user.organizationId });
+    return { resourceId: h.id, resourceLabel: h.title || h.id, label: "Legal hold · DRAFT", navigate: "matters" };
+  },
+};
+
 // The registry. Keyed by tool id.
 export const TOOLS: Record<string, OneLegalTool<unknown>> = {
   [matterCreate.id]: matterCreate as OneLegalTool<unknown>,
   [contractDraft.id]: contractDraft as OneLegalTool<unknown>,
   [dsarCreate.id]: dsarCreate as OneLegalTool<unknown>,
+  [legalHoldCreate.id]: legalHoldCreate as OneLegalTool<unknown>,
 };
 
 export function getTool(id: string): OneLegalTool<unknown> | undefined {
@@ -150,15 +173,16 @@ export function selectToolId(text: string): string | null {
   // (a review, not a create) falls through to the intake pipeline.
   if (/\b(draft|create|prepare|author|generate|write|new)\b[^.]*\b(nda|msa|sow|dpa|contract|agreement|licen[cs]e)\b/.test(t)) return "contracts.draft";
   if (/\bdsar\b|data subject (access|request|erasure)|right to (be forgotten|erasure|access)|(access|erasure|deletion) request/.test(t)) return "privacy.dsar.create";
+  if (/\b(legal hold|litigation hold|preservation hold)\b|\bput\b[^.]*\bon hold\b|\bhold\b[^.]*\b(custodian|deal team|documents|evidence)\b|\bpreserve\b[^.]*\b(documents|evidence|data)\b/.test(t)) return "matter.legalhold.create";
   return null;
 }
 
 /** A display-only proposal for the console (no execution). */
-export function toolProposalFor(text: string): { id: string; label: string; argsSummary: string } | null {
+export function toolProposalFor(text: string): { id: string; label: string; argsSummary: string; needsTarget?: ToolTarget } | null {
   const id = selectToolId(text);
   if (!id) return null;
   const tool = TOOLS[id];
   if (!tool) return null;
   const args = tool.deriveArgs(text);
-  return { id, label: tool.label, argsSummary: tool.summary(args) };
+  return { id, label: tool.label, argsSummary: tool.summary(args), needsTarget: tool.needsTarget };
 }

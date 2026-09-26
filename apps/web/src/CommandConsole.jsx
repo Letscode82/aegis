@@ -72,7 +72,8 @@ function looksToolish(text) {
   const t = text.trim().toLowerCase();
   return /\b(open|start|create|file|spin up)\b[^.]*\bmatter\b/.test(t) || /\bmatter\b[^.]*\b(for|on)\b/.test(t) || /\b(sued|lawsuit|litigation matter)\b/.test(t)
     || /\b(draft|create|prepare|author|generate|write|new)\b[^.]*\b(nda|msa|sow|dpa|contract|agreement|licen[cs]e)\b/.test(t)
-    || /\bdsar\b|data subject (access|request|erasure)|right to (be forgotten|erasure|access)|(access|erasure|deletion) request/.test(t);
+    || /\bdsar\b|data subject (access|request|erasure)|right to (be forgotten|erasure|access)|(access|erasure|deletion) request/.test(t)
+    || /\b(legal hold|litigation hold|preservation hold)\b|\bput\b[^.]*\bon hold\b|\bpreserve\b[^.]*\b(documents|evidence|data)\b/.test(t);
 }
 
 function baseSteps() {
@@ -152,6 +153,40 @@ function taskDot(task) {
   return <span style={{ width: 9, height: 9, borderRadius: "50%", border: `1.5px solid ${C.br}`, display: "inline-block" }} />;
 }
 
+// Picker for a tool that acts on an existing resource (e.g. choose the matter
+// a legal hold attaches to). Fetches options lazily from /targets.
+function TargetPicker({ kind, value, onChange }) {
+  const [opts, setOpts] = useState(null);
+  useEffect(() => {
+    let live = true;
+    fetch(`/api/one-legal/targets?kind=${encodeURIComponent(kind)}`).then((r) => r.json()).then((d) => { if (live) setOpts(d.ok ? (d.items || []) : []); }).catch(() => { if (live) setOpts([]); });
+    return () => { live = false; };
+  }, [kind]);
+  return (
+    <select value={value} onChange={(e) => onChange(e.target.value)} style={{ width: "100%", marginBottom: 10, background: C.cd, border: `1px solid ${C.brL}`, borderRadius: 8, color: C.t1, fontFamily: F, fontSize: 12.5, padding: "8px 10px" }}>
+      <option value="">{opts === null ? "Loading…" : opts.length ? "Select a matter…" : "No matters found"}</option>
+      {(opts || []).map((o) => <option key={o.id} value={o.id}>{o.label}</option>)}
+    </select>
+  );
+}
+
+function ToolProposal({ task, onApprove, onFileInstead }) {
+  const [targetId, setTargetId] = useState("");
+  const needs = task.tool.needsTarget;
+  const ready = !needs || !!targetId;
+  return (
+    <div style={{ border: `1px solid ${C.am}55`, background: C.amG, borderRadius: 10, padding: "10px 12px" }}>
+      <div style={{ fontSize: 9, fontFamily: M, color: C.am, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 5 }}>Proposed action · needs your approval</div>
+      <div style={{ fontSize: 12.5, color: C.t1, marginBottom: 10 }}>{task.tool.argsSummary}</div>
+      {needs && <TargetPicker kind={needs.kind} value={targetId} onChange={setTargetId} />}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+        <button type="button" onClick={() => onApprove(task, targetId)} disabled={!ready} style={{ ...primaryBtn, opacity: ready ? 1 : 0.5 }}>Approve &amp; run →</button>
+        <button type="button" onClick={() => onFileInstead(task)} style={ghostBtn}>File as ticket instead</button>
+      </div>
+    </div>
+  );
+}
+
 function CompoundCard({ turn, onOpenTicket, onOpenCockpit, onFollowUp, onApprove, onFileInstead, onOpenNav }) {
   const done = turn.tasks.filter((t) => t.result || t.toolResult || t.error).length;
   return (
@@ -168,14 +203,7 @@ function CompoundCard({ turn, onOpenTicket, onOpenCockpit, onFollowUp, onApprove
 
             {/* Governed tool proposal — awaits the human Approve keystroke. */}
             {task.tool && task.state === "awaiting" ? (
-              <div style={{ border: `1px solid ${C.am}55`, background: C.amG, borderRadius: 10, padding: "10px 12px" }}>
-                <div style={{ fontSize: 9, fontFamily: M, color: C.am, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 5 }}>Proposed action · needs your approval</div>
-                <div style={{ fontSize: 12.5, color: C.t1, marginBottom: 10 }}>{task.tool.argsSummary}</div>
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                  <button type="button" onClick={() => onApprove(task)} style={primaryBtn}>Approve &amp; run →</button>
-                  <button type="button" onClick={() => onFileInstead(task)} style={ghostBtn}>File as ticket instead</button>
-                </div>
-              </div>
+              <ToolProposal task={task} onApprove={onApprove} onFileInstead={onFileInstead} />
             ) : (
               <div style={{ paddingLeft: 4 }}>{task.steps.map((s) => <StepRow key={s.key} step={s} />)}</div>
             )}
@@ -512,15 +540,16 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   }, [execRequest, sinkTask, patchTask]);
 
   // Human approved a proposed tool → execute it via the governed act route,
-  // which writes the AgentDecision + chain-sealed audit.
-  const approveTask = useCallback(async (turnId, task) => {
+  // which writes the AgentDecision + chain-sealed audit. `targetId` is the
+  // chosen resource for tools that act on one (e.g. a legal hold's matter).
+  const approveTask = useCallback(async (turnId, task, targetId) => {
     patchTask(turnId, task.id, { state: "running" });
     patchTaskStep(turnId, task.id, "read", "done");
     patchTaskStep(turnId, task.id, "classify", "done", `→ ${task.tool.label}`);
     patchTaskStep(turnId, task.id, "route", "done");
     patchTaskStep(turnId, task.id, "file", "active");
     try {
-      const r = await fetch("/api/one-legal/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ toolId: task.tool.id, text: task.request }) });
+      const r = await fetch("/api/one-legal/act", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ toolId: task.tool.id, text: task.request, targetId: targetId || null }) });
       const d = await r.json();
       if (!r.ok || !d.ok) { patchTaskStep(turnId, task.id, "file", "error"); patchTask(turnId, task.id, { error: d.error || "Action failed", state: "done" }); return; }
       patchTaskStep(turnId, task.id, "file", "done", `→ ${d.resourceLabel}`);
@@ -741,7 +770,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
                       {t.kind === "ask" ? (
                         <AnswerCard turn={t} onExample={startTurn} onFileInstead={fileRequest} onAsk={handleAsk} />
                       ) : t.kind === "compound" ? (
-                        <CompoundCard turn={t} onOpenTicket={goIntake} onOpenCockpit={() => goIntake(null)} onFollowUp={focusComposer} onApprove={(task) => approveTask(t.id, task)} onFileInstead={(task) => fileTaskAsTicket(t.id, task)} onOpenNav={goModule} />
+                        <CompoundCard turn={t} onOpenTicket={goIntake} onOpenCockpit={() => goIntake(null)} onFollowUp={focusComposer} onApprove={(task, targetId) => approveTask(t.id, task, targetId)} onFileInstead={(task) => fileTaskAsTicket(t.id, task)} onOpenNav={goModule} />
                       ) : (
                         <>
                           <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: "14px 16px" }}>

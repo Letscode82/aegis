@@ -26,18 +26,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!user) return res.status(401).json({ ok: false, error: "Not authenticated" });
 
   try {
-    const body = (req.body || {}) as { toolId?: string; text?: string };
+    const body = (req.body || {}) as { toolId?: string; text?: string; targetId?: string };
     const toolId = String(body.toolId || "");
     const text = String(body.text || "").trim();
+    const targetId = body.targetId ? String(body.targetId) : undefined;
     const tool = getTool(toolId);
     if (!tool) return res.status(400).json({ ok: false, error: `Unknown tool: ${toolId}` });
     if (text.length < 3) return res.status(400).json({ ok: false, error: "Missing request text." });
+    if (tool.needsTarget && !targetId) return res.status(400).json({ ok: false, error: `Select a ${tool.needsTarget.label.toLowerCase()} first.` });
 
     // Permission gate for this specific action.
     assertUserCanDo(user, tool.permission);
 
     // Args are derived server-side — the client cannot smuggle its own.
-    const args = tool.deriveArgs(text);
+    const args = tool.deriveArgs(text, targetId);
     const result = await tool.run(args, { id: user.id, organizationId: user.organizationId });
 
     // Evidence record: a human-approved AgentDecision governing this action,
