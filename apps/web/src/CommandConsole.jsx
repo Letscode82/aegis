@@ -81,7 +81,8 @@ function looksToolish(text) {
   return /\b(open|start|create|file|spin up)\b[^.]*\bmatter\b/.test(t) || /\bmatter\b[^.]*\b(for|on)\b/.test(t) || /\b(sued|lawsuit|litigation matter)\b/.test(t)
     || /\b(draft|create|prepare|author|generate|write|new)\b[^.]*\b(nda|msa|sow|dpa|contract|agreement|licen[cs]e)\b/.test(t)
     || /\bdsar\b|data subject (access|request|erasure)|right to (be forgotten|erasure|access)|(access|erasure|deletion) request/.test(t)
-    || /\b(legal hold|litigation hold|preservation hold)\b|\bput\b[^.]*\bon hold\b|\bpreserve\b[^.]*\b(documents|evidence|data)\b/.test(t);
+    || /\b(legal hold|litigation hold|preservation hold)\b|\bput\b[^.]*\bon hold\b|\bpreserve\b[^.]*\b(documents|evidence|data)\b/.test(t)
+    || /\b(invoice|bill|legal spend)\b[^.]*\b(review|audit|check|scrub)\b|\breview\b[^.]*\b(invoice|bill)\b/.test(t);
 }
 
 function baseSteps() {
@@ -539,12 +540,14 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   // proposal WAIT for the human Approve keystroke; the rest run the intake
   // pipeline immediately.
   const runCompound = useCallback(async (turnId, tasks) => {
-    for (const task of tasks) {
-      if (task.tool) { patchTask(turnId, task.id, { state: "awaiting" }); continue; }
+    // Independent (non-tool) tasks run in PARALLEL (Cowork-style sub-agents);
+    // tool tasks wait for the human Approve keystroke.
+    await Promise.all(tasks.map(async (task) => {
+      if (task.tool) { patchTask(turnId, task.id, { state: "awaiting" }); return; }
       patchTask(turnId, task.id, { state: "running" });
       await execRequest(task.request, sinkTask(turnId, task.id));
       patchTask(turnId, task.id, { state: "done" });
-    }
+    }));
   }, [execRequest, sinkTask, patchTask]);
 
   // Human approved a proposed tool → execute it via the governed act route,

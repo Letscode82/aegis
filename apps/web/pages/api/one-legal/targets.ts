@@ -7,6 +7,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
 import { listMattersByOrganization } from "@aegis/matter";
+import { getSpendOverview } from "@aegis/spend";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
@@ -22,6 +23,12 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       assertUserCanDo(user, Permission.MatterReadAll);
       const page = await listMattersByOrganization(user.organizationId, {});
       const items = (page.rows || []).map((m) => ({ id: m.id, label: `${m.matterNumber ? m.matterNumber + " · " : ""}${m.title}` }));
+      return res.status(200).json({ ok: true, items });
+    }
+    if (kind === "invoice") {
+      assertUserCanDo(user, Permission.SpendReadAll);
+      const overview = await getSpendOverview(user.organizationId);
+      const items = (overview.invoices || []).map((i) => ({ id: i.id, label: `${i.vendorName} · ${i.currency} ${i.amount} · ${i.status}` }));
       return res.status(200).json({ ok: true, items });
     }
     return res.status(400).json({ ok: false, error: `Unknown target kind: ${kind}` });
