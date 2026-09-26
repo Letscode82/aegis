@@ -20,13 +20,14 @@ import { Permission } from "@aegis/auth";
 import { createMatter, createLegalHold, type MatterType } from "@aegis/matter";
 import { createContract } from "@aegis/contracts";
 import { createDsarRequest } from "@aegis/privacy";
+import { runAndPersistReview } from "@aegis/spend";
 
 export interface OneLegalUser { id: string; organizationId: string }
 export interface ToolResult { resourceId: string; resourceLabel: string; label: string; navigate: string }
 /** Some tools act ON an existing resource (e.g. a legal hold needs a matter).
  *  When set, the console renders a picker of that kind before Approve, and
  *  passes the chosen id back as `targetId`. */
-export interface ToolTarget { kind: "matter"; label: string }
+export interface ToolTarget { kind: "matter" | "invoice"; label: string }
 export interface OneLegalTool<A> {
   id: string;
   label: string;
@@ -152,12 +153,30 @@ const legalHoldCreate: OneLegalTool<HoldArgs> = {
   },
 };
 
+interface InvoiceArgs { invoiceId: string }
+
+const invoiceReview: OneLegalTool<InvoiceArgs> = {
+  id: "spend.invoice.review",
+  label: "Run an invoice review",
+  kind: "write",
+  permission: Permission.SpendReadAll,
+  resourceType: "Invoice",
+  needsTarget: { kind: "invoice", label: "Invoice" },
+  deriveArgs: (_text, targetId) => ({ invoiceId: targetId || "" }),
+  summary: () => "Run the AI + deterministic billing-guideline review on the selected invoice",
+  run: async (args, user) => {
+    await runAndPersistReview(user.organizationId, args.invoiceId, user.id);
+    return { resourceId: args.invoiceId, resourceLabel: args.invoiceId, label: "Invoice review", navigate: "spend" };
+  },
+};
+
 // The registry. Keyed by tool id.
 export const TOOLS: Record<string, OneLegalTool<unknown>> = {
   [matterCreate.id]: matterCreate as OneLegalTool<unknown>,
   [contractDraft.id]: contractDraft as OneLegalTool<unknown>,
   [dsarCreate.id]: dsarCreate as OneLegalTool<unknown>,
   [legalHoldCreate.id]: legalHoldCreate as OneLegalTool<unknown>,
+  [invoiceReview.id]: invoiceReview as OneLegalTool<unknown>,
 };
 
 export function getTool(id: string): OneLegalTool<unknown> | undefined {
@@ -174,6 +193,7 @@ export function selectToolId(text: string): string | null {
   if (/\b(draft|create|prepare|author|generate|write|new)\b[^.]*\b(nda|msa|sow|dpa|contract|agreement|licen[cs]e)\b/.test(t)) return "contracts.draft";
   if (/\bdsar\b|data subject (access|request|erasure)|right to (be forgotten|erasure|access)|(access|erasure|deletion) request/.test(t)) return "privacy.dsar.create";
   if (/\b(legal hold|litigation hold|preservation hold)\b|\bput\b[^.]*\bon hold\b|\bhold\b[^.]*\b(custodian|deal team|documents|evidence)\b|\bpreserve\b[^.]*\b(documents|evidence|data)\b/.test(t)) return "matter.legalhold.create";
+  if (/\b(invoice|bill|legal spend)\b[^.]*\b(review|audit|check|scrub)\b|\breview\b[^.]*\b(invoice|bill)\b/.test(t)) return "spend.invoice.review";
   return null;
 }
 
