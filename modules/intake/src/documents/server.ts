@@ -29,6 +29,7 @@ import {
   DocumentParseError,
   type DocumentFormat,
 } from "@aegis/documents";
+import { indexResource } from "@aegis/search";
 
 export { UnsupportedDocumentFormatError, DocumentParseError };
 
@@ -141,6 +142,12 @@ export async function ingestIntakeDocument(
     },
     metadata: { source: "intake-upload" },
   });
+
+  // K1.2 — best-effort semantic indexing. No-op without pgvector + an
+  // embedding provider; must never fail an upload.
+  try {
+    await indexResource({ organizationId: org.id, ownerType: "DOCUMENT", ownerId: doc.id, documentId: doc.id, text });
+  } catch { /* indexing is best-effort */ }
 
   return {
     documentId: doc.id,
