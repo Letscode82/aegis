@@ -24,6 +24,7 @@ import {
   DocumentOwnerType,
 } from "@aegis/db";
 import { extractDocumentText, type DocumentFormat } from "@aegis/documents";
+import { indexResource } from "@aegis/search";
 import { DocumentParseError, DocumentTooLargeError } from "./server";
 import type { IngestDocumentResult } from "./server";
 
@@ -179,6 +180,12 @@ export async function finalizeBlobDocument(
     },
     metadata: { source: "intake-upload-direct" },
   });
+
+  // K1.2 — best-effort semantic indexing. No-op without pgvector + an
+  // embedding provider; must never fail an upload.
+  try {
+    await indexResource({ organizationId: org.id, ownerType: "DOCUMENT", ownerId: doc.id, documentId: doc.id, text });
+  } catch { /* indexing is best-effort */ }
 
   return {
     documentId: doc.id,

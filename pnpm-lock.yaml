@@ -209,6 +209,9 @@ importers:
       '@aegis/observability':
         specifier: workspace:*
         version: link:../../packages/observability
+      '@aegis/search':
+        specifier: workspace:*
+        version: link:../../packages/search
       '@aegis/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -258,6 +261,9 @@ importers:
       '@aegis/review':
         specifier: workspace:*
         version: link:../../packages/review
+      '@aegis/search':
+        specifier: workspace:*
+        version: link:../../packages/search
       '@aegis/spend':
         specifier: workspace:*
         version: link:../spend
@@ -643,6 +649,9 @@ importers:
       eslint:
         specifier: ^8.57.1
         version: 8.57.1
+      tsx:
+        specifier: ^4.19.2
+        version: 4.21.0
       typescript:
         specifier: 5.6.3
         version: 5.6.3

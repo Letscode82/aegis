@@ -12,6 +12,7 @@
  *     marker. Every save is chain-sealed.
  */
 import { prisma, logAudit } from "@aegis/db";
+import { indexResource } from "@aegis/search";
 
 const ARTIFACT_PREFIX = "inline://artifact/";
 
@@ -137,5 +138,10 @@ export async function createMatterArtifact(
     afterJson: { name, sourcePrompt: input.sourcePrompt ?? null } as never,
     metadata: { source: "workspace-assistant" } as never,
   });
+  // K1.2 — best-effort semantic indexing. No-op without pgvector + an
+  // embedding provider; must never fail artifact creation.
+  try {
+    await indexResource({ organizationId, ownerType: "DOCUMENT", ownerId: row.id, documentId: row.id, text: content });
+  } catch { /* indexing is best-effort */ }
   return { id: row.id };
 }

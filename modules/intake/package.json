@@ -59,6 +59,7 @@
     "@aegis/db": "workspace:*",
     "@aegis/matter": "workspace:*",
     "@aegis/observability": "workspace:*",
+    "@aegis/search": "workspace:*",
     "@aegis/ui": "workspace:*",
     "@aegis/workflow": "workspace:*",
     "@vercel/blob": "^1.1.1",

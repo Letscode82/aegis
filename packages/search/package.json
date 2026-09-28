@@ -13,7 +13,8 @@
   "scripts": {
     "lint": "eslint src tests",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "backfill": "tsx scripts/backfill-embeddings.ts"
   },
   "dependencies": {
     "@aegis/db": "workspace:*"
@@ -22,6 +23,7 @@
     "@aegis/eslint-config": "workspace:*",
     "@types/node": "^20.17.9",
     "eslint": "^8.57.1",
+    "tsx": "^4.19.2",
     "typescript": "5.6.3",
     "vitest": "1.6.1"
   }
