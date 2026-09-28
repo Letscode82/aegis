@@ -50,6 +50,9 @@ importers:
       '@aegis/review':
         specifier: workspace:*
         version: link:../../packages/review
+      '@aegis/search':
+        specifier: workspace:*
+        version: link:../../packages/search
       '@aegis/spend':
         specifier: workspace:*
         version: link:../../modules/spend
