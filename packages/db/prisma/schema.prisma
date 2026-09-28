@@ -3864,3 +3864,43 @@ model PrivacyTrainingRecord {
 
   @@index([organizationId, status])
 }
+
+// ── ONE Legal console runs (OL-4) ────────────────────────────────────
+// Durable record of the agentic front door's runs so a session survives
+// reload and its governed actions appear in the Working folder. organizationId
+// is a plain scalar (same localized pattern as the DSAR tables) so this
+// migration touches no existing model. Writes are best-effort — the console
+// works unpersisted if these tables aren't deployed yet.
+model ConsoleSession {
+  id             String      @id
+  organizationId String
+  startedById    String?
+  title          String?
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  tasks          LegalTask[]
+
+  @@index([organizationId, updatedAt])
+}
+
+model LegalTask {
+  id             String   @id @default(cuid())
+  organizationId String
+  sessionId      String
+  title          String
+  request        String
+  kind           String   // "file" | "tool" | "ask"
+  toolId         String?
+  status         String   @default("done") // pending | running | awaiting | done | error
+  resourceType   String?
+  resourceId     String?
+  resourceLabel  String?
+  navigate       String?
+  error          String?
+  createdAt      DateTime @default(now())
+
+  session ConsoleSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, sessionId])
+  @@index([sessionId, createdAt])
+}

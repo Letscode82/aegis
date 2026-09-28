@@ -1,0 +1,39 @@
+/**
+ * GET /api/one-legal/history?sessionId=&limit= — recent ONE Legal tasks (OL-4).
+ *
+ * Rehydrates the console's Working folder across reloads. Best-effort: returns
+ * an empty list if the LegalTask table isn't deployed yet. Gated
+ * intake:create_ticket; scoped to the caller's organization.
+ */
+import type { NextApiRequest, NextApiResponse } from "next";
+import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
+import { getResolvedUser } from "@aegis/auth/server";
+import { prisma } from "@aegis/db";
+
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+  if (req.method !== "GET") {
+    res.setHeader("Allow", "GET");
+    return res.status(405).json({ ok: false, error: "Method not allowed" });
+  }
+  const user = await getResolvedUser(req, res);
+  if (!user) return res.status(401).json({ ok: false, error: "Not authenticated" });
+  try {
+    assertUserCanDo(user, Permission.IntakeCreateTicket);
+    const sessionId = typeof req.query.sessionId === "string" ? req.query.sessionId : undefined;
+    const limit = Math.min(Number(req.query.limit) || 20, 50);
+    try {
+      const tasks = await prisma.legalTask.findMany({
+        where: { organizationId: user.organizationId, ...(sessionId ? { sessionId } : {}) },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        select: { id: true, title: true, kind: true, toolId: true, status: true, resourceType: true, resourceId: true, resourceLabel: true, navigate: true, createdAt: true },
+      });
+      return res.status(200).json({ ok: true, tasks });
+    } catch {
+      return res.status(200).json({ ok: true, tasks: [] }); // table not deployed yet
+    }
+  } catch (err) {
+    if (err instanceof AccessDeniedError) return res.status(403).json({ ok: false, error: err.decision.message });
+    return res.status(400).json({ ok: false, error: String((err as Error).message || err) });
+  }
+}
