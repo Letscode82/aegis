@@ -205,6 +205,7 @@ export type {
   KnowledgeItem,
   KnowledgeCohort,
   ProcessingJob,
+  DocumentEmbedding,
   PrivacyAssessment,
   RetentionSchedule,
   DataTransfer,
