@@ -323,7 +323,7 @@ function RailSection({ title, children }) {
 
 // Cowork-style right rail (à la Claude): Progress / Working folder / Context /
 // Skills, all derived from the live turns — no separate state.
-function WorkspaceRail({ turns, onOpenTicket, onNavigate }) {
+function WorkspaceRail({ turns, onOpenTicket, onNavigate, history }) {
   const last = turns[turns.length - 1] || null;
   const progress = (() => {
     if (!last) return [];
@@ -388,6 +388,20 @@ function WorkspaceRail({ turns, onOpenTicket, onNavigate }) {
           ))}
       </RailSection>
 
+      {history && history.length > 0 && (
+        <RailSection title="Recent (persisted)">
+          {history.slice(0, 8).map((h) => (
+            <button key={h.id} type="button" onClick={h.navigate && onNavigate ? () => onNavigate(h.navigate) : undefined} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 9, padding: "6px 8px", marginBottom: 3, background: "transparent", border: `1px solid ${C.br}`, borderRadius: 8, cursor: h.navigate && onNavigate ? "pointer" : "default" }}>
+              <span aria-hidden="true" style={{ fontSize: 12, color: h.status === "error" ? C.rd : C.gn }}>{h.status === "error" ? "✕" : "✓"}</span>
+              <span style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 11.5, color: C.t2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{h.resourceLabel || h.title}</div>
+                <div style={{ fontSize: 9.5, color: C.t4, fontFamily: M }}>{h.toolId || h.kind}</div>
+              </span>
+            </button>
+          ))}
+        </RailSection>
+      )}
+
       <RailSection title="Context">
         {["Intake pipeline", lastRule ? `Routing · ${lastRule}` : "Routing rules", "Audit chain · sealed", "Matter / Contract auto-spawn"].map((c, i) => (
           <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 12, color: C.t2 }}>
@@ -414,9 +428,12 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   const [turns, setTurns] = useState([]);
   const [input, setInput] = useState("");
   const [me, setMe] = useState(null);
+  const [sessionId, setSessionId] = useState(null);
+  const [history, setHistory] = useState([]);
   const scrollRef = useRef(null);
   const startedRef = useRef(false);
   const inputRef = useRef(null);
+  const recordedRef = useRef(new Set());
 
   const isOpen = embedded || open;
   const wide = useWide(1080);
@@ -657,6 +674,46 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     fetch("/api/auth/current-user").then((r) => r.json()).then((d) => setMe(d?.user ?? null)).catch(() => {});
   }, [isOpen]);
 
+  // OL-4: a stable per-browser session id + rehydrate recent persisted tasks.
+  useEffect(() => {
+    try {
+      let s = window.localStorage.getItem("aegis.onelegal.session");
+      if (!s) { s = window.crypto?.randomUUID ? window.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`; window.localStorage.setItem("aegis.onelegal.session", s); }
+      setSessionId(s);
+    } catch { setSessionId(`${Date.now()}`); }
+  }, []);
+  useEffect(() => {
+    if (!isOpen || !sessionId) return;
+    fetch(`/api/one-legal/history?sessionId=${encodeURIComponent(sessionId)}&limit=20`).then((r) => r.json()).then((d) => { if (d?.ok) setHistory(d.tasks || []); }).catch(() => {});
+  }, [isOpen, sessionId]);
+
+  // OL-4: persist each task the moment it reaches a terminal state (best-effort,
+  // once per task). Keeps the durable run record + the rail's Recent section.
+  useEffect(() => {
+    if (!sessionId) return;
+    const rec = (key, payload) => {
+      if (recordedRef.current.has(key)) return;
+      recordedRef.current.add(key);
+      try { fetch("/api/one-legal/record", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sessionId, ...payload }) }).catch(() => {}); } catch { /* ignore */ }
+    };
+    for (const t of turns) {
+      if (t.kind === "ask") {
+        if (!t.answerLoading && (t.answer || t.answerError || t.capability)) rec(`a-${t.id}`, { title: t.request.slice(0, 80), request: t.request, kind: "ask", status: t.answerError ? "error" : "done" });
+      } else if (t.kind === "file") {
+        if (t.result || t.error) rec(`f-${t.id}`, { title: t.result?.ticketId || t.request.slice(0, 60), request: t.request, kind: "file", status: t.error ? "error" : "done", resourceType: "IntakeTicket", resourceId: t.result?.ticketId, resourceLabel: t.result?.ticketId, navigate: "intake", error: t.error });
+      } else if (t.kind === "compound") {
+        for (const tk of t.tasks) {
+          if (tk.result || tk.toolResult || tk.error) rec(`c-${tk.id}`, {
+            title: tk.title, request: tk.request, kind: tk.tool ? "tool" : "file", toolId: tk.tool?.id, status: tk.error ? "error" : "done",
+            resourceType: tk.toolResult ? tk.toolResult.label : (tk.result ? "IntakeTicket" : undefined),
+            resourceId: tk.toolResult?.resourceId || tk.result?.ticketId, resourceLabel: tk.toolResult?.resourceLabel || tk.result?.ticketId,
+            navigate: tk.toolResult?.navigate || (tk.result ? "intake" : undefined), error: tk.error,
+          });
+        }
+      }
+    }
+  }, [turns, sessionId]);
+
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [turns]);
@@ -819,7 +876,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
         </>
       )}
         </div>
-        {embedded && wide && <WorkspaceRail turns={turns} onOpenTicket={goIntake} onNavigate={onNavigate} />}
+        {embedded && wide && <WorkspaceRail turns={turns} onOpenTicket={goIntake} onNavigate={goModule} history={history} />}
       </div>
     </div>
   );
