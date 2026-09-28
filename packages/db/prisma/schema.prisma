@@ -3904,3 +3904,30 @@ model LegalTask {
   @@index([organizationId, sessionId])
   @@index([sessionId, createdAt])
 }
+
+// ── Semantic search embeddings (K1) ──────────────────────────────────
+// Text-chunk embeddings backing @aegis/search's semantic retrieval. The
+// `embedding` column is pgvector (`Unsupported`) — read/written only via raw
+// SQL in @aegis/search, never through the generated client. It is created by
+// the 20260929120000_document_embeddings migration ONLY where pgvector is
+// available (Neon); on a plain Postgres image the column is absent and the
+// package falls back to keyword search. organizationId is a plain scalar
+// (localized pattern) so this model touches no existing table.
+model DocumentEmbedding {
+  id             String   @id @default(cuid())
+  organizationId String
+  ownerType      String // logical resource: DOCUMENT | CONTRACT | MATTER | ...
+  ownerId        String
+  documentId     String?
+  chunkIndex     Int      @default(0)
+  content        String
+  contentHash    String
+  embeddingModel String
+  dim            Int
+  embedding      Unsupported("vector")?
+  createdAt      DateTime @default(now())
+
+  @@unique([ownerType, ownerId, chunkIndex, embeddingModel])
+  @@index([organizationId, ownerType, ownerId])
+  @@index([organizationId, embeddingModel])
+}
