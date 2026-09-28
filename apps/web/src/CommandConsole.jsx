@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { C, F, M, SR } from "@aegis/ui";
-import { callClaude, friendlyAIError } from "@aegis/ai";
+import { friendlyAIError } from "@aegis/ai";
 
 // Command Console (WS-1, agentic) — "ONE Legal", the full-page front door,
 // built to feel like a first-class AI workspace (Harvey / Legora / Claude).
@@ -233,9 +233,44 @@ function CompoundCard({ turn, onOpenTicket, onOpenCockpit, onFollowUp, onApprove
   );
 }
 
+// Retrieval sources behind a cited answer (K1.3). Numbered to match the [n]
+// citations in the answer text; each opens the owning module where resolvable.
+function SourcesList({ sources, grounded, onOpenSource }) {
+  if (!sources || sources.length === 0) return null;
+  return (
+    <div style={{ marginTop: 14, borderTop: `1px solid ${C.br}`, paddingTop: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase" }}>Sources · from your documents</span>
+        {grounded && <span style={{ fontSize: 8.5, fontFamily: M, color: C.em, border: `1px solid ${C.em}`, borderRadius: 4, padding: "0 5px", letterSpacing: 0.5, textTransform: "uppercase" }}>grounded</span>}
+      </div>
+      <div style={{ display: "grid", gap: 6 }}>
+        {sources.map((s) => {
+          const canOpen = s.navigate && onOpenSource;
+          return (
+            <button
+              key={s.n}
+              type="button"
+              onClick={canOpen ? () => onOpenSource(s.navigate) : undefined}
+              title={s.snippet}
+              style={{ textAlign: "left", display: "flex", gap: 9, alignItems: "baseline", padding: "7px 9px", background: C.s1, border: `1px solid ${C.br}`, borderRadius: 8, cursor: canOpen ? "pointer" : "default" }}
+            >
+              <span style={{ fontSize: 10, fontFamily: M, color: C.em, flexShrink: 0 }}>[{s.n}]</span>
+              <span style={{ minWidth: 0, flex: 1 }}>
+                <span style={{ fontSize: 12, color: C.t1, fontWeight: 600, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</span>
+                <span style={{ fontSize: 11, color: C.t3, lineHeight: 1.45, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{s.snippet}</span>
+              </span>
+              <span style={{ fontSize: 8, fontFamily: M, color: C.t4, letterSpacing: 0.5, textTransform: "uppercase", flexShrink: 0 }}>{s.retrieval === "semantic" ? "◆ semantic" : "kw"}{canOpen ? " ·  open →" : ""}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 // Answer card for a QUESTION turn (capability overview, streamed answer, or
 // the graceful fallback) — never files a ticket.
-function AnswerCard({ turn, onExample, onFileInstead, onAsk }) {
+function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource }) {
   if (turn.capability) {
     return (
       <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16 }}>
@@ -275,7 +310,10 @@ function AnswerCard({ turn, onExample, onFileInstead, onAsk }) {
           I couldn&rsquo;t answer that just now — but I can still file it as a request, or hand it to Aurora for a deeper look.
         </div>
       ) : (
-        <div style={{ fontSize: 13.5, color: C.t1, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{turn.answer}</div>
+        <>
+          <div style={{ fontSize: 13.5, color: C.t1, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{turn.answer}</div>
+          <SourcesList sources={turn.sources} grounded={turn.grounded} onOpenSource={onOpenSource} />
+        </>
       )}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14, alignItems: "center" }}>
         <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase" }}>Next</span>
@@ -598,9 +636,23 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     if (capability) { patchTurn(turnId, { answerLoading: false, capability: true }); return; }
     patchTurn(turnId, { answerLoading: true });
     try {
-      const system = "You are AEGIS, an in-house legal-operations assistant for a corporate General Counsel team. Answer the user's question concisely and practically — 2-4 short paragraphs or a tight bulleted list. You help file and route legal requests (NDAs, contracts, legal holds, DSARs, vendor/sanctions checks, matters) and can explain the platform and general legal-ops process. Do not give definitive legal advice; note when a qualified lawyer should review. Never invent specific case facts, names, or numbers.";
-      const answer = await callClaude(text, { system, maxTokens: 700 });
-      patchTurn(turnId, { answer: (answer || "").trim(), answerLoading: false });
+      // K1.3 — cited Q&A. The server retrieves from the org's own documents
+      // (@aegis/search) and grounds the answer; it returns the sources it drew
+      // on. Degrades to a general answer server-side when there's nothing to
+      // cite, so behaviour is never worse than before.
+      const resp = await fetch("/api/one-legal/ask", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (data && data.ok && (data.answer || "").trim()) {
+        patchTurn(turnId, { answer: String(data.answer).trim(), sources: Array.isArray(data.sources) ? data.sources : [], grounded: !!data.grounded, answerLoading: false });
+      } else if (data && data.error) {
+        patchTurn(turnId, { answerLoading: false, answerError: data.error });
+      } else {
+        patchTurn(turnId, { answerLoading: false, answerError: "I couldn't answer that just now." });
+      }
     } catch (e) {
       patchTurn(turnId, { answerLoading: false, answerError: friendlyAIError(e) });
     }
@@ -840,7 +892,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
                     <span style={{ fontSize: 16, flexShrink: 0, marginTop: 2, color: C.em }} aria-hidden="true">✦</span>
                     <div style={{ minWidth: 0, flex: 1 }}>
                       {t.kind === "ask" ? (
-                        <AnswerCard turn={t} onExample={startTurn} onFileInstead={fileRequest} onAsk={handleAsk} />
+                        <AnswerCard turn={t} onExample={startTurn} onFileInstead={fileRequest} onAsk={handleAsk} onOpenSource={goModule} />
                       ) : t.kind === "compound" ? (
                         <CompoundCard turn={t} onOpenTicket={goIntake} onOpenCockpit={() => goIntake(null)} onFollowUp={focusComposer} onApprove={(task, targetId) => approveTask(t.id, task, targetId)} onFileInstead={(task) => fileTaskAsTicket(t.id, task)} onOpenNav={goModule} />
                       ) : (
