@@ -21,6 +21,7 @@ import { PreviewRoleSwitcher, PreviewRoleBanner } from "./views/preview-role-swi
 import { CommandBar } from "./CommandBar.jsx";
 import { CommandConsole } from "./CommandConsole.jsx";
 import { WorkFeedView } from "./views/work-feed.jsx";
+import { VaultShell } from "./views/vault-shell.jsx";
 
 // Reads `?view=...` on first mount so deep links (e.g. /matter/[id]
 // rewriting to /?view=matters&matterId=...) land in the right tile.
@@ -52,6 +53,7 @@ export default function App(){
     cyber:CyberView,brain:BrainDemoView,board:BoardReportView,activity:WorkFeedView,
     privacy:PrivacyShell,
     dsar:PrivacyShell,
+    vault:VaultShell,
     investigations:InvestigationsHub,
     ediscovery:EDiscoveryHub,
     trademark:TrademarkHub,
