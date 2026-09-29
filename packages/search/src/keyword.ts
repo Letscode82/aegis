@@ -48,13 +48,19 @@ export async function keywordSearch(input: SemanticSearchInput): Promise<SearchH
         .filter((t) => t.length >= 3),
     ),
   );
-  const wantDocuments = !input.ownerTypes || input.ownerTypes.length === 0 || input.ownerTypes.includes("DOCUMENT");
+  // ownerIds scope a query to a collection (e.g. a Vault's documents); an
+  // explicit empty array means nothing is in scope.
+  const ownerIds = input.ownerIds;
+  if (ownerIds && ownerIds.length === 0) return [];
+  const scoped = !!(ownerIds && ownerIds.length > 0);
+  const wantDocuments = scoped || !input.ownerTypes || input.ownerTypes.length === 0 || input.ownerTypes.includes("DOCUMENT");
   if (!wantDocuments || terms.length === 0) return [];
 
   // OR across terms over name + extractedText. Over-fetch then rank locally.
   const docs = await prisma.document.findMany({
     where: {
       organizationId: input.organizationId,
+      ...(scoped ? { id: { in: ownerIds } } : {}),
       OR: terms.flatMap((t) => [
         { name: { contains: t, mode: "insensitive" as const } },
         { extractedText: { contains: t, mode: "insensitive" as const } },

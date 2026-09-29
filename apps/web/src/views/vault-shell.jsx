@@ -34,6 +34,11 @@ export function VaultShell() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const fileRef = useRef(null);
+  const [q, setQ] = useState("");
+  const [asking, setAsking] = useState(false);
+  const [ans, setAns] = useState(null); // { answer, sources, grounded }
+
+  useEffect(() => { setAns(null); setQ(""); }, [selectedId]);
 
   const loadVaults = useCallback(async () => {
     setLoading(true);
@@ -98,6 +103,27 @@ export function VaultShell() {
     }
   }, [selectedId, loadDetail, loadVaults]);
 
+  const askVault = useCallback(async () => {
+    const text = q.trim();
+    if (!text || !selectedId) return;
+    setAsking(true);
+    setAns(null);
+    setError(null);
+    try {
+      const d = await fetch(`/api/vault/${encodeURIComponent(selectedId)}/ask`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      }).then((r) => r.json());
+      if (d.ok) setAns({ answer: d.answer || "", sources: d.sources || [], grounded: !!d.grounded });
+      else setError(d.error || "Could not answer that.");
+    } catch {
+      setError("Could not answer that.");
+    } finally {
+      setAsking(false);
+    }
+  }, [q, selectedId]);
+
   return (
     <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 18, height: "100%", fontFamily: F, color: C.t1 }}>
       {/* Left: vault list + create */}
@@ -148,6 +174,43 @@ export function VaultShell() {
               <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading} style={{ background: C.em, color: C.bg, border: "none", borderRadius: 8, padding: "8px 14px", fontFamily: M, fontSize: 10, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", cursor: "pointer", opacity: uploading ? 0.6 : 1 }}>{uploading ? "Uploading…" : "📎 Add document"}</button>
               <span style={{ fontSize: 10.5, color: C.t4 }}>.txt · .md · .docx · .pdf</span>
             </div>
+            {/* Ask across the vault (V1b) */}
+            {detail.documents.length > 0 && (
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ display: "flex", gap: 6 }}>
+                  <input
+                    value={q}
+                    onChange={(e) => setQ(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") askVault(); }}
+                    placeholder="Ask a question across this vault…"
+                    style={{ flex: 1, minWidth: 0, background: C.cd, border: `1px solid ${C.brL}`, borderRadius: 8, color: C.t1, fontFamily: F, fontSize: 13, padding: "9px 12px", outline: "none" }}
+                  />
+                  <button type="button" onClick={askVault} disabled={asking || !q.trim()} style={{ background: C.em, color: C.bg, border: "none", borderRadius: 8, padding: "0 14px", fontFamily: M, fontSize: 10, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", cursor: "pointer", opacity: asking || !q.trim() ? 0.5 : 1 }}>{asking ? "…" : "Ask"}</button>
+                </div>
+                {ans && (
+                  <div style={{ marginTop: 10, border: `1px solid ${C.br}`, borderRadius: 10, background: C.cd, padding: 14 }}>
+                    <div style={{ fontSize: 13.5, color: C.t1, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{ans.answer}</div>
+                    {ans.sources.length > 0 && (
+                      <div style={{ marginTop: 12, borderTop: `1px solid ${C.br}`, paddingTop: 10 }}>
+                        <div style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 8 }}>Sources</div>
+                        <div style={{ display: "grid", gap: 6 }}>
+                          {ans.sources.map((s) => (
+                            <div key={s.n} style={{ display: "flex", gap: 9, alignItems: "baseline", padding: "7px 9px", background: C.s1, border: `1px solid ${C.br}`, borderRadius: 8 }}>
+                              <span style={{ fontSize: 10, fontFamily: M, color: C.em, flexShrink: 0 }}>[{s.n}]</span>
+                              <span style={{ minWidth: 0, flex: 1 }}>
+                                <span style={{ fontSize: 12, color: C.t1, fontWeight: 600, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.name}</span>
+                                <span style={{ fontSize: 11, color: C.t3, lineHeight: 1.45, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>{s.snippet}</span>
+                              </span>
+                              <span style={{ fontSize: 8, fontFamily: M, color: C.t4, textTransform: "uppercase", flexShrink: 0 }}>{s.retrieval === "semantic" ? "◆ sem" : "kw"}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
             <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
               {detail.documents.length === 0 ? (
                 <div style={{ color: C.t4, fontSize: 12.5, lineHeight: 1.6, border: `1px dashed ${C.br}`, borderRadius: 10, padding: 20, textAlign: "center" }}>
