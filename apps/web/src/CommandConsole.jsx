@@ -270,7 +270,7 @@ function SourcesList({ sources, grounded, onOpenSource }) {
 
 // Answer card for a QUESTION turn (capability overview, streamed answer, or
 // the graceful fallback) — never files a ticket.
-function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource }) {
+function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource, onResearch }) {
   if (turn.capability) {
     return (
       <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16 }}>
@@ -318,6 +318,7 @@ function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource }) {
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14, alignItems: "center" }}>
         <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase" }}>Next</span>
         <button type="button" onClick={() => onFileInstead(turn.request)} style={chipBtn}>File this as a request →</button>
+        {!turn.answerError && onResearch && <button type="button" onClick={() => onResearch(turn.request)} style={chipBtn}>🔎 Research across your documents →</button>}
         {onAsk && <button type="button" onClick={onAsk} style={chipBtn}>◎ Continue in Aurora</button>}
       </div>
     </div>
@@ -354,6 +355,59 @@ function AnalyzeCard({ turn, onFollowUp, onFileInstead }) {
           <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase" }}>Next</span>
           {turn.analysis && onFollowUp && <button type="button" onClick={onFollowUp} style={chipBtn}>Ask a follow-up →</button>}
           {onFileInstead && <button type="button" onClick={() => onFileInstead(`Review the attached document: ${turn.fileName}`)} style={chipBtn}>File as a request →</button>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Research card (A1) — the agent loop's step trace + grounded, cited answer.
+function ResearchCard({ turn, onFollowUp, onFileInstead, onOpenSource }) {
+  if (turn.researchLoading) {
+    return (
+      <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16, display: "flex", alignItems: "center", gap: 10, color: C.t3, fontFamily: M, fontSize: 12 }}>
+        <span style={{ width: 12, height: 12, borderRadius: "50%", border: `2px solid ${C.br}`, borderTopColor: C.em, display: "inline-block", animation: "sp .7s linear infinite" }} />
+        Researching your documents…
+      </div>
+    );
+  }
+  return (
+    <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16 }}>
+      {turn.error ? (
+        <div style={{ color: C.t2, fontSize: 13, lineHeight: 1.6 }}>
+          <div style={{ color: C.am, fontFamily: M, fontSize: 11.5, marginBottom: 8 }}>⚠ {turn.error}</div>
+          I couldn&rsquo;t complete the research just now.
+        </div>
+      ) : (
+        <>
+          {Array.isArray(turn.steps) && turn.steps.length > 0 && (
+            <details style={{ marginBottom: 12 }}>
+              <summary style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase", cursor: "pointer" }}>
+                Research trace · {turn.steps.length} step{turn.steps.length === 1 ? "" : "s"}
+              </summary>
+              <div style={{ marginTop: 8, display: "grid", gap: 6 }}>
+                {turn.steps.map((s, i) => (
+                  <div key={i} style={{ display: "flex", gap: 8, alignItems: "baseline", fontSize: 11.5, color: C.t3 }}>
+                    <span style={{ fontFamily: M, color: C.tl, flexShrink: 0 }}>{i + 1}.</span>
+                    <span style={{ minWidth: 0 }}>
+                      <span style={{ fontFamily: M, color: C.t2 }}>{s.action}</span>
+                      {s.observation ? <span style={{ color: C.t4 }}> — {s.observation}</span> : null}
+                      {s.thought ? <div style={{ color: C.t4, lineHeight: 1.4 }}>{s.thought}</div> : null}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </details>
+          )}
+          <div style={{ fontSize: 13.5, color: C.t1, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{turn.answer}</div>
+          <SourcesList sources={turn.sources} grounded={!turn.degraded && (turn.sources || []).length > 0} onOpenSource={onOpenSource} />
+        </>
+      )}
+      {!turn.researchLoading && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14, alignItems: "center" }}>
+          <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase" }}>Next</span>
+          {onFollowUp && <button type="button" onClick={onFollowUp} style={chipBtn}>Ask a follow-up →</button>}
+          {onFileInstead && <button type="button" onClick={() => onFileInstead(turn.request)} style={chipBtn}>File this as a request →</button>}
         </div>
       )}
     </div>
@@ -406,6 +460,11 @@ function WorkspaceRail({ turns, onOpenTicket, onNavigate, history }) {
       { label: last.answerLoading ? "Answering" : "Answered", state: last.answerLoading ? "active" : "done" },
     ];
     if (last.kind === "compound") return last.tasks.map((tk) => ({ label: tk.title, state: tk.error ? "error" : (tk.result || tk.toolResult) ? "done" : (tk.state === "running" || tk.state === "awaiting") ? "active" : "pending" }));
+    if (last.kind === "research") return [
+      { label: "Planning research", state: "done" },
+      { label: last.researchLoading ? "Searching + reading documents" : "Researched", state: last.researchLoading ? "active" : last.error ? "error" : "done" },
+      { label: last.researchLoading ? "Synthesizing answer" : "Answered", state: last.researchLoading ? "pending" : last.error ? "error" : "done" },
+    ];
     if (last.kind === "analyze") return [
       { label: "Reading document", state: last.uploading ? "active" : "done" },
       { label: last.analyzeLoading ? "Analyzing" : last.error ? "Analysis" : "Analyzed", state: last.uploading ? "pending" : last.analyzeLoading ? "active" : last.error ? "error" : "done" },
@@ -746,6 +805,31 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     }
   }, [patchTurn, sessionId]);
 
+  // A1 — run the research agent loop (multi-step, read-only) over the org's
+  // documents and render the trace + cited answer. Never mutates anything.
+  const runResearch = useCallback(async (turnId, text) => {
+    patchTurn(turnId, { researchLoading: true });
+    try {
+      const resp = await fetch("/api/one-legal/agent", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+      const d = await resp.json().catch(() => ({}));
+      if (d && d.ok && (d.answer || "").trim()) {
+        patchTurn(turnId, { researchLoading: false, answer: String(d.answer).trim(), sources: Array.isArray(d.sources) ? d.sources : [], steps: Array.isArray(d.steps) ? d.steps : [], degraded: !!d.degraded });
+      } else {
+        patchTurn(turnId, { researchLoading: false, error: (d && d.error) || "Research failed." });
+      }
+    } catch (e) {
+      patchTurn(turnId, { researchLoading: false, error: friendlyAIError(e) });
+    }
+  }, [patchTurn]);
+
+  const startResearch = useCallback((text) => {
+    const t = (text || "").trim();
+    if (t.length < 3) return;
+    const id = ++TURN_SEQ;
+    setTurns((ts) => [...ts, { id, kind: "research", request: t, researchLoading: true, answer: null, sources: [], steps: [], error: null }]);
+    runResearch(id, t);
+  }, [runResearch]);
+
   // Decompose a (likely-compound) request into tasks, then run them as a
   // compound execution window. Falls back to a single turn when the planner
   // returns one task (or is unavailable).
@@ -829,6 +913,8 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     for (const t of turns) {
       if (t.kind === "ask") {
         if (!t.answerLoading && (t.answer || t.answerError || t.capability)) rec(`a-${t.id}`, { title: t.request.slice(0, 80), request: t.request, kind: "ask", status: t.answerError ? "error" : "done" });
+      } else if (t.kind === "research") {
+        if (!t.researchLoading && (t.answer || t.error)) rec(`r-${t.id}`, { title: t.request.slice(0, 80), request: t.request, kind: "ask", status: t.error ? "error" : "done" });
       } else if (t.kind === "file") {
         if (t.result || t.error) rec(`f-${t.id}`, { title: t.result?.ticketId || t.request.slice(0, 60), request: t.request, kind: "file", status: t.error ? "error" : "done", resourceType: "IntakeTicket", resourceId: t.result?.ticketId, resourceLabel: t.result?.ticketId, navigate: "intake", error: t.error });
       } else if (t.kind === "analyze") {
@@ -887,7 +973,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
 
   if (!isOpen) return null;
 
-  const busy = turns.some((t) => t.kind === "ask" ? t.answerLoading : t.kind === "analyze" ? (t.uploading || t.analyzeLoading) : t.kind === "compound" ? t.tasks.some((tk) => tk.state === "running") : (!t.result && !t.error));
+  const busy = turns.some((t) => t.kind === "ask" ? t.answerLoading : t.kind === "research" ? t.researchLoading : t.kind === "analyze" ? (t.uploading || t.analyzeLoading) : t.kind === "compound" ? t.tasks.some((tk) => tk.state === "running") : (!t.result && !t.error));
   const firstName = (me?.name || "").trim().split(/\s+/)[0] || "";
 
   const composer = (big) => (
@@ -979,7 +1065,9 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
                     <span style={{ fontSize: 16, flexShrink: 0, marginTop: 2, color: C.em }} aria-hidden="true">✦</span>
                     <div style={{ minWidth: 0, flex: 1 }}>
                       {t.kind === "ask" ? (
-                        <AnswerCard turn={t} onExample={startTurn} onFileInstead={fileRequest} onAsk={handleAsk} onOpenSource={goModule} />
+                        <AnswerCard turn={t} onExample={startTurn} onFileInstead={fileRequest} onAsk={handleAsk} onOpenSource={goModule} onResearch={startResearch} />
+                      ) : t.kind === "research" ? (
+                        <ResearchCard turn={t} onFollowUp={focusComposer} onFileInstead={fileRequest} onOpenSource={goModule} />
                       ) : t.kind === "analyze" ? (
                         <AnalyzeCard turn={t} onFollowUp={focusComposer} onFileInstead={fileRequest} />
                       ) : t.kind === "compound" ? (
