@@ -23,6 +23,11 @@ export {
 
 export { classifyIntakeRegex } from "./classify-regex.js";
 
+// PII guardrails (SEC1) — detect/redact common PII. Usable before an embedding
+// or external send; the /api/claude proxy applies redactPII when
+// AEGIS_PII_REDACTION is enabled.
+export { detectPII, redactPII, redactMessagesBody, isPIIRedactionEnabled, PII_PATTERNS } from "./pii.js";
+
 // Laya — self-hosted System-1 typed-decision engine for intake triage
 // (JEV-compatible, Apache-2.0). Degrades to the regex classifier when
 // `LAYA_URL` is unset or the service is unavailable.
