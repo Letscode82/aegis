@@ -13,6 +13,8 @@
  *   - response passthrough
  */
 
+import { redactMessagesBody, isPIIRedactionEnabled } from "./pii.js";
+
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const BODY_LIMIT_BYTES = 50 * 1024;
 const RATE_WINDOW_MS = 60 * 1000;
@@ -84,12 +86,23 @@ export async function handleClaudeRequest(req, res) {
   // Otherwise the caller's (valid) model is forwarded unchanged.
   const SAFE_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
   const DEAD_MODELS = new Set(["claude-sonnet-4-6"]);
+  let piiRedactions = 0;
   try {
     const parsed = JSON.parse(body);
+    let changed = false;
     if (process.env.ANTHROPIC_MODEL || !parsed.model || DEAD_MODELS.has(parsed.model)) {
       parsed.model = SAFE_MODEL;
-      body = JSON.stringify(parsed);
+      changed = true;
     }
+    // SEC1 — opt-in PII redaction: scrub common PII from the outbound prompt so
+    // privileged identifiers don't leave the tenant. Off by default; enable
+    // with AEGIS_PII_REDACTION=on. Degrades safely (no-op on parse failure).
+    if (isPIIRedactionEnabled()) {
+      const { total } = redactMessagesBody(parsed);
+      piiRedactions = total;
+      if (total > 0) changed = true;
+    }
+    if (changed) body = JSON.stringify(parsed);
   } catch {
     /* non-JSON body — forward unchanged */
   }
@@ -111,6 +124,7 @@ export async function handleClaudeRequest(req, res) {
     const text = await upstream.text();
     res.status(upstream.status);
     res.setHeader("content-type", "application/json");
+    if (piiRedactions > 0) res.setHeader("x-aegis-pii-redacted", String(piiRedactions));
     return res.send(text);
   } catch (err) {
     console.error("[packages/ai] upstream fetch failed:", err);

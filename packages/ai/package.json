@@ -13,11 +13,12 @@
   "scripts": {
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
-    "test": "echo 'no tests yet' && exit 0"
+    "test": "vitest run"
   },
   "devDependencies": {
     "@aegis/eslint-config": "workspace:*",
     "eslint": "^8.57.1",
-    "typescript": "5.6.3"
+    "typescript": "5.6.3",
+    "vitest": "1.6.1"
   }
 }
