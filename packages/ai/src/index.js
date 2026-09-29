@@ -23,6 +23,9 @@ export {
 
 export { classifyIntakeRegex } from "./classify-regex.js";
 
+// Evaluation harness (EVAL1) — score a classifier against labeled cases.
+export { evaluateClassifier } from "./eval.js";
+
 // PII guardrails (SEC1) — detect/redact common PII. Usable before an embedding
 // or external send; the /api/claude proxy applies redactPII when
 // AEGIS_PII_REDACTION is enabled.
