@@ -30,12 +30,23 @@ async function semanticOnly(input: SemanticSearchInput): Promise<SearchHit[]> {
 
   const limit = Math.min(Math.max(1, input.limit ?? 8), 50);
   const owners = sanitizeOwnerTypes(input.ownerTypes);
+  // ownerIds are ids (not a controlled vocab), so bind them as a parameter
+  // rather than inlining. An explicit empty array means "nothing in scope".
+  const ownerIds = input.ownerIds;
+  if (ownerIds && ownerIds.length === 0) return [];
 
   const params: unknown[] = [vectorLiteral(qvec), input.organizationId, embedded.model];
   let ownerClause = "";
   if (owners.length > 0) {
-    ownerClause = ` AND "ownerType" = ANY($4::text[])`;
+    ownerClause += ` AND "ownerType" = ANY($${params.length + 1}::text[])`;
     params.push(`{${owners.join(",")}}`);
+  }
+  if (ownerIds && ownerIds.length > 0) {
+    // Bind as a Postgres array-literal string (same approach as ownerTypes) —
+    // the raw driver casts $n::text[]. Ids are quoted + sanitized defensively.
+    const literal = `{${ownerIds.map((id) => `"${String(id).replace(/["\\]/g, "")}"`).join(",")}}`;
+    params.push(literal);
+    ownerClause += ` AND "ownerId" = ANY($${params.length}::text[])`;
   }
   params.push(limit);
   const limitParam = `$${params.length}`;
