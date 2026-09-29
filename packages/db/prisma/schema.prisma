@@ -335,6 +335,7 @@ enum DocumentOwnerType {
   BOARD
   INTAKE
   CONSOLE // uploaded into the ONE Legal console for analysis (B2), not yet attached to a matter
+  VAULT // filed into a Vault project collection (V1) for cross-document review + cited Q&A
 }
 
 /// Polymorphic — owner is identified by (ownerType, ownerId). No FK on
@@ -3931,4 +3932,23 @@ model DocumentEmbedding {
   @@unique([ownerType, ownerId, chunkIndex, embeddingModel])
   @@index([organizationId, ownerType, ownerId])
   @@index([organizationId, embeddingModel])
+}
+
+// ── Vault (V1) ────────────────────────────────────────────────────────
+// A project collection of documents for cross-document review + cited Q&A
+// (the AEGIS-native equivalent of a Harvey/Legora "vault"). It is NOT a new
+// module — it is a platform surface that groups shared Document rows
+// (ownerType VAULT, ownerId = Vault.id) and is powered by @aegis/search.
+// organizationId is a plain scalar (same localized pattern as ConsoleSession)
+// so this model touches no existing table.
+model Vault {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  createdById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([organizationId, updatedAt])
 }
