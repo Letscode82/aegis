@@ -12,10 +12,11 @@
  */
 import type { NextApiRequest, NextApiResponse } from "next";
 import { createHash } from "crypto";
-import { assertUserCanDo, AccessDeniedError } from "@aegis/auth";
+import { AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
 import { prisma, logAudit } from "@aegis/db";
 import { getTool } from "../../../lib/one-legal/tools";
+import { assertAndAudit } from "../../../lib/authz";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -35,8 +36,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (text.length < 3) return res.status(400).json({ ok: false, error: "Missing request text." });
     if (tool.needsTarget && !targetId) return res.status(400).json({ ok: false, error: `Select a ${tool.needsTarget.label.toLowerCase()} first.` });
 
-    // Permission gate for this specific action.
-    assertUserCanDo(user, tool.permission);
+    // Permission gate for this specific action — denials are audited (SEC2).
+    await assertAndAudit(user, tool.permission, { resourceType: tool.resourceType, resourceId: toolId, route: "one-legal.act" });
 
     // Args are derived server-side — the client cannot smuggle its own.
     const args = tool.deriveArgs(text, targetId);
