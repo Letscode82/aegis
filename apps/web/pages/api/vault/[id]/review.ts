@@ -15,6 +15,7 @@ import { getResolvedUser } from "@aegis/auth/server";
 import { callClaudeJSON } from "@aegis/ai";
 import { ensureServerClaudeTransport } from "@aegis/ai/server";
 import { prisma } from "@aegis/db";
+import { recordSpan } from "@aegis/observability";
 
 const MAX_DOCS = 12;
 const MAX_QUESTIONS = 6;
@@ -42,6 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     assertUserCanDo(user, Permission.KnowledgeReadAll);
+    const t0 = Date.now();
     const vaultId = typeof req.query.id === "string" ? req.query.id : "";
     const body = (req.body || {}) as Record<string, unknown>;
     const questions = (Array.isArray(body.questions) ? body.questions : [])
@@ -91,6 +93,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     );
 
     const total = await prisma.document.count({ where: { organizationId: user.organizationId, ownerType: "VAULT", ownerId: vaultId } });
+    recordSpan("vault.review", Date.now() - t0, { docs: docs.length, questions: questions.length, degraded: !claudeOk });
     return res.status(200).json({ ok: true, columns: questions, rows, truncated: total > docs.length, shownDocs: docs.length, totalDocs: total });
   } catch (err) {
     if (err instanceof AccessDeniedError) return res.status(403).json({ ok: false, error: err.decision.message });
