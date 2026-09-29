@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { C, F, M, SR } from "@aegis/ui";
 import { friendlyAIError } from "@aegis/ai";
+import { SKILLS } from "../lib/one-legal/skills";
 
 // Command Console (WS-1, agentic) — "ONE Legal", the full-page front door,
 // built to feel like a first-class AI workspace (Harvey / Legora / Claude).
@@ -492,18 +493,6 @@ function useWide(min = 1080) {
   return wide;
 }
 
-// Console capabilities, surfaced in the rail's Skills section. The one whose
-// category matches the latest routed request is highlighted.
-const SKILLS = [
-  { label: "Intake triage & routing", cats: ["General Inquiry", "Vendor DD", "Vendor Contract", "Regulatory — EU", "Finance — Debt / Covenant", "IP / Trademark / OSS", "Employment — Sensitive"] },
-  { label: "NDA auto-draft", cats: ["NDA — Standard"] },
-  { label: "Contract review", cats: ["Vendor Contract"] },
-  { label: "Legal hold", cats: ["Litigation — Non-Court"] },
-  { label: "Privacy / DSAR", cats: ["Privacy — DPIA / GDPR"] },
-  { label: "Sanctions screen", cats: ["Compliance — Sanctions"] },
-  { label: "Answer questions", cats: [] },
-];
-
 function RailSection({ title, children }) {
   return (
     <div style={{ marginBottom: 22 }}>
@@ -515,7 +504,7 @@ function RailSection({ title, children }) {
 
 // Cowork-style right rail (à la Claude): Progress / Working folder / Context /
 // Skills, all derived from the live turns — no separate state.
-function WorkspaceRail({ turns, onOpenTicket, onNavigate, history }) {
+function WorkspaceRail({ turns, onOpenTicket, onNavigate, history, onRunSkill }) {
   const last = turns[turns.length - 1] || null;
   const progress = (() => {
     if (!last) return [];
@@ -627,9 +616,16 @@ function WorkspaceRail({ turns, onOpenTicket, onNavigate, history }) {
         {SKILLS.map((s) => {
           const active = lastCat && s.cats.includes(lastCat);
           return (
-            <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 0", fontSize: 12, color: active ? C.t1 : C.t3, fontWeight: active ? 600 : 400 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: active ? C.em : C.br, display: "inline-block", flexShrink: 0 }} />{s.label}
-            </div>
+            <button
+              key={s.id}
+              type="button"
+              onClick={onRunSkill ? () => onRunSkill(s) : undefined}
+              title={s.desc}
+              style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 8, padding: "5px 6px", marginBottom: 1, background: active ? C.emG : "transparent", border: "1px solid transparent", borderRadius: 8, cursor: onRunSkill ? "pointer" : "default", fontSize: 12, color: active ? C.t1 : C.t2, fontWeight: active ? 600 : 400, fontFamily: F }}
+            >
+              <span style={{ fontSize: 12, color: active ? C.em : C.tl, flexShrink: 0, width: 14, textAlign: "center" }} aria-hidden="true">{s.icon}</span>
+              <span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.label}</span>
+            </button>
           );
         })}
       </RailSection>
@@ -977,6 +973,17 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     runAsk(id, t, capability);
   }, [fileRequest, planAndRun, runAsk, startArtifact]);
 
+  // E1 — run a reusable skill (playbook). "prefill" drops the prompt in the
+  // composer for the user to complete; the others route through the same
+  // pipeline as typed input, so governance is unchanged.
+  const runSkill = useCallback((skill) => {
+    if (!skill) return;
+    const p = skill.prompt || "";
+    if (skill.action === "prefill") { setInput(p); setTimeout(() => inputRef.current?.focus(), 0); return; }
+    if (skill.action === "research") { startResearch(p); return; }
+    startTurn(p); // "route" — intent router (ask / file / tool / compound)
+  }, [startResearch, startTurn]);
+
   // Auto-run a seeded request once when opened from the omnibox.
   useEffect(() => {
     if (isOpen && initialText && !startedRef.current) {
@@ -1161,6 +1168,17 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
                 </button>
               ))}
             </div>
+            {/* Skills (E1) — one-click legal-ops playbooks. */}
+            <div style={{ marginTop: 20 }}>
+              <div style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>Skills</div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
+                {SKILLS.map((s) => (
+                  <button key={s.id} type="button" onClick={() => runSkill(s)} title={s.desc} style={exampleChip}>
+                    <span style={{ color: C.em, marginRight: 7 }} aria-hidden="true">{s.icon}</span>{s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       ) : (
@@ -1221,7 +1239,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
         </>
       )}
         </div>
-        {embedded && wide && <WorkspaceRail turns={turns} onOpenTicket={goIntake} onNavigate={goModule} history={history} />}
+        {embedded && wide && <WorkspaceRail turns={turns} onOpenTicket={goIntake} onNavigate={goModule} history={history} onRunSkill={runSkill} />}
       </div>
     </div>
   );
