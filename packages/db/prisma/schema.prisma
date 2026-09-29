@@ -334,6 +334,7 @@ enum DocumentOwnerType {
   COMPLIANCE
   BOARD
   INTAKE
+  CONSOLE // uploaded into the ONE Legal console for analysis (B2), not yet attached to a matter
 }
 
 /// Polymorphic — owner is identified by (ownerType, ownerId). No FK on

@@ -324,6 +324,42 @@ function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource }) {
   );
 }
 
+// Analyze card for an uploaded-document turn (B2) — upload progress, then a
+// single-document deep read. The document is persisted + indexed, so it's also
+// citable by later questions in the console.
+function AnalyzeCard({ turn, onFollowUp, onFileInstead }) {
+  const busy = turn.uploading || turn.analyzeLoading;
+  return (
+    <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 10, paddingBottom: 10, borderBottom: `1px solid ${C.br}` }}>
+        <span style={{ fontSize: 15 }} aria-hidden="true">📄</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: C.t1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{turn.fileName}</span>
+        {turn.chars ? <span style={{ fontSize: 9, fontFamily: M, color: C.t4, flexShrink: 0 }}>{turn.chars.toLocaleString()} chars</span> : null}
+      </div>
+      {busy ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, color: C.t3, fontFamily: M, fontSize: 12 }}>
+          <span style={{ width: 12, height: 12, borderRadius: "50%", border: `2px solid ${C.br}`, borderTopColor: C.em, display: "inline-block", animation: "sp .7s linear infinite" }} />
+          {turn.uploading ? "Reading document…" : "Analyzing…"}
+        </div>
+      ) : turn.error ? (
+        <div style={{ color: C.t2, fontSize: 13, lineHeight: 1.6 }}>
+          <div style={{ color: C.am, fontFamily: M, fontSize: 11.5, marginBottom: 8 }}>⚠ {turn.error}</div>
+          I couldn&rsquo;t analyze that file. Supported: .txt, .md, .docx, .pdf (up to 3 MB).
+        </div>
+      ) : (
+        <div style={{ fontSize: 13.5, color: C.t1, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{turn.analysis}</div>
+      )}
+      {!busy && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14, alignItems: "center" }}>
+          <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase" }}>Next</span>
+          {turn.analysis && onFollowUp && <button type="button" onClick={onFollowUp} style={chipBtn}>Ask a follow-up →</button>}
+          {onFileInstead && <button type="button" onClick={() => onFileInstead(`Review the attached document: ${turn.fileName}`)} style={chipBtn}>File as a request →</button>}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Show the workspace rail only when there's room (embedded full page, wide viewport).
 function useWide(min = 1080) {
   const [wide, setWide] = useState(false);
@@ -370,6 +406,10 @@ function WorkspaceRail({ turns, onOpenTicket, onNavigate, history }) {
       { label: last.answerLoading ? "Answering" : "Answered", state: last.answerLoading ? "active" : "done" },
     ];
     if (last.kind === "compound") return last.tasks.map((tk) => ({ label: tk.title, state: tk.error ? "error" : (tk.result || tk.toolResult) ? "done" : (tk.state === "running" || tk.state === "awaiting") ? "active" : "pending" }));
+    if (last.kind === "analyze") return [
+      { label: "Reading document", state: last.uploading ? "active" : "done" },
+      { label: last.analyzeLoading ? "Analyzing" : last.error ? "Analysis" : "Analyzed", state: last.uploading ? "pending" : last.analyzeLoading ? "active" : last.error ? "error" : "done" },
+    ];
     return last.steps.map((s) => ({ label: s.label, state: s.state }));
   })();
 
@@ -381,6 +421,10 @@ function WorkspaceRail({ turns, onOpenTicket, onNavigate, history }) {
       artifacts.push({ kind: "ticket", label: r.ticketId, sub: r.classification?.category || "Intake ticket", onClick: () => onOpenTicket(r.ticketId) });
       for (const m of (r.spawned?.matters || [])) artifacts.push({ kind: "matter", label: m.title || m.number || m.id || "Matter", sub: "Matter", onClick: onNavigate ? () => onNavigate("matters") : null });
       for (const c of (r.spawned?.contracts || [])) artifacts.push({ kind: "contract", label: c.title || c.id || "Contract", sub: "Contract", onClick: onNavigate ? () => onNavigate("contracts") : null });
+    }
+    // B2: uploaded + analyzed documents.
+    if (t.kind === "analyze" && t.documentId) {
+      artifacts.push({ kind: "document", label: t.fileName || "Document", sub: t.error ? "Upload failed" : "Uploaded · analyzed", onClick: null });
     }
     // Governed tool results (OL-2): a created matter/DSAR/etc.
     if (t.kind === "compound") for (const tk of t.tasks) if (tk.toolResult) {
@@ -399,7 +443,7 @@ function WorkspaceRail({ turns, onOpenTicket, onNavigate, history }) {
     : state === "active" ? <span style={{ width: 10, height: 10, borderRadius: "50%", border: `2px solid ${C.br}`, borderTopColor: C.em, display: "inline-block", animation: "sp .7s linear infinite" }} />
     : state === "error" ? <span style={{ color: C.rd }}>✕</span>
     : <span style={{ width: 8, height: 8, borderRadius: "50%", border: `1.5px solid ${C.br}`, display: "inline-block" }} />;
-  const fileIcon = (k) => k === "ticket" ? "🎫" : k === "matter" ? "▣" : k === "contract" ? "▤" : "▪";
+  const fileIcon = (k) => k === "ticket" ? "🎫" : k === "matter" ? "▣" : k === "contract" ? "▤" : k === "document" ? "📄" : "▪";
 
   return (
     <div style={{ width: 300, flexShrink: 0, borderLeft: `1px solid ${C.br}`, background: C.s1, overflowY: "auto", padding: "20px 18px", minHeight: 0 }}>
@@ -471,6 +515,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   const scrollRef = useRef(null);
   const startedRef = useRef(false);
   const inputRef = useRef(null);
+  const fileInputRef = useRef(null);
   const recordedRef = useRef(new Set());
 
   const isOpen = embedded || open;
@@ -668,6 +713,39 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     runFile(id, t);
   }, [runFile]);
 
+  // B2 — upload a document, then deep-read it. The file is extracted +
+  // persisted + indexed server-side; the analysis is a single-document read.
+  // The uploaded doc also becomes citable by later questions in the console.
+  const uploadAndAnalyze = useCallback(async (file) => {
+    if (!file) return;
+    const id = ++TURN_SEQ;
+    setTurns((ts) => [...ts, { id, kind: "analyze", request: `Analyze ${file.name}`, fileName: file.name, uploading: true, analyzeLoading: false, analysis: null, documentId: null, chars: 0, error: null }]);
+    try {
+      const contentBase64 = await new Promise((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(String(r.result || "").split(",")[1] || "");
+        r.onerror = () => reject(new Error("Could not read the file."));
+        r.readAsDataURL(file);
+      });
+      const up = await fetch("/api/one-legal/upload", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: file.name, mimeType: file.type, contentBase64, sessionId }),
+      }).then((r) => r.json()).catch(() => ({}));
+      if (!up || !up.ok) { patchTurn(id, { uploading: false, error: (up && up.error) || "Upload failed." }); return; }
+      patchTurn(id, { uploading: false, analyzeLoading: true, documentId: up.documentId, chars: up.charCount || 0 });
+      const an = await fetch("/api/one-legal/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ documentId: up.documentId }),
+      }).then((r) => r.json()).catch(() => ({}));
+      if (an && an.ok) patchTurn(id, { analyzeLoading: false, analysis: (an.answer || "").trim(), degraded: !!an.degraded });
+      else patchTurn(id, { analyzeLoading: false, error: (an && an.error) || "Analysis failed." });
+    } catch (e) {
+      patchTurn(id, { uploading: false, analyzeLoading: false, error: friendlyAIError(e) });
+    }
+  }, [patchTurn, sessionId]);
+
   // Decompose a (likely-compound) request into tasks, then run them as a
   // compound execution window. Falls back to a single turn when the planner
   // returns one task (or is unavailable).
@@ -753,6 +831,8 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
         if (!t.answerLoading && (t.answer || t.answerError || t.capability)) rec(`a-${t.id}`, { title: t.request.slice(0, 80), request: t.request, kind: "ask", status: t.answerError ? "error" : "done" });
       } else if (t.kind === "file") {
         if (t.result || t.error) rec(`f-${t.id}`, { title: t.result?.ticketId || t.request.slice(0, 60), request: t.request, kind: "file", status: t.error ? "error" : "done", resourceType: "IntakeTicket", resourceId: t.result?.ticketId, resourceLabel: t.result?.ticketId, navigate: "intake", error: t.error });
+      } else if (t.kind === "analyze") {
+        if (!t.uploading && !t.analyzeLoading && (t.analysis || t.error)) rec(`an-${t.id}`, { title: t.fileName?.slice(0, 80) || "Document", request: t.request, kind: "file", status: t.error ? "error" : "done", resourceType: "Document", resourceId: t.documentId, resourceLabel: t.fileName, error: t.error });
       } else if (t.kind === "compound") {
         for (const tk of t.tasks) {
           if (tk.result || tk.toolResult || tk.error) rec(`c-${tk.id}`, {
@@ -807,18 +887,25 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
 
   if (!isOpen) return null;
 
-  const busy = turns.some((t) => t.kind === "ask" ? t.answerLoading : t.kind === "compound" ? t.tasks.some((tk) => tk.state === "running") : (!t.result && !t.error));
+  const busy = turns.some((t) => t.kind === "ask" ? t.answerLoading : t.kind === "analyze" ? (t.uploading || t.analyzeLoading) : t.kind === "compound" ? t.tasks.some((tk) => tk.state === "running") : (!t.result && !t.error));
   const firstName = (me?.name || "").trim().split(/\s+/)[0] || "";
 
   const composer = (big) => (
     <div style={{ display: "flex", gap: 8, alignItems: "center", background: C.cd, border: `1px solid ${C.brL}`, borderRadius: 12, padding: big ? "6px 6px 6px 16px" : "5px 5px 5px 14px", boxShadow: big ? "0 2px 14px rgba(16,24,40,.06)" : "none" }}>
-      <span style={{ fontSize: 13, color: C.t4 }} aria-hidden="true">⌘</span>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".txt,.md,.markdown,.docx,.pdf,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        style={{ display: "none" }}
+        onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) uploadAndAnalyze(f); e.target.value = ""; }}
+      />
+      <button type="button" onClick={() => fileInputRef.current?.click()} aria-label="Attach a document to analyze" title="Attach a document (.txt, .md, .docx, .pdf)" style={{ background: "transparent", border: "none", color: C.t3, fontSize: 16, cursor: "pointer", padding: "4px 2px", flexShrink: 0, lineHeight: 1 }}>📎</button>
       <input
         ref={inputRef}
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter" && input.trim().length >= 3) startTurn(input); }}
-        placeholder={turns.length === 0 ? "Describe a request, or ask a question…" : "Ask a question or file another request…"}
+        placeholder={turns.length === 0 ? "Describe a request, ask a question, or attach a document…" : "Ask, file a request, or attach a document…"}
         aria-label="Ask AEGIS or file a legal request"
         style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: C.t1, fontFamily: F, fontSize: big ? 15 : 13, padding: "8px 0" }}
       />
@@ -893,6 +980,8 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
                     <div style={{ minWidth: 0, flex: 1 }}>
                       {t.kind === "ask" ? (
                         <AnswerCard turn={t} onExample={startTurn} onFileInstead={fileRequest} onAsk={handleAsk} onOpenSource={goModule} />
+                      ) : t.kind === "analyze" ? (
+                        <AnalyzeCard turn={t} onFollowUp={focusComposer} onFileInstead={fileRequest} />
                       ) : t.kind === "compound" ? (
                         <CompoundCard turn={t} onOpenTicket={goIntake} onOpenCockpit={() => goIntake(null)} onFollowUp={focusComposer} onApprove={(task, targetId) => approveTask(t.id, task, targetId)} onFileInstead={(task) => fileTaskAsTicket(t.id, task)} onOpenNav={goModule} />
                       ) : (
