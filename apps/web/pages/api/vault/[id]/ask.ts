@@ -14,6 +14,7 @@ import { callClaude } from "@aegis/ai";
 import { ensureServerClaudeTransport } from "@aegis/ai/server";
 import { semanticSearch } from "@aegis/search";
 import { prisma } from "@aegis/db";
+import { recordSpan } from "@aegis/observability";
 
 const MAX_SOURCES = 6;
 
@@ -33,6 +34,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     assertUserCanDo(user, Permission.KnowledgeReadAll);
+    const t0 = Date.now();
     const vaultId = typeof req.query.id === "string" ? req.query.id : "";
     const question = String((req.body || {}).text || "").trim();
     if (question.length < 3) return res.status(400).json({ ok: false, error: "Ask a question in a few words." });
@@ -94,6 +96,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         "\n\n(AI summarization is offline; showing the most relevant excerpts. A qualified lawyer should review.)";
     }
 
+    recordSpan("vault.ask", Date.now() - t0, { grounded, sources: sources.length, degraded });
     return res.status(200).json({ ok: true, answer, grounded, degraded, sources });
   } catch (err) {
     if (err instanceof AccessDeniedError) return res.status(403).json({ ok: false, error: err.decision.message });

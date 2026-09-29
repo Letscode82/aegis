@@ -12,6 +12,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
 import { runAgentLoop } from "../../../lib/one-legal/agent-loop";
+import { recordSpan } from "@aegis/observability";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -26,7 +27,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const question = String((req.body || {}).text || "").trim();
     if (question.length < 3) return res.status(400).json({ ok: false, error: "Ask a question in a few words." });
 
+    const t0 = Date.now();
     const result = await runAgentLoop({ organizationId: user.organizationId, question });
+    recordSpan("one_legal.agent", Date.now() - t0, { steps: result.steps.length, sources: result.sources.length, degraded: result.degraded });
     return res.status(200).json({ ok: true, ...result });
   } catch (err) {
     if (err instanceof AccessDeniedError) return res.status(403).json({ ok: false, error: err.decision.message });

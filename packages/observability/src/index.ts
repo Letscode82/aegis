@@ -76,6 +76,41 @@ export function captureError(
   });
 }
 
+// ── Spans (OBS1) ─────────────────────────────────────────────────────
+// A "span" is one JSON line capturing a named operation's duration + outcome
+// and a few queryable fields (e.g. grounded, sources, degraded). Same design
+// as the rest of this package — the log drain indexes it; no new infra. Use
+// recordSpan when you already have the result's telemetry in hand; use withSpan
+// to time-and-wrap an operation whose errors should also be captured.
+
+/** Emit one `span` line: {span, ms, slow, ...fields}. */
+export function recordSpan(
+  name: string,
+  ms: number,
+  fields: Record<string, unknown> = {},
+): void {
+  const slow = ms >= slowRequestThresholdMs();
+  logEvent(slow ? "warn" : "info", "span", { span: name, ms, slow, ...fields });
+}
+
+/** Time an async operation, emit a `span` line, and capture+rethrow on error. */
+export async function withSpan<T>(
+  name: string,
+  fn: () => Promise<T>,
+  fields: Record<string, unknown> = {},
+): Promise<T> {
+  const started = Date.now();
+  try {
+    const result = await fn();
+    recordSpan(name, Date.now() - started, { outcome: "ok", ...fields });
+    return result;
+  } catch (err) {
+    recordSpan(name, Date.now() - started, { outcome: "error", ...fields });
+    captureError(err, { span: name });
+    throw err;
+  }
+}
+
 // ── Request logging wrapper ──────────────────────────────────────────
 
 /** Framework-agnostic shapes (structurally match Next's req/res). */

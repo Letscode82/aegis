@@ -16,6 +16,7 @@ import { getResolvedUser } from "@aegis/auth/server";
 import { callClaude } from "@aegis/ai";
 import { ensureServerClaudeTransport } from "@aegis/ai/server";
 import { prisma } from "@aegis/db";
+import { recordSpan } from "@aegis/observability";
 
 // Cap the context so a very long document doesn't blow the prompt budget; the
 // head of a legal document carries the parties, term, and key clauses.
@@ -41,6 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     assertUserCanDo(user, Permission.IntakeCreateTicket);
+    const t0 = Date.now();
     const body = (req.body || {}) as Record<string, unknown>;
     const documentId = String(body.documentId || "").trim();
     const question = String(body.question || "").trim();
@@ -72,6 +74,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       answer = extractiveDigest(doc.name, text);
     }
 
+    recordSpan("one_legal.analyze", Date.now() - t0, { degraded });
     return res.status(200).json({ ok: true, documentId: doc.id, documentName: doc.name, answer, degraded });
   } catch (err) {
     if (err instanceof AccessDeniedError) return res.status(403).json({ ok: false, error: err.decision.message });
