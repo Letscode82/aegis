@@ -27,6 +27,7 @@ const EXAMPLES = [
   { icon: "◎", text: "Flag a new vendor for sanctions screening" },
   { icon: "◷", text: "File a privacy DSAR for a data subject" },
   { icon: "▤", text: "Draft an SOW for outside counsel" },
+  { icon: "✎", text: "Draft a memo summarizing our data-retention policy" },
 ];
 
 // Rotating one-liner shown as a pinned tip above the composer on the landing.
@@ -59,6 +60,16 @@ function classifyIntent(text) {
   if (CAPABILITY_RE.test(t)) return "capability";
   if (QUESTION_RE.test(t) && !IMPERATIVE_RE.test(t)) return "ask";
   return "file";
+}
+
+// C1 — "draft a memo / email / clause / summary …" opens the editable canvas.
+// Formal instruments (NDA, MSA, agreement, …) stay on the governed
+// contracts.draft tool path, so those are explicitly excluded here.
+const CANVAS_DRAFT_RE = /^\s*(draft|write|compose|prepare|create|make)\s+(me\s+)?(a|an|the)?\s*(memo|e-?mail|letter|note|clause|summary|outline|talking[ -]points|brief|blurb|paragraph|response|reply|statement)\b/i;
+const CONTRACT_NOUN_RE = /\b(nda|non-disclosure|agreement|contract|msa|sow|dpa|terms of service|tos)\b/i;
+function looksLikeCanvasDraft(text) {
+  const t = text.trim();
+  return CANVAS_DRAFT_RE.test(t) && !CONTRACT_NOUN_RE.test(t);
 }
 
 // Conservative check for whether a request might contain several asks — used
@@ -414,6 +425,59 @@ function ResearchCard({ turn, onFollowUp, onFileInstead, onOpenSource }) {
   );
 }
 
+// Artifact canvas (C1) — an editable draft (memo/email/clause/…) the user edits
+// in place and can save. Saving persists + indexes the doc (citable later).
+function ArtifactCard({ turn, onSave, onRegenerate, onFileInstead }) {
+  const [title, setTitle] = useState(turn.title || "");
+  const [content, setContent] = useState(turn.content || "");
+  // Reset the editor when a fresh draft arrives (initial draft / regenerate).
+  useEffect(() => { setTitle(turn.title || ""); setContent(turn.content || ""); }, [turn.draftNonce]); // eslint-disable-line react-hooks/exhaustive-deps
+  const [copied, setCopied] = useState(false);
+
+  if (turn.draftLoading) {
+    return (
+      <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16, display: "flex", alignItems: "center", gap: 10, color: C.t3, fontFamily: M, fontSize: 12 }}>
+        <span style={{ width: 12, height: 12, borderRadius: "50%", border: `2px solid ${C.br}`, borderTopColor: C.em, display: "inline-block", animation: "sp .7s linear infinite" }} />
+        Drafting…
+      </div>
+    );
+  }
+  if (turn.error) {
+    return (
+      <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16, color: C.t2, fontSize: 13, lineHeight: 1.6 }}>
+        <div style={{ color: C.am, fontFamily: M, fontSize: 11.5, marginBottom: 8 }}>⚠ {turn.error}</div>
+        I couldn&rsquo;t generate that draft just now.
+      </div>
+    );
+  }
+  const saved = !!turn.savedDocumentId;
+  const copy = () => { try { navigator.clipboard?.writeText(content); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ } };
+  return (
+    <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <span style={{ fontSize: 14 }} aria-hidden="true">✎</span>
+        <input value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Draft title" style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: C.t1, fontFamily: SR, fontSize: 15 }} />
+        <span style={{ fontSize: 9, fontFamily: M, color: C.t4, flexShrink: 0 }}>editable draft</span>
+      </div>
+      <textarea
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        aria-label="Draft content"
+        spellCheck
+        style={{ width: "100%", minHeight: 260, resize: "vertical", background: C.s1, border: `1px solid ${C.br}`, borderRadius: 8, color: C.t1, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12.5, lineHeight: 1.6, padding: "10px 12px", outline: "none", boxSizing: "border-box" }}
+      />
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10, alignItems: "center" }}>
+        <button type="button" onClick={() => onSave(turn.id, title, content)} disabled={turn.saving || !content.trim()} style={{ ...primaryBtn, opacity: turn.saving || !content.trim() ? 0.5 : 1 }}>{turn.saving ? "Saving…" : saved ? "Save new version" : "Save to workspace"}</button>
+        {saved && <span style={{ fontSize: 9.5, fontFamily: M, color: C.gn, border: `1px solid ${C.gn}`, borderRadius: 4, padding: "2px 7px", letterSpacing: 0.5, textTransform: "uppercase" }}>Saved ✓</span>}
+        <button type="button" onClick={() => onRegenerate(turn.id, turn.request)} style={chipBtn}>↻ Regenerate</button>
+        <button type="button" onClick={copy} style={chipBtn}>{copied ? "Copied ✓" : "Copy"}</button>
+        {onFileInstead && <button type="button" onClick={() => onFileInstead(`Review this draft: ${title}`)} style={chipBtn}>File as a request →</button>}
+      </div>
+      {turn.degraded && <div style={{ marginTop: 8, fontSize: 10.5, fontFamily: M, color: C.t4 }}>AI drafting was offline — edited from a skeleton.</div>}
+    </div>
+  );
+}
+
 // Show the workspace rail only when there's room (embedded full page, wide viewport).
 function useWide(min = 1080) {
   const [wide, setWide] = useState(false);
@@ -465,6 +529,10 @@ function WorkspaceRail({ turns, onOpenTicket, onNavigate, history }) {
       { label: last.researchLoading ? "Searching + reading documents" : "Researched", state: last.researchLoading ? "active" : last.error ? "error" : "done" },
       { label: last.researchLoading ? "Synthesizing answer" : "Answered", state: last.researchLoading ? "pending" : last.error ? "error" : "done" },
     ];
+    if (last.kind === "artifact") return [
+      { label: last.draftLoading ? "Drafting" : "Drafted", state: last.draftLoading ? "active" : last.error ? "error" : "done" },
+      { label: last.savedDocumentId ? "Saved to workspace" : last.saving ? "Saving" : "Edit + save", state: last.savedDocumentId ? "done" : last.saving ? "active" : "pending" },
+    ];
     if (last.kind === "analyze") return [
       { label: "Reading document", state: last.uploading ? "active" : "done" },
       { label: last.analyzeLoading ? "Analyzing" : last.error ? "Analysis" : "Analyzed", state: last.uploading ? "pending" : last.analyzeLoading ? "active" : last.error ? "error" : "done" },
@@ -484,6 +552,10 @@ function WorkspaceRail({ turns, onOpenTicket, onNavigate, history }) {
     // B2: uploaded + analyzed documents.
     if (t.kind === "analyze" && t.documentId) {
       artifacts.push({ kind: "document", label: t.fileName || "Document", sub: t.error ? "Upload failed" : "Uploaded · analyzed", onClick: null });
+    }
+    // C1: saved canvas drafts.
+    if (t.kind === "artifact" && t.savedDocumentId) {
+      artifacts.push({ kind: "document", label: t.title || "Draft", sub: "Draft · saved", onClick: null });
     }
     // Governed tool results (OL-2): a created matter/DSAR/etc.
     if (t.kind === "compound") for (const tk of t.tasks) if (tk.toolResult) {
@@ -830,6 +902,45 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     runResearch(id, t);
   }, [runResearch]);
 
+  // C1 — generate an editable draft into the artifact canvas. Not a formal
+  // Contract (that stays the governed contracts.draft tool); this is the fast,
+  // editable-draft surface.
+  const runArtifactDraft = useCallback(async (turnId, instruction) => {
+    patchTurn(turnId, { draftLoading: true, error: null });
+    try {
+      const resp = await fetch("/api/one-legal/draft", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instruction }) });
+      const d = await resp.json().catch(() => ({}));
+      if (d && d.ok && (d.content || "").trim()) {
+        patchTurn(turnId, { draftLoading: false, title: d.title || "Draft", content: d.content, degraded: !!d.degraded, draftNonce: Date.now() });
+      } else {
+        patchTurn(turnId, { draftLoading: false, error: (d && d.error) || "Draft failed." });
+      }
+    } catch (e) {
+      patchTurn(turnId, { draftLoading: false, error: friendlyAIError(e) });
+    }
+  }, [patchTurn]);
+
+  const startArtifact = useCallback((instruction) => {
+    const t = (instruction || "").trim();
+    if (t.length < 3) return;
+    const id = ++TURN_SEQ;
+    setTurns((ts) => [...ts, { id, kind: "artifact", request: t, draftLoading: true, title: "", content: "", degraded: false, error: null, saving: false, savedDocumentId: null, draftNonce: 0 }]);
+    setInput("");
+    runArtifactDraft(id, t);
+  }, [runArtifactDraft]);
+
+  const saveArtifact = useCallback(async (turnId, title, content) => {
+    patchTurn(turnId, { saving: true });
+    try {
+      const resp = await fetch("/api/one-legal/artifact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title, content, sessionId }) });
+      const d = await resp.json().catch(() => ({}));
+      if (d && d.ok && d.documentId) patchTurn(turnId, { saving: false, savedDocumentId: d.documentId, title: d.title || title });
+      else patchTurn(turnId, { saving: false, error: (d && d.error) || "Save failed." });
+    } catch (e) {
+      patchTurn(turnId, { saving: false, error: friendlyAIError(e) });
+    }
+  }, [patchTurn, sessionId]);
+
   // Decompose a (likely-compound) request into tasks, then run them as a
   // compound execution window. Falls back to a single turn when the planner
   // returns one task (or is unavailable).
@@ -856,6 +967,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   const startTurn = useCallback((text) => {
     const t = text.trim();
     if (t.length < 3) return;
+    if (looksLikeCanvasDraft(t)) { startArtifact(t); return; }
     const intent = classifyIntent(t);
     setInput("");
     if (intent === "file") { if (looksCompound(t) || looksToolish(t)) planAndRun(t); else fileRequest(t); return; }
@@ -863,7 +975,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     const capability = intent === "capability";
     setTurns((ts) => [...ts, { id, kind: "ask", request: t, answer: null, answerLoading: !capability, answerError: null, capability }]);
     runAsk(id, t, capability);
-  }, [fileRequest, planAndRun, runAsk]);
+  }, [fileRequest, planAndRun, runAsk, startArtifact]);
 
   // Auto-run a seeded request once when opened from the omnibox.
   useEffect(() => {
@@ -919,6 +1031,8 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
         if (t.result || t.error) rec(`f-${t.id}`, { title: t.result?.ticketId || t.request.slice(0, 60), request: t.request, kind: "file", status: t.error ? "error" : "done", resourceType: "IntakeTicket", resourceId: t.result?.ticketId, resourceLabel: t.result?.ticketId, navigate: "intake", error: t.error });
       } else if (t.kind === "analyze") {
         if (!t.uploading && !t.analyzeLoading && (t.analysis || t.error)) rec(`an-${t.id}`, { title: t.fileName?.slice(0, 80) || "Document", request: t.request, kind: "file", status: t.error ? "error" : "done", resourceType: "Document", resourceId: t.documentId, resourceLabel: t.fileName, error: t.error });
+      } else if (t.kind === "artifact") {
+        if (t.savedDocumentId) rec(`art-${t.id}`, { title: (t.title || "Draft").slice(0, 80), request: t.request, kind: "file", status: "done", resourceType: "Document", resourceId: t.savedDocumentId, resourceLabel: t.title });
       } else if (t.kind === "compound") {
         for (const tk of t.tasks) {
           if (tk.result || tk.toolResult || tk.error) rec(`c-${tk.id}`, {
@@ -973,7 +1087,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
 
   if (!isOpen) return null;
 
-  const busy = turns.some((t) => t.kind === "ask" ? t.answerLoading : t.kind === "research" ? t.researchLoading : t.kind === "analyze" ? (t.uploading || t.analyzeLoading) : t.kind === "compound" ? t.tasks.some((tk) => tk.state === "running") : (!t.result && !t.error));
+  const busy = turns.some((t) => t.kind === "ask" ? t.answerLoading : t.kind === "research" ? t.researchLoading : t.kind === "artifact" ? (t.draftLoading || t.saving) : t.kind === "analyze" ? (t.uploading || t.analyzeLoading) : t.kind === "compound" ? t.tasks.some((tk) => tk.state === "running") : (!t.result && !t.error));
   const firstName = (me?.name || "").trim().split(/\s+/)[0] || "";
 
   const composer = (big) => (
@@ -1068,6 +1182,8 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
                         <AnswerCard turn={t} onExample={startTurn} onFileInstead={fileRequest} onAsk={handleAsk} onOpenSource={goModule} onResearch={startResearch} />
                       ) : t.kind === "research" ? (
                         <ResearchCard turn={t} onFollowUp={focusComposer} onFileInstead={fileRequest} onOpenSource={goModule} />
+                      ) : t.kind === "artifact" ? (
+                        <ArtifactCard turn={t} onSave={saveArtifact} onRegenerate={runArtifactDraft} onFileInstead={fileRequest} />
                       ) : t.kind === "analyze" ? (
                         <AnalyzeCard turn={t} onFollowUp={focusComposer} onFileInstead={fileRequest} />
                       ) : t.kind === "compound" ? (
