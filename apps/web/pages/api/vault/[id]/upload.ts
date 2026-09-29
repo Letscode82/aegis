@@ -8,11 +8,12 @@
  * Body (JSON): { filename, mimeType?, contentBase64 }
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
+import { Permission, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
 import { prisma, logAudit, DocumentOwnerType } from "@aegis/db";
 import { extractDocumentText, UnsupportedDocumentFormatError, DocumentParseError } from "@aegis/documents";
 import { indexResource } from "@aegis/search";
+import { assertAndAudit } from "../../../../lib/authz";
 
 export const config = { api: { bodyParser: { sizeLimit: "5mb" } } };
 const MAX_BYTES = 3 * 1024 * 1024;
@@ -26,8 +27,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!user) return res.status(401).json({ ok: false, error: "Not authenticated" });
 
   try {
-    assertUserCanDo(user, Permission.KnowledgeContribute);
     const vaultId = typeof req.query.id === "string" ? req.query.id : "";
+    await assertAndAudit(user, Permission.KnowledgeContribute, { resourceType: "Vault", resourceId: vaultId, route: "vault.upload" });
     const vault = await prisma.vault.findFirst({ where: { id: vaultId, organizationId: user.organizationId }, select: { id: true } });
     if (!vault) return res.status(404).json({ ok: false, error: "Vault not found." });
 

@@ -9,6 +9,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
 import { prisma, logAudit } from "@aegis/db";
+import { assertAndAudit } from "../../../lib/authz";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const user = await getResolvedUser(req, res);
@@ -34,7 +35,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     if (req.method === "POST") {
-      assertUserCanDo(user, Permission.KnowledgeContribute);
+      await assertAndAudit(user, Permission.KnowledgeContribute, { resourceType: "Vault", route: "vault.create" });
       const body = (req.body || {}) as Record<string, unknown>;
       const name = (typeof body.name === "string" ? body.name : "").trim().slice(0, 160);
       const description = (typeof body.description === "string" ? body.description : "").trim().slice(0, 1000) || null;
