@@ -13,8 +13,9 @@
  * blocks the console. No mutation, no schema; gated intake:create_ticket.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
+import { Permission, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
+import { assertAndAudit } from "../../../lib/authz";
 import { callClaudeJSON } from "@aegis/ai";
 import { ensureServerClaudeTransport } from "@aegis/ai/server";
 import { toolProposalFor } from "../../../lib/one-legal/tools";
@@ -58,7 +59,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!user) return res.status(401).json({ ok: false, error: "Not authenticated" });
 
   try {
-    assertUserCanDo(user, Permission.IntakeCreateTicket);
+    await assertAndAudit(user, Permission.IntakeCreateTicket, { route: "one-legal.plan" });
     const text = String((req.body || {}).text || "").trim();
     if (text.length < 3) return res.status(400).json({ ok: false, error: "Describe your request in a few words." });
 

@@ -6,8 +6,9 @@
  * intake:create_ticket; scoped to the caller's organization.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
+import { Permission, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
+import { assertAndAudit } from "../../../lib/authz";
 import { prisma } from "@aegis/db";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -18,7 +19,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const user = await getResolvedUser(req, res);
   if (!user) return res.status(401).json({ ok: false, error: "Not authenticated" });
   try {
-    assertUserCanDo(user, Permission.IntakeCreateTicket);
+    await assertAndAudit(user, Permission.IntakeCreateTicket, { route: "one-legal.history" });
     const sessionId = typeof req.query.sessionId === "string" ? req.query.sessionId : undefined;
     const limit = Math.min(Number(req.query.limit) || 20, 50);
     try {

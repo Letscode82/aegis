@@ -13,8 +13,9 @@
  * Server-side only; gated intake:create_ticket (same as the other console routes).
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
+import { Permission, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
+import { assertAndAudit } from "../../../lib/authz";
 import { prisma, logAudit, DocumentOwnerType } from "@aegis/db";
 import {
   extractDocumentText,
@@ -37,7 +38,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!user) return res.status(401).json({ ok: false, error: "Not authenticated" });
 
   try {
-    assertUserCanDo(user, Permission.IntakeCreateTicket);
+    await assertAndAudit(user, Permission.IntakeCreateTicket, { route: "one-legal.upload" });
     const body = (req.body || {}) as Record<string, unknown>;
     const filename = (typeof body.filename === "string" ? body.filename : "").trim() || "document";
     const contentBase64 = typeof body.contentBase64 === "string" ? body.contentBase64 : "";

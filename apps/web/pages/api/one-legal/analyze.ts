@@ -11,8 +11,9 @@
  * still returns something useful. Server-side only; gated intake:create_ticket.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
+import { Permission, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
+import { assertAndAudit } from "../../../lib/authz";
 import { callClaude } from "@aegis/ai";
 import { ensureServerClaudeTransport } from "@aegis/ai/server";
 import { prisma } from "@aegis/db";
@@ -41,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!user) return res.status(401).json({ ok: false, error: "Not authenticated" });
 
   try {
-    assertUserCanDo(user, Permission.IntakeCreateTicket);
+    await assertAndAudit(user, Permission.IntakeCreateTicket, { route: "one-legal.analyze" });
     const t0 = Date.now();
     const body = (req.body || {}) as Record<string, unknown>;
     const documentId = String(body.documentId || "").trim();

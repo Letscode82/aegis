@@ -4,8 +4,9 @@
  * which matter a legal hold attaches to). Read-only, permission-gated.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
+import { Permission, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
+import { assertAndAudit } from "../../../lib/authz";
 import { listMattersByOrganization } from "@aegis/matter";
 import { getSpendOverview } from "@aegis/spend";
 
@@ -20,13 +21,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     const kind = String(req.query.kind || "matter");
     if (kind === "matter") {
-      assertUserCanDo(user, Permission.MatterReadAll);
+      await assertAndAudit(user, Permission.MatterReadAll, { route: "one-legal.targets" });
       const page = await listMattersByOrganization(user.organizationId, {});
       const items = (page.rows || []).map((m) => ({ id: m.id, label: `${m.matterNumber ? m.matterNumber + " · " : ""}${m.title}` }));
       return res.status(200).json({ ok: true, items });
     }
     if (kind === "invoice") {
-      assertUserCanDo(user, Permission.SpendReadAll);
+      await assertAndAudit(user, Permission.SpendReadAll, { route: "one-legal.targets" });
       const overview = await getSpendOverview(user.organizationId);
       const items = (overview.invoices || []).map((i) => ({ id: i.id, label: `${i.vendorName} · ${i.currency} ${i.amount} · ${i.status}` }));
       return res.status(200).json({ ok: true, items });

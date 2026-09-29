@@ -10,8 +10,9 @@
  * Body (JSON): { questions: string[] }
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
+import { Permission, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
+import { assertAndAudit } from "../../../../lib/authz";
 import { callClaudeJSON } from "@aegis/ai";
 import { ensureServerClaudeTransport } from "@aegis/ai/server";
 import { prisma } from "@aegis/db";
@@ -42,7 +43,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!user) return res.status(401).json({ ok: false, error: "Not authenticated" });
 
   try {
-    assertUserCanDo(user, Permission.KnowledgeReadAll);
+    await assertAndAudit(user, Permission.KnowledgeReadAll, { route: "vault.review" });
     const t0 = Date.now();
     const vaultId = typeof req.query.id === "string" ? req.query.id : "";
     const body = (req.body || {}) as Record<string, unknown>;
