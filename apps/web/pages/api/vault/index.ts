@@ -6,7 +6,7 @@
  * cited Q&A. Reads gated knowledge:read_all; create gated knowledge:contribute.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
+import { Permission, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
 import { prisma, logAudit } from "@aegis/db";
 import { assertAndAudit } from "../../../lib/authz";
@@ -17,7 +17,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   try {
     if (req.method === "GET") {
-      assertUserCanDo(user, Permission.KnowledgeReadAll);
+      await assertAndAudit(user, Permission.KnowledgeReadAll, { route: "vault.list" });
       const vaults = await prisma.vault.findMany({
         where: { organizationId: user.organizationId },
         orderBy: { updatedAt: "desc" },

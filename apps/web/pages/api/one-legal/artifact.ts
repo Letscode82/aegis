@@ -10,8 +10,9 @@
  * Server-side; gated intake:create_ticket.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
+import { Permission, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
+import { assertAndAudit } from "../../../lib/authz";
 import { prisma, logAudit, DocumentOwnerType } from "@aegis/db";
 import { indexResource } from "@aegis/search";
 
@@ -27,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!user) return res.status(401).json({ ok: false, error: "Not authenticated" });
 
   try {
-    assertUserCanDo(user, Permission.IntakeCreateTicket);
+    await assertAndAudit(user, Permission.IntakeCreateTicket, { route: "one-legal.artifact" });
     const body = (req.body || {}) as Record<string, unknown>;
     const title = (typeof body.title === "string" ? body.title : "").trim().slice(0, 200) || "Untitled draft";
     const content = (typeof body.content === "string" ? body.content : "").slice(0, MAX_CHARS);

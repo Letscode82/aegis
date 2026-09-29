@@ -2,8 +2,9 @@
  * GET /api/vault/[id] — a vault + its documents (V1). Gated knowledge:read_all.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
+import { Permission, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
+import { assertAndAudit } from "../../../lib/authz";
 import { prisma } from "@aegis/db";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -15,7 +16,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!user) return res.status(401).json({ ok: false, error: "Not authenticated" });
 
   try {
-    assertUserCanDo(user, Permission.KnowledgeReadAll);
+    await assertAndAudit(user, Permission.KnowledgeReadAll, { route: "vault.get" });
     const id = typeof req.query.id === "string" ? req.query.id : "";
     const vault = await prisma.vault.findFirst({
       where: { id, organizationId: user.organizationId },

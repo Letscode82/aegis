@@ -9,8 +9,9 @@
  * Server-side only; gated intake:create_ticket (same as the other console routes).
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
+import { Permission, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
+import { assertAndAudit } from "../../../lib/authz";
 import { runAgentLoop } from "../../../lib/one-legal/agent-loop";
 import { recordSpan } from "@aegis/observability";
 
@@ -23,7 +24,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!user) return res.status(401).json({ ok: false, error: "Not authenticated" });
 
   try {
-    assertUserCanDo(user, Permission.IntakeCreateTicket);
+    await assertAndAudit(user, Permission.IntakeCreateTicket, { route: "one-legal.agent" });
     const question = String((req.body || {}).text || "").trim();
     if (question.length < 3) return res.status(400).json({ ok: false, error: "Ask a question in a few words." });
 

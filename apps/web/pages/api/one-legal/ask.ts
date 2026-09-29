@@ -16,8 +16,9 @@
  * Gated intake:create_ticket — same as the other ONE Legal console routes.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
+import { Permission, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
+import { assertAndAudit } from "../../../lib/authz";
 import { callClaude } from "@aegis/ai";
 import { ensureServerClaudeTransport } from "@aegis/ai/server";
 import { semanticSearch } from "@aegis/search";
@@ -63,7 +64,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!user) return res.status(401).json({ ok: false, error: "Not authenticated" });
 
   try {
-    assertUserCanDo(user, Permission.IntakeCreateTicket);
+    await assertAndAudit(user, Permission.IntakeCreateTicket, { route: "one-legal.ask" });
     const t0 = Date.now();
     const question = String((req.body || {}).text || "").trim();
     if (question.length < 3) return res.status(400).json({ ok: false, error: "Ask a question in a few words." });

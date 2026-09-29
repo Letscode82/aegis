@@ -7,8 +7,9 @@
  * console keeps working unpersisted. Gated intake:create_ticket.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
+import { Permission, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
+import { assertAndAudit } from "../../../lib/authz";
 import { prisma } from "@aegis/db";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
@@ -19,7 +20,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   const user = await getResolvedUser(req, res);
   if (!user) return res.status(401).json({ ok: false, error: "Not authenticated" });
   try {
-    assertUserCanDo(user, Permission.IntakeCreateTicket);
+    await assertAndAudit(user, Permission.IntakeCreateTicket, { route: "one-legal.record" });
     const b = (req.body || {}) as Record<string, unknown>;
     const sessionId = String(b.sessionId || "").trim();
     const title = String(b.title || "").trim().slice(0, 200);
