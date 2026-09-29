@@ -14,6 +14,7 @@
  */
 
 import { redactMessagesBody, isPIIRedactionEnabled } from "./pii.js";
+import { fetchWithRetry } from "./retry.js";
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const BODY_LIMIT_BYTES = 50 * 1024;
@@ -111,15 +112,21 @@ export async function handleClaudeRequest(req, res) {
   }
 
   try {
-    const upstream = await fetch(ANTHROPIC_URL, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
+    // REL1 — retry transient upstream failures (429 / 5xx / 529 overload /
+    // dropped connection) with bounded exponential backoff, honoring Retry-After.
+    const upstream = await fetchWithRetry(
+      ANTHROPIC_URL,
+      {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": "2023-06-01",
+        },
+        body,
       },
-      body,
-    });
+      { retries: 2, baseDelayMs: 400 },
+    );
 
     const text = await upstream.text();
     res.status(upstream.status);
