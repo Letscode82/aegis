@@ -14,7 +14,7 @@
  */
 
 import { redactMessagesBody, isPIIRedactionEnabled } from "./pii.js";
-import { fetchWithRetry } from "./retry.js";
+import { fetchWithRetry, shouldFallback } from "./retry.js";
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const BODY_LIMIT_BYTES = 50 * 1024;
@@ -88,6 +88,7 @@ export async function handleClaudeRequest(req, res) {
   const SAFE_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5";
   const DEAD_MODELS = new Set(["claude-sonnet-4-6"]);
   let piiRedactions = 0;
+  let sentModel = "";
   try {
     const parsed = JSON.parse(body);
     let changed = false;
@@ -95,6 +96,7 @@ export async function handleClaudeRequest(req, res) {
       parsed.model = SAFE_MODEL;
       changed = true;
     }
+    sentModel = typeof parsed.model === "string" ? parsed.model : "";
     // SEC1 — opt-in PII redaction: scrub common PII from the outbound prompt so
     // privileged identifiers don't leave the tenant. Off by default; enable
     // with AEGIS_PII_REDACTION=on. Degrades safely (no-op on parse failure).
@@ -111,25 +113,39 @@ export async function handleClaudeRequest(req, res) {
     return res.status(413).json({ error: "Request body exceeds 50KB limit" });
   }
 
+  const headers = {
+    "content-type": "application/json",
+    "x-api-key": apiKey,
+    "anthropic-version": "2023-06-01",
+  };
   try {
     // REL1 — retry transient upstream failures (429 / 5xx / 529 overload /
     // dropped connection) with bounded exponential backoff, honoring Retry-After.
-    const upstream = await fetchWithRetry(
-      ANTHROPIC_URL,
-      {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-        },
-        body,
-      },
-      { retries: 2, baseDelayMs: 400 },
-    );
+    let upstream = await fetchWithRetry(ANTHROPIC_URL, { method: "POST", headers, body }, { retries: 2, baseDelayMs: 400 });
+
+    // GW1 — model gateway fallback: if the primary model is still failing with
+    // an overload / server error / dead-model status after retries, try a
+    // configured fallback model ONCE. Off unless ANTHROPIC_FALLBACK_MODEL is set.
+    const FALLBACK_MODEL = process.env.ANTHROPIC_FALLBACK_MODEL || "";
+    let modelFallback = "";
+    if (!upstream.ok && FALLBACK_MODEL && sentModel && sentModel !== FALLBACK_MODEL && shouldFallback(upstream.status)) {
+      try {
+        const p = JSON.parse(body);
+        p.model = FALLBACK_MODEL;
+        const fbBody = JSON.stringify(p);
+        if (Buffer.byteLength(fbBody, "utf8") <= BODY_LIMIT_BYTES) {
+          const retryResp = await fetchWithRetry(ANTHROPIC_URL, { method: "POST", headers, body: fbBody }, { retries: 1, baseDelayMs: 400 });
+          upstream = retryResp; // use the fallback attempt's response (ok or not)
+          if (retryResp.ok) modelFallback = FALLBACK_MODEL;
+        }
+      } catch {
+        /* body not re-parseable — keep the primary response */
+      }
+    }
 
     const text = await upstream.text();
     res.status(upstream.status);
+    if (modelFallback) res.setHeader("x-aegis-model-fallback", modelFallback);
     res.setHeader("content-type", "application/json");
     if (piiRedactions > 0) res.setHeader("x-aegis-pii-redacted", String(piiRedactions));
     return res.send(text);
