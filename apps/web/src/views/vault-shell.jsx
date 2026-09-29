@@ -37,8 +37,11 @@ export function VaultShell() {
   const [q, setQ] = useState("");
   const [asking, setAsking] = useState(false);
   const [ans, setAns] = useState(null); // { answer, sources, grounded }
+  const [reviewQ, setReviewQ] = useState("");
+  const [reviewing, setReviewing] = useState(false);
+  const [grid, setGrid] = useState(null); // { columns, rows, truncated, shownDocs, totalDocs }
 
-  useEffect(() => { setAns(null); setQ(""); }, [selectedId]);
+  useEffect(() => { setAns(null); setQ(""); setGrid(null); setReviewQ(""); }, [selectedId]);
 
   const loadVaults = useCallback(async () => {
     setLoading(true);
@@ -123,6 +126,27 @@ export function VaultShell() {
       setAsking(false);
     }
   }, [q, selectedId]);
+
+  const runReview = useCallback(async () => {
+    const questions = reviewQ.split("\n").map((s) => s.trim()).filter((s) => s.length >= 3).slice(0, 6);
+    if (questions.length === 0 || !selectedId) return;
+    setReviewing(true);
+    setGrid(null);
+    setError(null);
+    try {
+      const d = await fetch(`/api/vault/${encodeURIComponent(selectedId)}/review`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ questions }),
+      }).then((r) => r.json());
+      if (d.ok) setGrid(d);
+      else setError(d.error || "Review failed.");
+    } catch {
+      setError("Review failed.");
+    } finally {
+      setReviewing(false);
+    }
+  }, [reviewQ, selectedId]);
 
   return (
     <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 18, height: "100%", fontFamily: F, color: C.t1 }}>
@@ -210,6 +234,50 @@ export function VaultShell() {
                   </div>
                 )}
               </div>
+            )}
+            {/* Bulk cross-document review grid (V1c) */}
+            {detail.documents.length > 0 && (
+              <details style={{ marginBottom: 14, border: `1px solid ${C.br}`, borderRadius: 10, padding: "8px 12px", background: C.cd }}>
+                <summary style={{ fontSize: 11, fontFamily: M, color: C.t2, letterSpacing: 0.5, textTransform: "uppercase", cursor: "pointer" }}>Bulk review · ask questions across every document</summary>
+                <div style={{ marginTop: 10 }}>
+                  <textarea
+                    value={reviewQ}
+                    onChange={(e) => setReviewQ(e.target.value)}
+                    placeholder={"One question per line (up to 6), e.g.\nWhat is the governing law?\nWhat is the liability cap?\nIs there an auto-renewal clause?"}
+                    rows={4}
+                    style={{ width: "100%", resize: "vertical", background: C.s1, border: `1px solid ${C.br}`, borderRadius: 8, color: C.t1, fontFamily: F, fontSize: 12.5, lineHeight: 1.5, padding: "9px 11px", outline: "none", boxSizing: "border-box" }}
+                  />
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 8 }}>
+                    <button type="button" onClick={runReview} disabled={reviewing || reviewQ.trim().length < 3} style={{ background: C.em, color: C.bg, border: "none", borderRadius: 8, padding: "8px 14px", fontFamily: M, fontSize: 10, fontWeight: 700, letterSpacing: 0.6, textTransform: "uppercase", cursor: "pointer", opacity: reviewing || reviewQ.trim().length < 3 ? 0.5 : 1 }}>{reviewing ? "Reviewing…" : "Run review"}</button>
+                    <span style={{ fontSize: 10.5, color: C.t4 }}>{reviewing ? "Reading every document…" : "columns = questions · rows = documents"}</span>
+                  </div>
+                  {grid && grid.rows.length > 0 && (
+                    <div style={{ marginTop: 12, overflowX: "auto" }}>
+                      <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 11.5 }}>
+                        <thead>
+                          <tr>
+                            <th style={{ textAlign: "left", padding: "6px 8px", borderBottom: `1px solid ${C.br}`, color: C.t3, fontFamily: M, fontSize: 9.5, textTransform: "uppercase", letterSpacing: 0.5, position: "sticky", left: 0, background: C.cd, minWidth: 140 }}>Document</th>
+                            {grid.columns.map((c, i) => (
+                              <th key={i} style={{ textAlign: "left", padding: "6px 8px", borderBottom: `1px solid ${C.br}`, color: C.t2, fontWeight: 600, minWidth: 180, verticalAlign: "top" }}>{c}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {grid.rows.map((row) => (
+                            <tr key={row.documentId}>
+                              <td style={{ padding: "7px 8px", borderBottom: `1px solid ${C.br}`, color: C.t1, fontWeight: 600, position: "sticky", left: 0, background: C.cd, verticalAlign: "top" }}>{row.name}</td>
+                              {row.cells.map((cell, i) => (
+                                <td key={i} style={{ padding: "7px 8px", borderBottom: `1px solid ${C.br}`, color: cell === "—" || cell === "Not addressed" ? C.t4 : C.t2, lineHeight: 1.45, verticalAlign: "top" }}>{cell}</td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                      {grid.truncated && <div style={{ marginTop: 8, fontSize: 10.5, color: C.t4 }}>Showing {grid.shownDocs} of {grid.totalDocs} documents.</div>}
+                    </div>
+                  )}
+                </div>
+              </details>
             )}
             <div style={{ flex: 1, overflowY: "auto", minHeight: 0 }}>
               {detail.documents.length === 0 ? (
