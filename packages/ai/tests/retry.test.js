@@ -1,10 +1,17 @@
 import { describe, it, expect, vi } from "vitest";
-import { isRetryableStatus, backoffMs, parseRetryAfterMs, fetchWithRetry } from "../src/retry.js";
+import { isRetryableStatus, backoffMs, parseRetryAfterMs, fetchWithRetry, shouldFallback } from "../src/retry.js";
 
 describe("isRetryableStatus", () => {
   it("retries 429/5xx/529, not 200/400/401/403/404", () => {
     for (const s of [408, 425, 429, 500, 502, 503, 504, 529]) expect(isRetryableStatus(s)).toBe(true);
     for (const s of [200, 201, 400, 401, 403, 404, 422]) expect(isRetryableStatus(s)).toBe(false);
+  });
+});
+
+describe("shouldFallback", () => {
+  it("falls back on dead-model/5xx/overload, not on 429/200/400", () => {
+    for (const s of [404, 500, 502, 503, 529]) expect(shouldFallback(s)).toBe(true);
+    for (const s of [200, 400, 401, 403, 429]) expect(shouldFallback(s)).toBe(false);
   });
 });
 

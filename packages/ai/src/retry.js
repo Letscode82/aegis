@@ -32,6 +32,17 @@ export function parseRetryAfterMs(value, now = Date.now()) {
   return null;
 }
 
+// Statuses where trying a DIFFERENT model may help (GW1 gateway fallback):
+// a dead/unknown model (404), server errors, and Anthropic's overload (529).
+// 429 is deliberately excluded — a rate limit is account-scoped, so another
+// model on the same key won't clear it (that's REL1's backoff to handle).
+const FALLBACK_STATUSES = new Set([404, 500, 502, 503, 529]);
+
+/** True when switching to a fallback model is worth attempting. */
+export function shouldFallback(status) {
+  return FALLBACK_STATUSES.has(Number(status));
+}
+
 const defaultSleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /**
