@@ -14,7 +14,8 @@
  */
 import { prisma } from "@aegis/db";
 import { canUserDo, Permission, type AuthUser } from "@aegis/auth";
-import { getMattersByCounterparty } from "@aegis/matter";
+import { getMattersByCounterparty, listLegalHolds } from "@aegis/matter";
+import { getSpendOverview } from "@aegis/spend";
 
 const LIST_CAP = 25;
 // A proper-noun candidate right after a linking preposition.
@@ -72,10 +73,12 @@ export async function getEntityCrossLink(user: AuthUser, question: string): Prom
 
   const parts: string[] = [`COUNTERPARTY — ${cp.name} (${cp.type}).`];
   const nav: Array<{ label: string; view: string }> = [];
+  const matterIds = new Set<string>();
 
   if (canUserDo(user, Permission.MatterReadAll).allowed) {
     try {
       const matters = await getMattersByCounterparty(cp.id);
+      for (const m of matters) { const id = (m as Record<string, unknown>).id; if (typeof id === "string") matterIds.add(id); }
       const list = matters.slice(0, LIST_CAP).map((m) => {
         const mm = m as Record<string, unknown>;
         return `${mm.matterNumber ? mm.matterNumber + " · " : ""}${mm.title ?? "Matter"} (${mm.status ?? "?"})`;
@@ -83,6 +86,20 @@ export async function getEntityCrossLink(user: AuthUser, question: string): Prom
       parts.push(`Matters (${matters.length}): ${list.join("; ") || "none"}${matters.length > LIST_CAP ? "; …" : ""}.`);
       if (matters.length) nav.push({ label: "Matters", view: "matters" });
     } catch { /* omit */ }
+
+    // Legal holds on this counterparty's matters.
+    if (matterIds.size > 0) {
+      try {
+        const holds = ((await listLegalHolds(orgId)) as Array<Record<string, unknown>>).filter((h) => {
+          const mid = (h.matterId as string) || ((h.matter as Record<string, unknown> | undefined)?.id as string);
+          return mid && matterIds.has(mid);
+        });
+        if (holds.length) {
+          const list = holds.slice(0, LIST_CAP).map((h) => `${h.title ?? h.holdNumber ?? h.id ?? "Hold"} (${h.status ?? "?"})`);
+          parts.push(`Legal holds (${holds.length}): ${list.join("; ")}${holds.length > LIST_CAP ? "; …" : ""}.`);
+        }
+      } catch { /* omit */ }
+    }
   }
 
   if (canUserDo(user, Permission.ContractsReadAll).allowed) {
@@ -97,6 +114,20 @@ export async function getEntityCrossLink(user: AuthUser, question: string): Prom
       const list = contracts.map((c) => `${c.title} (${c.status})`);
       parts.push(`Contracts (${total}): ${list.join("; ") || "none"}${total > contracts.length ? "; …" : ""}.`);
       if (total) nav.push({ label: "Contracts", view: "contracts" });
+    } catch { /* omit */ }
+  }
+
+  // Spend on this counterparty's matters (invoices link to matter, not the
+  // counterparty directly, so we join through the matter set).
+  if (matterIds.size > 0 && canUserDo(user, Permission.SpendReadAll).allowed) {
+    try {
+      const ov = await getSpendOverview(orgId);
+      const invoices = (ov.invoices || []).filter((inv) => inv.matterId && matterIds.has(inv.matterId));
+      if (invoices.length) {
+        const billed = Math.round(invoices.reduce((n, inv) => n + (inv.amount || 0), 0) * 100) / 100;
+        parts.push(`Spend: ${invoices.length} invoice(s), $${billed} across these matters.`);
+        nav.push({ label: "Legal Spend", view: "spend" });
+      }
     } catch { /* omit */ }
   }
 
