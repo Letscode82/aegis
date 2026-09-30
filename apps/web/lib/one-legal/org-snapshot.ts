@@ -52,7 +52,16 @@ export async function getOrgSnapshot(user: AuthUser): Promise<{ text: string; se
     try {
       const rows = await prisma.matter.groupBy({ by: ["status"], where: { organizationId: orgId }, _count: { _all: true } });
       const { total, by } = countsLine(rows as never);
-      parts.push(`MATTERS — ${total} matter(s). By status: ${by}.`);
+      // Include the actual matter list (names) so "what are the matters" answers
+      // with names, not just a count.
+      const matters = await prisma.matter.findMany({
+        where: { organizationId: orgId },
+        select: { matterNumber: true, title: true, status: true },
+        orderBy: { updatedAt: "desc" },
+        take: LIST_CAP,
+      });
+      const list = matters.map((m) => `${m.matterNumber ? m.matterNumber + " · " : ""}${m.title} (${m.status})`).join("; ");
+      parts.push(`MATTERS — ${total} matter(s). By status: ${by}.` + (list ? ` Matters: ${list}${total > matters.length ? "; …" : ""}.` : ""));
       sections.push("matters");
     } catch { /* omit */ }
 
@@ -83,10 +92,15 @@ export async function getOrgSnapshot(user: AuthUser): Promise<{ text: string; se
     try {
       const ov = await getContractsOverview(orgId);
       const by = Object.entries(ov.byStatus || {}).map(([s, n]) => `${s}: ${n}`).join(", ") || "none";
+      // "Open" = live (ACTIVE/EXECUTED) or in-flight (DRAFT/IN_REVIEW/IN_NEGOTIATION/APPROVED).
+      const OPEN = new Set(["ACTIVE", "EXECUTED", "DRAFT", "IN_REVIEW", "IN_NEGOTIATION", "APPROVED"]);
+      const open = (ov.contracts || []).filter((c) => OPEN.has(String(c.status)));
+      const list = open.slice(0, LIST_CAP).map((c) => `${c.title}${c.counterpartyName ? ` — ${c.counterpartyName}` : ""} (${c.status})`).join("; ");
       parts.push(
         `CONTRACTS — ${ov.totals.total} total; ${ov.totals.active} active, ${ov.totals.inFlight} in-flight, ` +
           `${ov.totals.highRisk} high-risk, ${ov.totals.expiringSoon} expiring within 90 days. By status: ${by}. ` +
-          `Obligations: ${ov.totals.openObligations} open, ${ov.totals.overdueObligations} overdue.`,
+          `Obligations: ${ov.totals.openObligations} open, ${ov.totals.overdueObligations} overdue.` +
+          (list ? ` Open contracts: ${list}${open.length > LIST_CAP ? "; …" : ""}.` : ""),
       );
       sections.push("contracts");
     } catch { /* omit */ }
