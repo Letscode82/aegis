@@ -324,6 +324,13 @@ function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource, onRes
       ) : (
         <>
           <div style={{ fontSize: 13.5, color: C.t1, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{turn.answer}</div>
+          {Array.isArray(turn.nav) && turn.nav.length > 0 && onOpenSource && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
+              {turn.nav.map((n) => (
+                <button key={n.view} type="button" onClick={() => onOpenSource(n.view)} style={chipBtn}>Open {n.label} →</button>
+              ))}
+            </div>
+          )}
           <SourcesList sources={turn.sources} grounded={turn.grounded} onOpenSource={onOpenSource} />
         </>
       )}
@@ -819,7 +826,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       });
       const data = await resp.json().catch(() => ({}));
       if (data && data.ok && (data.answer || "").trim()) {
-        patchTurn(turnId, { answer: String(data.answer).trim(), sources: Array.isArray(data.sources) ? data.sources : [], grounded: !!data.grounded, answerLoading: false });
+        patchTurn(turnId, { answer: String(data.answer).trim(), sources: Array.isArray(data.sources) ? data.sources : [], grounded: !!data.grounded, nav: Array.isArray(data.nav) ? data.nav : [], answerLoading: false });
       } else if (data && data.error) {
         patchTurn(turnId, { answerLoading: false, answerError: data.error });
       } else {
