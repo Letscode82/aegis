@@ -24,6 +24,13 @@ import { ensureServerClaudeTransport } from "@aegis/ai/server";
 import { semanticSearch } from "@aegis/search";
 import { prisma } from "@aegis/db";
 import { recordSpan } from "@aegis/observability";
+import { getOrgSnapshot, looksOperational } from "../../../lib/one-legal/org-snapshot";
+
+const OPERATIONAL_SYSTEM =
+  "You are AEGIS, an in-house legal-operations assistant. Answer the question USING ONLY the ORG SNAPSHOT below — live counts " +
+  "and lists across the platform's modules (intake, matters, legal holds, contracts, spend, privacy). Be specific with the " +
+  "numbers and cross-link across modules where the question asks. If a figure isn't in the snapshot, say it isn't available " +
+  "rather than guessing. Never invent numbers. Keep it tight — a direct answer plus a short breakdown.";
 
 const MAX_SOURCES = 6;
 
@@ -68,6 +75,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const t0 = Date.now();
     const question = String((req.body || {}).text || "").trim();
     if (question.length < 3) return res.status(400).json({ ok: false, error: "Ask a question in a few words." });
+
+    // K2 — operational / cross-module questions ("how many intake tickets?",
+    // "which matters have legal holds?", "what contracts are open?") answer from
+    // live module figures, not documents. Build a permission-scoped snapshot and
+    // ground Claude in it; degrade to returning the snapshot digest itself.
+    if (looksOperational(question)) {
+      const snap = await getOrgSnapshot(user);
+      if (snap.text) {
+        let answer = "";
+        let degraded = false;
+        try {
+          ensureServerClaudeTransport();
+          answer = ((await callClaude(`Question: ${question}\n\nORG SNAPSHOT:\n${snap.text}`, { system: OPERATIONAL_SYSTEM, maxTokens: 600, timeout: 20000 })) || "").trim();
+          if (!answer) throw new Error("empty");
+        } catch {
+          degraded = true;
+          answer = `Here are the current figures across your modules:\n\n${snap.text}`;
+        }
+        recordSpan("one_legal.ask", Date.now() - t0, { mode: "operational", sections: snap.sections.length, degraded });
+        return res.status(200).json({ ok: true, answer, grounded: true, degraded, sources: [], mode: "operational" });
+      }
+      // No readable sections for this user → fall through to the document path.
+    }
 
     // 1) Retrieve (semantic when available, else keyword — never throws to the caller).
     let hits: Array<{ ownerType: string; ownerId: string; documentId: string | null; content: string; score: number; source: string }> = [];
