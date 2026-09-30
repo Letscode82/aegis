@@ -25,6 +25,12 @@ import { semanticSearch } from "@aegis/search";
 import { prisma } from "@aegis/db";
 import { recordSpan } from "@aegis/observability";
 import { getOrgSnapshot, looksOperational, operationalNav } from "../../../lib/one-legal/org-snapshot";
+import { getEntityCrossLink, looksLikeEntityLookup } from "../../../lib/one-legal/entity-lookup";
+
+const ENTITY_SYSTEM =
+  "You are AEGIS, an in-house legal-operations assistant. Answer USING ONLY the ENTITY RECORD below — the counterparty and its " +
+  "linked matters and contracts across the platform. Be specific and organize by module. If the record doesn't cover something " +
+  "the question asks, say so rather than guessing. Never invent records. Keep it tight.";
 
 const OPERATIONAL_SYSTEM =
   "You are AEGIS, an in-house legal-operations assistant. Answer the question USING ONLY the ORG SNAPSHOT below — live counts " +
@@ -75,6 +81,28 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const t0 = Date.now();
     const question = String((req.body || {}).text || "").trim();
     if (question.length < 3) return res.status(400).json({ ok: false, error: "Ask a question in a few words." });
+
+    // K3 — entity cross-linking: "everything about <counterparty>", "contracts
+    // with <company>". Answer from the resolved counterparty's linked records
+    // across modules. Only fires when a named entity actually resolves.
+    if (looksLikeEntityLookup(question)) {
+      const entity = await getEntityCrossLink(user, question);
+      if (entity) {
+        let answer = "";
+        let degraded = false;
+        try {
+          ensureServerClaudeTransport();
+          answer = ((await callClaude(`Question: ${question}\n\nENTITY RECORD:\n${entity.text}`, { system: ENTITY_SYSTEM, maxTokens: 600, timeout: 20000 })) || "").trim();
+          if (!answer) throw new Error("empty");
+        } catch {
+          degraded = true;
+          answer = `Here's what's linked to ${entity.matched}:\n\n${entity.text}`;
+        }
+        recordSpan("one_legal.ask", Date.now() - t0, { mode: "entity", degraded });
+        return res.status(200).json({ ok: true, answer, grounded: true, degraded, sources: [], mode: "entity", nav: entity.nav });
+      }
+      // No entity resolved → fall through to operational / document paths.
+    }
 
     // K2 — operational / cross-module questions ("how many intake tickets?",
     // "which matters have legal holds?", "what contracts are open?") answer from
