@@ -24,7 +24,7 @@ import { ensureServerClaudeTransport } from "@aegis/ai/server";
 import { semanticSearch } from "@aegis/search";
 import { prisma } from "@aegis/db";
 import { recordSpan } from "@aegis/observability";
-import { getOrgSnapshot, looksOperational } from "../../../lib/one-legal/org-snapshot";
+import { getOrgSnapshot, looksOperational, operationalNav } from "../../../lib/one-legal/org-snapshot";
 
 const OPERATIONAL_SYSTEM =
   "You are AEGIS, an in-house legal-operations assistant. Answer the question USING ONLY the ORG SNAPSHOT below — live counts " +
@@ -94,7 +94,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           answer = `Here are the current figures across your modules:\n\n${snap.text}`;
         }
         recordSpan("one_legal.ask", Date.now() - t0, { mode: "operational", sections: snap.sections.length, degraded });
-        return res.status(200).json({ ok: true, answer, grounded: true, degraded, sources: [], mode: "operational" });
+        return res.status(200).json({ ok: true, answer, grounded: true, degraded, sources: [], mode: "operational", nav: operationalNav(question) });
       }
       // No readable sections for this user → fall through to the document path.
     }

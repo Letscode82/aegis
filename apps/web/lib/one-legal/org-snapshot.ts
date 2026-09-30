@@ -141,3 +141,27 @@ export function looksOperational(question: string): boolean {
   const q = question || "";
   return AGG_INTENT.test(q) && MODULE_NOUN.test(q);
 }
+
+// Map module nouns in a question to console nav targets, so an operational
+// answer can offer "Open <module> →" jumps to the underlying data.
+const NAV_MATCHERS: Array<{ re: RegExp; label: string; view: string }> = [
+  { re: /\b(intake|ticket)/i, label: "Legal Intake", view: "intake" },
+  { re: /\b(legal hold|holds?|custodian)/i, label: "Legal Holds", view: "matters" },
+  { re: /\b(matter|case)/i, label: "Matters", view: "matters" },
+  { re: /\b(contract|obligation|renewal)/i, label: "Contracts", view: "contracts" },
+  { re: /\b(spend|invoice|budget|vendor)/i, label: "Legal Spend", view: "spend" },
+  { re: /\b(dsar|privacy)/i, label: "Privacy", view: "privacy" },
+];
+
+export function operationalNav(question: string): Array<{ label: string; view: string }> {
+  const q = question || "";
+  const out: Array<{ label: string; view: string }> = [];
+  const seen = new Set<string>();
+  for (const m of NAV_MATCHERS) {
+    if (m.re.test(q) && !seen.has(m.view)) {
+      seen.add(m.view);
+      out.push({ label: m.label, view: m.view });
+    }
+  }
+  return out;
+}
