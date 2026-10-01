@@ -297,3 +297,77 @@ consumes a clean public intake surface instead of subpath internals.
 **OL-1 then OL-2.** OL-1 lands the compound-task feel immediately with no
 backend risk; OL-2 makes it real with the orchestrator + tool registry and
 the streaming `/api/one-legal/run` route. Everything after is additive.
+
+---
+
+## 10. Live status tracker (updated as PRs land)
+
+Legend: 🔴 not started · 🟡 in progress / in review · 🟢 mitigated · ✅ done.
+
+### Shipped recently (foundation + fixes)
+| ID | Item | Status |
+|---|---|---|
+| F-1 | Embeddings service on Railway (`services/embeddings`) | ✅ Live |
+| F-2 | Laya System-1 classifier on Railway (`services/laya`) | ✅ Live (#469) |
+| F-3 | Next.js 14.2.35 security bump (CVE-2025-55184 / -67779) | ✅ #470 |
+| F-4 | pgvector migration + backfill workflow + embed sub-batching | ✅ #471–#473 (51–52/52 indexed) |
+| FX-1 | Intent routing: operational queries answered, not filed ("total open contracts") | ✅ #474 |
+| F-5 | End-to-end semantic search verification (smoke test in ONE Legal) | 🟡 pending user test |
+
+### Open foundation
+| ID | Item | Why | Priority | Status |
+|---|---|---|---|---|
+| F-6 | Async worker runtime (pg-boss) for scheduled jobs | SLA sweeps, defensibility snapshots, obligation alerts (C-9) | P2 | 🔴 |
+| F-7 | KMS envelope encryption for stored M365 creds / refresh tokens | Replace dev-only plaintext before first paying customer | P2 | 🔴 |
+| F-8 | Shared connector / OAuth framework | Base for DMS (C-3), e-sign (C-5), legal research (C-4) | P1 | 🔴 |
+
+### Cowork-feel near-term (extends OL-1 / OL-5)
+| ID | Item | Maps to | Priority | Status |
+|---|---|---|---|---|
+| CW-1 | **Clarify-before-file** — interview for missing details first (Cowork-style) | new; feeds OL-1 | P0 | 🔴 next |
+| CW-2 | Doc-type disambiguation ("sell IP" ⇒ NDA vs assignment/license) | folds into CW-1 / OL-6 | P1 | 🔴 |
+| CW-3 | Jurisdiction-aware template variant up front (India ≠ Delaware-then-flag) | folds into OL-6 | P1 | 🔴 |
+| CW-4 | Attorney-grade `.docx` deliverable → edit → approve → send back to requester | = OL-5 | P1 | 🔴 |
+| CW-5 | Cockpit RFI round-trip (questions back to requester) | new; pairs with C-10 | P2 | 🔴 |
+
+> The **OL-1…OL-8** plan in §6 remains the orchestration backbone (all 🔴 not started). CW-* above are the immediate Cowork-feel wins layered on it; CW-4 is OL-5, CW-2/3 ride OL-6.
+
+---
+
+## 11. Competitive gap matrix & table-stakes epics (C-1…C-14)
+
+§7 argues *why* AEGIS beats the incumbents on breadth + governance. This section is the complement: the **table-stakes gaps** to close so AEGIS isn't disqualified in head-to-head evals against **Harvey / Legora / Icertis**. Competitor features verified via web research (Oct 2026): [Harvey platform](https://www.harvey.ai/platform) · [Legora product](https://legora.com/product/aos) · [Icertis Vera](https://www.icertis.com/products/platform/copilot/).
+
+### Where AEGIS already has parity / wins
+| Capability | Harvey | Legora | Icertis | AEGIS | Verdict |
+|---|:--:|:--:|:--:|---|---|
+| Cited Q&A over your own docs | ✅ | ✅ | ✅ | ✅ K1 (self-hosted) | parity |
+| Bulk / tabular multi-doc review grid | ✅ | ✅ | ~ | ✅ `packages/review` + Vault V1c | parity |
+| Agentic workflows / ladders | ✅ | ✅ | ✅ | 🟡 engine + `GOVERNANCE_LIBRARY`, orchestrator pending (OL-2) | close |
+| Breadth across legal-ops lifecycle | ❌ | ❌ | ❌ | ✅✅ | **AEGIS wins** |
+| Chain-sealed audit + human-gate governance | ~ | ~ | ~ | ✅✅ | **AEGIS wins** |
+| Legal hold / eDiscovery | ❌ | ❌ | ❌ | ✅✅ | **AEGIS wins** |
+
+### Competitive epics
+| ID | Area | Item | Parity with | Priority | Depends | Status |
+|---|---|---|---|---|---|---|
+| C-1 | Surface | **Word add-in** (native track-changes drafting/redline) | Legora, Harvey | P1 | CW-4 | 🔴 |
+| C-2 | Surface | **Outlook add-in** (email drafting/triage) | Harvey | P2 | F-8 | 🔴 |
+| C-3 | Connectors | **DMS/storage sync** — iManage, NetDocuments, SharePoint | Harvey, Legora | P1 | F-8 | 🔴 |
+| C-4 | Research | **Legal-authority research** — caselaw/statute/EDGAR/EUR-Lex (connector or content provider) | Harvey, Legora | P1 | F-8 | 🔴 **biggest gap** |
+| C-5 | Contracts | **E-signature** — real DocuSign/Adobe (seam stubbed in NDA flow) | Icertis | P1 | F-8 | 🔴 |
+| C-6 | Enterprise | **SSO / SAML federation** — Auth0 → Entra/Okta per tenant | all three | P1 | — | 🔴 (migration documented) |
+| C-7 | Contracts | **Contract authoring** — clause library + templates + dynamic clause insertion | Icertis | P2 | — | 🔴 (`authorContractFromTemplate` exists) |
+| C-8 | Contracts | **Negotiation intelligence** — redline summaries, playbook fallbacks, version compare | Icertis, Legora, Harvey | P2 | C-7 | 🔴 |
+| C-9 | Contracts | **Obligation & renewal management** — auto-extract post-signature, assign, track, alert | Icertis | P2 | F-6 | 🔴 (uses `Obligation` entity) |
+| C-10 | Collaboration | **Business-user / client portal** — white-label self-service | Legora Portal, Icertis | P2 | CW-5 | 🔴 |
+| C-11 | Reach | **Multilingual / multi-jurisdiction** drafting & review | Legora | P3 | — | 🔴 |
+| C-12 | Platform | **Expose AEGIS as an MCP server** (integration surface) | Harvey | P3 | — | 🔴 |
+| C-13 | Quality | **Answer-grounding / citation enforcement + legal hallucination guardrails** | quality bar | P1 | — | 🔴 (extends SEC1 + governance) |
+| C-14 | Analytics | Executive analytics / reporting depth (Mission Control) | Icertis analytics | P3 | — | 🔴 |
+
+### Suggested strategic sequence
+Close semantic loop (F-5) → Cowork-feel (CW-1 → OL-1/OL-2 → CW-4/OL-5) → quality bar (C-13) → win-rate movers (C-4 research + C-1 Word add-in on the F-8 framework) → contract depth (C-7 → C-8 → C-9 with F-6) → enterprise (C-6, F-7, C-10).
+
+### Also considered (parked, not yet epics)
+Data-residency / tenant-isolation hardening, mobile beyond custodian ack, usage metering/billing, prompt/agent versioning + in-prod evals (partly EVAL1/OBS1), SOC 2 / ISO 27001 (go-to-market, not code).
