@@ -1,0 +1,86 @@
+name: Backfill embeddings
+
+# Manually-triggered job that turns on @aegis/search's semantic layer against a
+# real database (Neon): it applies pending Prisma migrations — which create the
+# pgvector `embedding` column — then embeds existing Documents via the self-
+# hosted embeddings service. Runs on a GitHub runner, which has open network
+# egress to Neon (:5432) and to the Railway embeddings URL, so it works where a
+# firewalled laptop can't reach the DB.
+#
+# Idempotent + re-runnable: `migrate deploy` only applies un-applied migrations,
+# and `backfill` replaces vectors per (resource, chunk, model) in place — so
+# re-running after a bulk upload is safe.
+#
+# Required repo secrets (Settings -> Secrets and variables -> Actions):
+#   DATABASE_URL        the Neon connection string
+#   EMBEDDINGS_URL      the embeddings service base URL (no trailing /embed)
+#   EMBEDDINGS_API_KEY  the service's bearer token
+# EMBEDDINGS_MODEL is a workflow input (partition label; keep it identical to
+# the value set on the web app / Vercel so query- and stored-vectors match).
+
+on:
+  workflow_dispatch:
+    inputs:
+      embeddings_model:
+        description: "Embedding model partition label (must match the web app's EMBEDDINGS_MODEL)"
+        required: true
+        default: "bge-small-en-v1.5"
+      org_id:
+        description: "Limit backfill to one organization id (blank = all orgs)"
+        required: false
+        default: ""
+      limit:
+        description: "Cap number of documents to embed (blank = no cap)"
+        required: false
+        default: ""
+
+concurrency:
+  group: backfill-embeddings
+  cancel-in-progress: false
+
+jobs:
+  backfill:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      EMBEDDINGS_URL: ${{ secrets.EMBEDDINGS_URL }}
+      EMBEDDINGS_API_KEY: ${{ secrets.EMBEDDINGS_API_KEY }}
+      EMBEDDINGS_MODEL: ${{ inputs.embeddings_model }}
+      AEGIS_ORG_ID: ${{ inputs.org_id }}
+      BACKFILL_LIMIT: ${{ inputs.limit }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Preflight — required secrets present
+        run: |
+          missing=""
+          [ -n "$DATABASE_URL" ] || missing="$missing DATABASE_URL"
+          [ -n "$EMBEDDINGS_URL" ] || missing="$missing EMBEDDINGS_URL"
+          [ -n "$EMBEDDINGS_API_KEY" ] || missing="$missing EMBEDDINGS_API_KEY"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing required repo secret(s):$missing — add them under Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+          echo "Secrets present. Model partition: $EMBEDDINGS_MODEL"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Apply migrations (creates the pgvector embedding column)
+        run: pnpm --filter @aegis/db run db:migrate:deploy
+
+      - name: Backfill document embeddings
+        run: pnpm --filter @aegis/search run backfill
