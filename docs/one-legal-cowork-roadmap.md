@@ -310,7 +310,7 @@ Legend: 🔴 not started · 🟡 in progress / in review · 🟢 mitigated · �
 | F-1 | Embeddings service on Railway (`services/embeddings`) | ✅ Live |
 | F-2 | Laya System-1 classifier on Railway (`services/laya`) | ✅ Live (#469) |
 | F-3 | Next.js 14.2.35 security bump (CVE-2025-55184 / -67779) | ✅ #470 |
-| F-4 | pgvector migration + backfill workflow + embed sub-batching | ✅ #471–#473 (51–52/52 indexed) |
+| F-4 | pgvector migration + backfill workflow + embed sub-batching + transient-miss auto-retry | ✅ #471–#473 + backfill retries a one-off `no-embeddings` once (deterministic reasons not retried) |
 | FX-1 | Intent routing: operational queries answered, not filed ("total open contracts") | ✅ #474 |
 | F-5 | End-to-end semantic search verification (smoke test in ONE Legal) | 🟡 pending user test |
 

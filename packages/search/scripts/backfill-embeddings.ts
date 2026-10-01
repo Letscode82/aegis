@@ -72,13 +72,22 @@ async function main() {
         continue;
       }
       try {
-        const res = await indexResource({
+        const resourceInput = {
           organizationId: doc.organizationId,
-          ownerType: "DOCUMENT",
+          ownerType: "DOCUMENT" as const,
           ownerId: doc.id,
           documentId: doc.id,
           text,
-        });
+        };
+        let res = await indexResource(resourceInput);
+        // Retry once on a TRANSIENT embed miss. "no-embeddings" means the
+        // provider returned nothing for this call (a one-off timeout / cold
+        // start) — a brief pause + one retry recovers it. Deterministic
+        // reasons ("no-capability", "empty-text") are never retried.
+        if (res.indexed === 0 && res.reason === "no-embeddings") {
+          await new Promise((r) => setTimeout(r, 1500));
+          res = await indexResource(resourceInput);
+        }
         if (res.indexed > 0) {
           indexed += 1;
           chunks += res.indexed;
