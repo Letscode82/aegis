@@ -33,6 +33,9 @@ export interface ClarifyResult {
   source: "laya" | "regex" | "default";
   extracted: Record<string, string>;
   missing: ClarifyField[];
+  /** CW-3: the governing-law descriptor for the detected jurisdiction, if any —
+   *  so the draft starts with the right law up front rather than defaulting. */
+  governingLaw?: string | null;
 }
 
 type Triage = { cat?: string } | null;
@@ -43,7 +46,7 @@ type Triage = { cat?: string } | null;
 // strings. A family with no entry (general inquiry, etc.) yields no questions.
 const F = {
   counterparty: { key: "counterpartyName", label: "Counterparty", question: "What is the counterparty's full legal entity name?", kind: "text" as const },
-  jurisdiction: { key: "jurisdiction", label: "Jurisdiction", question: "Which governing-law jurisdiction should apply?", kind: "text" as const },
+  jurisdiction: { key: "jurisdiction", label: "Jurisdiction", question: "Which governing-law jurisdiction should apply?", kind: "choice" as const, options: ["India", "Delaware", "California", "New York", "United Kingdom", "European Union", "Germany", "Singapore", "Other"] },
   purpose: { key: "purpose", label: "Purpose / scope", question: "What is the purpose — what will be shared or done?", kind: "text" as const },
   ndaDirection: { key: "direction", label: "Direction", question: "Is this mutual or one-way?", kind: "choice" as const, options: ["Mutual", "One-way (we disclose)", "One-way (they disclose)", "Not sure"] },
   adverseParty: { key: "counterpartyName", label: "Adverse party", question: "Who is the opposing / adverse party (full legal name)?", kind: "text" as const },
@@ -85,6 +88,42 @@ export function extractJurisdiction(text: string): string | undefined {
     }
   }
   return undefined;
+}
+
+// CW-3: jurisdiction → governing-law descriptor, so a draft starts with the
+// right law instead of defaulting (the India-vs-Delaware miss on REQ-5020).
+// The descriptor is a hint for the drafting agent and the reviewer, not a
+// substitute for counsel confirming the clause.
+const GOVERNING_LAW: Record<string, string> = {
+  India: "India — Indian Contract Act, 1872; courts at the agreed seat",
+  Delaware: "Delaware, USA — Delaware law; Delaware state/federal courts",
+  California: "California, USA — California law; California courts",
+  "New York": "New York, USA — New York law; New York courts",
+  Texas: "Texas, USA — Texas law",
+  "United Kingdom": "England & Wales — English law; courts of England and Wales",
+  "European Union": "EU member-state law — specify the governing member state",
+  Germany: "Germany — German law (BGB); German courts",
+  France: "France — French law",
+  Netherlands: "Netherlands — Dutch law",
+  Switzerland: "Switzerland — Swiss law",
+  Singapore: "Singapore — Singapore law; Singapore courts",
+  "Hong Kong": "Hong Kong SAR — Hong Kong law",
+  China: "PRC — PRC law",
+  Japan: "Japan — Japanese law",
+  Australia: "Australia — governing state/territory law",
+  Canada: "Canada — governing province law",
+  Brazil: "Brazil — Brazilian law",
+  UAE: "UAE — applicable Emirate / DIFC or ADGM law",
+};
+
+/** The governing-law descriptor for a (canonical) jurisdiction, or null. */
+export function governingLawForJurisdiction(jurisdiction: string | undefined | null): string | null {
+  if (!jurisdiction) return null;
+  const key = String(jurisdiction).trim();
+  if (GOVERNING_LAW[key]) return GOVERNING_LAW[key];
+  // Tolerate common aliases that the picker / free text might produce.
+  const norm = extractJurisdiction(key);
+  return (norm && GOVERNING_LAW[norm]) || null;
 }
 
 // A proper-noun entity: a run of Capitalized words, optionally with a company
@@ -202,5 +241,6 @@ export async function clarifyIntake(input: { text: string; dept?: string }): Pro
     missing.unshift(DOC_TYPE_FIELD);
   }
 
-  return { category, source, extracted, missing };
+  const governingLaw = governingLawForJurisdiction(extracted.jurisdiction);
+  return { category, source, extracted, missing, governingLaw };
 }
