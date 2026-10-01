@@ -56,9 +56,30 @@ const CAPABILITY_RE = /(what can (you|aegis|i)|what do you do|how does (this|aeg
 const QUESTION_RE = /\?\s*$|^(what|whats|what's|how|why|who|whom|whose|when|where|which|can|could|do|does|did|is|are|am|should|would|will|tell me|explain|show me|list|help)\b/i;
 const IMPERATIVE_RE = /^(please\s+)?(create|draft|review|file|start|open|prepare|set ?up|renew|terminate|flag|screen|onboard|redline|negotiate|raise|issue|log|submit|make|generate|build)\b|^(i|we)\s+(need|want|would like|require)\b|\b(can|could|please)\s+you\s+(create|draft|review|file|start|prepare|renew|flag|screen|set ?up|make|open|handle|generate|build)\b/i;
 
+// Operational / analytical queries about EXISTING module data ("total open
+// contracts", "open matters", "active holds", "overdue invoices") are questions
+// to answer from the Contracts / Matter / Spend / … modules — NOT new requests
+// to file. They often arrive as a bare noun phrase with no leading question
+// word, so QUESTION_RE misses them and they fall through to "file". Mirror the
+// server's looksOperational (apps/web/lib/one-legal/org-snapshot.ts).
+const OPS_AGG_RE = /\b(total|open|pending|overdue|outstanding|active|all|how many|number of|count|breakdown|summary|overview|status|due)\b/i;
+const OPS_MODULE_RE = /\b(contracts?|matters?|tickets?|intake|invoices?|spend|budgets?|holds?|legal holds?|custodians?|dsars?|privacy|obligations?|renewals?|vendors?|counterpart(?:y|ies)|cases?)\b/i;
+// A real filing imperative names a NEW thing to open ("open a matter", "create
+// an NDA", "file a new request") — a verb immediately followed by an article.
+// This keeps "open a matter for Acme" on the file path while "open matters"
+// (no article) is read as an operational question.
+const IMPERATIVE_WITH_OBJECT_RE = /^(please\s+)?(create|draft|review|file|start|open|prepare|set ?up|renew|terminate|flag|screen|onboard|redline|negotiate|raise|issue|log|submit|make|generate|build)\s+(a|an|the|new|me)\b/i;
+function looksOperationalQuery(t) {
+  return OPS_AGG_RE.test(t) && OPS_MODULE_RE.test(t);
+}
+
 function classifyIntent(text) {
   const t = text.trim().toLowerCase();
   if (CAPABILITY_RE.test(t)) return "capability";
+  // Aggregate/analytical queries over existing module data are questions even
+  // without a leading question word — unless they're a clear filing imperative
+  // ("open a matter …") or a tool-y request.
+  if (looksOperationalQuery(t) && !IMPERATIVE_WITH_OBJECT_RE.test(t) && !looksToolish(t)) return "ask";
   if (QUESTION_RE.test(t) && !IMPERATIVE_RE.test(t)) return "ask";
   return "file";
 }
