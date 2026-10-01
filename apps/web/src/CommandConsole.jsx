@@ -695,6 +695,9 @@ function ClarifyCard({ turn, onFile }) {
     const lines = missing
       .filter((f) => String(answers[f.key] || "").trim())
       .map((f) => `${f.label}: ${String(answers[f.key]).trim()}`);
+    // CW-3: carry the governing-law descriptor for the detected jurisdiction
+    // into the filed ticket so the draft starts with the right law.
+    if (turn.governingLaw) lines.push(`Governing law: ${turn.governingLaw}`);
     return lines.length ? `${turn.baseText}\n\n${lines.join("\n")}` : turn.baseText;
   };
   const detected = Object.values(turn.extracted || {});
@@ -703,8 +706,10 @@ function ClarifyCard({ turn, onFile }) {
       <div style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>
         A few details before I file{turn.category ? ` · ${turn.category}` : ""}
       </div>
-      {detected.length > 0 && (
-        <div style={{ fontSize: 12, color: C.t3, marginBottom: 12 }}>Detected — {detected.join(" · ")}</div>
+      {(detected.length > 0 || turn.governingLaw) && (
+        <div style={{ fontSize: 12, color: C.t3, marginBottom: 12 }}>
+          Detected — {[...detected, turn.governingLaw ? `governing law: ${turn.governingLaw}` : null].filter(Boolean).join(" · ")}
+        </div>
       )}
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
         {missing.map((f) => (
@@ -965,7 +970,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     } catch { /* degrade → file directly */ }
     if (data && data.ok && Array.isArray(data.missing) && data.missing.length > 0) {
       const id = ++TURN_SEQ;
-      setTurns((ts) => [...ts, { id, kind: "clarify", request: t, baseText: t, category: data.category, missing: data.missing, extracted: data.extracted || {} }]);
+      setTurns((ts) => [...ts, { id, kind: "clarify", request: t, baseText: t, category: data.category, missing: data.missing, extracted: data.extracted || {}, governingLaw: data.governingLaw || null }]);
       return;
     }
     fileRequest(t);

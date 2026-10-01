@@ -9,6 +9,7 @@ import {
   extractFields,
   computeMissing,
   clarifyIntake,
+  governingLawForJurisdiction,
 } from "../src/clarify/server";
 
 describe("requiredFieldsForCategory", () => {
@@ -68,11 +69,25 @@ describe("extractFields + computeMissing", () => {
   });
 });
 
+describe("governingLawForJurisdiction (CW-3)", () => {
+  it("maps canonical jurisdictions to a governing-law descriptor", () => {
+    expect(governingLawForJurisdiction("India")).toMatch(/Indian Contract Act/);
+    expect(governingLawForJurisdiction("Delaware")).toMatch(/Delaware/);
+    expect(governingLawForJurisdiction("United Kingdom")).toMatch(/England/);
+  });
+  it("tolerates aliases and unknowns", () => {
+    expect(governingLawForJurisdiction("UK")).toMatch(/England/); // alias → United Kingdom
+    expect(governingLawForJurisdiction("Atlantis")).toBeNull();
+    expect(governingLawForJurisdiction(undefined)).toBeNull();
+  });
+});
+
 describe("clarifyIntake (regex classification path; Laya disabled in test)", () => {
   it("returns only the genuinely-missing fields for a clean NDA", async () => {
     const r = await clarifyIntake({ text: "draft a mutual NDA with Globex Inc governed by Delaware" });
     expect(r.category).toMatch(/nda/i);
     expect(r.extracted).toMatchObject({ counterpartyName: "Globex Inc", direction: "Mutual", jurisdiction: "Delaware" });
+    expect(r.governingLaw).toMatch(/Delaware/); // CW-3: governing law resolved up front
     expect(r.missing.map((f) => f.key)).toEqual(["purpose"]);
   });
   it("adds a document-type confirmation when an NDA smells like an IP transfer", async () => {

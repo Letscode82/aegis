@@ -326,7 +326,7 @@ Legend: 🔴 not started · 🟡 in progress / in review · 🟢 mitigated · �
 |---|---|---|---|---|
 | CW-1 | **Clarify-before-file** — interview for missing details first (Cowork-style) | new; feeds OL-1 | P0 | 🟡 this PR (`/api/intake/clarify` + console ClarifyCard) |
 | CW-2 | Doc-type disambiguation ("sell IP" ⇒ NDA vs assignment/license) | folds into CW-1 / OL-6 | P1 | 🟡 this PR (IP-transfer confirmation in clarify) |
-| CW-3 | Jurisdiction-aware template variant up front (India ≠ Delaware-then-flag) | folds into OL-6 | P1 | 🔴 |
+| CW-3 | Jurisdiction-aware template variant up front (India ≠ Delaware-then-flag) | folds into OL-6 | P1 | 🟡 jurisdiction normalized to a picker + `governingLawForJurisdiction` map; governing-law descriptor carried into the filed ticket. Agent honoring it in the template body is the follow-up (OL-6). |
 | CW-4 | Attorney-grade `.docx` deliverable → edit → approve → send back to requester | = OL-5 | P1 | 🟡 Word export of C1 canvas shipped (`renderMarkdownDocx` + `/api/one-legal/artifact-docx` + "⬇ Word" button); email-send is the remaining follow-up |
 | CW-5 | Cockpit RFI round-trip (questions back to requester) | new; pairs with C-10 | P2 | 🔴 |
 
