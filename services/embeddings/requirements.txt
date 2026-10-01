@@ -1,5 +1,10 @@
 # CPU-only torch keeps the image small (no CUDA payload) — fine for embeddings.
 --extra-index-url https://download.pytorch.org/whl/cpu
+# torch 2.2.2 is built against the NumPy 1.x ABI; NumPy 2.x makes torch's
+# `.numpy()` interop raise "Numpy is not available" at inference time (the
+# model loads, but every /embed 500s). Pin <2 until torch is bumped to a
+# NumPy-2-compatible release.
+numpy<2
 torch==2.2.2
 fastapi==0.115.0
 uvicorn[standard]==0.30.6
