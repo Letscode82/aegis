@@ -1,0 +1,206 @@
+/**
+ * Clarify-before-file (CW-1) — the Cowork-style intake interview.
+ *
+ * Before ONE Legal files a request, it checks whether the key facts for that
+ * request category are present in the free text. If some are missing, the
+ * console asks for them up front (one compact turn) and files a *complete*
+ * ticket — instead of the agent discovering the gaps only after drafting.
+ *
+ * Pure + deterministic: classification reuses the existing Laya/regex path
+ * (`@aegis/ai`); field extraction is regex-only so it never depends on a model
+ * and is fully unit-testable. When the category has no required-field catalog
+ * (e.g. a general inquiry) it returns no questions and the caller files
+ * directly — so this never blocks or degrades an existing flow.
+ *
+ * This gathers input only; it files nothing. The actual ticket write still
+ * goes through the intake chokepoint (routing rules + chain-sealed audit),
+ * unchanged — so governance is untouched.
+ *
+ * Server-only (classification + reads).
+ */
+import { classifyIntakeRegex, classifyIntakeLaya } from "@aegis/ai";
+
+export type ClarifyFieldKind = "text" | "choice";
+export interface ClarifyField {
+  key: string;
+  label: string;
+  question: string;
+  kind: ClarifyFieldKind;
+  options?: string[];
+}
+export interface ClarifyResult {
+  category: string;
+  source: "laya" | "regex" | "default";
+  extracted: Record<string, string>;
+  missing: ClarifyField[];
+}
+
+type Triage = { cat?: string } | null;
+
+// ── Required-field catalog, keyed by category family ───────────────────────
+// Categories arrive as human labels ("NDA — Standard", "Vendor Contract",
+// "Privacy — DPIA / GDPR"), so we match on keyword families rather than exact
+// strings. A family with no entry (general inquiry, etc.) yields no questions.
+const F = {
+  counterparty: { key: "counterpartyName", label: "Counterparty", question: "What is the counterparty's full legal entity name?", kind: "text" as const },
+  jurisdiction: { key: "jurisdiction", label: "Jurisdiction", question: "Which governing-law jurisdiction should apply?", kind: "text" as const },
+  purpose: { key: "purpose", label: "Purpose / scope", question: "What is the purpose — what will be shared or done?", kind: "text" as const },
+  ndaDirection: { key: "direction", label: "Direction", question: "Is this mutual or one-way?", kind: "choice" as const, options: ["Mutual", "One-way (we disclose)", "One-way (they disclose)", "Not sure"] },
+  adverseParty: { key: "counterpartyName", label: "Adverse party", question: "Who is the opposing / adverse party (full legal name)?", kind: "text" as const },
+  summary: { key: "summary", label: "Summary", question: "Briefly, what happened / what is the dispute?", kind: "text" as const },
+  dataSubject: { key: "dataSubjectName", label: "Data subject", question: "Whose data is the request about (data subject name)?", kind: "text" as const },
+  dsarType: { key: "requestType", label: "Request type", question: "What kind of privacy request is this?", kind: "choice" as const, options: ["Access", "Erasure", "Rectification", "Portability", "Objection"] },
+  matterName: { key: "matterName", label: "Matter", question: "Which matter is this hold for?", kind: "text" as const },
+  custodians: { key: "custodians", label: "Custodians", question: "Who are the custodians to preserve?", kind: "text" as const },
+  trigger: { key: "trigger", label: "Trigger", question: "What triggered the hold (the preservation event)?", kind: "text" as const },
+};
+
+/** The required fields for a classified category, or [] when none apply. */
+export function requiredFieldsForCategory(category: string): ClarifyField[] {
+  const c = (category || "").toLowerCase();
+  if (/\b(nda|non-disclosure|confidential)\b/.test(c)) return [F.counterparty, F.ndaDirection, F.purpose, F.jurisdiction];
+  if (/\b(vendor|contract|msa|saas|commercial|procure|supplier)\b/.test(c)) return [F.counterparty, F.purpose, F.jurisdiction];
+  if (/\b(litig|dispute|lawsuit|non-court|claim)\b/.test(c)) return [F.adverseParty, F.jurisdiction, F.summary];
+  if (/\b(privacy|dpia|gdpr|dsar|data subject)\b/.test(c)) return [F.dataSubject, F.dsarType, F.jurisdiction];
+  if (/\b(hold|preservation)\b/.test(c)) return [F.matterName, F.custodians, F.trigger];
+  return [];
+}
+
+// ── Deterministic extractors ───────────────────────────────────────────────
+const JURISDICTIONS = [
+  "India", "Delaware", "California", "New York", "Texas", "Nevada", "Washington",
+  "United Kingdom", "UK", "England", "Scotland", "Ireland", "European Union", "EU",
+  "Germany", "France", "Spain", "Italy", "Netherlands", "Switzerland", "Sweden",
+  "Singapore", "Hong Kong", "China", "Japan", "Australia", "Canada", "Brazil", "UAE",
+];
+
+/** First known jurisdiction mentioned, normalized to its canonical label. */
+export function extractJurisdiction(text: string): string | undefined {
+  const t = text || "";
+  for (const j of JURISDICTIONS) {
+    if (new RegExp(`\\b${j.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i").test(t)) {
+      if (/^uk$/i.test(j)) return "United Kingdom";
+      if (/^eu$/i.test(j)) return "European Union";
+      return j;
+    }
+  }
+  return undefined;
+}
+
+// A proper-noun entity: a run of Capitalized words, optionally with a company
+// suffix. Prefer a name that carries a suffix (Acme Inc), else the noun after a
+// linking preposition ("with Acme", "against Globex").
+const ENTITY_SUFFIX_RE = /\b([A-Z][\w&.'-]*(?:\s+[A-Z0-9][\w&.'-]*){0,3})\s+(Inc\.?|LLC|Ltd\.?|Limited|Corp\.?|Corporation|GmbH|PLC|LP|LLP|Co\.?|AG|S\.?A\.?|Pvt\.?)\b/;
+const ENTITY_AFTER_PREP_RE = /\b(?:with|for|against|from|between|to|of)\s+([A-Z][\w&.'-]*(?:\s+[A-Z0-9][\w&.'-]*){0,3})\b/;
+const PREP_STOP = new Set(["the", "a", "an", "our", "their", "my", "this", "that", "india", "delaware", "us", "them", "it"]);
+
+/** Best-effort counterparty / party / data-subject name from free text. */
+export function extractEntityName(text: string): string | undefined {
+  const t = text || "";
+  const suf = ENTITY_SUFFIX_RE.exec(t);
+  if (suf && suf[1]) return `${suf[1]} ${suf[2]}`.replace(/\s+/g, " ").trim();
+  const prep = ENTITY_AFTER_PREP_RE.exec(t);
+  if (prep && prep[1]) {
+    const cand = prep[1].trim();
+    if (!PREP_STOP.has(cand.toLowerCase())) return cand;
+  }
+  return undefined;
+}
+
+/** NDA direction if stated. */
+export function extractDirection(text: string): string | undefined {
+  const t = (text || "").toLowerCase();
+  if (/\bmutual\b/.test(t)) return "Mutual";
+  if (/\b(one[-\s]?way|unilateral)\b/.test(t)) return "One-way (we disclose)";
+  return undefined;
+}
+
+/** DSAR request type if stated. */
+export function extractDsarType(text: string): string | undefined {
+  const t = (text || "").toLowerCase();
+  if (/\b(erasure|delete|deletion|forgotten|right to be forgotten)\b/.test(t)) return "Erasure";
+  if (/\b(rectif|correct)\b/.test(t)) return "Rectification";
+  if (/\b(portab)\b/.test(t)) return "Portability";
+  if (/\bobject/.test(t)) return "Objection";
+  if (/\baccess\b/.test(t)) return "Access";
+  return undefined;
+}
+
+/** True when the text hints at an IP transfer/sale/license hiding under "NDA". */
+export function detectIpTransferAmbiguity(text: string): boolean {
+  const t = (text || "").toLowerCase();
+  const transfer = /\b(sell|sale|sold|selling|assign|assignment|transfer|licen[cs]e|licensing)\b/.test(t);
+  const ip = /\bip\b|intellectual property|patent|trademark|copyright|source code\b/.test(t);
+  return transfer && ip;
+}
+
+/** Run the deterministic extractors for exactly the fields we were given. */
+export function extractFields(text: string, fields: ClarifyField[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const f of fields) {
+    let v: string | undefined;
+    switch (f.key) {
+      case "counterpartyName":
+      case "dataSubjectName":
+      case "matterName":
+        v = extractEntityName(text);
+        break;
+      case "jurisdiction":
+        v = extractJurisdiction(text);
+        break;
+      case "direction":
+        v = extractDirection(text);
+        break;
+      case "requestType":
+        v = extractDsarType(text);
+        break;
+      default:
+        v = undefined; // purpose / summary / custodians / trigger — always asked
+    }
+    if (v) out[f.key] = v;
+  }
+  return out;
+}
+
+/** The required fields with no extracted value — the questions to ask. */
+export function computeMissing(fields: ClarifyField[], extracted: Record<string, string>): ClarifyField[] {
+  return fields.filter((f) => !extracted[f.key]);
+}
+
+const DOC_TYPE_FIELD: ClarifyField = {
+  key: "docType",
+  label: "Document type",
+  question: "This mentions selling/assigning/licensing IP — is it really an NDA, or an IP assignment/license? Picking the right instrument matters.",
+  kind: "choice",
+  options: ["NDA (confidentiality only)", "IP assignment / sale", "IP license", "Other — not sure"],
+};
+
+/**
+ * Classify the request and return the fields still needed before filing.
+ * `missing: []` means nothing to ask — file directly.
+ */
+export async function clarifyIntake(input: { text: string; dept?: string }): Promise<ClarifyResult> {
+  const text = String(input.text || "");
+  const dept = String(input.dept || "");
+  const regex = classifyIntakeRegex(text, dept) as Triage;
+  let laya: Triage = null;
+  try {
+    laya = (await classifyIntakeLaya(text, dept)) as Triage;
+  } catch {
+    laya = null;
+  }
+  const category = (laya && laya.cat) || (regex && regex.cat) || "General Inquiry";
+  const source: ClarifyResult["source"] = laya && laya.cat ? "laya" : regex && regex.cat ? "regex" : "default";
+
+  const fields = requiredFieldsForCategory(category);
+  const extracted = extractFields(text, fields);
+  const missing = computeMissing(fields, extracted);
+
+  // CW-2: when an NDA request smells like an IP transfer, confirm the
+  // instrument up front (always ask — it's a confirmation, not an extraction).
+  if (/\b(nda|non-disclosure|confidential)\b/i.test(category) && detectIpTransferAmbiguity(text)) {
+    missing.unshift(DOC_TYPE_FIELD);
+  }
+
+  return { category, source, extracted, missing };
+}
