@@ -66,6 +66,20 @@ describe("embedTexts", () => {
     const r = await embedTexts(["a"], { provider: { kind: "voyage", apiKey: "k", model: "voyage-3" } });
     expect(r).toBeNull();
   });
+
+  it("sub-batches large inputs (>96) and concatenates aligned vectors", async () => {
+    const batchSizes: number[] = [];
+    globalThis.fetch = vi.fn(async (_url: unknown, init: unknown) => {
+      const body = JSON.parse((init as { body: string }).body) as { input: string[] };
+      batchSizes.push(body.input.length);
+      return { ok: true, json: async () => ({ embeddings: body.input.map(() => [1, 2, 3]) }) } as unknown as Response;
+    }) as typeof fetch;
+    const inputs = Array.from({ length: 150 }, (_, i) => `t${i}`);
+    const r = await embedTexts(inputs, { provider: { kind: "self", url: "http://embed", model: "m" } });
+    expect(r?.vectors).toHaveLength(150);
+    expect(r?.dim).toBe(3);
+    expect(batchSizes).toEqual([96, 54]); // 150 split into 96 + 54, not one oversized request
+  });
 });
 
 describe("providerModelId", () => {

@@ -106,6 +106,42 @@ export interface EmbedOptions {
  * or null when no provider is configured or the call fails (caller degrades to
  * keyword). Empty input returns an empty, well-formed result.
  */
+// Cap the number of texts in a single embed request. The self-hosted service
+// rejects batches over its MAX_BATCH (128 by default) with HTTP 413, and the
+// managed providers have their own per-request caps — so a long document that
+// chunks into >128 pieces would fail to embed entirely. Sub-batching keeps every
+// request well under those limits; 96 leaves headroom under the 128 default.
+const MAX_EMBED_BATCH = 96;
+
+/** Embed a single batch (already <= MAX_EMBED_BATCH). Returns aligned vectors or null. */
+async function embedBatch(provider: Provider, batch: string[], timeout: number): Promise<number[][] | null> {
+  let raw: unknown | null = null;
+  if (provider.kind === "self") {
+    const headers: Record<string, string> = {};
+    if (provider.apiKey) headers.Authorization = `Bearer ${provider.apiKey}`;
+    raw = await postJson(`${provider.url}/embed`, headers, { input: batch, model: provider.model }, timeout);
+    // Some self-hosted servers mount at the root rather than /embed.
+    if (raw === null) raw = await postJson(provider.url, headers, { input: batch, model: provider.model }, timeout);
+  } else if (provider.kind === "voyage") {
+    raw = await postJson(
+      "https://api.voyageai.com/v1/embeddings",
+      { Authorization: `Bearer ${provider.apiKey}` },
+      { input: batch, model: provider.model },
+      timeout,
+    );
+  } else {
+    raw = await postJson(
+      "https://api.openai.com/v1/embeddings",
+      { Authorization: `Bearer ${provider.apiKey}` },
+      { input: batch, model: provider.model },
+      timeout,
+    );
+  }
+  const vectors = parseVectors(raw);
+  if (!vectors || vectors.length !== batch.length) return null;
+  return vectors;
+}
+
 export async function embedTexts(texts: string[], opts: EmbedOptions = {}): Promise<EmbedResult | null> {
   const provider = opts.provider !== undefined ? opts.provider : resolveProvider();
   if (!provider) return null;
@@ -114,31 +150,18 @@ export async function embedTexts(texts: string[], opts: EmbedOptions = {}): Prom
   if (clean.length === 0) return { vectors: [], model: modelId, dim: 0 };
 
   const timeout = opts.timeoutMs ?? 20000;
-  let raw: unknown | null = null;
-  if (provider.kind === "self") {
-    const headers: Record<string, string> = {};
-    if (provider.apiKey) headers.Authorization = `Bearer ${provider.apiKey}`;
-    raw = await postJson(`${provider.url}/embed`, headers, { input: clean, model: provider.model }, timeout);
-    // Some self-hosted servers mount at the root rather than /embed.
-    if (raw === null) raw = await postJson(provider.url, headers, { input: clean, model: provider.model }, timeout);
-  } else if (provider.kind === "voyage") {
-    raw = await postJson(
-      "https://api.voyageai.com/v1/embeddings",
-      { Authorization: `Bearer ${provider.apiKey}` },
-      { input: clean, model: provider.model },
-      timeout,
-    );
-  } else {
-    raw = await postJson(
-      "https://api.openai.com/v1/embeddings",
-      { Authorization: `Bearer ${provider.apiKey}` },
-      { input: clean, model: provider.model },
-      timeout,
-    );
+  // Embed in sub-batches so a large input (many chunks) doesn't exceed the
+  // provider's per-request cap. Any failed batch fails the whole call (caller
+  // degrades to keyword), preserving the all-or-nothing contract.
+  const vectors: number[][] = [];
+  for (let i = 0; i < clean.length; i += MAX_EMBED_BATCH) {
+    const batch = clean.slice(i, i + MAX_EMBED_BATCH);
+    const got = await embedBatch(provider, batch, timeout);
+    if (!got) return null;
+    for (const v of got) vectors.push(v);
   }
 
-  const vectors = parseVectors(raw);
-  if (!vectors || vectors.length !== clean.length) return null;
+  if (vectors.length !== clean.length) return null;
   const first = vectors[0];
   const dim = first ? first.length : 0;
   if (dim === 0) return null;
