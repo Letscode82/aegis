@@ -19,6 +19,7 @@
     "./mailbox": "./src/email/mailbox.ts",
     "./agent-run": "./src/agents/run-server.ts",
     "./request-types": "./src/request-types/server.ts",
+    "./clarify": "./src/clarify/server.ts",
     "./work-tracking": "./src/work-tracking/server.ts",
     "./parties": "./src/parties/server.ts",
     "./handoff": "./src/handoff/server.ts",

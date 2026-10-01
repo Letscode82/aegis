@@ -661,6 +661,66 @@ function WorkspaceRail({ turns, onOpenTicket, onNavigate, history, onRunSkill })
   );
 }
 
+// CW-1 — the clarify-before-file card. Collects the missing facts for a
+// request's category inline, then files a complete ticket. Gathers input only;
+// filing still runs through the governed intake chokepoint.
+function ClarifyCard({ turn, onFile }) {
+  const [answers, setAnswers] = useState({});
+  const set = (k, v) => setAnswers((a) => ({ ...a, [k]: v }));
+  const missing = Array.isArray(turn.missing) ? turn.missing : [];
+  const allAnswered = missing.every((f) => String(answers[f.key] || "").trim());
+  const build = () => {
+    const lines = missing
+      .filter((f) => String(answers[f.key] || "").trim())
+      .map((f) => `${f.label}: ${String(answers[f.key]).trim()}`);
+    return lines.length ? `${turn.baseText}\n\n${lines.join("\n")}` : turn.baseText;
+  };
+  const detected = Object.values(turn.extracted || {});
+  return (
+    <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: "14px 16px" }}>
+      <div style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>
+        A few details before I file{turn.category ? ` · ${turn.category}` : ""}
+      </div>
+      {detected.length > 0 && (
+        <div style={{ fontSize: 12, color: C.t3, marginBottom: 12 }}>Detected — {detected.join(" · ")}</div>
+      )}
+      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+        {missing.map((f) => (
+          <div key={f.key}>
+            <div style={{ fontSize: 13, color: C.t1, marginBottom: 6 }}>{f.question}</div>
+            {f.kind === "choice" && Array.isArray(f.options) ? (
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                {f.options.map((opt) => {
+                  const sel = answers[f.key] === opt;
+                  return (
+                    <button key={opt} type="button" onClick={() => set(f.key, opt)}
+                      style={{ background: sel ? C.em : "transparent", color: sel ? C.bg : C.t2, border: `1px solid ${sel ? C.em : C.br}`, borderRadius: 999, padding: "6px 12px", fontSize: 12, cursor: "pointer" }}>
+                      {opt}
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <input type="text" value={answers[f.key] || ""} onChange={(e) => set(f.key, e.target.value)} placeholder={f.label}
+                style={{ width: "100%", background: C.bg, color: C.t1, border: `1px solid ${C.br}`, borderRadius: 8, padding: "8px 10px", fontSize: 13, boxSizing: "border-box" }} />
+            )}
+          </div>
+        ))}
+      </div>
+      <div style={{ display: "flex", gap: 12, alignItems: "center", marginTop: 14 }}>
+        <button type="button" onClick={() => onFile(build())} disabled={!allAnswered}
+          style={{ ...primaryBtn, opacity: allAnswered ? 1 : 0.5, cursor: allAnswered ? "pointer" : "not-allowed" }}>
+          File request ⏎
+        </button>
+        <button type="button" onClick={() => onFile(build())}
+          style={{ background: "transparent", border: "none", color: C.t4, fontFamily: M, fontSize: 9.5, letterSpacing: 0.5, textTransform: "uppercase", cursor: "pointer" }}>
+          File with what I have
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function CommandConsole({ open, embedded, initialText, onClose, onNavigate, onAsk }) {
   const [turns, setTurns] = useState([]);
   const [input, setInput] = useState("");
@@ -868,6 +928,27 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     runFile(id, t);
   }, [runFile]);
 
+  // CW-1 — clarify-before-file. Ask /api/intake/clarify whether key facts for
+  // this request's category are missing; if so, render a clarify turn to collect
+  // them, then file a complete ticket. Degrade-safe: on no-missing or any error,
+  // file directly (unchanged behavior). Gathers input only — the file still
+  // goes through the governed intake chokepoint.
+  const clarifyThenFile = useCallback(async (text) => {
+    const t = text.trim();
+    if (t.length < 3) return;
+    let data = null;
+    try {
+      const r = await fetch("/api/intake/clarify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: t }) });
+      if (r.ok) data = await r.json();
+    } catch { /* degrade → file directly */ }
+    if (data && data.ok && Array.isArray(data.missing) && data.missing.length > 0) {
+      const id = ++TURN_SEQ;
+      setTurns((ts) => [...ts, { id, kind: "clarify", request: t, baseText: t, category: data.category, missing: data.missing, extracted: data.extracted || {} }]);
+      return;
+    }
+    fileRequest(t);
+  }, [fileRequest]);
+
   // B2 — upload a document, then deep-read it. The file is extracted +
   // persisted + indexed server-side; the analysis is a single-document read.
   // The uploaded doc also becomes citable by later questions in the console.
@@ -994,12 +1075,12 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     if (looksLikeCanvasDraft(t)) { startArtifact(t); return; }
     const intent = classifyIntent(t);
     setInput("");
-    if (intent === "file") { if (looksCompound(t) || looksToolish(t)) planAndRun(t); else fileRequest(t); return; }
+    if (intent === "file") { if (looksCompound(t) || looksToolish(t)) planAndRun(t); else clarifyThenFile(t); return; }
     const id = ++TURN_SEQ;
     const capability = intent === "capability";
     setTurns((ts) => [...ts, { id, kind: "ask", request: t, answer: null, answerLoading: !capability, answerError: null, capability }]);
     runAsk(id, t, capability);
-  }, [fileRequest, planAndRun, runAsk, startArtifact]);
+  }, [clarifyThenFile, planAndRun, runAsk, startArtifact]);
 
   // E1 — run a reusable skill (playbook). "prefill" drops the prompt in the
   // composer for the user to complete; the others route through the same
@@ -1224,7 +1305,9 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
                   <div style={{ display: "flex", gap: 12 }}>
                     <span style={{ fontSize: 16, flexShrink: 0, marginTop: 2, color: C.em }} aria-hidden="true">✦</span>
                     <div style={{ minWidth: 0, flex: 1 }}>
-                      {t.kind === "ask" ? (
+                      {t.kind === "clarify" ? (
+                        <ClarifyCard turn={t} onFile={fileRequest} />
+                      ) : t.kind === "ask" ? (
                         <AnswerCard turn={t} onExample={startTurn} onFileInstead={fileRequest} onAsk={handleAsk} onOpenSource={goModule} onResearch={startResearch} />
                       ) : t.kind === "research" ? (
                         <ResearchCard turn={t} onFollowUp={focusComposer} onFileInstead={fileRequest} onOpenSource={goModule} />

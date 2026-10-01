@@ -324,8 +324,8 @@ Legend: 🔴 not started · 🟡 in progress / in review · 🟢 mitigated · �
 ### Cowork-feel near-term (extends OL-1 / OL-5)
 | ID | Item | Maps to | Priority | Status |
 |---|---|---|---|---|
-| CW-1 | **Clarify-before-file** — interview for missing details first (Cowork-style) | new; feeds OL-1 | P0 | 🔴 next |
-| CW-2 | Doc-type disambiguation ("sell IP" ⇒ NDA vs assignment/license) | folds into CW-1 / OL-6 | P1 | 🔴 |
+| CW-1 | **Clarify-before-file** — interview for missing details first (Cowork-style) | new; feeds OL-1 | P0 | 🟡 this PR (`/api/intake/clarify` + console ClarifyCard) |
+| CW-2 | Doc-type disambiguation ("sell IP" ⇒ NDA vs assignment/license) | folds into CW-1 / OL-6 | P1 | 🟡 this PR (IP-transfer confirmation in clarify) |
 | CW-3 | Jurisdiction-aware template variant up front (India ≠ Delaware-then-flag) | folds into OL-6 | P1 | 🔴 |
 | CW-4 | Attorney-grade `.docx` deliverable → edit → approve → send back to requester | = OL-5 | P1 | 🔴 |
 | CW-5 | Cockpit RFI round-trip (questions back to requester) | new; pairs with C-10 | P2 | 🔴 |
