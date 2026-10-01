@@ -462,6 +462,7 @@ function ArtifactCard({ turn, onSave, onRegenerate, onFileInstead }) {
   // Reset the editor when a fresh draft arrives (initial draft / regenerate).
   useEffect(() => { setTitle(turn.title || ""); setContent(turn.content || ""); }, [turn.draftNonce]); // eslint-disable-line react-hooks/exhaustive-deps
   const [copied, setCopied] = useState(false);
+  const [downloading, setDownloading] = useState(false);
 
   if (turn.draftLoading) {
     return (
@@ -481,6 +482,26 @@ function ArtifactCard({ turn, onSave, onRegenerate, onFileInstead }) {
   }
   const saved = !!turn.savedDocumentId;
   const copy = () => { try { navigator.clipboard?.writeText(content); setCopied(true); setTimeout(() => setCopied(false), 1500); } catch { /* ignore */ } };
+  // CW-4 — export the edited draft as an attorney-grade .docx the reviewer can
+  // open in Word and send to the business user. Read-only generation.
+  const downloadDocx = async () => {
+    if (!content.trim() || downloading) return;
+    setDownloading(true);
+    try {
+      const resp = await fetch("/api/one-legal/artifact-docx", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title, content }) });
+      if (!resp.ok) throw new Error("export failed");
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const slug = (title || "document").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 60) || "document";
+      a.download = `${slug}.docx`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch { /* ignore — download is best-effort */ } finally {
+      setDownloading(false);
+    }
+  };
   return (
     <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 14 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
@@ -500,6 +521,7 @@ function ArtifactCard({ turn, onSave, onRegenerate, onFileInstead }) {
         {saved && <span style={{ fontSize: 9.5, fontFamily: M, color: C.gn, border: `1px solid ${C.gn}`, borderRadius: 4, padding: "2px 7px", letterSpacing: 0.5, textTransform: "uppercase" }}>Saved ✓</span>}
         <button type="button" onClick={() => onRegenerate(turn.id, turn.request)} style={chipBtn}>↻ Regenerate</button>
         <button type="button" onClick={copy} style={chipBtn}>{copied ? "Copied ✓" : "Copy"}</button>
+        <button type="button" onClick={downloadDocx} disabled={downloading || !content.trim()} style={{ ...chipBtn, opacity: downloading || !content.trim() ? 0.5 : 1 }}>{downloading ? "Preparing…" : "⬇ Word (.docx)"}</button>
         {onFileInstead && <button type="button" onClick={() => onFileInstead(`Review this draft: ${title}`)} style={chipBtn}>File as a request →</button>}
       </div>
       {turn.degraded && <div style={{ marginTop: 8, fontSize: 10.5, fontFamily: M, color: C.t4 }}>AI drafting was offline — edited from a skeleton.</div>}

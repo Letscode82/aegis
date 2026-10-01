@@ -18,6 +18,13 @@ export {
   type ContractDocInput,
 } from "./contract-docx";
 
+// Generic Markdown → .docx for free-form console/canvas drafts (CW-4).
+export {
+  renderMarkdownDocx,
+  markdownDocxFilename,
+  type MarkdownDocInput,
+} from "./markdown-docx";
+
 // Document text extraction (.txt / .docx / .pdf → text). Dependency-free.
 export {
   extractDocumentText,
