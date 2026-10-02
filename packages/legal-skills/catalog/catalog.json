@@ -1,0 +1,1252 @@
+{
+  "schema_version": 1,
+  "name": "aegis-legal-skills",
+  "modules": [
+    {
+      "id": "intake",
+      "title": "Legal Intake & Triage",
+      "description": "Front door: classify, route and answer inbound legal requests"
+    },
+    {
+      "id": "contracts",
+      "title": "Contracts",
+      "description": "Review, drafting, negotiation and post-signature obligations"
+    },
+    {
+      "id": "privacy",
+      "title": "Privacy & Data Protection",
+      "description": "Personal-data compliance across DPDPA, GDPR, US state laws and beyond"
+    },
+    {
+      "id": "regulatory",
+      "title": "Regulatory & Compliance",
+      "description": "Applicability, change monitoring, AI governance, trade, anti-corruption, sector regimes"
+    },
+    {
+      "id": "corporate",
+      "title": "Corporate, Governance & Board",
+      "description": "Board work, entity compliance, M&A and securities"
+    },
+    {
+      "id": "disputes",
+      "title": "Litigation & Disputes",
+      "description": "Early case assessment, holds, chronology, strategy and settlement"
+    },
+    {
+      "id": "employment",
+      "title": "Employment & People",
+      "description": "Exits, investigations, restrictive covenants and workplace compliance"
+    },
+    {
+      "id": "ip",
+      "title": "Intellectual Property",
+      "description": "Clearance, open source, ownership and enforcement"
+    },
+    {
+      "id": "outside-counsel",
+      "title": "Outside Counsel & Spend",
+      "description": "Panels, engagement terms, invoices, budgets and performance"
+    },
+    {
+      "id": "matters",
+      "title": "Matter Management & Legal Ops",
+      "description": "Plans, RAID logs, reporting and continuous improvement"
+    },
+    {
+      "id": "research",
+      "title": "Research & Verification",
+      "description": "Grounded research and the verification layer every other skill relies on"
+    },
+    {
+      "id": "drafting",
+      "title": "Writing & Communication",
+      "description": "Plain-language, persuasive, translated and policy writing"
+    },
+    {
+      "id": "platform",
+      "title": "Platform & Skill Governance",
+      "description": "Safety and auditability of AI-assisted legal work inside AEGIS"
+    }
+  ],
+  "skills": [
+    {
+      "id": "intake/request-triage",
+      "module": "intake",
+      "name": "request-triage",
+      "title": "Legal request triage",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Classify an inbound request by type, urgency and risk; route to self-serve, a skill, or a named lawyer; capture missing facts."
+    },
+    {
+      "id": "intake/self-service-responder",
+      "module": "intake",
+      "name": "self-service-responder",
+      "title": "Self-service answer & escalation",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Answer routine questions from approved positions, and recognise the signals that require a lawyer instead."
+    },
+    {
+      "id": "intake/meeting-brief",
+      "module": "intake",
+      "name": "meeting-brief",
+      "title": "Legal meeting brief",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Prepare a one-page brief for a negotiation, regulator, board or counterparty meeting from matter materials."
+    },
+    {
+      "id": "intake/matter-scoping",
+      "module": "intake",
+      "name": "matter-scoping",
+      "title": "Matter scoping",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Turn a triaged request into a defined scope, assumptions, exclusions and an effort estimate."
+    },
+    {
+      "id": "intake/conflict-check-prep",
+      "module": "intake",
+      "name": "conflict-check-prep",
+      "title": "Conflict check preparation",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Extract parties, affiliates and adverse interests to run a conflict search before opening a matter."
+    },
+    {
+      "id": "contracts/contract-review",
+      "module": "contracts",
+      "name": "contract-review",
+      "title": "Playbook contract review",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Clause-by-clause review against the organisation's playbook with deviation scoring and fallback language."
+    },
+    {
+      "id": "contracts/nda-triage",
+      "module": "contracts",
+      "name": "nda-triage",
+      "title": "NDA triage",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Sort incoming NDAs into sign / negotiate / escalate with the specific edits needed."
+    },
+    {
+      "id": "contracts/obligation-extraction",
+      "module": "contracts",
+      "name": "obligation-extraction",
+      "title": "Obligation & key-date extraction",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Pull obligations, deadlines, renewals, notice periods and owners from executed agreements into a tracker."
+    },
+    {
+      "id": "contracts/tabular-review",
+      "module": "contracts",
+      "name": "tabular-review",
+      "title": "Multi-document tabular review",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Answer the same set of questions across many documents and return a sourced grid."
+    },
+    {
+      "id": "contracts/india-commercial-contract",
+      "module": "contracts",
+      "name": "india-commercial-contract",
+      "title": "Indian commercial contract check",
+      "status": "built",
+      "jurisdictions": [
+        "IN"
+      ],
+      "summary": "Enforceability check under Indian law: Contract Act, stamp duty, execution formalities, arbitration and governing-law choices."
+    },
+    {
+      "id": "contracts/vendor-due-diligence",
+      "module": "contracts",
+      "name": "vendor-due-diligence",
+      "title": "Vendor & third-party due diligence",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Risk-tier a supplier and run proportionate legal, privacy, security, sanctions and financial checks."
+    },
+    {
+      "id": "contracts/redline-generator",
+      "module": "contracts",
+      "name": "redline-generator",
+      "title": "Redline generator",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Turn review findings into tracked-change edits and a counterparty-facing issues list."
+    },
+    {
+      "id": "contracts/clause-drafter",
+      "module": "contracts",
+      "name": "clause-drafter",
+      "title": "Clause drafter from library",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Draft or adapt clauses from the approved clause library with variant selection and rationale."
+    },
+    {
+      "id": "contracts/saas-and-cloud-review",
+      "module": "contracts",
+      "name": "saas-and-cloud-review",
+      "title": "SaaS & cloud agreement review",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Customer- or vendor-side review of SaaS/cloud terms: SLAs, data, security, lock-in, liability."
+    },
+    {
+      "id": "contracts/dispute-resolution-clause",
+      "module": "contracts",
+      "name": "dispute-resolution-clause",
+      "title": "Dispute resolution clause design",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Design arbitration/jurisdiction clauses: seat, institution, rules, tiers, enforceability."
+    },
+    {
+      "id": "contracts/negotiation-prep",
+      "module": "contracts",
+      "name": "negotiation-prep",
+      "title": "Negotiation preparation",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Map interests, walk-away points, trade-offs and concession sequence before a negotiation."
+    },
+    {
+      "id": "contracts/renewal-termination-advisor",
+      "module": "contracts",
+      "name": "renewal-termination-advisor",
+      "title": "Renewal & termination advisor",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Decide renew/renegotiate/exit ahead of a notice deadline, with exit mechanics."
+    },
+    {
+      "id": "contracts/amendment-assignment-novation",
+      "module": "contracts",
+      "name": "amendment-assignment-novation",
+      "title": "Amendments, assignment & novation",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Check change-of-control, assignment and amendment mechanics and draft the instrument."
+    },
+    {
+      "id": "contracts/terms-of-service-audit",
+      "module": "contracts",
+      "name": "terms-of-service-audit",
+      "title": "Online terms & consumer-terms audit",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Audit customer-facing terms for unfair terms, consumer-law and platform-rule issues."
+    },
+    {
+      "id": "contracts/sustainability-clauses",
+      "module": "contracts",
+      "name": "sustainability-clauses",
+      "title": "Sustainability & ESG clauses",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Add proportionate climate, human-rights and supply-chain clauses to commercial contracts."
+    },
+    {
+      "id": "contracts/contract-template-builder",
+      "module": "contracts",
+      "name": "contract-template-builder",
+      "title": "Contract template builder",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Build a new standard template with guidance notes and a negotiation playbook."
+    },
+    {
+      "id": "privacy/dpdpa-compliance",
+      "module": "privacy",
+      "name": "dpdpa-compliance",
+      "title": "DPDPA compliance",
+      "status": "built",
+      "jurisdictions": [
+        "IN"
+      ],
+      "summary": "Gap assessment and implementation guidance under India's DPDP Act 2023 and DPDP Rules 2025."
+    },
+    {
+      "id": "privacy/privacy-impact-assessment",
+      "module": "privacy",
+      "name": "privacy-impact-assessment",
+      "title": "Privacy impact assessment (DPIA)",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Regime-agnostic DPIA/PIA: necessity, risk to individuals, mitigations and residual risk sign-off."
+    },
+    {
+      "id": "privacy/dpa-review",
+      "module": "privacy",
+      "name": "dpa-review",
+      "title": "Data processing agreement review",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Review or draft a DPA against GDPR Art. 28, DPDPA processor duties and the organisation's minimums."
+    },
+    {
+      "id": "privacy/breach-response",
+      "module": "privacy",
+      "name": "breach-response",
+      "title": "Personal-data & cyber incident notification",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Decide who must be notified, by when, across DPDPA, CERT-In, GDPR, US state and sector regimes."
+    },
+    {
+      "id": "privacy/gdpr-compliance",
+      "module": "privacy",
+      "name": "gdpr-compliance",
+      "title": "GDPR compliance programme",
+      "status": "planned",
+      "jurisdictions": [
+        "EU",
+        "UK"
+      ],
+      "summary": "Lawful basis, records of processing, rights handling and accountability under (UK) GDPR."
+    },
+    {
+      "id": "privacy/privacy-notice-drafter",
+      "module": "privacy",
+      "name": "privacy-notice-drafter",
+      "title": "Privacy & consent notice drafter",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Draft layered privacy notices and DPDPA itemised consent notices from a data inventory."
+    },
+    {
+      "id": "privacy/cross-border-transfer",
+      "module": "privacy",
+      "name": "cross-border-transfer",
+      "title": "Cross-border transfer assessment",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Transfer mechanism selection and transfer impact assessment."
+    },
+    {
+      "id": "privacy/data-subject-requests",
+      "module": "privacy",
+      "name": "data-subject-requests",
+      "title": "Data principal / subject request handling",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Verify, scope, answer or refuse access, correction, erasure and portability requests."
+    },
+    {
+      "id": "privacy/us-state-privacy",
+      "module": "privacy",
+      "name": "us-state-privacy",
+      "title": "US state privacy laws",
+      "status": "planned",
+      "jurisdictions": [
+        "US"
+      ],
+      "summary": "CCPA/CPRA and other state comprehensive privacy laws: applicability and obligations."
+    },
+    {
+      "id": "privacy/cookie-and-tracking",
+      "module": "privacy",
+      "name": "cookie-and-tracking",
+      "title": "Cookies, SDKs & tracking",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Consent and disclosure requirements for cookies, pixels and mobile SDKs."
+    },
+    {
+      "id": "privacy/legitimate-interest-assessment",
+      "module": "privacy",
+      "name": "legitimate-interest-assessment",
+      "title": "Legitimate interest assessment",
+      "status": "planned",
+      "jurisdictions": [
+        "EU",
+        "UK"
+      ],
+      "summary": "Three-part purpose/necessity/balancing test with documented outcome."
+    },
+    {
+      "id": "privacy/regional-privacy-pack",
+      "module": "privacy",
+      "name": "regional-privacy-pack",
+      "title": "Regional privacy pack",
+      "status": "planned",
+      "jurisdictions": [
+        "BR",
+        "SG",
+        "VN",
+        "AE",
+        "SA"
+      ],
+      "summary": "LGPD, PDPA, PDPL and Gulf regimes as jurisdiction modules on one engine."
+    },
+    {
+      "id": "regulatory/applicability-mapper",
+      "module": "regulatory",
+      "name": "applicability-mapper",
+      "title": "Regulatory applicability mapper",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Given a product, activity or deal, identify every regime that applies, how they interact, and what each demands."
+    },
+    {
+      "id": "regulatory/regulatory-change-monitor",
+      "module": "regulatory",
+      "name": "regulatory-change-monitor",
+      "title": "Regulatory change impact",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Convert a new law, rule, circular or guidance into impact, owners, deadlines and actions."
+    },
+    {
+      "id": "regulatory/ai-governance",
+      "module": "regulatory",
+      "name": "ai-governance",
+      "title": "AI system governance",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Classify and govern AI systems across the EU AI Act, NIST AI RMF, ISO/IEC 42001 and Indian guidance."
+    },
+    {
+      "id": "regulatory/sanctions-screening",
+      "module": "regulatory",
+      "name": "sanctions-screening",
+      "title": "Sanctions screening & alert adjudication",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Adjudicate screening hits and assess sanctions exposure in a transaction."
+    },
+    {
+      "id": "regulatory/export-controls",
+      "module": "regulatory",
+      "name": "export-controls",
+      "title": "Export controls classification",
+      "status": "planned",
+      "jurisdictions": [
+        "US",
+        "EU",
+        "IN"
+      ],
+      "summary": "Classify items and technology; licence determination under EAR, EU dual-use and SCOMET."
+    },
+    {
+      "id": "regulatory/anti-bribery",
+      "module": "regulatory",
+      "name": "anti-bribery",
+      "title": "Anti-bribery & corruption",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "FCPA, UK Bribery Act and Prevention of Corruption Act risk review of payments and intermediaries."
+    },
+    {
+      "id": "regulatory/competition-merger-control",
+      "module": "regulatory",
+      "name": "competition-merger-control",
+      "title": "Competition & merger control",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Merger filing thresholds (incl. CCI deal-value test) and conduct-risk screening."
+    },
+    {
+      "id": "regulatory/financial-services-india",
+      "module": "regulatory",
+      "name": "financial-services-india",
+      "title": "Indian financial services regulation",
+      "status": "planned",
+      "jurisdictions": [
+        "IN"
+      ],
+      "summary": "RBI, SEBI and IRDAI requirements for fintech, lending, payments and outsourcing."
+    },
+    {
+      "id": "regulatory/security-frameworks",
+      "module": "regulatory",
+      "name": "security-frameworks",
+      "title": "Security framework mapping",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Map controls across ISO 27001, SOC 2, NIST CSF and CERT-In directions; evidence gaps."
+    },
+    {
+      "id": "regulatory/operational-resilience",
+      "module": "regulatory",
+      "name": "operational-resilience",
+      "title": "Operational resilience (DORA/NIS2)",
+      "status": "planned",
+      "jurisdictions": [
+        "EU"
+      ],
+      "summary": "ICT risk, third-party register and incident obligations for EU entities."
+    },
+    {
+      "id": "regulatory/esg-reporting",
+      "module": "regulatory",
+      "name": "esg-reporting",
+      "title": "ESG & sustainability reporting",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "BRSR Core, CSRD/ESRS and ISSB disclosure readiness."
+    },
+    {
+      "id": "regulatory/whistleblower-programme",
+      "module": "regulatory",
+      "name": "whistleblower-programme",
+      "title": "Whistleblower programme",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Design or audit speak-up channels, protections and investigation workflow."
+    },
+    {
+      "id": "regulatory/accessibility-compliance",
+      "module": "regulatory",
+      "name": "accessibility-compliance",
+      "title": "Digital accessibility",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "WCAG, Section 508, EAA and RPwD Act obligations for digital products."
+    },
+    {
+      "id": "regulatory/product-cyber-obligations",
+      "module": "regulatory",
+      "name": "product-cyber-obligations",
+      "title": "Product cybersecurity obligations",
+      "status": "planned",
+      "jurisdictions": [
+        "EU",
+        "US"
+      ],
+      "summary": "Cyber Resilience Act and similar secure-by-design and vulnerability-handling duties."
+    },
+    {
+      "id": "corporate/board-pack",
+      "module": "corporate",
+      "name": "board-pack",
+      "title": "Board & committee pack",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Assemble the legal section of a board pack: key matters, risk movements, decisions sought, and resolutions."
+    },
+    {
+      "id": "corporate/ma-due-diligence",
+      "module": "corporate",
+      "name": "ma-due-diligence",
+      "title": "M&A legal due diligence",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Run a scoped legal DD, from request list to red-flag report with deal-protection recommendations."
+    },
+    {
+      "id": "corporate/board-minutes-resolutions",
+      "module": "corporate",
+      "name": "board-minutes-resolutions",
+      "title": "Minutes & resolutions drafter",
+      "status": "planned",
+      "jurisdictions": [
+        "IN",
+        "global"
+      ],
+      "summary": "Draft board/shareholder resolutions and minutes meeting Companies Act 2013 and SS-1/SS-2."
+    },
+    {
+      "id": "corporate/entity-compliance-calendar",
+      "module": "corporate",
+      "name": "entity-compliance-calendar",
+      "title": "Entity compliance calendar",
+      "status": "planned",
+      "jurisdictions": [
+        "IN",
+        "global"
+      ],
+      "summary": "Statutory filings and registers by entity: MCA, ROC, FEMA returns, and foreign equivalents."
+    },
+    {
+      "id": "corporate/fdi-fema-assessment",
+      "module": "corporate",
+      "name": "fdi-fema-assessment",
+      "title": "FDI & FEMA assessment",
+      "status": "planned",
+      "jurisdictions": [
+        "IN"
+      ],
+      "summary": "Route, sectoral caps, Press Note 3 and reporting for inbound investment."
+    },
+    {
+      "id": "corporate/listed-company-disclosure",
+      "module": "corporate",
+      "name": "listed-company-disclosure",
+      "title": "Listed company disclosure",
+      "status": "planned",
+      "jurisdictions": [
+        "IN"
+      ],
+      "summary": "SEBI LODR materiality, disclosure timelines and insider-trading (PIT) controls."
+    },
+    {
+      "id": "corporate/shareholder-agreement",
+      "module": "corporate",
+      "name": "shareholder-agreement",
+      "title": "Shareholders' & founders' agreements",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Draft or review SHA/founders' terms: control, transfer, exit, vesting."
+    },
+    {
+      "id": "corporate/corporate-governance-review",
+      "module": "corporate",
+      "name": "corporate-governance-review",
+      "title": "Governance health check",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Board composition, committee charters and delegation-of-authority review."
+    },
+    {
+      "id": "disputes/early-case-assessment",
+      "module": "disputes",
+      "name": "early-case-assessment",
+      "title": "Early case assessment",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Merits, exposure range, cost-to-resolve and recommended strategy for a new dispute."
+    },
+    {
+      "id": "disputes/litigation-hold",
+      "module": "disputes",
+      "name": "litigation-hold",
+      "title": "Litigation hold",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Decide when a duty to preserve arises, scope custodians and data, and issue and track the hold."
+    },
+    {
+      "id": "disputes/chronology-builder",
+      "module": "disputes",
+      "name": "chronology-builder",
+      "title": "Case chronology builder",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Build a sourced, dated chronology from a document set, flagging gaps and conflicts."
+    },
+    {
+      "id": "disputes/adversarial-stress-test",
+      "module": "disputes",
+      "name": "adversarial-stress-test",
+      "title": "Adversarial stress test",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Attack your own argument, contract position or settlement offer as opposing counsel would."
+    },
+    {
+      "id": "disputes/legal-notice-drafter",
+      "module": "disputes",
+      "name": "legal-notice-drafter",
+      "title": "Pre-action letters & legal notices",
+      "status": "planned",
+      "jurisdictions": [
+        "IN",
+        "UK",
+        "US"
+      ],
+      "summary": "Demand letters and statutory notices (e.g. s.80 CPC, s.138 NI Act, PAP letters)."
+    },
+    {
+      "id": "disputes/deadline-calendar",
+      "module": "disputes",
+      "name": "deadline-calendar",
+      "title": "Procedural deadline calendar",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Compute limitation and procedural deadlines with verification flags."
+    },
+    {
+      "id": "disputes/document-disclosure",
+      "module": "disputes",
+      "name": "document-disclosure",
+      "title": "Disclosure & production review",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Relevance, privilege and production strategy for document disclosure."
+    },
+    {
+      "id": "disputes/settlement-agreement",
+      "module": "disputes",
+      "name": "settlement-agreement",
+      "title": "Settlement agreement",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Draft or review settlement terms: release scope, confidentiality, tax and enforcement."
+    },
+    {
+      "id": "disputes/arbitration-strategy",
+      "module": "disputes",
+      "name": "arbitration-strategy",
+      "title": "Arbitration strategy",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Tribunal selection, interim relief and enforcement planning for arbitration."
+    },
+    {
+      "id": "disputes/regulatory-investigation",
+      "module": "disputes",
+      "name": "regulatory-investigation",
+      "title": "Regulatory investigation response",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Respond to regulator notices, dawn raids and information requests."
+    },
+    {
+      "id": "employment/termination-risk",
+      "module": "employment",
+      "name": "termination-risk",
+      "title": "Termination risk review",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Assess a proposed exit for legal risk and process defects, and produce a compliant exit plan."
+    },
+    {
+      "id": "employment/workplace-investigation",
+      "module": "employment",
+      "name": "workplace-investigation",
+      "title": "Workplace investigation",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Plan and run a fair investigation; draft the findings report."
+    },
+    {
+      "id": "employment/posh-compliance",
+      "module": "employment",
+      "name": "posh-compliance",
+      "title": "POSH compliance & inquiry",
+      "status": "planned",
+      "jurisdictions": [
+        "IN"
+      ],
+      "summary": "Internal Committee constitution, inquiry procedure and annual reporting under the POSH Act."
+    },
+    {
+      "id": "employment/restrictive-covenants",
+      "module": "employment",
+      "name": "restrictive-covenants",
+      "title": "Restrictive covenants",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Non-compete, non-solicit and confidentiality enforceability by jurisdiction."
+    },
+    {
+      "id": "employment/india-labour-codes",
+      "module": "employment",
+      "name": "india-labour-codes",
+      "title": "Indian labour codes",
+      "status": "planned",
+      "jurisdictions": [
+        "IN"
+      ],
+      "summary": "Wages, social security, IR and OSH code obligations and transition issues."
+    },
+    {
+      "id": "employment/employment-policy-drafter",
+      "module": "employment",
+      "name": "employment-policy-drafter",
+      "title": "Employment policy drafter",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Draft handbooks and policies aligned to local law and company practice."
+    },
+    {
+      "id": "ip/open-source-review",
+      "module": "ip",
+      "name": "open-source-review",
+      "title": "Open-source licence review",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Classify dependencies by licence obligation and decide what can ship, under what conditions."
+    },
+    {
+      "id": "ip/trademark-clearance",
+      "module": "ip",
+      "name": "trademark-clearance",
+      "title": "Trademark clearance",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Knockout and full-search analysis for a proposed mark across target classes."
+    },
+    {
+      "id": "ip/ip-ownership-audit",
+      "module": "ip",
+      "name": "ip-ownership-audit",
+      "title": "IP ownership & assignment audit",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Confirm chain of title from employees, contractors and acquisitions."
+    },
+    {
+      "id": "ip/copyright-assessment",
+      "module": "ip",
+      "name": "copyright-assessment",
+      "title": "Copyright & originality assessment",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Protectability, ownership and permitted-use analysis, including AI-generated content."
+    },
+    {
+      "id": "ip/infringement-takedown",
+      "module": "ip",
+      "name": "infringement-takedown",
+      "title": "Infringement & takedown",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Assess infringement and draft notices or responses (incl. IT Rules intermediaries)."
+    },
+    {
+      "id": "outside-counsel/invoice-review",
+      "module": "outside-counsel",
+      "name": "invoice-review",
+      "title": "Outside counsel invoice review",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Review invoices against billing guidelines and budget; produce adjustments and a firm-ready dispute note."
+    },
+    {
+      "id": "outside-counsel/billing-guidelines",
+      "module": "outside-counsel",
+      "name": "billing-guidelines",
+      "title": "Engagement terms & billing guidelines",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Draft and maintain outside counsel guidelines and engagement letters."
+    },
+    {
+      "id": "outside-counsel/panel-rfp",
+      "module": "outside-counsel",
+      "name": "panel-rfp",
+      "title": "Panel design & RFP",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Structure a panel, run an RFP and score proposals."
+    },
+    {
+      "id": "outside-counsel/fee-arrangements",
+      "module": "outside-counsel",
+      "name": "fee-arrangements",
+      "title": "Alternative fee arrangements",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Design fixed, capped, phased or success fees matched to scope and risk."
+    },
+    {
+      "id": "outside-counsel/matter-budget",
+      "module": "outside-counsel",
+      "name": "matter-budget",
+      "title": "Matter budget & forecast",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Build a phase budget and track burn against it."
+    },
+    {
+      "id": "outside-counsel/performance-scorecard",
+      "module": "outside-counsel",
+      "name": "performance-scorecard",
+      "title": "Firm performance scorecard",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Post-matter feedback and quarterly firm reviews."
+    },
+    {
+      "id": "outside-counsel/local-counsel-management",
+      "module": "outside-counsel",
+      "name": "local-counsel-management",
+      "title": "Local counsel coordination",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Instruct and coordinate counsel across multiple jurisdictions."
+    },
+    {
+      "id": "matters/status-report",
+      "module": "matters",
+      "name": "status-report",
+      "title": "Matter status report",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Turn emails, notes and trackers into a decision-oriented status report for a chosen audience."
+    },
+    {
+      "id": "matters/matter-plan",
+      "module": "matters",
+      "name": "matter-plan",
+      "title": "Matter plan & critical path",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Phases, workstreams, dependencies and milestones from agreed scope."
+    },
+    {
+      "id": "matters/raid-log",
+      "module": "matters",
+      "name": "raid-log",
+      "title": "RAID log",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Risks, assumptions, issues and decisions captured from correspondence."
+    },
+    {
+      "id": "matters/stakeholder-comms",
+      "module": "matters",
+      "name": "stakeholder-comms",
+      "title": "Stakeholder communication plan",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Who needs what, when, and through which channel."
+    },
+    {
+      "id": "matters/lessons-learned",
+      "module": "matters",
+      "name": "lessons-learned",
+      "title": "Lessons learned",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Capture and reuse lessons across matters."
+    },
+    {
+      "id": "matters/legal-kpi-dashboard",
+      "module": "matters",
+      "name": "legal-kpi-dashboard",
+      "title": "Legal KPI pack",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Define and compute legal department KPIs from AEGIS data."
+    },
+    {
+      "id": "research/legal-research-memo",
+      "module": "research",
+      "name": "legal-research-memo",
+      "title": "Legal research memo",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Answer a legal question with a sourced, verified memo that separates law, application and uncertainty."
+    },
+    {
+      "id": "research/citation-verification",
+      "module": "research",
+      "name": "citation-verification",
+      "title": "Citation & proposition verification",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Verify that every cited authority exists, says what it is cited for, and is still good law."
+    },
+    {
+      "id": "research/statute-analysis",
+      "module": "research",
+      "name": "statute-analysis",
+      "title": "Statute & regulation analysis",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Structured reading of a provision: scope, definitions, conditions, exceptions, consequences."
+    },
+    {
+      "id": "research/multi-jurisdiction-survey",
+      "module": "research",
+      "name": "multi-jurisdiction-survey",
+      "title": "Multi-jurisdiction survey",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Same question across many jurisdictions in a comparable grid."
+    },
+    {
+      "id": "research/source-locked-answering",
+      "module": "research",
+      "name": "source-locked-answering",
+      "title": "Source-locked answering",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Answer strictly from supplied documents with pinpoint support."
+    },
+    {
+      "id": "research/india-legal-research",
+      "module": "research",
+      "name": "india-legal-research",
+      "title": "Indian legal research",
+      "status": "planned",
+      "jurisdictions": [
+        "IN"
+      ],
+      "summary": "Research workflow for Indian statutes, rules, notifications and SC/HC judgments."
+    },
+    {
+      "id": "drafting/plain-language-explainer",
+      "module": "drafting",
+      "name": "plain-language-explainer",
+      "title": "Plain-language explainer",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Translate legal analysis into a clear, accurate explanation for a business reader."
+    },
+    {
+      "id": "drafting/persuasive-writing",
+      "module": "drafting",
+      "name": "persuasive-writing",
+      "title": "Persuasive legal writing",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Structure and edit briefs, submissions and advocacy letters."
+    },
+    {
+      "id": "drafting/legal-translation",
+      "module": "drafting",
+      "name": "legal-translation",
+      "title": "Legal translation",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Translate legal documents preserving legal effect, with term notes."
+    },
+    {
+      "id": "drafting/policy-drafter",
+      "module": "drafting",
+      "name": "policy-drafter",
+      "title": "Corporate policy drafter",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Draft internal policies with scope, roles, controls and review cycle."
+    },
+    {
+      "id": "drafting/legal-design-review",
+      "module": "drafting",
+      "name": "legal-design-review",
+      "title": "Legal design review",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Score and improve a document's readability and usability."
+    },
+    {
+      "id": "drafting/template-response-library",
+      "module": "drafting",
+      "name": "template-response-library",
+      "title": "Response template library",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Build and maintain approved responses for recurring queries."
+    },
+    {
+      "id": "platform/skill-security-audit",
+      "module": "platform",
+      "name": "skill-security-audit",
+      "title": "Skill security audit",
+      "status": "built",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Audit a third-party or internal skill for injection, exfiltration, unsafe tools and licence issues before enabling it in AEGIS."
+    },
+    {
+      "id": "platform/ai-work-audit-trail",
+      "module": "platform",
+      "name": "ai-work-audit-trail",
+      "title": "AI-assisted work audit trail",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Record inputs, sources, model and human sign-off for AI-assisted legal work."
+    },
+    {
+      "id": "platform/prompt-injection-guard",
+      "module": "platform",
+      "name": "prompt-injection-guard",
+      "title": "Prompt-injection guard",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Treat document content as data; detect and neutralise embedded instructions."
+    },
+    {
+      "id": "platform/skill-authoring",
+      "module": "platform",
+      "name": "skill-authoring",
+      "title": "Skill authoring",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Turn a lawyer's expertise into a new AEGIS skill that passes validation."
+    },
+    {
+      "id": "platform/ai-use-billing-record",
+      "module": "platform",
+      "name": "ai-use-billing-record",
+      "title": "AI-use time & billing record",
+      "status": "planned",
+      "jurisdictions": [
+        "global"
+      ],
+      "summary": "Record and disclose AI assistance in time entries per firm/bar guidance."
+    }
+  ]
+}

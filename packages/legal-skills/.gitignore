@@ -1,0 +1,8 @@
+node_modules/
+__pycache__/
+.DS_Store
+
+# dist/registry.json is the SHIPPED artifact the runtime loads — track it even
+# though the repo-root .gitignore excludes "dist".
+!dist/
+!dist/registry.json

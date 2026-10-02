@@ -1,0 +1,19 @@
+{
+  "name": "@aegis/legal-skills",
+  "version": "1.0.0",
+  "description": "Original legal AI skills, standards and runtime for the AEGIS in-house legal platform.",
+  "type": "module",
+  "main": "runtime/index.mjs",
+  "exports": { ".": "./runtime/index.mjs", "./registry.json": "./dist/registry.json" },
+  "files": ["runtime/index.mjs", "dist/registry.json", "LICENSE", "NOTICE"],
+  "scripts": {
+    "build": "node -e \"require('node:fs').accessSync('dist/registry.json')\"",
+    "build:registry": "python3 scripts/build.py",
+    "validate": "python3 scripts/validate.py --strict",
+    "test": "node --test runtime/test/runtime.test.mjs",
+    "check": "npm run validate && npm run build:registry && npm test"
+  },
+  "engines": { "node": ">=18" },
+  "license": "Apache-2.0",
+  "private": true
+}
