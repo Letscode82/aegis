@@ -585,6 +585,8 @@ importers:
 
   packages/identity-graph: {}
 
+  packages/legal-skills: {}
+
   packages/observability:
     devDependencies:
       '@aegis/eslint-config':
