@@ -38,6 +38,9 @@ importers:
       '@aegis/intake':
         specifier: workspace:*
         version: link:../../modules/intake
+      '@aegis/legal-skills':
+        specifier: workspace:*
+        version: link:../../packages/legal-skills
       '@aegis/matter':
         specifier: workspace:*
         version: link:../../modules/matter
