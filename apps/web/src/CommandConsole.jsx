@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { C, F, M, SR } from "@aegis/ui";
 import { friendlyAIError } from "@aegis/ai";
-import { SKILLS } from "../lib/one-legal/skills";
+import { SKILLS, SKILL_CATEGORIES } from "../lib/one-legal/skills";
 
 // Command Console (WS-1, agentic) — "ONE Legal", the full-page front door,
 // built to feel like a first-class AI workspace (Harvey / Legora / Claude).
@@ -663,19 +663,28 @@ function WorkspaceRail({ turns, onOpenTicket, onNavigate, history, onRunSkill })
       </RailSection>
 
       <RailSection title="Skills">
-        {SKILLS.map((s) => {
-          const active = lastCat && s.cats.includes(lastCat);
+        {SKILL_CATEGORIES.map((cat) => {
+          const items = SKILLS.filter((s) => s.category === cat);
+          if (items.length === 0) return null;
           return (
-            <button
-              key={s.id}
-              type="button"
-              onClick={onRunSkill ? () => onRunSkill(s) : undefined}
-              title={s.desc}
-              style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 8, padding: "5px 6px", marginBottom: 1, background: active ? C.emG : "transparent", border: "1px solid transparent", borderRadius: 8, cursor: onRunSkill ? "pointer" : "default", fontSize: 12, color: active ? C.t1 : C.t2, fontWeight: active ? 600 : 400, fontFamily: F }}
-            >
-              <span style={{ fontSize: 12, color: active ? C.em : C.tl, flexShrink: 0, width: 14, textAlign: "center" }} aria-hidden="true">{s.icon}</span>
-              <span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.label}</span>
-            </button>
+            <div key={cat} style={{ marginBottom: 6 }}>
+              <div style={{ fontSize: 8.5, fontFamily: M, color: C.t4, letterSpacing: 0.6, textTransform: "uppercase", margin: "6px 2px 3px" }}>{cat}</div>
+              {items.map((s) => {
+                const active = lastCat && s.cats.includes(lastCat);
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={onRunSkill ? () => onRunSkill(s) : undefined}
+                    title={s.desc}
+                    style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 8, padding: "5px 6px", marginBottom: 1, background: active ? C.emG : "transparent", border: "1px solid transparent", borderRadius: 8, cursor: onRunSkill ? "pointer" : "default", fontSize: 12, color: active ? C.t1 : C.t2, fontWeight: active ? 600 : 400, fontFamily: F }}
+                  >
+                    <span style={{ fontSize: 12, color: active ? C.em : C.tl, flexShrink: 0, width: 14, textAlign: "center" }} aria-hidden="true">{s.icon}</span>
+                    <span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.label}</span>
+                  </button>
+                );
+              })}
+            </div>
           );
         })}
       </RailSection>
@@ -1308,7 +1317,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
             <div style={{ marginTop: 20 }}>
               <div style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>Skills</div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
-                {SKILLS.map((s) => (
+                {SKILLS.filter((s) => s.featured).map((s) => (
                   <button key={s.id} type="button" onClick={() => runSkill(s)} title={s.desc} style={exampleChip}>
                     <span style={{ color: C.em, marginRight: 7 }} aria-hidden="true">{s.icon}</span>{s.label}
                   </button>
