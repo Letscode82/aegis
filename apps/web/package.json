@@ -19,6 +19,7 @@
     "@aegis/db": "workspace:*",
     "@aegis/documents": "workspace:*",
     "@aegis/intake": "workspace:*",
+    "@aegis/legal-skills": "workspace:*",
     "@aegis/spend": "workspace:*",
     "@aegis/matter": "workspace:*",
     "@aegis/review": "workspace:*",

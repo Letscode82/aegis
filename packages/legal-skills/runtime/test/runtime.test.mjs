@@ -1,12 +1,27 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { loadRegistry, route, buildSystemPrompt, listSkills, wrapDocuments } from "../index.mjs";
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
+import { loadRegistry, loadRegistryFromData, route, buildSystemPrompt, listSkills, wrapDocuments } from "../index.mjs";
 
 const reg = loadRegistry();
 
 test("registry has 30 built skills across modules", () => {
   assert.equal(listSkills(reg).length, 30);
   assert.ok(listSkills(reg, { status: null }).length > 100);
+});
+
+test("loadRegistryFromData indexes an imported object identically to loadRegistry", () => {
+  // Simulates a bundler `import reg from "@aegis/legal-skills/registry.json"`.
+  const raw = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "dist", "registry.json"), "utf8"));
+  const reg2 = loadRegistryFromData(raw);
+  assert.equal(listSkills(reg2).length, 30);
+  const [best] = route(reg2, "can I sign this NDA from a vendor");
+  assert.equal(best.id, "contracts/nda-triage");
+  // buildSystemPrompt works off the object-loaded registry too.
+  const sys = buildSystemPrompt(reg2, [best.id], { matter: { id: "MAT-1", privileged: false } });
+  assert.ok(sys.includes("aegis_skill") && sys.includes("matter_context"));
 });
 
 const cases = [

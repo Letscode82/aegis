@@ -14,8 +14,13 @@ const SHARED_ORDER = ["STANDARDS.md", "severity-scale.md", "output-contract.md",
 const tokens = (s) =>
   (s.toLowerCase().match(/[a-z0-9]+/g) || []).filter((t) => t.length > 1 && !STOP.has(t));
 
-export function loadRegistry(path = DEFAULT_REGISTRY) {
-  const reg = JSON.parse(readFileSync(path, "utf8"));
+/**
+ * Build the in-memory search index on an already-parsed registry object.
+ * Use this when the registry is imported/bundled (e.g. a Next.js route doing
+ * `import reg from "@aegis/legal-skills/registry.json"`) rather than read from
+ * disk — it avoids any filesystem access, so it works inside bundlers.
+ */
+export function loadRegistryFromData(reg) {
   for (const s of reg.skills) {
     // Index title + summary + description; title words count double.
     s._index = new Map();
@@ -28,6 +33,10 @@ export function loadRegistry(path = DEFAULT_REGISTRY) {
   return reg;
 }
 
+export function loadRegistry(path = DEFAULT_REGISTRY) {
+  return loadRegistryFromData(JSON.parse(readFileSync(path, "utf8")));
+}
+
 export const listSkills = (reg, { module, status = "built" } = {}) =>
   reg.skills.filter((s) => (!module || s.module === module) && (!status || s.status === status));
 
@@ -35,6 +44,9 @@ export const getSkill = (reg, id) => reg.skills.find((s) => s.id === id) || null
 
 /**
  * Rank built skills for a free-text request.
+ * @param {object} reg
+ * @param {string} query
+ * @param {{module?: string, jurisdiction?: string, limit?: number}} [opts]
  * @returns {{id:string,title:string,score:number,module:string}[]}
  */
 export function route(reg, query, { module, jurisdiction, limit = 3 } = {}) {
