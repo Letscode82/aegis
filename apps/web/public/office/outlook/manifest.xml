@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AEGIS Outlook add-in manifest (C-2) — read-mode mail add-in.
+
+  Sideload for development against `pnpm dev` (apps/web on :5173). For any other
+  host, replace every `https://localhost:5173` with the AEGIS base URL the add-in
+  is served from (all URLs must be https). The task pane reads the open message
+  and files it to AEGIS intake via the same-origin API using the user's session.
+-->
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xmlns:mailappor="http://schemas.microsoft.com/office/mailappversionoverrides/1.0"
+  xsi:type="MailApp">
+  <Id>b2d6e5a1-47c8-4f3b-9a0e-aegisoutlookc2</Id>
+  <Version>0.1.0</Version>
+  <ProviderName>AEGIS</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="AEGIS Intake" />
+  <Description DefaultValue="File the open email into AEGIS Legal intake — classified, routed, and chain-sealed." />
+  <SupportUrl DefaultValue="https://localhost:5173/" />
+  <AppDomains>
+    <AppDomain>https://localhost:5173</AppDomain>
+  </AppDomains>
+  <Hosts>
+    <Host Name="Mailbox" />
+  </Hosts>
+  <Requirements>
+    <Sets>
+      <Set Name="Mailbox" MinVersion="1.1" />
+    </Sets>
+  </Requirements>
+  <FormSettings>
+    <Form xsi:type="ItemRead">
+      <DesktopSettings>
+        <SourceLocation DefaultValue="https://localhost:5173/office/outlook/taskpane.html" />
+        <RequestedHeight>300</RequestedHeight>
+      </DesktopSettings>
+    </Form>
+  </FormSettings>
+  <Permissions>ReadItem</Permissions>
+  <Rule xsi:type="RuleCollection" Mode="Or">
+    <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read" />
+  </Rule>
+</OfficeApp>

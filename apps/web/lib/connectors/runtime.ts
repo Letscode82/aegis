@@ -16,14 +16,16 @@ import {
   DbTokenStore,
   ConnectorRegistry,
   officeWordDescriptor,
+  outlookDescriptor,
   OFFICE_WORD_CONNECTOR_ID,
+  OUTLOOK_CONNECTOR_ID,
   type ConnectorCredentialClient,
   type ConnectorDescriptor,
   type OAuthHttp,
 } from "@aegis/connectors";
 
-/** Connectors wired today. C-2 adds the Outlook connector here. */
-export const WIRED_CONNECTOR_IDS = [OFFICE_WORD_CONNECTOR_ID] as const;
+/** Connectors wired today: C-1 Word add-in + C-2 Outlook email triage. */
+export const WIRED_CONNECTOR_IDS = [OFFICE_WORD_CONNECTOR_ID, OUTLOOK_CONNECTOR_ID] as const;
 
 /** Resolved Microsoft (Azure AD) app credentials, or null when unconfigured. */
 export interface MicrosoftEnv {
@@ -92,6 +94,8 @@ export function buildDescriptor(connectorId: string, redirectUri: string): Conne
   switch (connectorId) {
     case OFFICE_WORD_CONNECTOR_ID:
       return officeWordDescriptor(opts);
+    case OUTLOOK_CONNECTOR_ID:
+      return outlookDescriptor(opts);
     default:
       return null;
   }
