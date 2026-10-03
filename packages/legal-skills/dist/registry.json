@@ -813,11 +813,63 @@
    "module": "contracts",
    "name": "saas-and-cloud-review",
    "title": "SaaS & cloud agreement review",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Customer- or vendor-side review of SaaS/cloud terms: SLAs, data, security, lock-in, liability."
+   "summary": "Customer- or vendor-side review of SaaS/cloud terms: SLAs, data, security, lock-in, liability.",
+   "meta": {
+    "name": "contracts-saas-and-cloud-review",
+    "description": "Reviews a SaaS / cloud subscription or MSA from the customer side: service levels and credits, data protection and security, availability and disaster recovery, suspension, price increases and auto-renewal, liability and indemnity, IP and usage data, exit and data portability. Use to redline or assess a cloud/SaaS agreement, order form or MSA. Not for a generic commercial contract → contracts/contract-review; not for the DPA alone → privacy/dpa-review; not for vendor security posture diligence → contracts/vendor-due-diligence.",
+    "module": "contracts",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "document",
+      "required": true,
+      "description": "The SaaS/cloud agreement, MSA, order form, SLA, DPA and any incorporated online terms (AUP, support policy)."
+     },
+     {
+      "name": "posture",
+      "required": false,
+      "description": "Whether we are the customer or the provider (default customer) and how business-critical the service is (sets how hard to push on SLA, exit and liability)."
+     },
+     {
+      "name": "data_sensitivity",
+      "required": false,
+      "description": "What data goes into the service — personal/special-category, regulated, or confidential — which raises the DPA, security and transfer stakes."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "contracts/contract-review",
+     "contracts/vendor-due-diligence",
+     "privacy/dpa-review",
+     "contracts/renewal-termination-advisor",
+     "regulatory/security-frameworks",
+     "contracts/obligation-extraction"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# SaaS & Cloud Agreement Review\n\nReviews a cloud/SaaS deal from the customer's seat and returns a redline-ready issues list with positions and fallbacks on the terms that actually bite in a subscription: uptime and credits, data and security, lock-in and exit, price rises, and the liability cap. The deliverable is a prioritised negotiation list with a recommendation, not a clause-by-clause paraphrase.\n\n## When to use / not use\n\n- Use: reviewing or redlining a SaaS subscription, cloud services agreement, MSA + order form, or the SLA/DPA that hangs off them, from the customer side (or provider side if flagged).\n- Hand off: a generic commercial contract with no cloud specifics → `contracts/contract-review`; the data-processing agreement in isolation → `privacy/dpa-review`; assessing the provider's security posture/certifications → `contracts/vendor-due-diligence` + `regulatory/security-frameworks`; pulling tracked obligations post-signature → `contracts/obligation-extraction`; renewal/termination mechanics across a portfolio → `contracts/renewal-termination-advisor`.\n\n## Inputs to collect first\n\n1. The full stack of documents: MSA/agreement, order form, SLA, DPA, AUP, support policy, and any URL-incorporated terms.\n2. Posture: customer or provider, and how critical/substitutable the service is.\n3. Data sensitivity: personal/special-category, regulated, or merely confidential business data.\n4. Commercial frame: term, fees, auto-renewal, and whether this is a negotiated MSA or click-through.\n\n## Method\n\n1. **Assemble the real contract.** Cloud terms are layered — the agreement usually incorporates online SLAs, AUPs and support policies the provider can change unilaterally. Flag every \"as updated from time to time\" incorporation as a live risk.\n2. **Service levels & credits.** Check the uptime commitment, how it is measured (and what's excluded — maintenance, \"emergency\", beyond-provider-control), the credit as the *sole remedy* trap, and whether chronic failure gives a termination right. Credits are usually derisory; the exit right matters more.\n3. **Data protection & security.** Confirm a DPA with Art. 28-grade terms, sub-processor control and notice, international-transfer mechanism, security commitments (ideally tied to a certification → `regulatory/security-frameworks`), breach-notice timing, and audit/evidence rights → `privacy/dpa-review`.\n4. **Availability, backup & DR.** Backup frequency, RPO/RTO, and whether DR is contractual or best-efforts. \"We are not a backup service\" clauses shift continuity risk to the customer.\n5. **Suspension & throttling.** Scope the provider's right to suspend (non-payment, AUP breach, \"risk to the service\"); require notice and cure where feasible, and carve suspension back for the customer's critical operations.\n6. **Price increases & auto-renewal.** Cap uplift at renewal, require advance notice, and give a real non-renewal window — the single biggest source of surprise cost → `contracts/renewal-termination-advisor`.\n7. **IP, usage data & aggregated data.** Confirm the customer owns its content/input and output as agreed; scrutinise provider rights to use \"usage data\" or train models on customer data; require de-identification and an opt-out for any AI/analytics reuse.\n8. **Liability & indemnity.** Check the cap (often 12 months' fees), the carve-outs (data breach, confidentiality, IP indemnity, personal injury), the IP infringement indemnity, and whether the provider excludes all data-loss/consequential loss while holding the customer's data.\n9. **Exit & portability.** The decisive clause: data export in a usable format, a defined transition-assistance period, deletion with certification, and no hostage-taking on fees. No exit right = lock-in.\n10. **Assess each against the Checks table** and set a decision: **APPROVE / APPROVE WITH CONDITIONS / REJECT (renegotiate)**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| No usable exit / data-portability right | Export in standard format + transition help + certified deletion | S1 | Add exit clause; this is a dealbreaker for critical services |\n| Provider may change incorporated terms unilaterally | Material changes need notice + no material degradation | S2 | Freeze key terms to the signed version |\n| DPA missing / weak for personal data | Art. 28 terms + sub-processor control + transfer mechanism | S1 (personal/regulated data) | → `privacy/dpa-review`; do not go live without it |\n| SLA credit is sole remedy, no chronic-failure exit | Credits + termination right on sustained breach | S2 | Add exit trigger; treat credits as cosmetic |\n| Unlimited/one-sided price increase at renewal | Capped uplift + advance notice + non-renewal window | S2 | Cap and notice → `contracts/renewal-termination-advisor` |\n| Provider reuse of customer/usage data (incl. model training) | Customer-owns + opt-out + de-identification | S2 (S1 if personal/confidential) | Restrict reuse; add training opt-out |\n| Liability cap excludes data-breach/IP carve-outs | Super-cap or uncapped for data breach, confidentiality, IP indemnity | S2 | Add carve-outs; raise cap for data loss |\n| Broad suspension right without notice/cure | Notice + cure + carve-back for critical ops | S3 | Narrow suspension triggers |\n| No backup/DR commitment | Contractual RPO/RTO or customer-side backup plan | S3 | Get commitment or plan around it |\n| Online AUP/support policy not reviewed | All incorporated terms reviewed as part of the contract | S3 | Pull and review the linked terms |\n\n## Output\n\nLead with `Decision: APPROVE | APPROVE WITH CONDITIONS | REJECT — <key reason>`. Then the output contract. Add:\n\n- **Document map**: which layered terms were reviewed (MSA, order form, SLA, DPA, AUP, incorporated URLs).\n- **Negotiation list**: issue · our ask · fallback · severity, ordered by leverage/impact.\n- **Must-haves vs nice-to-haves** split so the business knows the walk-away points.\n- One JSON finding per issue with `category: \"saas-cloud\"`.\n\n## Edge cases & pitfalls\n\n- **Incorporated-by-URL terms**: the real risk often lives in a linked AUP or support policy the provider can edit at will — review them and freeze the material ones.\n- **\"Credits as sole remedy\"**: traps the customer into token compensation for repeated outages; pair with a chronic-failure exit.\n- **AI/model-training reuse**: newer SaaS terms grant broad rights to use customer data to improve/\"train\" the service — default to opt-out, especially for personal/confidential data.\n- **Sub-processor sprawl**: the provider's sub-processors may move data abroad or weaken the security story; require a list, notice of changes, and an objection right.\n- **Deletion ≠ export**: a deletion-on-exit clause with no export right still strands the customer's data.\n\n## References\n\n- Volatile facts: cite live where a data-protection date/threshold is load-bearing; mark `[verify current]`.\n- Customer-side SaaS/cloud contracting norms; GDPR Art. 28 (processor terms); common SLA/credit structures; transition-services / data-portability practice.",
+   "references": {},
+   "description": "Reviews a SaaS / cloud subscription or MSA from the customer side: service levels and credits, data protection and security, availability and disaster recovery, suspension, price increases and auto-renewal, liability and indemnity, IP and usage data, exit and data portability. Use to redline or assess a cloud/SaaS agreement, order form or MSA. Not for a generic commercial contract → contracts/contract-review; not for the DPA alone → privacy/dpa-review; not for vendor security posture diligence → contracts/vendor-due-diligence.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "contracts/dispute-resolution-clause",
@@ -1226,12 +1278,72 @@
    "module": "privacy",
    "name": "gdpr-compliance",
    "title": "GDPR compliance programme",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "EU",
     "UK"
    ],
-   "summary": "Lawful basis, records of processing, rights handling and accountability under (UK) GDPR."
+   "summary": "Lawful basis, records of processing, rights handling and accountability under (UK) GDPR.",
+   "meta": {
+    "name": "privacy-gdpr-compliance",
+    "description": "Builds or audits a GDPR / UK GDPR compliance programme end to end: lawful basis, records of processing (Art. 30), data-subject rights, security (Art. 32), breach notification (Art. 33/34), international transfers, DPO and DPIA triggers, and accountability evidence. Use to assess readiness, close gaps against the Regulation, or stand up the governance a supervisory authority expects. Not for a single DSAR → privacy/data-subject-requests; not for one processor contract → privacy/dpa-review; not for India DPDP → privacy/dpdpa-compliance.",
+    "module": "privacy",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "EU",
+     "UK"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of readiness (assess a programme against the Regulation), gap-audit (review existing controls) or standup (design a programme from scratch)."
+     },
+     {
+      "name": "footprint",
+      "required": false,
+      "description": "Where the organisation is established, where data subjects are, and whether it offers goods/services to or monitors people in the EU/UK (sets Art. 3 territorial scope and the Art. 27 representative duty)."
+     },
+     {
+      "name": "processing_inventory",
+      "required": false,
+      "description": "Current record of processing activities, systems, categories of data (incl. special-category / criminal), and processors in use."
+     },
+     {
+      "name": "role",
+      "required": false,
+      "description": "Whether the organisation acts as controller, processor, or both for each activity — drives which obligations bind."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "privacy/data-subject-requests",
+     "privacy/privacy-impact-assessment",
+     "privacy/dpa-review",
+     "privacy/cross-border-transfer",
+     "privacy/breach-response",
+     "privacy/privacy-notice-drafter",
+     "privacy/dpdpa-compliance",
+     "regulatory/applicability-mapper"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# GDPR Compliance Programme\n\nTurns \"are we GDPR-compliant?\" into a defensible, evidence-backed answer: which activities are in scope, on what lawful basis, with what rights-handling, security, breach drill, transfer mechanism and accountability record — and where the gaps are, ranked. The deliverable is a programme view plus a prioritised gap list, not a restatement of the Regulation.\n\n## When to use / not use\n\n- Use: assessing GDPR / UK GDPR readiness; auditing an existing programme; standing up accountability (Art. 30 records, policies, DPIA process, breach playbook) before a product launch, funding round, or customer security review.\n- Hand off: fulfilling one access/erasure request → `privacy/data-subject-requests`; reviewing a single controller–processor contract → `privacy/dpa-review`; a specific high-risk processing assessment → `privacy/privacy-impact-assessment`; a transfer out of the EEA/UK → `privacy/cross-border-transfer`; a live breach → `privacy/breach-response`; drafting the external notice → `privacy/privacy-notice-drafter`; India DPDP → `privacy/dpdpa-compliance`.\n\n## Inputs to collect first\n\n1. Territorial-scope facts: establishment(s), whether offering goods/services to or monitoring EU/UK data subjects (Art. 3), and any Art. 27 representative.\n2. Role per activity: controller, joint controller, or processor — the obligations differ.\n3. The processing inventory: activities, purposes, data categories (flag special-category Art. 9 and criminal Art. 10), retention, recipients, processors.\n4. Current controls: policies, DPIA process, breach playbook, DPA templates, transfer mechanism, security baseline.\n5. Whether a DPO is appointed or required (Art. 37 triggers).\n\n## Method\n\n1. **Confirm scope and role.** Establish Art. 3 applicability and, per activity, whether the organisation is controller or processor. A processor's duties (Art. 28/30(2)/32/33(2)) are narrower than a controller's — do not apply controller obligations wholesale.\n2. **Map lawful basis per purpose (Art. 6)** and, for special-category/criminal data, an Art. 9/10 condition on top. Consent must be freely given, specific, informed, unambiguous and withdrawable; legitimate interests needs an LIA → `privacy/legitimate-interest-assessment`. One basis per purpose; \"we have consent *and* legitimate interest\" is a red flag.\n3. **Check transparency (Art. 13/14).** Is there a compliant privacy notice covering the Art. 13/14 content for each collection route? → `privacy/privacy-notice-drafter`.\n4. **Records of processing (Art. 30).** Does the Art. 30 record exist, is it current, and does it distinguish controller vs processor activities? This is the backbone auditors ask for first.\n5. **Data-subject rights operations.** Is there a route and an on-time process (one month, extendable by two) for access, rectification, erasure, restriction, portability, objection, and rights re automated decisions (Art. 22)? → `privacy/data-subject-requests`.\n6. **Security (Art. 32).** Assess technical and organisational measures proportionate to risk: encryption/pseudonymisation, access control, resilience, testing. Map to the security framework if one is claimed → `regulatory/security-frameworks`.\n7. **Breach readiness (Art. 33/34).** Is there a playbook meeting the **72-hour** supervisory-authority notification where feasible (cite `EU-GDPR-01` `[verify current]`) and the \"high risk → notify individuals\" trigger? → `privacy/breach-response`.\n8. **International transfers.** For any transfer outside the EEA/UK, confirm an Art. 44–49 mechanism (adequacy, SCCs + transfer risk assessment, BCRs) → `privacy/cross-border-transfer`.\n9. **DPIA process (Art. 35).** Is there a trigger test and a working DPIA process for high-risk processing? → `privacy/privacy-impact-assessment`.\n10. **Governance & accountability.** DPO where required (Art. 37), processor contracts (Art. 28) in place → `privacy/dpa-review`, training, and documented decisions. Accountability (Art. 5(2)) means you can *show* compliance, not just assert it.\n11. **Score each area** against the Checks table and set a programme decision: **APPROVE / APPROVE WITH CONDITIONS / REJECT**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| No lawful basis mapped per purpose | One valid Art. 6 basis (+ Art. 9/10 where needed) per purpose | S1 | Map basis; stop processing with none |\n| Special-category data without an Art. 9 condition | Explicit condition identified and documented | S1 | Identify condition or cease |\n| No Art. 30 record of processing | Current, role-distinguished RoPA | S2 | Build RoPA before any audit/launch |\n| No DSAR process / rights not operable in time | One-month process with extension logic | S2 | Stand up intake + workflow |\n| Breach playbook absent or misses 72h / individual-notice triggers | Tested playbook with clock and thresholds | S1 | Adopt playbook; run a tabletop |\n| Transfers out of EEA/UK without a mechanism | Adequacy / SCCs + TRA / BCRs for each transfer | S1 | Implement mechanism; pause transfer |\n| No DPIA trigger test or process | Documented trigger + DPIA workflow | S2 | Add DPIA gate to change process |\n| Processor contracts missing Art. 28 terms | Compliant DPA with every processor | S2 | Paper the gaps → `privacy/dpa-review` |\n| Security measures not risk-proportionate / undocumented | Art. 32 measures mapped to risk and tested | S2 | Baseline + test; evidence it |\n| DPO required but not appointed (Art. 37) | DPO appointed and independent, or reasoned non-appointment | S3 (S2 for public body / large-scale special-category) | Appoint or document the assessment |\n| No accountability evidence | Policies, records, decisions retrievable | S3 | Centralise the evidence pack |\n\n## Output\n\nLead with `Decision: APPROVE | APPROVE WITH CONDITIONS | REJECT — <key reason>`. Then the output contract. Add:\n\n- **Scope statement**: applicability (Art. 3), role per activity, representative/DPO status.\n- **Area scorecard**: lawful basis · transparency · RoPA · rights · security · breach · transfers · DPIA · governance, each with a status and the top gap.\n- **Gap list** mapped to the Checks table, with owner and due date. One JSON finding per gap with `category: \"gdpr\"`.\n\n## Edge cases & pitfalls\n\n- **Controller vs processor confusion**: applying controller duties to a pure-processor activity (or vice versa) misstates the obligations — fix the role mapping first.\n- **UK GDPR drift**: UK rules diverge from the EU in places; treat the UK GDPR + DPA 2018 as a separate instrument, not a copy — mark divergent points `[verify current]`.\n- **Consent as a default**: picking consent where a contract or legitimate-interest basis is cleaner creates a fragile, withdrawable foundation.\n- **RoPA theatre**: a stale or generic Art. 30 record is worse than none — it signals the programme is paper-only.\n- **Transfer gaps hiding in SaaS**: sub-processors move data abroad; a transfer mechanism at the top contract does not cover an uncovered sub-processor.\n\n## References\n\n- Volatile facts: `EU-GDPR-01` (72-hour breach notification). Cite live where a date/threshold is load-bearing; mark `[verify current]`.\n- Regulation (EU) 2016/679 (GDPR); UK GDPR + Data Protection Act 2018; EDPB guidelines; relevant supervisory-authority guidance.",
+   "references": {},
+   "description": "Builds or audits a GDPR / UK GDPR compliance programme end to end: lawful basis, records of processing (Art. 30), data-subject rights, security (Art. 32), breach notification (Art. 33/34), international transfers, DPO and DPIA triggers, and accountability evidence. Use to assess readiness, close gaps against the Regulation, or stand up the governance a supervisory authority expects. Not for a single DSAR → privacy/data-subject-requests; not for one processor contract → privacy/dpa-review; not for India DPDP → privacy/dpdpa-compliance.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "privacy/privacy-notice-drafter",
@@ -1315,11 +1427,70 @@
    "module": "privacy",
    "name": "data-subject-requests",
    "title": "Data principal / subject request handling",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Verify, scope, answer or refuse access, correction, erasure and portability requests."
+   "summary": "Verify, scope, answer or refuse access, correction, erasure and portability requests.",
+   "meta": {
+    "name": "privacy-data-subject-requests",
+    "description": "Handles a data-subject / data-principal request end to end — access, erasure, rectification, restriction, portability, objection — across GDPR/UK GDPR and India DPDP: identity verification, scope, locating data, the exemptions and refusal grounds, redaction of third-party data, the legal-hold conflict check, and the on-time response. Use to triage or fulfil a specific rights request, or to design the DSAR workflow. Not for a whole GDPR programme → privacy/gdpr-compliance; not for a live breach → privacy/breach-response.",
+    "module": "privacy",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "EU",
+     "UK",
+     "IN"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of fulfil (process a specific request), triage (assess validity, type and clock) or workflow-design (build/audit the DSAR process)."
+     },
+     {
+      "name": "request",
+      "required": false,
+      "description": "The request text, the requester, the right(s) invoked, and the date received (starts the statutory clock)."
+     },
+     {
+      "name": "regime",
+      "required": false,
+      "description": "Which law governs — GDPR, UK GDPR, India DPDP — and the organisation's role (controller/fiduciary vs processor)."
+     },
+     {
+      "name": "context",
+      "required": false,
+      "description": "Whether the requester is a customer, employee or other; any live dispute, investigation or legal hold touching their data; and the systems likely holding it."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "privacy/gdpr-compliance",
+     "privacy/dpdpa-compliance",
+     "privacy/breach-response",
+     "disputes/litigation-hold",
+     "privacy/privacy-notice-drafter",
+     "privacy/dpa-review"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Data Principal / Subject Request Handling\n\nTakes a rights request and drives it to a defensible, on-time outcome: verify who's asking, fix the scope and clock, find the data, apply the right exemptions, redact third-party data, clear the legal-hold conflict, and respond. The deliverable is a disposition and a response plan with the clock and exemptions stated, not a summary of the right.\n\n## When to use / not use\n\n- Use: triaging or fulfilling a specific access/erasure/rectification/restriction/portability/objection request; building or auditing the DSAR intake-to-response workflow.\n- Hand off: the overall privacy programme → `privacy/gdpr-compliance` (EU/UK) or `privacy/dpdpa-compliance` (India); a breach that the request may relate to → `privacy/breach-response`; preserving data under a litigation hold → `disputes/litigation-hold`; whether a processor must assist → `privacy/dpa-review`.\n\n## Inputs to collect first\n\n1. The request text, the right(s) invoked, the requester, and the date received (the clock starts here).\n2. The governing regime and the organisation's role (controller/fiduciary vs processor — a processor forwards, it does not decide).\n3. Identity-verification status and whether the requester acts for themselves or via an agent.\n4. Any live dispute, investigation or legal hold touching the requester's data.\n5. The systems and record types likely to hold the data (email, CRM, HR, backups, logs).\n\n## Method\n\n1. **Classify the right and confirm the regime.** Access, erasure, rectification, restriction, portability, objection, and rights re automated decisions each have different scope, exemptions and limits — do not treat them as one \"DSAR\". Portability, for instance, is narrower than access (only data provided by the subject, processed by consent/contract, in machine-readable form).\n2. **Verify identity proportionately.** Enough to be sure, not a barrier — avoid demanding excessive ID. For an agent, confirm authority. Verification can pause but not reset the clock unreasonably.\n3. **Fix the clock.** GDPR/UK GDPR: respond **within one month**, extendable by **two further months** for complex/numerous requests with notice and reasons. India DPDP: respond within the period the Rules prescribe (grievance response ≤90 days under `IN-DPDP-06`) `[verify current]`. State the due date.\n4. **Scope the request.** A controller may ask the requester to specify where processing is large, but cannot use scoping to stall. Define date ranges, systems and record types.\n5. **Locate the data** across production systems and, where in scope, backups/archives — but apply proportionality (disproportionate-effort limits where the law allows).\n6. **Run the legal-hold / litigation conflict check first for erasure.** Erasure cannot spoliate data under a legal hold or needed for a legal claim — this is the critical cross-module gate. If a hold applies, refuse/limit erasure on that ground and record why → `disputes/litigation-hold`.\n7. **Apply exemptions and third-party protection.** Legal privilege, others' rights and freedoms, ongoing investigations, trade secrets, and (for erasure) the grounds that defeat it (legal obligation, legal claims, freedom of expression). **Redact third-party personal data** before disclosing in an access response.\n8. **Decide and respond.** Fulfil, partially fulfil (with the redactions/exemptions explained), or refuse (with the ground and the right to complain to the regulator). Deliver access data securely; confirm erasure/rectification actioned, including to recipients/processors where required.\n9. **For workflow-design**, assess intake routing, the clock tracker, identity-verification steps, the system-search map, the hold-conflict gate, redaction tooling, and the audit trail.\n10. **Score against the Checks table** and set a decision: **FULFIL / PARTIAL / REFUSE**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Erasure actioned despite a legal hold / claim | Hold-conflict check before any deletion | S1 | Block erasure on that ground; record reason → `disputes/litigation-hold` |\n| Clock missed or not tracked | Due date set + tracked from receipt | S1 | Respond now; log the breach; consider the regulator angle |\n| Third-party personal data disclosed unredacted | Redact others' data before releasing | S1 | Re-do the disclosure with redactions |\n| Over-demanding identity verification used to stall | Proportionate verification only | S2 | Accept reasonable proof; resume the clock |\n| Wrong right applied (e.g. portability treated as access) | Right classified and scoped correctly | S2 | Re-classify; scope to the right's limits |\n| Exemption claimed without a basis | Each withholding tied to a named exemption | S2 | State the ground or disclose |\n| Refusal without reasons / complaint route | Refusal explains ground + right to complain | S2 | Add reasons + regulator signpost |\n| Backups/processors not addressed where required | Downstream recipients/processors actioned | S3 | Propagate the action; confirm |\n| No audit trail of the handling | Each step logged with timestamps and decisions | S3 | Record the file |\n\n## Output\n\nLead with `Disposition: FULFIL | PARTIAL | REFUSE — <right> — <key reason>`. Then the output contract. Add:\n\n- **Request summary**: right, requester, date received, due date, regime.\n- **Handling plan**: verification · scope · systems searched · hold-conflict result · exemptions/redactions applied.\n- **Response**: what is disclosed/actioned/withheld and the stated grounds; the regulator-complaint signpost on any refusal.\n- One JSON finding per issue with `category: \"dsar\"`.\n\n## Edge cases & pitfalls\n\n- **Erasure before the hold check**: deleting under a \"right to be forgotten\" when a litigation hold applies is spoliation — the hold check comes first, always.\n- **Employee access requests in disputes**: often tactical; still must be answered, but privilege and others' rights frequently narrow what's disclosable.\n- **Backups**: not always in scope, but a blanket \"we can't search backups\" is not a lawful refusal where the law expects it.\n- **Fees**: generally no fee; a reasonable fee or refusal only for manifestly unfounded/excessive or repeat requests — document that finding.\n- **India vs EU divergence**: DPDP rights, timelines and the consent-manager route differ from GDPR — treat them separately and mark `[verify current]`.\n\n## References\n\n- Volatile facts: `IN-DPDP-06` (DPDP timelines), `IN-DPDP-03` (fiduciary obligations commencement). Cite live where a timeline is load-bearing; mark `[verify current]`.\n- GDPR Arts. 12–22; UK GDPR + DPA 2018 (incl. exemptions in Sch. 2–4); India DPDP Act 2023 + DPDP Rules 2025.",
+   "references": {},
+   "description": "Handles a data-subject / data-principal request end to end — access, erasure, rectification, restriction, portability, objection — across GDPR/UK GDPR and India DPDP: identity verification, scope, locating data, the exemptions and refusal grounds, redaction of third-party data, the legal-hold conflict check, and the on-time response. Use to triage or fulfil a specific rights request, or to design the DSAR workflow. Not for a whole GDPR programme → privacy/gdpr-compliance; not for a live breach → privacy/breach-response.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "privacy/us-state-privacy",
@@ -1724,11 +1895,71 @@
    "module": "regulatory",
    "name": "sanctions-screening",
    "title": "Sanctions screening & alert adjudication",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Adjudicate screening hits and assess sanctions exposure in a transaction."
+   "summary": "Adjudicate screening hits and assess sanctions exposure in a transaction.",
+   "meta": {
+    "name": "regulatory-sanctions-screening",
+    "description": "Screens a counterparty, transaction or payment against sanctions and watchlists and adjudicates the alert: OFAC (incl. the 50% Rule), EU/UK consolidated lists, UN, and India (UAPA/MHA, RBI) regimes; name-matching, ownership/control, nexus and secondary-sanctions exposure. Use to clear or escalate a sanctions hit, design a screening control, or assess sanctions risk before onboarding or paying. Not for export licensing of goods/tech → regulatory/export-controls; not for bribery controls → regulatory/anti-bribery.",
+    "module": "regulatory",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "US",
+     "EU",
+     "UK",
+     "IN"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of adjudicate (clear/escalate a specific screening alert), screen (assess a named party/transaction) or control-design (build or audit a screening programme)."
+     },
+     {
+      "name": "subject",
+      "required": false,
+      "description": "The party/transaction details — legal name, aliases, DOB/registration, country, ownership chain, and the counterparties/banks/goods involved."
+     },
+     {
+      "name": "hit_detail",
+      "required": false,
+      "description": "For adjudication — the list(s) matched, match score, and the fields that matched (name, DOB, address)."
+     },
+     {
+      "name": "nexus",
+      "required": false,
+      "description": "Which regimes could bind — US-person nexus, USD clearing, EU/UK establishment, Indian entity — and whether secondary sanctions are in play."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "regulatory/export-controls",
+     "regulatory/anti-bribery",
+     "contracts/vendor-due-diligence",
+     "regulatory/applicability-mapper",
+     "disputes/regulatory-investigation"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Sanctions Screening & Alert Adjudication\n\nTakes a potential sanctions match and reaches a defensible disposition — **true match / possible match / false positive** — with the ownership, nexus and secondary-sanctions analysis an examiner would expect, or designs the control that produces those dispositions at scale. The deliverable is a disposition with reasons and evidence, not a list of regimes.\n\n## When to use / not use\n\n- Use: adjudicating a screening alert on a customer, vendor, payment or shipment; assessing a named party before onboarding or payment; designing or auditing a sanctions-screening programme (list coverage, fuzzy-match thresholds, escalation).\n- Hand off: whether goods/technology/software need an export licence → `regulatory/export-controls`; bribery/corruption controls → `regulatory/anti-bribery`; broader counterparty diligence → `contracts/vendor-due-diligence`; a regulator inquiry arising from a breach → `disputes/regulatory-investigation`.\n\n## Inputs to collect first\n\n1. The exact subject identifiers: legal name, aliases/transliterations, date/place of birth or registration, country, address.\n2. The ownership and control chain (who owns/controls the party, and in what percentages).\n3. The nexus facts: any US person involved, USD-clearing, EU/UK establishment or nationals, Indian entity — these decide which regimes apply.\n4. For adjudication: which list matched, the match score, and exactly which fields matched.\n5. The transaction context: counterparties, correspondent banks, goods, destination, end-use.\n\n## Method\n\n1. **Fix the applicable regimes by nexus**, not by assumption. US (OFAC) binds US persons and often USD transactions and non-US persons who \"cause\" a violation or face secondary sanctions; EU measures bind EU nationals/entities and conduct in the EU; UK (OFSI) binds UK persons worldwide; India applies UAPA/MHA designations and RBI controls. State which bind and why.\n2. **Resolve the match quality.** Compare the full identifier set (name + DOB/registration + country + address), account for transliteration and alias variants, and classify the alert as **false positive**, **possible match (needs more info)**, or **true match**. Do not clear on name alone.\n3. **Run the ownership/control test.** OFAC's **50% Rule** blocks entities owned 50%+ (individually or in aggregate) by blocked persons even if not themselves listed; EU/UK apply a control-based test. Trace the chain — a clean party owned by a blocked person is still blocked.\n4. **Assess the specific prohibition.** Asset freeze (no dealing with funds/economic resources), sectoral/sectoral-list limits, trade embargo, or prohibition on specific services. Map the proposed activity to the exact restriction — not every listing means a total ban.\n5. **Check secondary-sanctions and de-risking exposure** even where no primary regime binds (e.g. a non-US party facing OFAC secondary designation for dealing with an SDN). Flag where proceeding is lawful but strategically dangerous.\n6. **Decide and route.** True match → freeze/decline and consider a **mandatory report / licence** path (OFSI/OFAC/MHA) `[verify current]`; possible match → escalate for enhanced review and hold; false positive → clear with a documented rationale.\n7. **For control-design mode**, assess list coverage and refresh cadence, fuzzy-match thresholds, re-screening on list changes, PEP/adverse-media overlay, alert workflow and audit trail, and sanctions clauses in contracts.\n8. **Score against the Checks table** and set the disposition decision: **CLEAR / ESCALATE / BLOCK**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Potential true match to an asset-freeze designation | Confirmed non-match, or freeze + report/licence | S1 | Freeze, decline, escalate to MLRO/counsel |\n| Ownership 50%+ by a blocked person ignored | Full ownership chain traced and tested | S1 | Apply 50% Rule; treat as blocked |\n| Clearing a hit on name match alone | Multi-field confirmation before clearing | S2 | Re-screen with DOB/registration/address |\n| Nexus/regime mis-scoped | Regimes fixed by the actual nexus facts | S2 | Re-run the nexus analysis |\n| Secondary-sanctions exposure unassessed | Explicit secondary-sanctions call | S2 | Flag strategic risk even if lawful |\n| Prohibition type not matched to the activity | Activity mapped to the exact restriction | S3 | Confirm freeze vs sectoral vs embargo |\n| No/weak list coverage or refresh cadence (control-design) | Consolidated lists + re-screen on changes | S2 | Add missing lists + automated refresh |\n| No audit trail for the disposition | Every alert disposition logged with reasons | S2 | Record rationale + evidence |\n\n## Output\n\nLead with `Disposition: CLEAR | ESCALATE | BLOCK — <subject> vs <list> — <key reason>`. Then the output contract. Add:\n\n- **Regime applicability**: which regimes bind and why (nexus).\n- **Match analysis**: fields compared, match quality, ownership/control result.\n- **Required actions**: freeze / report / licence / enhanced review, with the reporting body and any deadline `[verify current]`.\n- One JSON finding per issue with `category: \"sanctions\"`.\n\n## Edge cases & pitfalls\n\n- **Name-only clearing**: the single most common error and the one examiners punish — always confirm against more than the name.\n- **The 50% Rule and aggregation**: ownership is aggregated across blocked persons and flows down the chain; a 30% + 25% split by two SDNs still blocks.\n- **USD nexus**: a non-US party can pull in OFAC jurisdiction merely by clearing USD through a US correspondent bank.\n- **Delisting lag**: a party may be freshly delisted or freshly added; a static list snapshot is dangerous — re-screen against the live list and mark `[verify current]`.\n- **Over-blocking**: freezing on a weak possible match without escalation can itself cause legal and commercial harm; escalate, don't guess.\n\n## References\n\n- Volatile facts: cite live where a listing status or reporting window is load-bearing; mark `[verify current]`.\n- OFAC (SDN list, 50% Rule guidance, OFAC regulations); EU consolidated list + Council Regulations; UK OFSI consolidated list + sanctions regulations; UN Security Council lists; India UAPA designations / MHA, RBI FEMA controls.",
+   "references": {},
+   "description": "Screens a counterparty, transaction or payment against sanctions and watchlists and adjudicates the alert: OFAC (incl. the 50% Rule), EU/UK consolidated lists, UN, and India (UAPA/MHA, RBI) regimes; name-matching, ownership/control, nexus and secondary-sanctions exposure. Use to clear or escalate a sanctions hit, design a screening control, or assess sanctions risk before onboarding or paying. Not for export licensing of goods/tech → regulatory/export-controls; not for bribery controls → regulatory/anti-bribery.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "regulatory/export-controls",
@@ -1748,11 +1979,71 @@
    "module": "regulatory",
    "name": "anti-bribery",
    "title": "Anti-bribery & corruption",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "FCPA, UK Bribery Act and Prevention of Corruption Act risk review of payments and intermediaries."
+   "summary": "FCPA, UK Bribery Act and Prevention of Corruption Act risk review of payments and intermediaries.",
+   "meta": {
+    "name": "regulatory-anti-bribery",
+    "description": "Designs or audits an anti-bribery & corruption (ABC) programme and assesses specific risks — gifts & hospitality, facilitation payments, third-party intermediaries, M&A successor liability — against the UK Bribery Act (incl. the s.7 \"failure to prevent\" defence), US FCAP, and India's Prevention of Corruption Act. Use to build/review an ABC programme, clear a gift/hospitality or third-party risk, or scope third-party due diligence. Not for sanctions → regulatory/sanctions-screening; not for a live internal investigation → employment/workplace-investigation.",
+    "module": "regulatory",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "UK",
+     "US",
+     "IN"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of programme (design/audit an ABC programme), risk-clear (assess a specific gift/hospitality, payment or third-party risk) or dd-scope (scope third-party / M&A anti-bribery due diligence)."
+     },
+     {
+      "name": "footprint",
+      "required": false,
+      "description": "Where the organisation operates, sectors, use of agents/distributors/consultants, and any government-touching business (sets exposure)."
+     },
+     {
+      "name": "nexus",
+      "required": false,
+      "description": "Which regimes bind — UK (any business carrying on business in the UK), US (issuer / domestic concern / territorial), India — and whether public officials are involved."
+     },
+     {
+      "name": "scenario",
+      "required": false,
+      "description": "For risk-clear — the specific gift, hospitality, sponsorship, payment, or third-party relationship under review."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "regulatory/sanctions-screening",
+     "contracts/vendor-due-diligence",
+     "regulatory/whistleblower-programme",
+     "employment/workplace-investigation",
+     "disputes/regulatory-investigation",
+     "corporate/ma-due-diligence"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Anti-Bribery & Corruption\n\nBuilds or stress-tests an ABC programme, or clears a specific bribery risk, against the regimes that actually prosecute — and makes the \"adequate / reasonable procedures\" defence real rather than a binder on a shelf. The deliverable is a decision (proceed / mitigate / refuse) or a ranked programme gap list, with the controlling regime and the defence in view.\n\n## When to use / not use\n\n- Use: designing or auditing an ABC programme; clearing a gift, hospitality, sponsorship, charitable donation, facilitation payment or third-party intermediary; scoping anti-bribery due diligence on an agent, distributor or acquisition target.\n- Hand off: sanctions/watchlist screening → `regulatory/sanctions-screening`; broader vendor diligence → `contracts/vendor-due-diligence`; the speak-up channel the programme feeds → `regulatory/whistleblower-programme`; investigating a live allegation → `employment/workplace-investigation` or `disputes/regulatory-investigation`; acquisition-target diligence in depth → `corporate/ma-due-diligence`.\n\n## Inputs to collect first\n\n1. Footprint: countries, sectors, and the degree of government-touching business (licences, permits, public contracts, customs).\n2. Third-party exposure: agents, distributors, consultants, lobbyists, customs brokers — the channel most enforcement runs through.\n3. Nexus: UK (carries on business in the UK), US (issuer/domestic concern/territorial), India — which decides the controlling law.\n4. For a specific risk: the exact gift/hospitality/payment/relationship, its value, recipient, timing, and whether a public official is involved.\n5. Current controls: policy, risk assessment, third-party DD, gifts register, training, audit rights.\n\n## Method\n\n1. **Fix the controlling regimes by nexus.** **UK Bribery Act 2010** — bribing, being bribed, bribing a foreign public official (s.6), and the corporate **s.7 \"failure to prevent bribery\"** offence with the **\"adequate procedures\" defence**; extraterritorial for any organisation carrying on business in the UK. **US FCPA** — anti-bribery (foreign officials) + books-and-records/internal-controls provisions; broad jurisdiction over issuers, domestic concerns and territorial conduct. **India** — Prevention of Corruption Act 1988 (as amended 2018): both giving and taking, with a commercial-organisation offence and a compliance defence. State which bind and why.\n2. **Note the key divergences.** The UK Act has **no facilitation-payment exception**; the FCPA has a narrow one but books-and-records rules often catch it anyway — treat facilitation payments as prohibited by default.\n3. **For programme mode, test the six \"adequate procedures\" themes** (UK MOJ guidance, mirrored in US/India expectations): proportionate procedures, top-level commitment, risk assessment, due diligence, communication/training, and monitoring/review. Score each.\n4. **Risk-assess the footprint** — government interaction, high-risk geographies, third-party channels, sector norms — and make the programme proportionate to it (not one-size-fits-all).\n5. **Third-party controls are the core.** Risk-based DD on intermediaries, anti-bribery contract clauses (representations, audit rights, termination), red-flag screening, and payment controls. Most liability comes through third parties paying on the organisation's behalf.\n6. **Gifts, hospitality, sponsorship, donations.** A reasonable, proportionate, transparent, recorded test — not a fixed monetary line; heightened scrutiny where a public official or a pending decision is involved. Register and pre-approval thresholds.\n7. **Books-and-records & internal controls.** Accurate accounts with no off-book funds or mischaracterised payments — the FCPA accounting provisions catch concealment even absent a proven bribe.\n8. **M&A successor liability.** Acquirers inherit the target's FCPA/Bribery Act exposure; require pre-close anti-bribery DD and post-close integration/remediation → `corporate/ma-due-diligence`.\n9. **For risk-clear mode**, apply the tests above to the specific scenario and reach **PROCEED / PROCEED WITH CONDITIONS / REFUSE**, recording the rationale.\n10. **Score against the Checks table** and set the decision.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Payment/benefit to a public official to secure an advantage | Clearly legitimate, proportionate, recorded — or refuse | S1 | Refuse; escalate to compliance/counsel |\n| Facilitation payment treated as acceptable | Prohibited by default (no UK exception) | S1 | Refuse; find a lawful route; report demands |\n| Third-party intermediary with no risk-based DD | DD proportionate to risk + ABC contract clauses | S1 | DD before engaging/paying; add clauses |\n| No \"adequate/reasonable procedures\" evidence (programme) | Six themes implemented and evidenced | S2 | Build the missing theme(s); it is the defence |\n| Gifts/hospitality without register or pre-approval | Reasonable + transparent + recorded + thresholds | S2 | Stand up register + approval gate |\n| Books-and-records inaccuracy / off-book funds | Accurate accounts; no mischaracterised payments | S1 | Correct; investigate; self-report call |\n| No ABC risk assessment | Current, footprint-specific risk assessment | S2 | Run the risk assessment first |\n| M&A target exposure not assessed pre-close | Anti-bribery DD + remediation plan | S2 | → `corporate/ma-due-diligence` |\n| No training / top-level commitment | Role-based training + visible tone from the top | S3 | Add training + leadership messaging |\n\n## Output\n\nLead with `Decision: PROCEED | PROCEED WITH CONDITIONS | REFUSE — <scenario/programme> — <key reason>` (for programme mode: `APPROVE | APPROVE WITH CONDITIONS | REJECT`). Then the output contract. Add:\n\n- **Regime applicability**: which laws bind and why (nexus), and the key divergences (facilitation payments, defences).\n- **Six-theme scorecard** (programme) or **scenario analysis** (risk-clear): the test, the finding, the condition.\n- **Gap/condition list** with owner and due date. One JSON finding per issue with `category: \"anti-bribery\"`.\n\n## Edge cases & pitfalls\n\n- **Facilitation payments**: a \"small grease payment\" is still a bribe under the UK Act and usually a books-and-records problem under the FCPA — do not wave them through.\n- **Third-party blindness**: \"we didn't pay it, our agent did\" is exactly the liability the statutes target; the intermediary's conduct is the organisation's risk.\n- **Charitable donations / sponsorships as conduits**: scrutinise donations linked to a pending decision or an official's pet cause.\n- **Hospitality thresholds as safe harbours**: a fixed £/$ line is not a defence; reasonableness, transparency and timing matter more than amount.\n- **Successor liability**: closing an acquisition without anti-bribery DD imports the target's exposure onto the buyer.\n\n## References\n\n- Volatile facts: cite live where an enforcement threshold is load-bearing; mark `[verify current]`.\n- UK Bribery Act 2010 (ss.1, 2, 6, 7) + MOJ \"adequate procedures\" guidance; US FCPA (anti-bribery + accounting provisions) + DOJ/SEC Resource Guide; India Prevention of Corruption Act 1988 (as amended 2018).",
+   "references": {},
+   "description": "Designs or audits an anti-bribery & corruption (ABC) programme and assesses specific risks — gifts & hospitality, facilitation payments, third-party intermediaries, M&A successor liability — against the UK Bribery Act (incl. the s.7 \"failure to prevent\" defence), US FCAP, and India's Prevention of Corruption Act. Use to build/review an ABC programme, clear a gift/hospitality or third-party risk, or scope third-party due diligence. Not for sanctions → regulatory/sanctions-screening; not for a live internal investigation → employment/workplace-investigation.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "regulatory/competition-merger-control",
@@ -1781,11 +2072,71 @@
    "module": "regulatory",
    "name": "security-frameworks",
    "title": "Security framework mapping",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Map controls across ISO 27001, SOC 2, NIST CSF and CERT-In directions; evidence gaps."
+   "summary": "Map controls across ISO 27001, SOC 2, NIST CSF and CERT-In directions; evidence gaps.",
+   "meta": {
+    "name": "regulatory-security-frameworks",
+    "description": "Maps an organisation's security posture to the frameworks customers and regulators ask for — ISO/IEC 27001, SOC 2, NIST CSF, CIS Controls — and to binding cyber regimes (EU DORA, NIS2, Cyber Resilience Act; India CERT-In; US SEC cyber disclosure). Use to prepare for a client infosec / security-clearance review, scope a certification, or gap-assess controls and incident-reporting duties. Not for data-protection/GDPR specifically → privacy/gdpr-compliance; not for a live breach response → privacy/breach-response.",
+    "module": "regulatory",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "EU",
+     "IN",
+     "US"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of client-review (answer a customer's security questionnaire / clearance), certification-scope (scope ISO 27001 / SOC 2) or gap-assess (controls + regulatory duties)."
+     },
+     {
+      "name": "target_framework",
+      "required": false,
+      "description": "Which standard(s) are in play — ISO/IEC 27001:2022, SOC 2 (which Trust Services Criteria), NIST CSF 2.0, CIS Controls — and whether a binding regime applies (DORA, NIS2, CRA, CERT-In, SEC)."
+     },
+     {
+      "name": "scope",
+      "required": false,
+      "description": "Systems, services, data types, and the entity/boundary the review covers (the ISMS / SOC 2 system boundary)."
+     },
+     {
+      "name": "current_state",
+      "required": false,
+      "description": "Existing policies, controls, certifications, pentest/audit results, and any incident-reporting runbook."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "privacy/gdpr-compliance",
+     "privacy/breach-response",
+     "regulatory/operational-resilience",
+     "regulatory/product-cyber-obligations",
+     "contracts/vendor-due-diligence",
+     "platform/skill-security-audit"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Security Framework Mapping\n\nTranslates \"pass the customer's security review\" or \"get us to ISO 27001 / SOC 2\" into a scoped control map, an evidence list, and a ranked gap set — plus the binding cyber-reporting duties that overlay the voluntary frameworks. The deliverable is a readiness view with specific gaps and evidence, not a description of the standards.\n\n## When to use / not use\n\n- Use: preparing for a client's infosec questionnaire, security-clearance or vendor-risk review; scoping an ISO/IEC 27001 or SOC 2 effort; gap-assessing controls and the incident-reporting obligations that bind by sector/geography.\n- Hand off: data-protection-specific obligations → `privacy/gdpr-compliance`; a live incident → `privacy/breach-response`; financial-sector operational resilience in depth → `regulatory/operational-resilience`; product/device cybersecurity duties (CRA) → `regulatory/product-cyber-obligations`; assessing a *vendor's* posture → `contracts/vendor-due-diligence`; reviewing this platform's own controls → `platform/skill-security-audit`.\n\n## Inputs to collect first\n\n1. The trigger: which customer/regulator is asking, and against which framework or questionnaire.\n2. The scope/boundary: systems, services, data types, locations, and the legal entity under review.\n3. Current state: policies, controls in place, prior certifications/audits, pentest findings, and the incident runbook.\n4. The binding-regime facts: sector (financial, essential/important entity, device manufacturer, SEC registrant) and geography — these decide which mandatory reporting duties overlay the framework.\n\n## Method\n\n1. **Separate voluntary frameworks from binding regimes.** ISO 27001 / SOC 2 / NIST CSF / CIS are standards you *adopt*; DORA, NIS2, CRA, CERT-In and SEC cyber rules are laws you *must* meet. Map both; never let a certification imply legal compliance.\n2. **Fix the scope/boundary** precisely — the ISMS scope (ISO) or the system boundary (SOC 2) determines what is in and what evidence is needed. An over-broad scope is the usual cause of a stalled certification.\n3. **Pick the control baseline and map existing controls to it.** ISO/IEC 27001:2022 Annex A (93 controls, four themes); SOC 2 Trust Services Criteria (Security always; Availability / Confidentiality / Processing Integrity / Privacy as selected); NIST CSF 2.0 functions (Govern, Identify, Protect, Detect, Respond, Recover); CIS Controls v8 for a concrete technical floor.\n4. **Assess each control: implemented / partial / missing, and is there evidence?** Certification turns on *evidence* (policies, logs, tickets, test results), not intentions — list the artefact each control needs.\n5. **Overlay the binding incident-reporting clocks** where a regime applies:\n   - **EU DORA** — major ICT incident: initial notice within hours of classification, intermediate and final reports follow (cite `EU-DORA-01`, `EU-DORA-02`) `[verify current]`.\n   - **EU NIS2** — essential/important entities: 24-hour early warning, 72-hour notification, one-month final report (cite `EU-NIS2-01`) `[verify current]`.\n   - **EU CRA** — product manufacturers: actively-exploited-vulnerability and incident reporting duties (cite `EU-CRA-01`) `[verify current]`.\n   - **India CERT-In** — reportable incident within **6 hours** of noticing (cite `IN-CERTIN-01`) `[verify current]`.\n   - **US SEC** — material cyber incident on Form 8-K Item 1.05 within four business days of the materiality determination (cite `US-SEC-01`) `[verify current]`.\n6. **Check the governance spine**: risk assessment + treatment plan, asset/data inventory, access control, logging/monitoring, vulnerability management, vendor/supply-chain risk, BCP/DR, and an exercised incident-response plan. These recur across every framework.\n7. **For client-review mode**, answer the questionnaire against real evidence, flag any answer that would be \"no/partial\", and propose the remediation or compensating control rather than overclaiming.\n8. **Score gaps** against the Checks table and set a decision: **READY / READY WITH CONDITIONS / NOT READY**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Binding reporting duty (DORA/NIS2/CERT-In/SEC) unmet or unmapped | Clock + playbook per applicable regime | S1 | Build the reporting runbook; it is law, not optional |\n| Scope/boundary undefined | Precise ISMS / system boundary agreed | S2 | Define scope before mapping controls |\n| Control claimed but no evidence | Every claimed control backed by an artefact | S2 | Produce/collect evidence; don't overclaim |\n| No risk assessment + treatment plan | Documented, current risk register + RTP | S2 | Stand up the risk process |\n| Access control / logging gaps | Least-privilege + monitored, retained logs | S2 | Remediate; add compensating control |\n| No exercised incident-response plan | IR plan tested within the year | S2 | Write + tabletop the plan |\n| Vendor/supply-chain risk unmanaged | Third-party risk process + contract security terms | S3 | → `contracts/vendor-due-diligence` |\n| BCP/DR untested | Recovery objectives + a tested plan | S3 | Define RTO/RPO; run a test |\n| Certification implied as legal compliance | Framework and regime tracked separately | S3 | Correct the claim |\n\n## Output\n\nLead with `Readiness: READY | READY WITH CONDITIONS | NOT READY — <framework/review> — <key reason>`. Then the output contract. Add:\n\n- **Scope statement**: boundary, framework(s), and any binding regime in play.\n- **Control map**: by framework domain — implemented / partial / missing + the evidence artefact.\n- **Binding-duty table**: regime · trigger · clock · status.\n- **Gap list** ranked with owner, remediation, and whether a compensating control is acceptable interim. One JSON finding per gap with `category: \"security-framework\"`.\n\n## Edge cases & pitfalls\n\n- **SOC 2 Type I vs Type II**: Type I is design at a point in time; Type II tests operation over a period — a customer asking for \"SOC 2\" usually means Type II, which needs sustained evidence.\n- **Certification ≠ compliance**: an ISO 27001 certificate does not discharge DORA/NIS2/CERT-In duties, and vice versa.\n- **Scope creep**: the fastest way to fail a certification is an unbounded scope; narrow it, then expand.\n- **Reporting-clock drift**: cyber-incident windows differ sharply (6 h CERT-In vs 72 h NIS2 vs four business days SEC) — a single generic \"report promptly\" runbook is non-compliant.\n- **Stale pentest as evidence**: a year-old test against a changed system is weak evidence; tie evidence to the current boundary.\n\n## References\n\n- Volatile facts: `EU-DORA-01`, `EU-DORA-02`, `EU-NIS2-01`, `EU-CRA-01`, `IN-CERTIN-01`, `US-SEC-01`. Cite live where a clock or status is load-bearing; mark `[verify current]`.\n- ISO/IEC 27001:2022 + Annex A; AICPA SOC 2 Trust Services Criteria; NIST CSF 2.0; CIS Controls v8; Regulation (EU) 2022/2554 (DORA); Directive (EU) 2022/2555 (NIS2); Regulation (EU) 2024/2847 (CRA); CERT-In Directions (28 Apr 2022); SEC Item 1.05.",
+   "references": {},
+   "description": "Maps an organisation's security posture to the frameworks customers and regulators ask for — ISO/IEC 27001, SOC 2, NIST CSF, CIS Controls — and to binding cyber regimes (EU DORA, NIS2, Cyber Resilience Act; India CERT-In; US SEC cyber disclosure). Use to prepare for a client infosec / security-clearance review, scope a certification, or gap-assess controls and incident-reporting duties. Not for data-protection/GDPR specifically → privacy/gdpr-compliance; not for a live breach response → privacy/breach-response.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "regulatory/operational-resilience",
@@ -2474,11 +2825,63 @@
    "module": "disputes",
    "name": "deadline-calendar",
    "title": "Procedural deadline calendar",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Compute limitation and procedural deadlines with verification flags."
+   "summary": "Compute limitation and procedural deadlines with verification flags.",
+   "meta": {
+    "name": "disputes-deadline-calendar",
+    "description": "Builds a procedural deadline / limitation calendar for a dispute: computes limitation and filing dates, service and response windows, appeal and interim-relief clocks, and pre-action steps (incl. India s.12A mediation and s.21 notice), with a method for counting days and flagging what needs same-day action. Use to map deadlines for a new matter, check a date, or build a cause-list tracker. Not for the merits strategy → disputes/early-case-assessment; not for drafting the notice itself → disputes/legal-notice-drafter.",
+    "module": "disputes",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "IN"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of build (map all deadlines for a matter), check (compute/verify a single date) or audit (review an existing tracker for missed/at-risk dates)."
+     },
+     {
+      "name": "matter_facts",
+      "required": false,
+      "description": "Forum/jurisdiction, cause of action, key trigger dates (breach/accrual, service, order date), and the stage (pre-action, pleadings, appeal)."
+     },
+     {
+      "name": "today",
+      "required": false,
+      "description": "The reference date for the computation (defaults to the run date) so \"days remaining\" is explicit."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "disputes/legal-notice-drafter",
+     "disputes/early-case-assessment",
+     "disputes/chronology-builder",
+     "disputes/litigation-hold",
+     "matters/matter-plan"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Procedural Deadline Calendar\n\nTurns a matter's facts into a dated, prioritised deadline calendar — limitation, pre-action, service/response, interim-relief and appeal clocks — with the counting method shown and the \"act today\" items at the top. A missed limitation or appeal date is often fatal and uninsurable, so this skill is conservative by design: it flags and escalates rather than quietly computing a single answer. The deliverable is a calendar with reasoning and caveats, not a bare date.\n\n## When to use / not use\n\n- Use: mapping all procedural deadlines when a dispute opens; computing or sanity-checking a single limitation/appeal/response date; auditing a tracker for missed or at-risk dates.\n- Hand off: the merits/strategy assessment → `disputes/early-case-assessment`; drafting the pre-action letter or statutory notice → `disputes/legal-notice-drafter`; the fact timeline → `disputes/chronology-builder`; preserving evidence → `disputes/litigation-hold`; the overall matter plan → `matters/matter-plan`.\n\n## Inputs to collect first\n\n1. Forum and governing procedural law (court/tribunal/arbitration; jurisdiction) — the rules differ fundamentally.\n2. Cause of action and the limitation trigger (date of breach / accrual / knowledge).\n3. The key event dates already known: service, order/judgment date, demand, notice.\n4. Current stage (pre-action, pleadings, interim, trial, appeal) and any order fixing dates.\n5. The reference \"today\" so days-remaining is unambiguous.\n\n## Method\n\n1. **State the forum and the applicable rules first.** Deadline math is meaningless without the controlling procedural code — identify it and treat every computed date as subject to the live rule and any court order `[verify current]`.\n2. **Compute limitation conservatively.** Identify the trigger (accrual/knowledge/date of cause of action), the limitation period, and any suspension/extension (disability, acknowledgment, fraud/concealment, standstill agreement). Where the trigger is uncertain, compute from the **earliest arguable** trigger and flag the ambiguity — never assume the generous reading.\n3. **Map pre-action steps that gate filing.** For India commercial suits: **s.12A pre-institution mediation** (mandatory unless urgent interim relief is sought) and any **s.80 CPC / s.21 notice** periods; for other forums, pre-action protocols. A filing made without a required pre-action step can be struck out.\n4. **Lay out the post-commencement clocks**: service windows, time to respond/defend, counterclaim, disclosure/discovery, witness statements, and any order-fixed dates.\n5. **Interim-relief timing.** Flag where urgency drives an immediate application (injunction, stay, preservation) and where delay defeats the relief.\n6. **Appeal and review clocks** — usually short and strict; compute from the operative date (pronouncement vs receipt of the order, per the rule) and flag which trigger applies.\n7. **Count days explicitly and consistently.** State whether the period is clear days / calendar days / working days, whether the trigger day counts, and how weekends/holidays and the forum's vacation roll the date. Show the arithmetic.\n8. **Prioritise by jeopardy.** Rank each date: **act today / this week / scheduled**, and mark any date whose miss is fatal (limitation, appeal) as S1 regardless of how far out it is.\n9. **For audit mode**, recompute each tracked date and flag missed, at-risk (inside a buffer), or mis-computed entries.\n10. **Set a decision**: **ON TRACK / ACTION REQUIRED / AT RISK (dates in jeopardy)** and list the escalations.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Limitation date miscomputed or assumed generously | Earliest arguable trigger + conservative period | S1 | Re-compute from earliest trigger; escalate to counsel |\n| Appeal/review window missed or at risk | Operative-date trigger confirmed + buffer | S1 | File protective step now; confirm the rule |\n| Mandatory pre-action step skipped (e.g. India s.12A) | Step completed or urgency exception documented | S1 | Complete the step or justify the exception before filing |\n| Day-counting method not stated | Clear/calendar/working days + trigger-day rule shown | S2 | State the method; redo the count |\n| Interim relief delayed past effectiveness | Urgent application flagged immediately | S2 | Escalate for same-day instruction |\n| Holiday/vacation roll not applied | Forum calendar applied to each date | S2 | Adjust dates for non-working days |\n| Single date given with no caveat on a fatal clock | Load-bearing dates carry a `[verify current]` + escalate | S2 | Add caveat; have counsel confirm |\n| Tracker (audit) has at-risk dates inside buffer | Every date has an owner + reminder | S3 | Assign + set reminders |\n\n## Output\n\nLead with `Status: ON TRACK | ACTION REQUIRED | AT RISK — <matter> — <key jeopardy>`. Then the output contract. Add:\n\n- **Forum & rules**: the controlling procedural law and any order fixing dates.\n- **Deadline table**: item · trigger date · rule/period · computed date · days remaining · counting method · jeopardy (act today / this week / scheduled).\n- **Escalations**: the fatal or near-term dates needing instruction now, each with a `[verify current]`.\n- One JSON finding per at-risk/missed/ambiguous date with `category: \"deadline\"`.\n\n## Edge cases & pitfalls\n\n- **Limitation is uninsurable to miss**: when the trigger is arguable, compute from the earliest plausible date and escalate — do not pick the favourable reading.\n- **Operative date for appeals**: pronouncement vs receipt of the certified copy changes the window; confirm which the rule uses.\n- **s.12A urgency exception**: \"urgent interim relief\" is read strictly by Indian courts — do not rely on it to skip mediation without a genuine urgency.\n- **Working-days vs calendar-days**: mixing these is a classic error; state and apply one consistently per period.\n- **Standstill agreements**: a limitation standstill must be in writing and its scope checked — don't assume it covers every claim.\n- **This skill does not give the final date**: load-bearing dates must be confirmed by a qualified practitioner against the live rule; mark them `[verify current]`.\n\n## References\n\n- Volatile facts: `IN-COMM-01` (Commercial Courts Act / s.12A), `IN-ARB-01` where arbitration appointment timing is in play. Cite live where a period is load-bearing; mark `[verify current]`.\n- The forum's procedural code and limitation statute; India: Limitation Act 1963, CPC (incl. s.80), Commercial Courts Act 2015 s.12A; applicable pre-action protocols.",
+   "references": {},
+   "description": "Builds a procedural deadline / limitation calendar for a dispute: computes limitation and filing dates, service and response windows, appeal and interim-relief clocks, and pre-action steps (incl. India s.12A mediation and s.21 notice), with a method for counting days and flagging what needs same-day action. Use to map deadlines for a new matter, check a date, or build a cause-list tracker. Not for the merits strategy → disputes/early-case-assessment; not for drafting the notice itself → disputes/legal-notice-drafter.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "disputes/document-disclosure",
@@ -3452,11 +3855,68 @@
    "module": "drafting",
    "name": "policy-drafter",
    "title": "Corporate policy drafter",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Draft internal policies with scope, roles, controls and review cycle."
+   "summary": "Draft internal policies with scope, roles, controls and review cycle.",
+   "meta": {
+    "name": "drafting-policy-drafter",
+    "description": "Drafts or refreshes a corporate / internal policy — acceptable use, code of conduct, data protection, AI use, anti-bribery, information security, remote work — in a consistent house structure: purpose, scope, roles, rules, procedure, enforcement, review. Use to draft a new policy, modernise an old one, or harmonise a set into one template. Not for an employment policy tied to local labour law → employment/employment-policy-drafter; not for the privacy notice shown to data subjects → privacy/privacy-notice-drafter.",
+    "module": "drafting",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "policy_type",
+      "required": true,
+      "description": "Which policy to draft or review (e.g. acceptable use, code of conduct, AI use, information security, anti-bribery, data protection, remote work)."
+     },
+     {
+      "name": "mode",
+      "required": false,
+      "description": "One of draft (new policy), refresh (modernise an existing one) or harmonise (align a set to one house structure). Defaults to draft."
+     },
+     {
+      "name": "context",
+      "required": false,
+      "description": "Organisation size/sector, jurisdictions, audience (all staff vs a function), the obligations the policy must implement, and any existing policy to build on."
+     },
+     {
+      "name": "house_style",
+      "required": false,
+      "description": "Tone, reading level, defined-terms conventions, and approval/ownership metadata the organisation uses."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "employment/employment-policy-drafter",
+     "privacy/privacy-notice-drafter",
+     "drafting/plain-language-explainer",
+     "regulatory/ai-governance",
+     "regulatory/anti-bribery",
+     "regulatory/whistleblower-programme"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Corporate Policy Drafter\n\nProduces a clear, enforceable internal policy in a consistent house structure — one that a non-lawyer can follow, that maps to the obligation it implements, and that an auditor can trace. The deliverable is a ready-to-review policy plus a short rationale mapping each rule to its source obligation, not a generic template dump.\n\n## When to use / not use\n\n- Use: drafting a new internal policy; modernising a stale one; harmonising a scattered set of policies into one structure and voice; turning a legal/regulatory obligation into operable internal rules.\n- Hand off: an employment-specific policy whose enforceability turns on local labour law → `employment/employment-policy-drafter`; the external privacy notice for data subjects → `privacy/privacy-notice-drafter`; explaining an existing dense policy in plain language → `drafting/plain-language-explainer`; the underlying AI-governance / anti-bribery / whistleblowing substance → `regulatory/ai-governance` / `regulatory/anti-bribery` / `regulatory/whistleblower-programme`.\n\n## Inputs to collect first\n\n1. The policy type and the obligation(s) it must implement (law, standard, contract, or internal risk).\n2. Audience (all staff vs a specific function) and the jurisdictions the workforce sits in.\n3. Any existing policy to refresh, and the house style/tone and ownership metadata.\n4. The behaviours the organisation actually wants to require, permit and prohibit — the substance, not just the form.\n\n## Method\n\n1. **Anchor every rule to a source.** Before drafting, list what the policy must achieve: the specific legal/standard/contractual obligation or risk each section implements. A policy rule with no source is either missing a rationale or is unnecessary.\n2. **Use the house structure** consistently: **Purpose · Scope (who/what/where) · Definitions · Roles & responsibilities · Policy rules · Procedure (how to comply) · Breach & enforcement · Related documents · Owner, approval & review date.** Keep section order identical across the policy set.\n3. **Write rules as behaviours, not aspirations.** \"You must…\", \"You must not…\", \"Before X, you must Y\" — testable statements a person can follow and a manager can enforce. Avoid \"endeavour to\" and \"where appropriate\" for mandatory rules.\n4. **Match reading level to the audience.** All-staff policies target a plain-language reading level; define terms once and use them consistently → `drafting/plain-language-explainer` for the readability pass.\n5. **Separate policy from procedure.** The policy states the rule and why; the procedure states the steps. Mixing them makes both brittle — a step change should not require re-approving the whole policy.\n6. **Make it enforceable.** State the consequence of breach, the reporting route, and the interaction with disciplinary process — without over-promising a specific sanction the organisation may not apply uniformly.\n7. **Add the governance metadata**: owner, approver, effective date, version, and a review cadence. A policy with no owner and no review date rots.\n8. **Cross-reference, don't duplicate.** Point to the related policy/standard rather than restating it — duplication drifts the moment one copy changes.\n9. **Flag jurisdictional and local-law dependencies** where the global policy must bend (consultation requirements, local addenda) → hand off employment-law-sensitive parts.\n10. **Score the draft** against the Checks table and set a decision: **READY FOR REVIEW / READY WITH CONDITIONS / NOT READY**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| A rule with no source obligation / rationale | Each section maps to a named obligation or risk | S2 | Add the source or cut the rule |\n| Mandatory rules written as aspirations | Testable \"must / must not\" statements | S2 | Rewrite to enforceable language |\n| Policy and procedure conflated | Rule (policy) separated from steps (procedure) | S2 | Split; reference the procedure |\n| Scope ambiguous (who/what/where) | Explicit scope + exclusions | S2 | Define scope precisely |\n| No owner / approver / review date | Governance metadata present | S2 | Add ownership + review cadence |\n| Reading level too dense for the audience | Plain language for all-staff policies | S3 | → `drafting/plain-language-explainer` |\n| Duplicates content from another policy | Cross-reference instead of restating | S3 | Replace copy with a pointer |\n| Local-law dependency ignored | Jurisdictional carve-outs/addenda flagged | S2 | Flag + hand off the local-law parts |\n| No breach/enforcement/reporting route | Consequence + reporting route stated | S3 | Add enforcement + reporting section |\n\n## Output\n\nLead with `Status: READY FOR REVIEW | READY WITH CONDITIONS | NOT READY — <policy> — <key reason>`. Then the output contract. Add:\n\n- **The policy** in the house structure (all sections), ready to paste into the organisation's template.\n- **Rule-to-source map**: each policy section → the obligation/risk it implements.\n- **Open points**: decisions the owner must make (thresholds, sanctions, local addenda), and any jurisdictional hand-offs.\n- One JSON finding per gap/open point with `category: \"policy\"`.\n\n## Edge cases & pitfalls\n\n- **Template dumping**: a generic policy that doesn't reflect what the organisation actually does is unenforceable and ignored — anchor it to real behaviours and obligations.\n- **Over-specific sanctions**: committing to a fixed disciplinary outcome can bind the organisation unfairly; state that breach may lead to disciplinary action per the relevant process.\n- **Policy sprawl**: ten overlapping policies are worse than three clear ones; prefer harmonising to adding.\n- **Stale cross-references**: pointing to a renamed/retired document breaks the chain — verify related-document links.\n- **Employment-law traps**: work-rule policies can create contractual or consultation obligations in some jurisdictions — hand those parts to the employment skill rather than asserting global enforceability.\n\n## References\n\n- Volatile facts: cite live where a policy implements a dated legal obligation; mark `[verify current]`.\n- Standard corporate-policy structure and plain-language drafting practice; the source obligation for the specific policy type (e.g. GDPR, Bribery Act, ISO 27001, AI-governance guidance) via the related skills.",
+   "references": {},
+   "description": "Drafts or refreshes a corporate / internal policy — acceptable use, code of conduct, data protection, AI use, anti-bribery, information security, remote work — in a consistent house structure: purpose, scope, roles, rules, procedure, enforcement, review. Use to draft a new policy, modernise an old one, or harmonise a set into one template. Not for an employment policy tied to local labour law → employment/employment-policy-drafter; not for the privacy notice shown to data subjects → privacy/privacy-notice-drafter.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "drafting/legal-design-review",

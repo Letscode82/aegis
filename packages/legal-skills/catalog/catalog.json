@@ -217,7 +217,7 @@
       "module": "contracts",
       "name": "saas-and-cloud-review",
       "title": "SaaS & cloud agreement review",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -349,7 +349,7 @@
       "module": "privacy",
       "name": "gdpr-compliance",
       "title": "GDPR compliance programme",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "EU",
         "UK"
@@ -383,7 +383,7 @@
       "module": "privacy",
       "name": "data-subject-requests",
       "title": "Data principal / subject request handling",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -476,7 +476,7 @@
       "module": "regulatory",
       "name": "sanctions-screening",
       "title": "Sanctions screening & alert adjudication",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -500,7 +500,7 @@
       "module": "regulatory",
       "name": "anti-bribery",
       "title": "Anti-bribery & corruption",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -533,7 +533,7 @@
       "module": "regulatory",
       "name": "security-frameworks",
       "title": "Security framework mapping",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -747,7 +747,7 @@
       "module": "disputes",
       "name": "deadline-calendar",
       "title": "Procedural deadline calendar",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1165,7 +1165,7 @@
       "module": "drafting",
       "name": "policy-drafter",
       "title": "Corporate policy drafter",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
