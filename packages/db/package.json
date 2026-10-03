@@ -32,6 +32,7 @@
     "db:dedup-persons": "tsx scripts/dedup-persons.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-kms": "^3.600.0",
     "@prisma/client": "5.22.0",
     "pdfkit": "0.15.2"
   },

@@ -20,10 +20,22 @@ export { findOrCreatePersonByEmail, type FindOrCreatePersonInput } from "./perso
 export {
   encryptSecret,
   decryptSecret,
+  encryptSecretEnvelope,
+  decryptSecretEnvelope,
   secretFingerprint,
   SecretDecryptError,
   SecretEncryptError,
 } from "./crypto";
+export {
+  type KmsProvider,
+  KmsConfigError,
+  LocalKmsProvider,
+  AwsKmsProvider,
+  registerKmsProvider,
+  getKmsProvider,
+  getActiveKmsProvider,
+  resetKmsProvidersForTest,
+} from "./kms";
 export {
   verifyAuditChain,
   type ChainBreak,

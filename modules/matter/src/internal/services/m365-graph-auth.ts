@@ -28,7 +28,7 @@ import {
   TelemetryHandler,
 } from "@microsoft/microsoft-graph-client";
 import {
-  decryptSecret,
+  decryptSecretEnvelope,
   prisma,
   secretFingerprint,
 } from "@aegis/db";
@@ -84,7 +84,7 @@ export async function resolveCredentialsForOrg(
   if (row && row.isActive) {
     let plaintext: string | null = null;
     try {
-      plaintext = decryptSecret(row.encryptedClientSecret as Buffer);
+      plaintext = await decryptSecretEnvelope(row.encryptedClientSecret as Buffer);
     } catch {
       // Bad cipher / wrong version — treat as not configured. Falls
       // through to the env-var path below so a misencoded per-org
@@ -240,8 +240,8 @@ export async function upsertOrgM365Credentials(
 ): Promise<void> {
   // Lazy import to avoid pulling encryptSecret into the production
   // factory when only the env path is used.
-  const { encryptSecret } = await import("@aegis/db");
-  const encrypted = encryptSecret(input.clientSecret);
+  const { encryptSecretEnvelope } = await import("@aegis/db");
+  const encrypted = await encryptSecretEnvelope(input.clientSecret);
   await prisma.organizationM365Credential.upsert({
     where: { organizationId: input.organizationId },
     update: {
@@ -270,8 +270,8 @@ export async function rotateOrgM365Secret(
   organizationId: string,
   newPlaintextSecret: string,
 ): Promise<void> {
-  const { encryptSecret } = await import("@aegis/db");
-  const encrypted = encryptSecret(newPlaintextSecret);
+  const { encryptSecretEnvelope } = await import("@aegis/db");
+  const encrypted = await encryptSecretEnvelope(newPlaintextSecret);
   await prisma.organizationM365Credential.update({
     where: { organizationId },
     data: {

@@ -36,6 +36,9 @@ vi.mock("@aegis/db", () => {
     },
     decryptSecret: (b: Buffer) => b.subarray(4).toString("utf8"),
     encryptSecret: (s: string) => Buffer.concat([Buffer.from("v1pl"), Buffer.from(s, "utf8")]),
+    decryptSecretEnvelope: async (b: Buffer) => b.subarray(4).toString("utf8"),
+    encryptSecretEnvelope: async (s: string) =>
+      Buffer.concat([Buffer.from("v1pl"), Buffer.from(s, "utf8")]),
     secretFingerprint: () => "fp-x",
     logAudit: vi.fn(async () => undefined),
   };
