@@ -209,6 +209,9 @@ importers:
       '@aegis/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@aegis/legal-skills':
+        specifier: workspace:*
+        version: link:../../packages/legal-skills
       '@aegis/matter':
         specifier: workspace:*
         version: link:../matter

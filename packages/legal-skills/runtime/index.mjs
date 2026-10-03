@@ -5,6 +5,16 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
+// Severity scale + JSON output contract (one source of truth for output shape).
+// Re-exported here so `@aegis/legal-skills` carries them; the fs-free subpath
+// `@aegis/legal-skills/severity` is for consumers that must avoid node:fs
+// (e.g. the oKF intake agents, which may be bundled).
+export {
+  SEVERITY, SEVERITY_LEVELS, OUTPUT_CONTRACT_VERSION,
+  severityMeta, isBlocking, overallSeverity, inferSeverity, confidenceLabel,
+  buildOutputContract,
+} from "./severity.mjs";
+
 const DEFAULT_REGISTRY = join(dirname(fileURLToPath(import.meta.url)), "..", "dist", "registry.json");
 const STOP = new Set(
   "a an and are as at be by can do for from has have i in is it me my not of on or our should that the this to use we what when with you your".split(" ")

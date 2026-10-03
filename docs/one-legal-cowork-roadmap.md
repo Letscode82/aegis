@@ -340,8 +340,8 @@ A clean-room, Apache-2.0 package of original AEGIS playbooks — shared standard
 | SK-1 | Package: standards + runtime + registry (30 built / 106 catalogued skills) | P1 | ✅ #481 |
 | SK-2 | `POST /api/one-legal/skill-review` — first live use (route → standards + playbook → governed `@aegis/ai`; gated + audited; degrade-safe) | P1 | ✅ #482 |
 | SK-3 | Console **"Deep skill review"** surface (landing + AnswerCard escalation + uploaded-document review; shows the matched playbook) | P1 | ✅ #483 |
-| SK-5 | **Wire E1 one-click skills → `/skill-review`** — review chips pinned to a built playbook run the governed endpoint (instruction as task, pasted text as data) instead of filing | P2 | 🟡 #484 (in review) |
-| SK-4 | **Standards adoption** — converge the 11 oKF intake agents onto the S1–S4 severity scale + JSON output contract (one source of truth for output shape) | P1 | 🔴 (step 3) |
+| SK-5 | **Wire E1 one-click skills → `/skill-review`** — review chips pinned to a built playbook run the governed endpoint (instruction as task, pasted text as data) instead of filing | P2 | ✅ #484 |
+| SK-4 | **Standards adoption** — the 11 oKF intake agents now emit the shared S1–S4 severity scale + JSON output contract on every recommendation (additive `outputContract` at the `buildRec` chokepoint; severity promoted to code in `@aegis/legal-skills/severity`); human gate unchanged | P1 | 🟡 #485 (in review) |
 | SK-6 | Build out the remaining 76 catalogued playbooks (`status: planned` → `built`) | P2 | 🔴 |
 | SK-7 | Admin-editable skills (`Skill` table + CRUD) behind the E1 shape (org-authored playbooks) | P3 | 🔴 (E1.x) |
 
