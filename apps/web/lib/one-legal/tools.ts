@@ -17,11 +17,12 @@
  * hold, DSAR, contract-draft tools follow the same shape.
  */
 import { Permission, type AuthUser } from "@aegis/auth";
-import { createMatter, createLegalHold, type MatterType } from "@aegis/matter";
+import { createMatter, createLegalHold, issueNotice, listNoticeTemplates, type MatterType } from "@aegis/matter";
 import { createContract } from "@aegis/contracts";
 import { createDsarRequest } from "@aegis/privacy";
 import { runAndPersistReview } from "@aegis/spend";
-import { prisma, logAudit } from "@aegis/db";
+import { persistReviewSet } from "@aegis/review";
+import { prisma, logAudit, ReviewSetOrigin } from "@aegis/db";
 import { createHash } from "crypto";
 import { assertAndAudit } from "../authz";
 
@@ -30,7 +31,7 @@ export interface ToolResult { resourceId: string; resourceLabel: string; label: 
 /** Some tools act ON an existing resource (e.g. a legal hold needs a matter).
  *  When set, the console renders a picker of that kind before Approve, and
  *  passes the chosen id back as `targetId`. */
-export interface ToolTarget { kind: "matter" | "invoice"; label: string }
+export interface ToolTarget { kind: "matter" | "invoice" | "hold"; label: string }
 export interface OneLegalTool<A> {
   id: string;
   label: string;
@@ -173,6 +174,59 @@ const invoiceReview: OneLegalTool<InvoiceArgs> = {
   },
 };
 
+// --- Cross-module demo-spine tools (OL-7) ---------------------------------
+// These power the "Acme served us → matter → hold → review → notice" governed
+// spine. They act ON a resource produced by an earlier spine step (chained),
+// so they are deliberately absent from `selectToolId` — they surface only
+// through the spine planner, where the target is supplied by the prior step's
+// result rather than a manual picker.
+
+interface ReviewStartArgs { matterId: string; name: string; query: string }
+
+const reviewStart: OneLegalTool<ReviewStartArgs> = {
+  id: "matter.review.start",
+  label: "Start document review",
+  kind: "write",
+  permission: Permission.MatterLegalHoldIssue,
+  resourceType: "ReviewSet",
+  needsTarget: { kind: "matter", label: "Matter" },
+  deriveArgs: (text, targetId) => ({
+    matterId: targetId || "",
+    name: `Review — ${inferTitle(text)}`.slice(0, 120),
+    query: text.replace(/\s+/g, " ").trim().slice(0, 500),
+  }),
+  summary: (args) => `Open a document-review set on the selected matter — "${args.name}" (starts empty, simulated)`,
+  run: async (args, user) => {
+    const rs = await persistReviewSet(
+      user.organizationId,
+      { origin: ReviewSetOrigin.LEGAL_HOLD, name: args.name, queryString: args.query, sources: [], matterId: args.matterId, custodianCount: 0, simulated: true },
+      [],
+      { id: user.id, type: "USER" },
+    );
+    return { resourceId: rs.id, resourceLabel: rs.name || rs.id, label: "Review set", navigate: "matters" };
+  },
+};
+
+interface HoldNoticeArgs { holdId: string }
+
+const legalHoldNotice: OneLegalTool<HoldNoticeArgs> = {
+  id: "matter.legalhold.notice",
+  label: "Issue a hold notice",
+  kind: "write",
+  permission: Permission.MatterLegalHoldIssue,
+  resourceType: "HoldNoticeIssuance",
+  needsTarget: { kind: "hold", label: "Legal hold" },
+  deriveArgs: (_text, targetId) => ({ holdId: targetId || "" }),
+  summary: () => "Issue the legal-hold preservation notice to the hold's custodians (org default template)",
+  run: async (args, user) => {
+    const templates = await listNoticeTemplates(user.organizationId);
+    const tpl = templates.find((t) => t.isActive) || templates[0];
+    if (!tpl) throw new Error("No hold notice template is configured for this organization.");
+    const issuance = await issueNotice({ holdId: args.holdId, templateId: tpl.id }, { id: user.id, organizationId: user.organizationId });
+    return { resourceId: issuance.id, resourceLabel: `Notice ${issuance.id.slice(0, 8)}`, label: "Hold notice", navigate: "matters" };
+  },
+};
+
 // The registry. Keyed by tool id.
 export const TOOLS: Record<string, OneLegalTool<unknown>> = {
   [matterCreate.id]: matterCreate as OneLegalTool<unknown>,
@@ -180,6 +234,8 @@ export const TOOLS: Record<string, OneLegalTool<unknown>> = {
   [dsarCreate.id]: dsarCreate as OneLegalTool<unknown>,
   [legalHoldCreate.id]: legalHoldCreate as OneLegalTool<unknown>,
   [invoiceReview.id]: invoiceReview as OneLegalTool<unknown>,
+  [reviewStart.id]: reviewStart as OneLegalTool<unknown>,
+  [legalHoldNotice.id]: legalHoldNotice as OneLegalTool<unknown>,
 };
 
 export function getTool(id: string): OneLegalTool<unknown> | undefined {
@@ -200,14 +256,22 @@ export function selectToolId(text: string): string | null {
   return null;
 }
 
-/** A display-only proposal for the console (no execution). */
-export function toolProposalFor(text: string): { id: string; label: string; argsSummary: string; needsTarget?: ToolTarget } | null {
-  const id = selectToolId(text);
-  if (!id) return null;
-  const tool = TOOLS[id];
+export interface ToolProposal { id: string; label: string; argsSummary: string; needsTarget?: ToolTarget }
+
+/** A display-only proposal for a specific tool id (no execution). Used by the
+ *  spine planner, which selects tools by id rather than from free text. */
+export function proposalForTool(toolId: string, text: string): ToolProposal | null {
+  const tool = TOOLS[toolId];
   if (!tool) return null;
   const args = tool.deriveArgs(text);
-  return { id, label: tool.label, argsSummary: tool.summary(args), needsTarget: tool.needsTarget };
+  return { id: toolId, label: tool.label, argsSummary: tool.summary(args), needsTarget: tool.needsTarget };
+}
+
+/** A display-only proposal for the console (no execution). */
+export function toolProposalFor(text: string): ToolProposal | null {
+  const id = selectToolId(text);
+  if (!id) return null;
+  return proposalForTool(id, text);
 }
 
 /**

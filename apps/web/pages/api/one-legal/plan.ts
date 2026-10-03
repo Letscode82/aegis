@@ -17,7 +17,8 @@ import { Permission, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
 import { assertAndAudit } from "../../../lib/authz";
 import { planTasks } from "../../../lib/one-legal/plan-tasks";
-import { toolProposalFor } from "../../../lib/one-legal/tools";
+import { toolProposalFor, proposalForTool } from "../../../lib/one-legal/tools";
+import { detectSpine } from "../../../lib/one-legal/spine";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -32,10 +33,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const text = String((req.body || {}).text || "").trim();
     if (text.length < 3) return res.status(400).json({ ok: false, error: "Describe your request in a few words." });
 
+    // The cross-module demo spine (OL-7) takes priority — same ordered graph
+    // the streaming /run route produces, so the degrade path matches it.
+    const spine = detectSpine(text);
+    if (spine) {
+      const spineTasks = spine.map((step) => ({ title: step.title, request: step.request, tool: proposalForTool(step.toolId, step.request), dependsOn: step.dependsOn }));
+      return res.status(200).json({ ok: true, spine: true, tasks: spineTasks });
+    }
+
     const tasks = await planTasks(text);
     // Attach a governed tool proposal to each task where one applies (display
     // only — execution happens via /api/one-legal/act after human Approve).
-    const withTools = tasks.map((tk) => ({ ...tk, tool: toolProposalFor(tk.request) }));
+    const withTools = tasks.map((tk) => ({ ...tk, tool: toolProposalFor(tk.request), dependsOn: null }));
     return res.status(200).json({ ok: true, tasks: withTools });
   } catch (err) {
     if (err instanceof AccessDeniedError) return res.status(403).json({ ok: false, error: err.decision.message });

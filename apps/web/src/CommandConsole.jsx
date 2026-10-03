@@ -212,17 +212,27 @@ function TargetPicker({ kind, value, onChange }) {
   );
 }
 
-function ToolProposal({ task, onApprove, onFileInstead }) {
+function ToolProposal({ task, chained, onApprove, onFileInstead }) {
   const [targetId, setTargetId] = useState("");
   const needs = task.tool.needsTarget;
-  const ready = !needs || !!targetId;
+  // A spine step (OL-7) takes its target from the prior step's result — no
+  // manual picker. It can't be approved until that step has produced it.
+  const isChained = !!chained;
+  const effectiveTarget = isChained ? (chained.targetId || "") : targetId;
+  const waiting = isChained && !chained.ready;
+  const ready = !needs || !!effectiveTarget;
   return (
     <div style={{ border: `1px solid ${C.am}55`, background: C.amG, borderRadius: 10, padding: "10px 12px" }}>
       <div style={{ fontSize: 9, fontFamily: M, color: C.am, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 5 }}>Proposed action · needs your approval</div>
       <div style={{ fontSize: 12.5, color: C.t1, marginBottom: 10 }}>{task.tool.argsSummary}</div>
-      {needs && <TargetPicker kind={needs.kind} value={targetId} onChange={setTargetId} />}
+      {needs && !isChained && <TargetPicker kind={needs.kind} value={targetId} onChange={setTargetId} />}
+      {needs && isChained && (
+        <div style={{ fontSize: 11.5, fontFamily: M, color: waiting ? C.t4 : C.em, marginBottom: 10 }}>
+          {waiting ? `Waiting for “${chained.title}” to finish…` : `↳ targets ${chained.label}`}
+        </div>
+      )}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button type="button" onClick={() => onApprove(task, targetId)} disabled={!ready} style={{ ...primaryBtn, opacity: ready ? 1 : 0.5 }}>Approve &amp; run →</button>
+        <button type="button" onClick={() => onApprove(task, effectiveTarget)} disabled={!ready || waiting} style={{ ...primaryBtn, opacity: (ready && !waiting) ? 1 : 0.5 }}>Approve &amp; run →</button>
         <button type="button" onClick={() => onFileInstead(task)} style={ghostBtn}>File as ticket instead</button>
       </div>
     </div>
@@ -235,7 +245,12 @@ function CompoundCard({ turn, onOpenTicket, onOpenCockpit, onFollowUp, onApprove
     <div>
       <div style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>Plan · {done}/{turn.tasks.length} tasks</div>
       <div style={{ display: "grid", gap: 12 }}>
-        {turn.tasks.map((task, i) => (
+        {turn.tasks.map((task, i) => {
+          // OL-7 spine chaining: a step with `dependsOn` takes its target from
+          // that earlier step's produced resource, and can't run until it's done.
+          const dep = typeof task.dependsOn === "number" ? turn.tasks[task.dependsOn] : null;
+          const chained = dep ? { ready: !!dep.toolResult, targetId: dep.toolResult?.resourceId || "", label: dep.toolResult?.resourceLabel || dep.title, title: dep.title } : null;
+          return (
           <div key={task.id} style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: "12px 14px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8 }}>
               <span style={{ width: 16, display: "inline-flex", justifyContent: "center" }} aria-hidden="true">{taskDot(task)}</span>
@@ -245,7 +260,7 @@ function CompoundCard({ turn, onOpenTicket, onOpenCockpit, onFollowUp, onApprove
 
             {/* Governed tool proposal — awaits the human Approve keystroke. */}
             {task.tool && task.state === "awaiting" ? (
-              <ToolProposal task={task} onApprove={onApprove} onFileInstead={onFileInstead} />
+              <ToolProposal task={task} chained={chained} onApprove={onApprove} onFileInstead={onFileInstead} />
             ) : (
               <div style={{ paddingLeft: 4 }}>{task.steps.map((s) => <StepRow key={s.key} step={s} />)}</div>
             )}
@@ -260,7 +275,8 @@ function CompoundCard({ turn, onOpenTicket, onOpenCockpit, onFollowUp, onApprove
             )}
             {task.result && <ResultCard result={task.result} onOpenTicket={onOpenTicket} onOpenCockpit={onOpenCockpit} onFollowUp={onFollowUp} onAsk={null} />}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -1301,7 +1317,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
           if (!dataLine) continue;
           try {
             const f = JSON.parse(dataLine.slice(6));
-            if (f.type === "task") tasks[f.index] = { title: f.title, request: f.request, tool: f.tool || null };
+            if (f.type === "task") tasks[f.index] = { title: f.title, request: f.request, tool: f.tool || null, dependsOn: f.dependsOn ?? null };
             else if (f.type === "error") return null;
           } catch { /* skip malformed */ }
         }
@@ -1329,7 +1345,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     const shouldCompound = tasks.length > 1 || tasks.some((tk) => tk.tool);
     if (!shouldCompound) { fileRequest(text); return; }
     const id = ++TURN_SEQ;
-    const taskObjs = tasks.slice(0, 5).map((tk, i) => ({ id: `${id}-${i}`, title: tk.title || `Task ${i + 1}`, request: tk.request || text, tool: tk.tool || null, steps: baseSteps(), result: null, toolResult: null, error: null, state: "pending" }));
+    const taskObjs = tasks.slice(0, 5).map((tk, i) => ({ id: `${id}-${i}`, title: tk.title || `Task ${i + 1}`, request: tk.request || text, tool: tk.tool || null, dependsOn: typeof tk.dependsOn === "number" ? tk.dependsOn : null, steps: baseSteps(), result: null, toolResult: null, error: null, state: "pending" }));
     setTurns((ts) => [...ts, { id, kind: "compound", request: text, tasks: taskObjs }]);
     runCompound(id, taskObjs);
   }, [fileRequest, runCompound, planViaRun]);
