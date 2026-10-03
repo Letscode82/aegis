@@ -18,10 +18,12 @@
  * logic. Authoring is "create + extractAndPersist" with the body coming
  * from a template instead of a ticket.
  */
-import { prisma } from "@aegis/db";
+import { prisma, logAudit } from "@aegis/db";
 import { createContract } from "./service";
 import { extractAndPersistContractKnowledge } from "./intake-spawn";
 import { getTemplateByKey } from "./templates";
+import { getClauseLibraryByType } from "./clause-library";
+import { assembleContractBody, type ClauseSelection, type InsertedClause, type LibraryClause } from "./clause-insertion";
 
 type Actor = { id: string | null; type?: "USER" | "AGENT" | "SYSTEM" };
 
@@ -40,6 +42,13 @@ export interface AuthorContractInput {
   governingLaw?: string | null;
   /** {{variable}} substitutions applied to the template body. */
   variables?: Record<string, string>;
+  /**
+   * Clauses to insert from the org clause library beyond what the template's
+   * {{clause:CODE}} markers already pull. Each names a clauseType + variant
+   * (standard | fallback). A selection whose type a marker already inserted is
+   * skipped (no double-insertion). CLM C-7 — dynamic clause insertion.
+   */
+  clauses?: ClauseSelection[];
 }
 
 export interface AuthorContractResult {
@@ -48,6 +57,10 @@ export interface AuthorContractResult {
   clauses: number;
   obligations: number;
   templateName: string | null;
+  /** The clauses the library inserted into the authored body (marker + appended). */
+  insertedClauses: InsertedClause[];
+  /** {{clause:CODE}} codes / selections with no matching library entry, left verbatim. */
+  unresolvedClauses: string[];
 }
 
 // ── Pure helper (unit-tested; no DB) ─────────────────────────────────
@@ -89,6 +102,28 @@ export async function authorContractFromTemplate(
   }
   const rawBody = (input.body ?? templateBody) || "";
 
+  // Dynamic clause insertion (C-7): resolve {{clause:CODE}} markers and append
+  // any author-selected library clauses before variable substitution, so an
+  // inserted clause may still carry {{variable}} placeholders the render fills.
+  // Only touch the clause library when there's something to insert.
+  const hasClauseMarker = /\{\{\s*clause:/i.test(rawBody) || /\{\{\s*clauses\s*\}\}/i.test(rawBody);
+  let assembledBody = rawBody;
+  let insertedClauses: InsertedClause[] = [];
+  let unresolvedClauses: string[] = [];
+  if (hasClauseMarker || (input.clauses && input.clauses.length > 0)) {
+    const byType = await getClauseLibraryByType(organizationId);
+    const library: Record<string, LibraryClause> = Object.fromEntries(
+      Object.entries(byType).map(([type, e]) => [
+        type,
+        { clauseType: e.clauseType, title: e.title, standardText: e.standardText, fallbackText: e.fallbackText },
+      ]),
+    );
+    const assembled = assembleContractBody(rawBody, library, input.clauses);
+    assembledBody = assembled.body;
+    insertedClauses = assembled.inserted;
+    unresolvedClauses = assembled.unresolved;
+  }
+
   // Build the substitution context: caller-supplied vars + a few derived.
   let counterpartyName: string | null = null;
   if (input.counterpartyId) {
@@ -105,7 +140,7 @@ export async function authorContractFromTemplate(
     "counterparty.name": counterpartyName ?? input.variables?.["counterparty.name"],
     "contract.governingLaw": input.governingLaw ?? undefined,
   };
-  const draftText = renderTemplateBody(rawBody, vars);
+  const draftText = renderTemplateBody(assembledBody, vars);
 
   // Create the DRAFT contract, then persist the working body.
   const contract = await createContract(
@@ -135,5 +170,32 @@ export async function authorContractFromTemplate(
     { initialSnapshotLabel: templateName ? `Authored from "${templateName}"` : "Authored (blank draft)" },
   );
 
-  return { contractId: contract.id, title: contract.title, clauses: ext.clauses, obligations: ext.obligations, templateName };
+  // Record the clause-assembly decision (which library clauses + variants went
+  // into the authored paper) on the chain — an authoring decision a reviewer
+  // can audit, not just the resulting clause rows the extractor wrote.
+  if (insertedClauses.length > 0) {
+    await logAudit({
+      organizationId,
+      actorId: actor.id,
+      actorType: actor.type ?? "USER",
+      action: "contract.authored.clauses_inserted",
+      resourceType: "Contract",
+      resourceId: contract.id,
+      afterJson: {
+        inserted: insertedClauses.map((c) => ({ clauseType: c.clauseType, variant: c.variant, source: c.source })),
+        unresolved: unresolvedClauses,
+      } as never,
+      metadata: { source: "contracts", templateKey: input.templateKey ?? null } as never,
+    });
+  }
+
+  return {
+    contractId: contract.id,
+    title: contract.title,
+    clauses: ext.clauses,
+    obligations: ext.obligations,
+    templateName,
+    insertedClauses,
+    unresolvedClauses,
+  };
 }

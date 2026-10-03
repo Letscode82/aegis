@@ -354,6 +354,18 @@ export {
   type AuthorContractResult,
 } from "./src/internal/author";
 
+// Dynamic clause insertion (C-7) — assemble a draft body from a template +
+// the org clause library ({{clause:CODE}} markers + author-selected clauses).
+// Pure; the authored body flows through the same extract path.
+export {
+  assembleContractBody,
+  type ClauseVariant,
+  type ClauseSelection,
+  type InsertedClause,
+  type LibraryClause,
+  type AssembleResult,
+} from "./src/internal/clause-insertion";
+
 // Turn-based negotiation (Phase 4b). Applying a counterparty turn re-extracts
 // the draft into a new COUNTERPARTY version; turns derive from that history.
 export {
