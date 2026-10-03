@@ -324,13 +324,28 @@ Legend: 🔴 not started · 🟡 in progress / in review · 🟢 mitigated · �
 ### Cowork-feel near-term (extends OL-1 / OL-5)
 | ID | Item | Maps to | Priority | Status |
 |---|---|---|---|---|
-| CW-1 | **Clarify-before-file** — interview for missing details first (Cowork-style) | new; feeds OL-1 | P0 | 🟡 this PR (`/api/intake/clarify` + console ClarifyCard) |
-| CW-2 | Doc-type disambiguation ("sell IP" ⇒ NDA vs assignment/license) | folds into CW-1 / OL-6 | P1 | 🟡 this PR (IP-transfer confirmation in clarify) |
-| CW-3 | Jurisdiction-aware template variant up front (India ≠ Delaware-then-flag) | folds into OL-6 | P1 | 🟡 jurisdiction normalized to a picker + `governingLawForJurisdiction` map; governing-law descriptor carried into the filed ticket. Agent honoring it in the template body is the follow-up (OL-6). |
-| CW-4 | Attorney-grade `.docx` deliverable → edit → approve → send back to requester | = OL-5 | P1 | 🟡 Word export of C1 canvas shipped (`renderMarkdownDocx` + `/api/one-legal/artifact-docx` + "⬇ Word" button); email-send is the remaining follow-up |
+| CW-1 | **Clarify-before-file** — interview for missing details first (Cowork-style) | new; feeds OL-1 | P0 | ✅ #476 (`/api/intake/clarify` + console ClarifyCard) |
+| CW-2 | Doc-type disambiguation ("sell IP" ⇒ NDA vs assignment/license) | folds into CW-1 / OL-6 | P1 | ✅ #476 (IP-transfer confirmation in clarify) |
+| CW-3 | Jurisdiction-aware template variant up front (India ≠ Delaware-then-flag) | folds into OL-6 | P1 | ✅ #479 — jurisdiction normalized to a picker + `governingLawForJurisdiction` map; governing-law descriptor carried into the filed ticket. Agent honoring it in the template body is the follow-up (OL-6). |
+| CW-4 | Attorney-grade `.docx` deliverable → edit → approve → send back to requester | = OL-5 | P1 | ✅ #477 — Word export of C1 canvas (`renderMarkdownDocx` + `/api/one-legal/artifact-docx` + "⬇ Word" button); email-send is the remaining follow-up |
 | CW-5 | Cockpit RFI round-trip (questions back to requester) | new; pairs with C-10 | P2 | 🔴 |
 
 > The **OL-1…OL-8** plan in §6 remains the orchestration backbone (all 🔴 not started). CW-* above are the immediate Cowork-feel wins layered on it; CW-4 is OL-5, CW-2/3 ride OL-6.
+
+### Reusable legal skills (clean-room `@aegis/legal-skills`)
+A clean-room, Apache-2.0 package of original AEGIS playbooks — shared standards (S1–S4 severity scale, JSON output contract, volatile-facts handling), a zero-dependency runtime (route → build system prompt → wrap documents as data), and a catalog of 106 scenarios across 13 modules (30 built, rest planned). The "brain" the ONE Legal surfaces run on.
+
+| ID | Item | Priority | Status |
+|---|---|---|---|
+| SK-1 | Package: standards + runtime + registry (30 built / 106 catalogued skills) | P1 | ✅ #481 |
+| SK-2 | `POST /api/one-legal/skill-review` — first live use (route → standards + playbook → governed `@aegis/ai`; gated + audited; degrade-safe) | P1 | ✅ #482 |
+| SK-3 | Console **"Deep skill review"** surface (landing + AnswerCard escalation + uploaded-document review; shows the matched playbook) | P1 | 🟡 #483 (in review) |
+| SK-4 | **Standards adoption** — converge the 11 oKF intake agents onto the S1–S4 severity scale + JSON output contract (one source of truth for output shape) | P1 | 🔴 (step 3) |
+| SK-5 | **Wire E1 one-click skills → `/skill-review`** — the rail/landing skill chips invoke the governed playbook endpoint | P2 | 🔴 (step 4) |
+| SK-6 | Build out the remaining 76 catalogued playbooks (`status: planned` → `built`) | P2 | 🔴 |
+| SK-7 | Admin-editable skills (`Skill` table + CRUD) behind the E1 shape (org-authored playbooks) | P3 | 🔴 (E1.x) |
+
+> Also shipped on the ONE Legal front door (context for the above): full-breadth E1 skill library — 55 one-click skills across 14 categories (✅ #480); this Cowork-for-Legal roadmap doc (✅ #475).
 
 ---
 
