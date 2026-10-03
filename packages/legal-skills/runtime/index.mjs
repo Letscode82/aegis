@@ -5,6 +5,11 @@ import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 
+// The output-contract (severity scale + finding shape) is the single source of
+// truth for the SHAPE skills and intake agents return — re-exported here so
+// `@aegis/legal-skills` callers can reach it without the subpath import.
+export * from "./output-contract.mjs";
+
 const DEFAULT_REGISTRY = join(dirname(fileURLToPath(import.meta.url)), "..", "dist", "registry.json");
 const STOP = new Set(
   "a an and are as at be by can do for from has have i in is it me my not of on or our should that the this to use we what when with you your".split(" ")
