@@ -165,6 +165,26 @@ export function extractDsarType(text: string): string | undefined {
   return undefined;
 }
 
+// A drafting request produces a *document* (a policy, notice, charter,
+// guideline, code of conduct, …) — it is NOT an intake filing, and in
+// particular NOT a privacy DSAR. The intake triage classifier has no category
+// for "draft a whistleblower policy", so a semantic classifier could land it on
+// Privacy — DPIA / GDPR and the console would show the DSAR intake form. This
+// deterministic guard recognises policy/notice drafting so clarify never asks
+// DSAR questions for it. (The console's primary path already routes drafting
+// skills to the canvas; this protects typed free-text too.)
+const DRAFTING_VERB_RE = /\b(draft|re-?draft|write|compose|prepare|create|update|revise|author|build|generate|produce)\b/i;
+const POLICY_OBJECT_RE = /\b(policy|policies|speak-?up|whistle-?blow(?:er|ing)?|code of conduct|charter|framework|guideline|guidance|handbook|playbook|procedure|standard operating|notice|statement|attestation|resolution|clause|template)\b/i;
+// Genuine data-subject-request signals — if present, it really is a DSAR and the
+// guard must NOT fire.
+const DSAR_SIGNAL_RE = /\b(dsar|data subject|subject access|right to (?:be forgotten|erasure|access|rectification|portability)|erasure request|access request|deletion request|personal data (?:of|about|request)|their (?:personal )?data)\b/i;
+
+/** True when the text is a request to draft a policy/notice-type document. */
+export function looksLikePolicyDrafting(text: string): boolean {
+  const t = text || "";
+  return DRAFTING_VERB_RE.test(t) && POLICY_OBJECT_RE.test(t) && !DSAR_SIGNAL_RE.test(t);
+}
+
 /** True when the text hints at an IP transfer/sale/license hiding under "NDA". */
 export function detectIpTransferAmbiguity(text: string): boolean {
   const t = (text || "").toLowerCase();
@@ -228,8 +248,19 @@ export async function clarifyIntake(input: { text: string; dept?: string }): Pro
   } catch {
     laya = null;
   }
-  const category = (laya && laya.cat) || (regex && regex.cat) || "General Inquiry";
-  const source: ClarifyResult["source"] = laya && laya.cat ? "laya" : regex && regex.cat ? "regex" : "default";
+  let category = (laya && laya.cat) || (regex && regex.cat) || "General Inquiry";
+  let source: ClarifyResult["source"] = laya && laya.cat ? "laya" : regex && regex.cat ? "regex" : "default";
+
+  // Deterministic guard: a policy/notice drafting request is not an intake
+  // filing and must never be treated as a privacy DSAR. If the classifier landed
+  // on the Privacy family for what is plainly a drafting task, drop it to a
+  // general inquiry so no DSAR questions are asked. (Narrow by design — only the
+  // Privacy mis-bucket is overridden; NDA/contract/litigation drafting that has
+  // its own legitimate intake form is untouched.)
+  if (/\b(privacy|dpia|gdpr|dsar|data subject)\b/i.test(category) && looksLikePolicyDrafting(text)) {
+    category = "General Inquiry";
+    source = "default";
+  }
 
   const fields = requiredFieldsForCategory(category);
   const extracted = extractFields(text, fields);
