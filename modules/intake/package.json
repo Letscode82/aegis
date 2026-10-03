@@ -58,6 +58,7 @@
     "@aegis/auth": "workspace:*",
     "@aegis/contracts": "workspace:*",
     "@aegis/db": "workspace:*",
+    "@aegis/legal-skills": "workspace:*",
     "@aegis/matter": "workspace:*",
     "@aegis/observability": "workspace:*",
     "@aegis/search": "workspace:*",

@@ -184,6 +184,11 @@ export async function runDefinition(ticket, doc, knowledge, deps) {
         concerns: [...alwaysConcerns, ...(Array.isArray(result.concerns) ? result.concerns : [])],
         precedentLinks,
         alternativeTone: result.alternativeTone || null,
+        // SK-4 — carry the model's severity assessment onto the shared output
+        // contract. `overall` (or legacy `severity`) rolls up; `findings` is
+        // the structured list. buildRec normalises both; absent → null.
+        overall: result.overall != null ? result.overall : result.severity,
+        findings: result.findings,
       });
     } catch (e) {
       if (typeof console !== "undefined") console.error(`[okf:${agent.key}] JSON path failed, retrying as text:`, e);

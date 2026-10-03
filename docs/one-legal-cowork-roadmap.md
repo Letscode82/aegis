@@ -340,12 +340,12 @@ A clean-room, Apache-2.0 package of original AEGIS playbooks — shared standard
 | SK-1 | Package: standards + runtime + registry (30 built / 106 catalogued skills) | P1 | ✅ #481 |
 | SK-2 | `POST /api/one-legal/skill-review` — first live use (route → standards + playbook → governed `@aegis/ai`; gated + audited; degrade-safe) | P1 | ✅ #482 |
 | SK-3 | Console **"Deep skill review"** surface (landing + AnswerCard escalation + uploaded-document review; shows the matched playbook) | P1 | ✅ #483 |
+| SK-4 | **Standards adoption** — converge the 11 oKF intake agents onto the S1–S4 severity scale + JSON output contract (one source of truth for output shape) | P1 | ✅ — `@aegis/legal-skills/output-contract` is the executable scale; every agent rec carries a normalized `overall` (S1–S4/Info) + structured `findings`, persisted on `AgentRecommendation` |
 | SK-5 | **Wire E1 one-click skills → `/skill-review`** — review chips pinned to a built playbook run the governed endpoint (instruction as task, pasted text as data) instead of filing | P2 | 🟡 #484 (in review) |
-| SK-4 | **Standards adoption** — converge the 11 oKF intake agents onto the S1–S4 severity scale + JSON output contract (one source of truth for output shape) | P1 | 🔴 (step 3) |
 | SK-6 | Build out the remaining catalogued playbooks (`status: planned` → `built`) | P2 | 🟡 in progress — batch 1 built (36/106): whistleblower-programme, legitimate-interest-assessment, privacy-notice-drafter, cookie-and-tracking, matter-budget, matter-plan. 70 still planned. |
 | SK-7 | Admin-editable skills (`Skill` table + CRUD) behind the E1 shape (org-authored playbooks) | P3 | 🔴 (E1.x) |
 
-> Also shipped on the ONE Legal front door (context for the above): full-breadth E1 skill library — 55 one-click skills across 14 categories (✅ #480); this Cowork-for-Legal roadmap doc (✅ #475).
+> Also shipped on the ONE Legal front door (context for the above): full-breadth E1 skill library — 79 one-click skills across 14 categories (✅ #480); this Cowork-for-Legal roadmap doc (✅ #475).
 
 ---
 
