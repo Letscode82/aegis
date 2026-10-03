@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { C, F, M, SR } from "@aegis/ui";
 import { friendlyAIError } from "@aegis/ai";
-import { SKILLS, SKILL_CATEGORIES } from "../lib/one-legal/skills";
+import { SKILLS, SKILL_CATEGORIES, resolveSkillTarget } from "../lib/one-legal/skills";
 
 // Command Console (WS-1, agentic) — "ONE Legal", the full-page front door,
 // built to feel like a first-class AI workspace (Harvey / Legora / Claude).
@@ -622,6 +622,111 @@ function RailSection({ title, children }) {
   );
 }
 
+// Compact, searchable, collapsible Skills palette (Cowork-style). Replaces the
+// single endless scroll: categories collapse by default, a search box filters
+// across the whole catalog, and the category holding the active skill opens
+// automatically. One row per skill, keyboard-free, with the matching skill
+// highlighted the same way as before.
+function SkillRow({ skill, active, onRunSkill }) {
+  return (
+    <button
+      type="button"
+      onClick={onRunSkill ? () => onRunSkill(skill) : undefined}
+      title={skill.desc}
+      style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 8, padding: "5px 6px", marginBottom: 1, background: active ? C.emG : "transparent", border: "1px solid transparent", borderRadius: 8, cursor: onRunSkill ? "pointer" : "default", fontSize: 12, color: active ? C.t1 : C.t2, fontWeight: active ? 600 : 400, fontFamily: F }}
+    >
+      <span style={{ fontSize: 12, color: active ? C.em : C.tl, flexShrink: 0, width: 14, textAlign: "center" }} aria-hidden="true">{skill.icon}</span>
+      <span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{skill.label}</span>
+    </button>
+  );
+}
+
+function SkillsRail({ lastCat, onRunSkill }) {
+  const [query, setQuery] = useState("");
+  const [expanded, setExpanded] = useState({});
+  const q = query.trim().toLowerCase();
+  const isActive = useCallback((s) => !!lastCat && s.cats.includes(lastCat), [lastCat]);
+
+  // The category that currently holds the active (most-recently-routed) skill —
+  // opened automatically so the highlighted skill is visible without hunting.
+  const activeCat = (() => {
+    if (!lastCat) return null;
+    const hit = SKILLS.find((s) => s.cats.includes(lastCat));
+    return hit ? hit.category : null;
+  })();
+
+  const toggle = (cat) => setExpanded((e) => ({ ...e, [cat]: !(cat in e ? e[cat] : cat === activeCat) }));
+  const isOpen = (cat) => (cat in expanded ? expanded[cat] : cat === activeCat);
+
+  // Search mode — flat, filtered results across the whole catalog.
+  if (q) {
+    const hits = SKILLS.filter((s) => s.label.toLowerCase().includes(q) || s.desc.toLowerCase().includes(q) || s.category.toLowerCase().includes(q));
+    return (
+      <RailSection title="Skills">
+        <SkillSearchBox value={query} onChange={setQuery} />
+        {hits.length === 0 ? (
+          <div style={{ fontSize: 11.5, color: C.t4, padding: "6px 2px" }}>No skills match “{query}”.</div>
+        ) : (
+          <div style={{ marginTop: 4 }}>
+            {hits.map((s) => <SkillRow key={s.id} skill={s} active={isActive(s)} onRunSkill={onRunSkill} />)}
+          </div>
+        )}
+      </RailSection>
+    );
+  }
+
+  return (
+    <RailSection title="Skills">
+      <SkillSearchBox value={query} onChange={setQuery} />
+      <div style={{ marginTop: 4 }}>
+        {SKILL_CATEGORIES.map((cat) => {
+          const items = SKILLS.filter((s) => s.category === cat);
+          if (items.length === 0) return null;
+          const open = isOpen(cat);
+          const hasActive = items.some(isActive);
+          return (
+            <div key={cat} style={{ marginBottom: 2 }}>
+              <button
+                type="button"
+                onClick={() => toggle(cat)}
+                aria-expanded={open}
+                style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 6, padding: "5px 2px", background: "transparent", border: "none", cursor: "pointer", color: hasActive ? C.em : C.t4 }}
+              >
+                <span style={{ fontSize: 9, width: 10, flexShrink: 0, transition: "transform .12s", transform: open ? "rotate(90deg)" : "none" }} aria-hidden="true">▸</span>
+                <span style={{ fontSize: 8.5, fontFamily: M, letterSpacing: 0.6, textTransform: "uppercase", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{cat}</span>
+                <span style={{ fontSize: 8.5, fontFamily: M, color: C.t4 }}>{items.length}</span>
+              </button>
+              {open && (
+                <div style={{ paddingLeft: 4, marginBottom: 4 }}>
+                  {items.map((s) => <SkillRow key={s.id} skill={s} active={isActive(s)} onRunSkill={onRunSkill} />)}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </RailSection>
+  );
+}
+
+function SkillSearchBox({ value, onChange }) {
+  return (
+    <div style={{ position: "relative", marginBottom: 2 }}>
+      <span style={{ position: "absolute", left: 9, top: "50%", transform: "translateY(-50%)", fontSize: 11, color: C.t4, pointerEvents: "none" }} aria-hidden="true">🔎</span>
+      <input
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="Search skills…"
+        aria-label="Search skills"
+        style={{ width: "100%", boxSizing: "border-box", background: C.cd, border: `1px solid ${C.br}`, borderRadius: 8, color: C.t1, fontFamily: F, fontSize: 12, padding: "6px 26px 6px 26px", outline: "none" }}
+      />
+      {value && (
+        <button type="button" onClick={() => onChange("")} aria-label="Clear search" style={{ position: "absolute", right: 6, top: "50%", transform: "translateY(-50%)", background: "transparent", border: "none", color: C.t4, cursor: "pointer", fontSize: 13, lineHeight: 1, padding: 2 }}>×</button>
+      )}
+    </div>
+  );
+}
+
 // Cowork-style right rail (à la Claude): Progress / Working folder / Context /
 // Skills, all derived from the live turns — no separate state.
 function WorkspaceRail({ turns, onOpenTicket, onNavigate, history, onRunSkill }) {
@@ -736,32 +841,7 @@ function WorkspaceRail({ turns, onOpenTicket, onNavigate, history, onRunSkill })
         ))}
       </RailSection>
 
-      <RailSection title="Skills">
-        {SKILL_CATEGORIES.map((cat) => {
-          const items = SKILLS.filter((s) => s.category === cat);
-          if (items.length === 0) return null;
-          return (
-            <div key={cat} style={{ marginBottom: 6 }}>
-              <div style={{ fontSize: 8.5, fontFamily: M, color: C.t4, letterSpacing: 0.6, textTransform: "uppercase", margin: "6px 2px 3px" }}>{cat}</div>
-              {items.map((s) => {
-                const active = lastCat && s.cats.includes(lastCat);
-                return (
-                  <button
-                    key={s.id}
-                    type="button"
-                    onClick={onRunSkill ? () => onRunSkill(s) : undefined}
-                    title={s.desc}
-                    style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 8, padding: "5px 6px", marginBottom: 1, background: active ? C.emG : "transparent", border: "1px solid transparent", borderRadius: 8, cursor: onRunSkill ? "pointer" : "default", fontSize: 12, color: active ? C.t1 : C.t2, fontWeight: active ? 600 : 400, fontFamily: F }}
-                  >
-                    <span style={{ fontSize: 12, color: active ? C.em : C.tl, flexShrink: 0, width: 14, textAlign: "center" }} aria-hidden="true">{s.icon}</span>
-                    <span style={{ flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.label}</span>
-                  </button>
-                );
-              })}
-            </div>
-          );
-        })}
-      </RailSection>
+      <SkillsRail lastCat={lastCat} onRunSkill={onRunSkill} />
     </div>
   );
 }
@@ -841,10 +921,12 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   const startedRef = useRef(false);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
-  // SK-5 — active review-skill pin: { skillId, prefix } while a pinned review
-  // skill's prefilled instruction is in the composer; null otherwise.
-  const pendingReviewRef = useRef(null);
   const recordedRef = useRef(new Set());
+  // E1 / SK-5 — the skill a `prefill` click armed the composer with, so
+  // submitting the completed prompt dispatches to the skill's own surface
+  // (draft canvas / governed playbook incl. its pinned reviewSkillId / router)
+  // instead of being re-classified by intake triage.
+  const pendingSkillRef = useRef(null);
 
   const isOpen = embedded || open;
   const wide = useWide(1080);
@@ -1132,7 +1214,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       const resp = await fetch("/api/one-legal/skill-review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, jurisdiction: opts?.jurisdiction, documents: opts?.documents }),
+        body: JSON.stringify({ text, jurisdiction: opts?.jurisdiction, documents: opts?.documents, skillId: opts?.skillId }),
       });
       const d = await resp.json().catch(() => ({}));
       if (d && d.ok) {
@@ -1228,47 +1310,54 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     runAsk(id, t, capability);
   }, [clarifyThenFile, planAndRun, runAsk, startArtifact]);
 
-  // E1 — run a reusable skill (playbook). "prefill" drops the prompt in the
-  // composer for the user to complete; the others route through the same
-  // pipeline as typed input, so governance is unchanged.
+  // Dispatch a submitted composer value to the surface that matches the armed
+  // skill. A `prefill` skill that still carries its prompt prefix (the user only
+  // filled in the blank) routes to THAT skill's surface — draft canvas / governed
+  // playbook / research / router — instead of being re-classified by intake
+  // triage. This fixes drafting skills (e.g. "whistleblower policy") that used to
+  // land on the Privacy / DSAR intake form.
   //
-  // SK-5 — a review skill pinned to a built playbook (`reviewSkillId`) still
-  // prefills, but we remember the pin so the completed submission runs through
-  // /api/one-legal/skill-review with that playbook instead of filing a ticket.
-  // Only this chip path is affected; the pin is cleared if the user edits away
-  // from the prefilled instruction (see the composer onChange guard).
+  // SK-5 — a review skill pinned to a built playbook (`reviewSkillId`) runs
+  // through /api/one-legal/skill-review with that playbook: the skill's prompt is
+  // the instruction and the appended text is the document. Anything the user
+  // typed over the prompt falls through to the router, so freehand text behaves
+  // exactly as before.
+  const submitComposer = useCallback((text) => {
+    const t = (text ?? input).trim();
+    if (t.length < 3) return;
+    const sk = pendingSkillRef.current;
+    if (sk) {
+      const prefix = String(sk.prompt || "").replace(/[\s:]+$/, "").trim();
+      if (prefix && t.toLowerCase().startsWith(prefix.toLowerCase())) {
+        pendingSkillRef.current = null;
+        setInput("");
+        const target = resolveSkillTarget(sk);
+        if (target === "draft") { startArtifact(t); return; }
+        if (target === "research") { startResearch(t); return; }
+        if (target === "review") {
+          const body = t.slice(prefix.length).replace(/^[:\s]+/, "").trim();
+          runSkillReview(prefix || t, { skillId: sk.reviewSkillId, documents: body ? [{ name: "Pasted text", text: body }] : undefined });
+          return;
+        }
+        startTurn(t); // "route"
+        return;
+      }
+      pendingSkillRef.current = null; // user replaced the prompt — treat as typed input
+    }
+    startTurn(t);
+  }, [input, startArtifact, startResearch, runSkillReview, startTurn]);
+
+  // E1 — run a reusable skill (playbook). "prefill" arms the composer with the
+  // prompt for the user to complete, then dispatches to the skill's own surface
+  // on submit (see submitComposer); "research" / "route" dispatch immediately.
   const runSkill = useCallback((skill) => {
     if (!skill) return;
     const p = skill.prompt || "";
-    if (skill.action === "prefill") {
-      pendingReviewRef.current = skill.reviewSkillId ? { skillId: skill.reviewSkillId, prefix: p } : null;
-      setInput(p);
-      setTimeout(() => inputRef.current?.focus(), 0);
-      return;
-    }
+    if (skill.action === "prefill") { pendingSkillRef.current = skill; setInput(p); setTimeout(() => inputRef.current?.focus(), 0); return; }
+    pendingSkillRef.current = null;
     if (skill.action === "research") { startResearch(p); return; }
     startTurn(p); // "route" — intent router (ask / file / tool / compound)
   }, [startResearch, startTurn]);
-
-  // Submit the composer. Honors an active SK-5 review pin: when the user
-  // completed a pinned review skill's prefilled instruction with a document, run
-  // the governed playbook (instruction as the task, the appended text as data)
-  // rather than routing/filing. Otherwise behave exactly as before.
-  const submitComposer = useCallback(() => {
-    const t = input.trim();
-    if (t.length < 3) return;
-    const pr = pendingReviewRef.current;
-    if (pr && input.startsWith(pr.prefix) && input.length > pr.prefix.length) {
-      pendingReviewRef.current = null;
-      const docText = input.slice(pr.prefix.length).trim();
-      const instruction = pr.prefix.replace(/[:\s]+$/, "").trim() || pr.prefix.trim();
-      runSkillReview(instruction, { skillId: pr.skillId, documents: docText ? [{ name: "Pasted text", text: docText }] : undefined });
-      setInput("");
-      return;
-    }
-    pendingReviewRef.current = null;
-    startTurn(input);
-  }, [input, runSkillReview, startTurn]);
 
   // Auto-run a seeded request once when opened from the omnibox.
   useEffect(() => {
@@ -1398,13 +1487,13 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       <input
         ref={inputRef}
         value={input}
-        onChange={(e) => { const v = e.target.value; if (pendingReviewRef.current && !v.startsWith(pendingReviewRef.current.prefix)) pendingReviewRef.current = null; setInput(v); }}
-        onKeyDown={(e) => { if (e.key === "Enter" && input.trim().length >= 3) submitComposer(); }}
+        onChange={(e) => { const v = e.target.value; if (pendingSkillRef.current && !v.startsWith(pendingSkillRef.current.prompt)) pendingSkillRef.current = null; setInput(v); }}
+        onKeyDown={(e) => { if (e.key === "Enter" && input.trim().length >= 3) submitComposer(input); }}
         placeholder={turns.length === 0 ? "Describe a request, ask a question, or attach a document…" : "Ask, file a request, or attach a document…"}
         aria-label="Ask AEGIS or file a legal request"
         style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: C.t1, fontFamily: F, fontSize: big ? 15 : 13, padding: "8px 0" }}
       />
-      <button type="button" onClick={() => { if (input.trim().length >= 3) submitComposer(); }} disabled={input.trim().length < 3} style={{ ...primaryBtn, opacity: input.trim().length < 3 ? 0.5 : 1, flexShrink: 0 }}>Route ⏎</button>
+      <button type="button" onClick={() => { if (input.trim().length >= 3) submitComposer(input); }} disabled={input.trim().length < 3} style={{ ...primaryBtn, opacity: input.trim().length < 3 ? 0.5 : 1, flexShrink: 0 }}>Route ⏎</button>
     </div>
   );
 
