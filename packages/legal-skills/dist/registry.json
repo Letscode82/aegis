@@ -296,11 +296,62 @@
    "module": "intake",
    "name": "matter-scoping",
    "title": "Matter scoping",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Turn a triaged request into a defined scope, assumptions, exclusions and an effort estimate."
+   "summary": "Turn a triaged request into a defined scope, assumptions, exclusions and an effort estimate.",
+   "meta": {
+    "name": "intake-matter-scoping",
+    "description": "Turns a triaged request into a defined matter scope: the objective and deliverables, what is in and explicitly out of scope, the assumptions and dependencies, the stated risks, and a realistic effort/sequencing estimate — so the work is bounded before it starts. Use after triage, before opening/resourcing a matter. Not for the initial routing/prioritisation of the request → intake/request-triage; not for the full work plan and critical path → matters/matter-plan.",
+    "module": "intake",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "request",
+      "required": true,
+      "description": "The triaged request — what the requester wants, the business context, the desired outcome and any deadline."
+     },
+     {
+      "name": "constraints",
+      "required": false,
+      "description": "Budget/resourcing limits, the deadline, who the stakeholders are, and any fixed-fee or external-counsel considerations."
+     },
+     {
+      "name": "context",
+      "required": false,
+      "description": "Related prior matters, known dependencies (on other teams, data, or decisions), and the risk appetite."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "intake/request-triage",
+     "intake/conflict-check-prep",
+     "matters/matter-plan",
+     "outside-counsel/matter-budget",
+     "matters/raid-log"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Matter Scoping\n\nTakes a triaged request and returns a bounded scope: the objective, the deliverables, the explicit in/out lines, the assumptions and dependencies, and an effort estimate — so everyone agrees what the matter is before work (and cost) begins. The deliverable is a scope statement that can be signed off, not a restatement of the request.\n\n## When to use / not use\n\n- Use: after a request is triaged and accepted, to define what the matter will and won't deliver; before resourcing, budgeting, or instructing external counsel; to reset scope when a matter has drifted.\n- Hand off: the initial intake routing, prioritisation and urgency call → `intake/request-triage`; the conflicts check before opening → `intake/conflict-check-prep`; the detailed work plan, tasks and critical path once scope is agreed → `matters/matter-plan`; the cost/fee forecast → `outside-counsel/matter-budget`; tracking risks/assumptions/decisions as the matter runs → `matters/raid-log`.\n\n## Inputs to collect first\n\n1. The **objective** — the business outcome the requester actually wants (not just the task they asked for).\n2. The **deadline** and any fixed budget/resourcing or fee constraint.\n3. The **stakeholders** and who signs off the scope.\n4. Known **dependencies** (other teams, data, prior decisions) and related prior matters.\n\n## Method\n\n1. **State the objective in outcome terms.** Write what success looks like for the business, not the activity — \"get the vendor deal signable by month-end\" rather than \"review a contract\". The objective disciplines everything below it.\n2. **List the deliverables concretely.** The specific outputs (a reviewed-and-redlined contract, an opinion, a filing, a policy) with enough definition that \"done\" is unambiguous.\n3. **Draw the in/out-of-scope lines explicitly.** What the matter will do **and** what it deliberately will not — the out-of-scope list prevents the most common failure, silent scope creep. Note what's deferred to a later phase.\n4. **Record assumptions and dependencies.** The facts taken as true (and who must confirm them) and the things the matter relies on from others; each assumption is a risk if wrong → track in `matters/raid-log`.\n5. **Surface the risks and unknowns.** The legal/commercial risks the matter carries and the open questions that could change scope — flag the ones that must be resolved before committing.\n6. **Estimate effort and sequencing.** A realistic effort band and the rough phase sequence, with the main drivers of cost/time. Where a fixed fee or budget is set, state what that buys and what would be a change of scope → `outside-counsel/matter-budget`.\n7. **Identify the change-control line.** State what counts as a scope change (triggering re-scoping/re-pricing) so later \"can you also…\" requests are handled explicitly, not absorbed.\n8. **Get it bounded and signed off.** The scope statement is for agreement with the requester/stakeholders — ambiguity resolved **before** work starts, not discovered mid-matter.\n9. **Score against the Checks table** and output a scope statement ready for sign-off.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Objective stated as activity, not outcome | Business outcome defined | S2 | Re-state in outcome terms |\n| Deliverables vague / \"done\" ambiguous | Concrete, testable deliverables listed | S2 | Define each deliverable |\n| No explicit out-of-scope list | In- and out-of-scope both stated | S1 | Add the exclusions |\n| Assumptions/dependencies unrecorded | Each assumption + dependency captured with owner | S2 | List them → raid-log |\n| Risks / open questions not surfaced | Scope-affecting risks flagged | S2 | Surface the unknowns |\n| No effort/sequencing estimate | Realistic effort band + phases | S2 | Add the estimate |\n| Fixed fee/budget without a scope boundary | What the fee buys + change line stated | S2 | Define the change-control line |\n| No sign-off / agreement step | Scope agreed before work starts | S2 | Route for sign-off |\n| Silent scope creep absorbed | Changes handled via change control | S3 | Re-scope/re-price on change |\n\n## Output\n\nLead with `Scope: <matter> — objective: <outcome> — effort: <band>`. Then the output contract. Add:\n\n- **Objective & deliverables**: the outcome and the concrete outputs.\n- **In / out of scope**: the explicit boundary, with deferrals noted.\n- **Assumptions & dependencies**: each with its owner/confirmer.\n- **Risks & open questions**: the scope-affecting unknowns.\n- **Estimate & change control**: effort/sequencing and what counts as a change.\n- One JSON finding per material risk/assumption with `category: \"matter-scoping\"`.\n\n## Edge cases & pitfalls\n\n- **Activity vs outcome**: scoping to the task the requester named rather than the outcome they need produces the wrong deliverables — anchor on the objective.\n- **No out-of-scope list**: the exclusions are what hold the line; without them, every adjacent \"while you're at it\" quietly expands the matter.\n- **Unstated assumptions**: a scope built on unverified assumptions collapses when one proves false — record and assign them.\n- **Fixed fee, fuzzy scope**: agreeing a fixed fee without a scope boundary and change-control line is how matters lose money — define the change line up front.\n- **Skipping sign-off**: starting work on an unagreed scope guarantees a later \"that's not what I asked for\" — bound it and get agreement first.\n\n## References\n\n- Volatile facts: generally none; cite `[verify current]` only where a scope assumption rests on a dated legal position.\n- The triaged request and the requester's stated outcome; standard matter-scoping / statement-of-work practice; the firm's change-control and fee conventions.",
+   "references": {},
+   "description": "Turns a triaged request into a defined matter scope: the objective and deliverables, what is in and explicitly out of scope, the assumptions and dependencies, the stated risks, and a realistic effort/sequencing estimate — so the work is bounded before it starts. Use after triage, before opening/resourcing a matter. Not for the initial routing/prioritisation of the request → intake/request-triage; not for the full work plan and critical path → matters/matter-plan.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "intake/conflict-check-prep",
@@ -978,22 +1029,125 @@
    "module": "contracts",
    "name": "dispute-resolution-clause",
    "title": "Dispute resolution clause design",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Design arbitration/jurisdiction clauses: seat, institution, rules, tiers, enforceability."
+   "summary": "Design arbitration/jurisdiction clauses: seat, institution, rules, tiers, enforceability.",
+   "meta": {
+    "name": "contracts-dispute-resolution-clause",
+    "description": "Designs or reviews the dispute-resolution clause in a contract: arbitration vs court, the seat and governing law, institution and rules, number of arbitrators and language, any multi-tier (negotiation/mediation) escalation, and the enforceability traps that make a clause pathological. Use when drafting or negotiating a DR/jurisdiction clause. Not for running an actual arbitration → disputes/arbitration-strategy; not for the governing-law vs jurisdiction choice across the whole contract → contracts/contract-review.",
+    "module": "contracts",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "IN"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of draft (produce a clause), review (assess a proposed/received clause) or compare (weigh arbitration vs litigation for this deal)."
+     },
+     {
+      "name": "deal",
+      "required": false,
+      "description": "The contract type, the parties and where they/assets sit, the likely dispute value and nature, and whether cross-border enforcement will matter."
+     },
+     {
+      "name": "preferences",
+      "required": false,
+      "description": "Any client preference on seat, institution, language, confidentiality, or a tiered escalation, and the counterparty's likely stance."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "disputes/arbitration-strategy",
+     "contracts/contract-review",
+     "disputes/early-case-assessment",
+     "contracts/negotiation-prep",
+     "disputes/deadline-calendar"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Dispute Resolution Clause Design\n\nTakes a deal and returns a dispute-resolution clause that will actually work when a dispute arises: the right forum, a clean seat/rules/tribunal specification, a sensible escalation tier, and no pathology that lets a party dodge or stall. The deliverable is a drafted/reviewed clause with the enforceability risks flagged, not a boilerplate arbitration paragraph.\n\n## When to use / not use\n\n- Use: drafting or negotiating the DR/jurisdiction clause in a contract; reviewing a counterparty's proposed clause; deciding arbitration vs court for a particular deal; fixing a clause that reads as pathological.\n- Hand off: running or strategising an arbitration that has started → `disputes/arbitration-strategy`; the whole-contract review (including governing-law choice) → `contracts/contract-review`; the merits/value of a live dispute → `disputes/early-case-assessment`; preparing to negotiate the clause's terms with the other side → `contracts/negotiation-prep`; computing limitation/procedural deadlines once a dispute exists → `disputes/deadline-calendar`.\n\n## Inputs to collect first\n\n1. The **contract type** and the **parties** — where each is incorporated and holds assets (drives enforcement and forum choice).\n2. The likely **nature and value** of disputes, and whether **cross-border enforcement** will matter.\n3. Client **preferences**: forum, seat, institution, language, confidentiality, and appetite for a multi-tier escalation.\n4. The **governing law** of the contract (distinct from the seat / procedural law).\n\n## Method\n\n1. **Choose the forum deliberately — arbitration vs court.** Arbitration offers neutrality, confidentiality, and (via the **New York Convention**) broad cross-border enforceability of awards; courts offer appeals, summary judgment, and sometimes speed/cost for domestic, low-value, or injunction-heavy matters. Match the choice to the parties, value, and where enforcement must bite `[verify current]`.\n2. **If arbitration: specify the four essentials cleanly.** **Seat** (which fixes the *lex arbitri* and the supervisory courts — not the hearing venue), **institution + rules** (SIAC, ICC, LCIA, MCIA, or ad hoc/UNCITRAL), **number of arbitrators** (1 or 3) and **appointment mechanism**, and the **language**. Omitting or garbling any of these creates uncertainty a party can exploit.\n3. **Avoid pathology.** Guard against inconsistent routes (both arbitration *and* exclusive court jurisdiction), a non-existent/misnamed institution, an impossible seat, optional/permissive wording (\"may refer to arbitration\") that isn't binding, or asymmetric clauses that some jurisdictions refuse to enforce `[verify current]`.\n4. **Design the escalation tier carefully.** A negotiation→mediation→arbitration tier can be useful, but make the steps **clear and time-boxed**; a vague \"parties shall endeavour to resolve amicably\" precondition can block or delay the claim and spawn its own dispute about whether it was satisfied.\n5. **Preserve interim/urgent relief.** Carve out the right to seek urgent interim/injunctive relief from a court (or confirm emergency-arbitrator availability under the rules) so arbitration doesn't bar a freezing order.\n6. **Match the clause to governing law and to India specifics.** Keep governing law, seat, and jurisdiction coherent; in India watch the **unilateral-appointment** bar (CORE v ECI, 2024) and seat-vs-venue case law, and keep the arbitration agreement valid and stamped `[verify current]`.\n7. **Scope what's covered.** Define the disputes caught (\"arising out of or in connection with\"), carve out any that should go elsewhere (e.g. IP validity, expert determination of technical points), and address multi-contract/consolidation if the deal has related agreements.\n8. **Confidentiality and costs.** Address confidentiality (not automatic in all seats), and any costs-allocation or fast-track option for low-value disputes.\n9. **Score against the Checks table** and set a verdict: **ENFORCEABLE / ENFORCEABLE WITH FIXES / PATHOLOGICAL (redraft)**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Forum choice not matched to enforcement | Arbitration/court chosen for where awards must bite | S1 | Re-choose for the enforcement reality `[verify current]` |\n| Seat missing/ambiguous (vs venue) | Seat clearly stated and distinct from venue | S1 | Fix the seat |\n| Institution/rules absent or misnamed | Correct institution + rules specified | S1 | Name the real institution and rules |\n| Inconsistent routes (arbitration + court) | One coherent, exclusive route | S1 | Remove the conflicting path |\n| Permissive (\"may\") / non-binding wording | Mandatory, binding reference | S2 | Make it binding |\n| Escalation tier vague / not time-boxed | Clear, time-limited steps | S2 | Tighten or drop the tier |\n| Urgent interim relief barred | Court/EA interim-relief carve-out | S2 | Add the carve-out |\n| Unilateral appointment / unstamped (India) | Neutral appointment; agreement valid + stamped | S1 | Fix per Indian law `[verify current]` |\n| Scope/consolidation unclear in multi-contract deal | Covered disputes + consolidation addressed | S2 | Define scope and consolidation |\n| Confidentiality assumed but not stated | Confidentiality expressly addressed | S3 | Add the confidentiality term |\n\n## Output\n\nLead with `Verdict: ENFORCEABLE | ENFORCEABLE WITH FIXES | PATHOLOGICAL — <deal> — <key reason>`. Then the output contract. Add:\n\n- **Forum rationale**: arbitration vs court and why, tied to enforcement.\n- **Clause spec** (arbitration): seat · institution + rules · arbitrators + appointment · language · scope.\n- **Escalation & relief**: tier design + interim-relief carve-out.\n- **Draft/redline** of the clause. One JSON finding per issue with `category: \"dr-clause\"`.\n\n## Edge cases & pitfalls\n\n- **Seat vs venue confusion**: naming a hearing \"venue\" as if it fixed the supervisory law leaves the seat uncertain — state the seat explicitly.\n- **Pathological \"both forums\" clause**: a clause pointing to arbitration and exclusive court jurisdiction invites a jurisdictional fight before the merits — pick one route.\n- **Amicable-resolution trap**: an unenforceably-vague pre-arbitration step can stall or bar the claim while the parties argue over whether it was met.\n- **Arbitration blocks the injunction**: without an interim-relief carve-out, a party may be unable to get an urgent freezing order — preserve court access for urgency.\n- **India unilateral appointment**: a clause letting one interested party appoint the (sole) arbitrator is vulnerable post-CORE v ECI — use a neutral mechanism and ensure the agreement is stamped.\n\n## References\n\n- Volatile facts: `IN-ARB-01` (unilateral-appointment bar), `IN-COMM-01` (pre-institution mediation / Commercial Courts interactions). New York Convention status, seat-law rules, and asymmetric-clause enforceability are volatile — cite `[verify current]` where load-bearing.\n- The New York Convention and the chosen seat's arbitration statute; the selected institution's model clause and rules; Indian Arbitration & Conciliation Act case law on seat/venue and appointment.",
+   "references": {},
+   "description": "Designs or reviews the dispute-resolution clause in a contract: arbitration vs court, the seat and governing law, institution and rules, number of arbitrators and language, any multi-tier (negotiation/mediation) escalation, and the enforceability traps that make a clause pathological. Use when drafting or negotiating a DR/jurisdiction clause. Not for running an actual arbitration → disputes/arbitration-strategy; not for the governing-law vs jurisdiction choice across the whole contract → contracts/contract-review.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "contracts/negotiation-prep",
    "module": "contracts",
    "name": "negotiation-prep",
    "title": "Negotiation preparation",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Map interests, walk-away points, trade-offs and concession sequence before a negotiation."
+   "summary": "Map interests, walk-away points, trade-offs and concession sequence before a negotiation.",
+   "meta": {
+    "name": "contracts-negotiation-prep",
+    "description": "Prepares for a contract or dispute negotiation: the parties' underlying interests (not just positions), each side's BATNA and walk-away, the issue list ranked by value, the trade-offs and concession sequence, and the opening/target on each point. Use before negotiating a deal, a renewal, or a settlement to go in with a plan rather than reacting. Not for drafting the resulting edits → contracts/redline-generator; not for the settle-vs-fight merits call → disputes/early-case-assessment.",
+    "module": "contracts",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "negotiation",
+      "required": true,
+      "description": "What is being negotiated (new deal / renewal / dispute settlement / amendment), the counterparty, and the outcome the client wants."
+     },
+     {
+      "name": "position",
+      "required": false,
+      "description": "Our side's priorities and constraints, our leverage and alternatives (BATNA), any authority limits, and the deadline."
+     },
+     {
+      "name": "counterparty",
+      "required": false,
+      "description": "What is known of the other side's interests, pressures, alternatives and likely red lines."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "contracts/redline-generator",
+     "contracts/contract-review",
+     "contracts/renewal-termination-advisor",
+     "disputes/early-case-assessment",
+     "disputes/settlement-agreement"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Negotiation Preparation\n\nTakes a negotiation and returns a plan: the real interests on both sides, the walk-away points, the ranked issue list, and a concession sequence that trades low-value points for high-value ones. The deliverable is a negotiation playbook — openings, targets, trades, and red lines — not a wish-list of asks.\n\n## When to use / not use\n\n- Use: preparing for any contract, renewal, or settlement negotiation; building the issue list and concession plan; working out the client's walk-away and the other side's likely one; briefing the negotiator before the table.\n- Hand off: turning the agreed changes into drafted clause edits → `contracts/redline-generator`; the underlying risk review that identifies the issues → `contracts/contract-review`; the renew/renegotiate/exit decision and deadline math → `contracts/renewal-termination-advisor`; the settle-or-fight merits/quantum call → `disputes/early-case-assessment`; papering the settlement once terms are agreed → `disputes/settlement-agreement`.\n\n## Inputs to collect first\n\n1. **What** is being negotiated and the **outcome** the client actually wants (the interest, not the opening demand).\n2. Our **priorities and constraints**, **authority limits**, and the **deadline**.\n3. Our **BATNA** (best alternative to a negotiated agreement) — the real alternative if this fails — and an estimate of the counterparty's.\n4. What's known about the **other side's** interests, pressures, and likely red lines.\n\n## Method\n\n1. **Separate interests from positions.** For each side, write the underlying *interest* (why they want it) beneath the stated *position* — deals unlock when a position is traded for a different way of meeting the same interest.\n2. **Establish both BATNAs and the walk-away.** Define our real alternative if we don't agree, and set the **walk-away point** (the terms below which the BATNA is better). Estimate the counterparty's BATNA — negotiating power is the gap between the deal and each side's alternative.\n3. **Build and rank the issue list by value.** List every issue; tag each **must-have / important / tradeable / nice-to-have** and note what it's worth to each side. Asymmetries (cheap for us, valuable to them) are the currency of a good trade.\n4. **Set opening, target and reservation per issue.** An ambitious-but-justifiable opening, a realistic target, and the point past which we walk — with the rationale that makes the opening credible.\n5. **Plan the concession sequence.** Decide the order and pairing of concessions: give ground on tradeables **in exchange** for must-haves, never unilaterally; keep a few planned concessions in reserve for the close.\n6. **Prepare the rationale and framing.** For each ask, the one-line justification pitched to the other side's interest (reciprocity, market standard, risk allocation) — framing, not just demanding, is what moves them.\n7. **Anticipate their moves and your responses.** Their likely openings, objections and tactics, and the prepared response to each; identify any information to probe for and any you won't disclose.\n8. **Fix authority, process and record.** Who has authority to agree what, the escalation path, the without-prejudice posture for a settlement, and how agreement will be recorded → `contracts/redline-generator` / `disputes/settlement-agreement`.\n9. **Score against the Checks table** and present the playbook with the walk-away and top trades at the front.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Positions listed without interests | Underlying interest written for each position | S2 | Add the \"why\" behind each ask |\n| No walk-away / reservation point set | Walk-away defined against the BATNA | S1 | Set it before negotiating |\n| BATNA unknown (ours and theirs) | Both alternatives assessed | S1 | Work out the alternatives |\n| Issues unranked by value | Must/important/tradeable/nice tiers assigned | S2 | Rank and value the issues |\n| Concessions planned as unilateral give-aways | Each concession paired with an ask | S2 | Re-plan trades, not gifts |\n| No opening/target/reservation per issue | Three numbers per issue with rationale | S2 | Set the range per point |\n| Counterparty moves not anticipated | Likely tactics + prepared responses | S3 | Add the response plan |\n| Authority / process unclear | Authority limits + record method set | S2 | Fix authority and how it's papered |\n| Framing is demand-only | Interest-based rationale per ask | S3 | Add the counterparty-facing why |\n\n## Output\n\nLead with `Negotiation plan: <subject> — walk-away: <the line> — top trade: <give X for Y>`. Then the output contract. Add:\n\n- **Interests & BATNAs**: each side's interests, alternatives, and our walk-away.\n- **Issue grid**: issue · tier · value-to-each · opening · target · reservation · rationale.\n- **Concession plan**: the sequence and the pairings.\n- **Their moves**: anticipated tactics and prepared responses.\n- One JSON finding per high-stakes issue or red line with `category: \"negotiation\"`.\n\n## Edge cases & pitfalls\n\n- **Arguing positions**: haggling over stated positions without surfacing interests misses the trades that actually close the gap.\n- **No walk-away**: without a reservation point tied to the BATNA, the negotiator can't tell a good deal from a bad one and gets anchored by the other side.\n- **Unilateral concessions**: giving ground without getting something signals weakness and trains the counterparty to keep pushing — pair every concession.\n- **Ignoring their BATNA**: over-demanding when the other side has a strong alternative collapses the deal; under-asking when they have none leaves value on the table.\n- **Winging authority**: agreeing beyond actual authority, or discovering mid-table that sign-off is needed elsewhere, derails the close — fix authority first.\n\n## References\n\n- Volatile facts: generally none; cite `[verify current]` only where a negotiating point turns on a dated legal position.\n- Interest-based negotiation and BATNA framework; the deal/dispute's own facts, the client's constraints, and (for settlements) the without-prejudice posture.",
+   "references": {},
+   "description": "Prepares for a contract or dispute negotiation: the parties' underlying interests (not just positions), each side's BATNA and walk-away, the issue list ranked by value, the trade-offs and concession sequence, and the opening/target on each point. Use before negotiating a deal, a renewal, or a settlement to go in with a plan rather than reacting. Not for drafting the resulting edits → contracts/redline-generator; not for the settle-vs-fight merits call → disputes/early-case-assessment.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "contracts/renewal-termination-advisor",
@@ -2425,11 +2579,63 @@
    "module": "regulatory",
    "name": "competition-merger-control",
    "title": "Competition & merger control",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Merger filing thresholds (incl. CCI deal-value test) and conduct-risk screening."
+   "summary": "Merger filing thresholds (incl. CCI deal-value test) and conduct-risk screening.",
+   "meta": {
+    "name": "regulatory-competition-merger-control",
+    "description": "Screens a transaction for merger-control filing and screens conduct for competition-law risk: whether a deal crosses notification thresholds (incl. India's CCI deal-value test), where it must be filed and the standstill/gun-jumping rule, plus behavioural risks (cartels, information exchange, abuse of dominance, resale-price maintenance). Use to decide if a deal is notifiable or to sanity-check conduct. Not for FDI routing → corporate/fdi-fema-assessment; not for the multi-country legal grid → research/multi-jurisdiction-survey.",
+    "module": "regulatory",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "IN"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of merger-screen (is the deal notifiable and where), conduct-screen (assess a practice/agreement for competition risk) or filing-plan (map the filings, timing and standstill)."
+     },
+     {
+      "name": "transaction",
+      "required": false,
+      "description": "The deal structure, the parties' turnover/assets (by geography), the target's local nexus, and the deal value — for the threshold tests."
+     },
+     {
+      "name": "conduct",
+      "required": false,
+      "description": "For conduct mode — the agreement/practice, the parties' market positions/shares, and whether competitors or distributors are involved."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "corporate/fdi-fema-assessment",
+     "corporate/ma-due-diligence",
+     "research/multi-jurisdiction-survey",
+     "corporate/listed-company-disclosure",
+     "regulatory/ai-governance"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Competition & Merger Control\n\nTakes a transaction or a commercial practice and returns whether it triggers a merger filing (and where, with the standstill rule), or whether a practice carries competition-law risk. The deliverable is a notifiability/risk determination with the filing plan or the conduct fixes, not a general competition-law overview.\n\n## When to use / not use\n\n- Use: deciding whether a deal must be notified to a competition authority and in which jurisdictions; mapping the filing timing and the standstill/gun-jumping obligation; screening an agreement or practice (pricing, distribution, information sharing, a dominant firm's conduct) for competition risk.\n- Hand off: foreign-investment route/caps/reporting (a separate regime from merger control) → `corporate/fdi-fema-assessment`; the wider acquisition diligence → `corporate/ma-due-diligence`; building the full country-by-country legal grid → `research/multi-jurisdiction-survey`; the listed-target disclosure timeline → `corporate/listed-company-disclosure`.\n\n## Inputs to collect first\n\n1. **Merger mode:** the deal structure (acquisition, merger, JV, asset deal), the parties' **turnover and assets by geography**, the **target's local nexus**, and the **deal value**.\n2. **Conduct mode:** the agreement/practice, whether the parties are **competitors (horizontal)** or at different levels (**vertical**), and their **market shares / dominance**.\n3. The relevant jurisdictions and whether any imposes a **suspensory (standstill)** obligation.\n4. Timing pressure and any foreign-investment/FDI screening running in parallel.\n\n## Method\n\n1. **Merger — test notifiability against each regime's thresholds.** Apply the turnover/asset thresholds per jurisdiction; in **India**, apply the CCI asset/turnover tests **and** the **deal-value threshold** (deal value > ₹2,000 crore with substantial business operations in India) plus the small-target (\"de minimis\") exemption where available `[verify current]`. A deal can be notifiable in several jurisdictions at once.\n2. **Confirm the local nexus.** Many regimes require a local effect/presence; a filing may not be required where the target has no meaningful local nexus — but don't assume it away.\n3. **Respect the standstill / anti-gun-jumping rule.** In suspensory regimes the deal **cannot close** (and the parties cannot integrate or exchange competitively sensitive information) before clearance. Gun-jumping — early integration, pre-closing control, or sharing of sensitive data — is independently penalised `[verify current]`.\n4. **Plan the filings and timing.** Identify each required filing, the form/phase, review timelines, and the critical path to closing; coordinate parallel filings and any FDI/foreign-investment screening.\n5. **Assess substantive overlap (merger).** Horizontal overlaps and vertical links that could raise a substantive concern (and possible remedies/commitments) — so the risk of a Phase 2 / conditions is understood early.\n6. **Conduct — screen for the hard core.** Flag per-se/by-object risks: **cartels** (price-fixing, market/customer allocation, bid-rigging), **competitor information exchange**, and resale-price maintenance; these are the highest-severity, often criminal, and never cured by \"it's just commercial\".\n7. **Conduct — assess dominance and verticals.** Where a party may be dominant, screen for **abuse** (exclusionary rebates, refusal to deal, tying, predatory/excessive pricing); for vertical agreements, screen exclusivity, non-competes, and territorial/online-sales restrictions.\n8. **Fix or escalate.** For risky conduct, propose the compliant alternative (clean-team protocols, removing RPM, narrowing exclusivity) or recommend leniency/legal privilege handling where a cartel is suspected.\n9. **Score against the Checks table** and set a determination: **NOTIFIABLE (file in X) / NOT NOTIFIABLE** and, for conduct, **LOW / MATERIAL / SERIOUS risk**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Thresholds not tested per jurisdiction | Each regime's turnover/asset/deal-value test run | S1 | Run every relevant threshold `[verify current]` |\n| India deal-value test missed | CCI deal-value + local-operations test applied | S1 | Apply the deal-value threshold `[verify current]` |\n| Local nexus assumed away | Nexus confirmed before skipping a filing | S2 | Confirm or file |\n| Standstill / gun-jumping breached | No pre-clearance closing/integration/info-sharing | S1 | Hold closing; clean-team sensitive data |\n| Filing critical path not mapped | Filings + timelines + closing path set | S2 | Build the filing plan |\n| Substantive overlap not assessed | Horizontal/vertical concerns + remedy risk flagged | S2 | Assess overlap early |\n| Cartel / by-object conduct not flagged | Price-fixing/allocation/bid-rigging screened | S1 | Stop the conduct; consider leniency |\n| Competitor info exchange unguarded | Clean-team / need-to-know controls | S1 | Add exchange controls |\n| Dominance abuse not screened | Exclusionary conduct tested where dominant | S2 | Screen and fix the practice |\n| RPM / hard vertical restraint missed | Resale-price / territorial restraints checked | S2 | Remove or justify the restraint |\n\n## Output\n\nLead with `Determination: NOTIFIABLE in <jurisdictions> | NOT NOTIFIABLE — and/or — conduct risk: LOW | MATERIAL | SERIOUS — <deal/practice>`. Then the output contract. Add:\n\n- **Merger**: thresholds applied (incl. India deal-value) · where it must be filed · standstill obligation · critical path.\n- **Substantive**: horizontal/vertical overlaps and remedy risk.\n- **Conduct**: the by-object/dominance/vertical findings with the fix per item.\n- One JSON finding per issue with `category: \"competition\"`.\n\n## Edge cases & pitfalls\n\n- **Multi-jurisdiction filings**: one deal can be notifiable in several countries with different thresholds and timelines — missing one holds the whole closing.\n- **Deal-value threshold (India)**: a target with low turnover can still be caught by the ₹2,000-crore deal-value test if it has substantial India operations — turnover alone isn't the whole test.\n- **Gun-jumping**: integrating, taking control, or swapping sensitive data before clearance is penalised separately from any substantive concern — stay apart until cleared.\n- **\"Just commercial\" cartels**: price, customer, or bid coordination with competitors is per-se illegal regardless of intent or market share — never soften it.\n- **Dominance myopia**: conduct that's fine for a small player (exclusivity, rebates) can be abusive for a dominant one — assess the market position first.\n\n## References\n\n- Volatile facts: `IN-CCI-01` (deal-value threshold, in force Sep 2024). Merger thresholds, de minimis exemptions, and standstill rules are volatile and jurisdiction-specific — cite `[verify current]` on any load-bearing threshold.\n- The relevant competition statutes/guidelines (India Competition Act as amended 2023 + CCI regulations; EU Merger Regulation / TFEU Arts 101–102; local regimes); merger-notification forms and leniency programmes.",
+   "references": {},
+   "description": "Screens a transaction for merger-control filing and screens conduct for competition-law risk: whether a deal crosses notification thresholds (incl. India's CCI deal-value test), where it must be filed and the standstill/gun-jumping rule, plus behavioural risks (cartels, information exchange, abuse of dominance, resale-price maintenance). Use to decide if a deal is notifiable or to sanity-check conduct. Not for FDI routing → corporate/fdi-fema-assessment; not for the multi-country legal grid → research/multi-jurisdiction-survey.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "regulatory/financial-services-india",
@@ -3132,11 +3338,63 @@
    "module": "corporate",
    "name": "corporate-governance-review",
    "title": "Governance health check",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Board composition, committee charters and delegation-of-authority review."
+   "summary": "Board composition, committee charters and delegation-of-authority review.",
+   "meta": {
+    "name": "corporate-corporate-governance-review",
+    "description": "Reviews a company's governance health: board composition and independence, committee structure and charters (audit / nomination / remuneration), the delegation-of-authority matrix, meeting and quorum discipline, related-party and conflict controls, and the policy stack. Use for a governance health check or to stand governance up for a growing company. Not for drafting a specific board minute/resolution → corporate/board-minutes-resolutions; not for listed-disclosure timelines → corporate/listed-company-disclosure.",
+    "module": "corporate",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "IN"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of health-check (assess current governance against good practice/law), gap-fix (prioritise and plan the fixes) or stand-up (design governance for a company that lacks it)."
+     },
+     {
+      "name": "company",
+      "required": false,
+      "description": "The entity type and size (private / listed / regulated), its board and committee structure, and the governing company law and (if listed) listing rules."
+     },
+     {
+      "name": "materials",
+      "required": false,
+      "description": "Board/committee charters, the delegation-of-authority matrix, the policy stack, recent minutes, and any related-party arrangements."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "corporate/board-minutes-resolutions",
+     "corporate/listed-company-disclosure",
+     "corporate/entity-compliance-calendar",
+     "corporate/shareholder-agreement",
+     "regulatory/whistleblower-programme"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Governance Health Check\n\nTakes a company's governance set-up and returns where it is sound and where it is exposed: board/committee structure, delegation of authority, meeting discipline, and the conflict/related-party controls — scored and prioritised. The deliverable is a governance gap list with fixes ranked by risk, not a restatement of good-governance principles.\n\n## When to use / not use\n\n- Use: a governance health check for a board/GC; standing up governance for a company that has outgrown informal practice; preparing for a financing, listing, or audit that will scrutinise governance; fixing a specific failure (quorum defects, missing charters, uncontrolled delegation).\n- Hand off: drafting a particular resolution/minute → `corporate/board-minutes-resolutions`; the listed-company disclosure/materiality/PIT regime → `corporate/listed-company-disclosure`; the statutory filing/compliance calendar → `corporate/entity-compliance-calendar`; shareholder-level rights and deadlock → `corporate/shareholder-agreement`; the whistleblowing/speak-up channel specifically → `regulatory/whistleblower-programme`.\n\n## Inputs to collect first\n\n1. The **entity type and status** — private, listed, or regulated (the governance bar rises sharply across these).\n2. The **governing company law** and, if listed/regulated, the listing/regulatory governance rules.\n3. The current **board and committee** structure, charters, and the **delegation-of-authority** matrix.\n4. The **policy stack** (code of conduct, conflicts, related-party, insider-trading, whistleblowing) and recent **minutes**.\n\n## Method\n\n1. **Set the applicable standard first.** Governance requirements scale with status — a private company's baseline differs from a listed company's listing-rule obligations (independent directors, mandatory committees, woman director, etc.) `[verify current]`. Assess against the right bar, not a one-size checklist.\n2. **Board composition and independence.** Size, mix of executive/non-executive/independent, any mandated independence or diversity requirement, chair/CEO separation, and whether directors have the time and competence; check appointment/retirement and any director-eligibility/DIN requirements.\n3. **Committee structure and charters.** Confirm the required committees exist (audit, nomination & remuneration, stakeholder/risk, CSR where applicable), each with a current **charter**, correct composition, and an actual meeting cadence — not charters that exist on paper only.\n4. **Delegation of authority.** Review the DoA matrix: are approval limits defined and appropriate, do they reserve the right matters to the board, and is there a gap where material decisions are taken without clear authority? Uncontrolled or undocumented delegation is a frequent, serious gap.\n5. **Meeting and decision discipline.** Quorum, notice, conflicted-director recusal, minute quality, and the use of written/circular resolutions within their limits — defects here can invalidate decisions → `corporate/board-minutes-resolutions`.\n6. **Conflicts and related-party transactions.** Test the conflict-of-interest and **related-party-transaction** controls: disclosure, recusal, audit-committee/board/shareholder approval thresholds, and the arm's-length basis — RPTs are a top governance and disclosure risk.\n7. **Policy stack and assurance.** Check the code of conduct, insider-trading code (if relevant), whistleblowing channel, risk management, and internal audit/assurance lines are present and operating.\n8. **Flow-through to compliance and disclosure.** Confirm governance decisions feed the statutory filings → `corporate/entity-compliance-calendar` and (if listed) disclosures → `corporate/listed-company-disclosure`.\n9. **Score against the Checks table**, rank the gaps by risk, and output a prioritised remediation plan.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Wrong standard applied (private vs listed/regulated) | Governance assessed against the right regime | S1 | Re-baseline to the applicable rules `[verify current]` |\n| Board independence/composition requirement unmet | Mandated independent/diversity mix satisfied | S1 | Appoint to meet the requirement |\n| Required committee or charter missing | All mandated committees + current charters | S2 | Constitute the committee; adopt a charter |\n| Delegation-of-authority gaps / undocumented | DoA matrix with limits + board-reserved matters | S1 | Build/repair the DoA matrix |\n| Quorum / recusal / notice defects | Meeting discipline sound; conflicts recused | S2 | Fix the process → board-minutes-resolutions |\n| Related-party controls weak | Disclosure + recusal + approval thresholds met | S1 | Tighten RPT approvals |\n| Conflicts policy absent/ignored | COI policy present and operating | S2 | Adopt/enforce the policy |\n| Policy stack incomplete | Code/insider/whistleblowing/risk in place | S2 | Fill the policy gaps |\n| Governance not feeding compliance/disclosure | Decisions flow to filings/disclosures | S3 | Wire the flow-through |\n\n## Output\n\nLead with `Governance: SOUND | GAPS TO FIX | MATERIALLY DEFICIENT — <company> — <top exposure>`. Then the output contract. Add:\n\n- **Board & committees**: composition/independence + committee/charter status.\n- **Delegation of authority**: the DoA findings and board-reserved matters.\n- **Process**: meeting/quorum/recusal and minute discipline.\n- **Conflicts & RPTs**: the control findings.\n- **Remediation plan**: gaps ranked by risk with owners.\n- One JSON finding per gap with `category: \"governance\"`.\n\n## Edge cases & pitfalls\n\n- **Paper committees**: a charter that exists but whose committee never meets (or meets without quorum) is worse than none — test operation, not just existence.\n- **Uncontrolled delegation**: material spend or commitments made with no documented authority expose both the company and the individuals — the DoA matrix is load-bearing.\n- **RPT blind spots**: related-party deals slipped through without recusal/approval are a governance and disclosure failure at once — test the controls hard.\n- **One-size checklist**: applying listed-company requirements to a small private company (or vice versa) produces false gaps or false comfort — set the standard first.\n- **Minutes as an afterthought**: thin minutes that don't show the decision, the conflict handling, or the authority can invalidate decisions and fail an audit.\n\n## References\n\n- Volatile facts: cite `[verify current]` where an independent-director, committee, woman-director, or RPT-approval threshold under the Companies Act / listing rules is load-bearing.\n- The governing company law (e.g. Companies Act 2013 + rules in India) and listing-rule governance code where listed; recognised governance codes; the company's own charters, DoA matrix, and policy stack.",
+   "references": {},
+   "description": "Reviews a company's governance health: board composition and independence, committee structure and charters (audit / nomination / remuneration), the delegation-of-authority matrix, meeting and quorum discipline, related-party and conflict controls, and the policy stack. Use for a governance health check or to stand governance up for a growing company. Not for drafting a specific board minute/resolution → corporate/board-minutes-resolutions; not for listed-disclosure timelines → corporate/listed-company-disclosure.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "disputes/early-case-assessment",
@@ -3582,11 +3840,65 @@
    "module": "disputes",
    "name": "document-disclosure",
    "title": "Disclosure & production review",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Relevance, privilege and production strategy for document disclosure."
+   "summary": "Relevance, privilege and production strategy for document disclosure.",
+   "meta": {
+    "name": "disputes-document-disclosure",
+    "description": "Plans document disclosure/discovery: scope and relevance, the search-and-collection method (custodians, sources, keywords, de-duplication), privilege review (legal advice / litigation privilege, waiver and redaction), and the production mechanics (format, confidentiality tiering, a defensible log). Use to plan or run disclosure, or to review an opponent's production. Not for the upstream preserve-everything duty → disputes/litigation-hold; not for the overall case strategy → disputes/early-case-assessment.",
+    "module": "disputes",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "IN",
+     "UK",
+     "US"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of plan (design the disclosure exercise), privilege-review (triage documents for privilege/redaction) or review-production (assess the completeness/privilege of a received production)."
+     },
+     {
+      "name": "matter",
+      "required": false,
+      "description": "The dispute and forum (the disclosure rules differ by forum), the issues in play (which define relevance), and the data sources/custodians involved."
+     },
+     {
+      "name": "constraints",
+      "required": false,
+      "description": "The disclosure order/rules and any agreed protocol, proportionality limits, deadlines, and confidentiality/data-protection constraints on cross-border review."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "disputes/litigation-hold",
+     "disputes/early-case-assessment",
+     "disputes/arbitration-strategy",
+     "privacy/cross-border-transfer",
+     "disputes/deadline-calendar"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Disclosure & Production Review\n\nTakes a disclosure obligation and returns a defensible plan: what's in scope, how it will be found and collected, how privilege is protected, and how it will be produced — so the exercise is proportionate, complete, and doesn't leak privilege. The deliverable is a disclosure plan (or a review of one) with the privilege and proportionality risks flagged, not a generic \"collect the documents\".\n\n## When to use / not use\n\n- Use: scoping and running disclosure/discovery; designing the search and collection; triaging documents for privilege and redaction; producing documents in the right format with a defensible log; auditing an opponent's production for gaps or over-redaction.\n- Hand off: the duty to **preserve** documents once litigation is anticipated (the step before disclosure) → `disputes/litigation-hold`; the merits/strategy that defines what matters → `disputes/early-case-assessment`; the arbitration-specific production expectations (IBA Rules etc.) → `disputes/arbitration-strategy`; the data-protection mechanism for reviewing/exporting personal data across borders → `privacy/cross-border-transfer`; the disclosure-deadline calculation → `disputes/deadline-calendar`.\n\n## Inputs to collect first\n\n1. The **forum and its disclosure rules/order** — US discovery, English disclosure (PD 57AD/CPR 31), Indian discovery, or an arbitral protocol differ sharply on scope and process.\n2. The **issues in dispute** — relevance is defined by the issues, not by \"everything about the matter\".\n3. The **data sources and custodians** (email, chat, shared drives, devices, cloud apps, structured systems) and their volumes.\n4. The **deadlines**, proportionality limits, and any confidentiality / data-protection / cross-border constraints.\n\n## Method\n\n1. **Define relevance from the issues.** Map the disclosure scope to the pleaded issues and the governing rule's test (e.g. documents a party relies on + that adversely affect/support a case, or the forum's broader/narrower standard). Over-collection wastes cost; under-collection risks sanctions.\n2. **Confirm preservation is in place.** Verify a litigation hold already covers the sources — collecting from sources that weren't preserved invites spoliation arguments → `disputes/litigation-hold`.\n3. **Design the search and collection.** Identify custodians and sources; agree keywords/date ranges/filters (and, where used, TAR/analytics); de-duplicate and thread; forensically collect so metadata and chain-of-custody survive.\n4. **Run a layered privilege review.** Separate **legal advice privilege** and **litigation privilege** (and local equivalents); watch for loss of privilege through waiver, mixed business/legal content, in-house-counsel limits in some jurisdictions, and third-party sharing. Log each privilege call with its basis.\n5. **Redact, don't withhold wholesale.** Redact privileged/irrelevant-sensitive portions of otherwise-disclosable documents; produce the rest. Blanket withholding of partly-privileged documents is a common over-reach.\n6. **Build the privilege log / disclosure certificate.** Produce the log (document, date, type, basis for withholding) to the required standard, and the disclosure statement/certificate confirming the search was reasonable.\n7. **Handle confidentiality and data protection.** Apply confidentiality tiers / clawback and protective orders; for personal data, address the data-protection basis and any cross-border review/export → `privacy/cross-border-transfer`.\n8. **Produce in the right form.** Agreed format (native/TIFF+load file, Bates/continuity numbering, metadata fields); keep the production set, the log, and the search record aligned.\n9. **For review-of-opponent mode:** test completeness against the issues, probe suspicious gaps/date-cliffs, and challenge over-broad redactions or thin privilege logs.\n10. **Score against the Checks table** and set a readiness/assessment: **DEFENSIBLE / DEFENSIBLE WITH FIXES / NOT DEFENSIBLE**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Scope not tied to the issues / forum test | Relevance mapped to pleaded issues + the rule | S1 | Re-scope to the issues and the standard |\n| Collecting from unpreserved sources | Litigation hold confirmed over all sources | S1 | Preserve first → litigation-hold |\n| Metadata / chain-of-custody not preserved | Forensically sound collection | S1 | Re-collect defensibly |\n| Privilege types conflated or mis-called | Advice vs litigation privilege applied; waiver checked | S1 | Re-review; log each call's basis |\n| Whole documents withheld instead of redacted | Redact-and-produce the non-privileged parts | S2 | Redact and release |\n| Privilege log / disclosure statement inadequate | Log + certificate to the required standard | S2 | Build the compliant log |\n| Proportionality ignored (over/under-collection) | Search proportionate to the issues and value | S2 | Right-size the search |\n| Personal-data / cross-border review unaddressed | DP basis + transfer mechanism in place | S2 | Add the DP step → cross-border-transfer |\n| Production format not agreed/consistent | Agreed format + numbering + load files | S3 | Conform the production set |\n| (Review mode) gaps / over-redaction unchallenged | Completeness + redaction tested against issues | S2 | Raise the deficiency |\n\n## Output\n\nLead with `Disclosure: DEFENSIBLE | DEFENSIBLE WITH FIXES | NOT DEFENSIBLE — <matter> — <key risk>`. Then the output contract. Add:\n\n- **Scope & relevance**: the issues → what's in/out, under which rule.\n- **Search & collection**: custodians · sources · keywords/filters · de-dup · collection method.\n- **Privilege**: review approach, the log, redaction policy, waiver risks.\n- **Production**: format, numbering, confidentiality tiers, clawback.\n- One JSON finding per issue with `category: \"disclosure\"`.\n\n## Edge cases & pitfalls\n\n- **Relevance ≠ \"everything\"**: scoping to the whole matter instead of the pleaded issues blows cost and proportionality; scope to the issues under the forum's test.\n- **Collecting before preserving**: pulling from sources a hold never covered opens a spoliation flank — confirm preservation first.\n- **Privilege waiver by sharing**: forwarding legal advice to third parties or mixing it into business chains can waive privilege — review for it, don't assume.\n- **Over-redaction**: redacting far more than the privileged text invites a challenge and looks like concealment — redact narrowly, log precisely.\n- **Metadata destroyed by amateur collection**: drag-and-drop copying strips metadata and chain-of-custody — collect forensically where it matters.\n\n## References\n\n- Volatile facts: `IN-COMM-01` (Commercial Courts disclosure interactions) and cross-border DP via `privacy/cross-border-transfer`; cite `[verify current]` where a forum's disclosure rule or privilege doctrine is load-bearing.\n- The forum's disclosure/discovery rules (US FRCP discovery, English PD 57AD / CPR 31, Indian CPC Order XI, or the arbitral protocol/IBA Rules); privilege doctrine; and any protective order / data-protection constraints.",
+   "references": {},
+   "description": "Plans document disclosure/discovery: scope and relevance, the search-and-collection method (custodians, sources, keywords, de-duplication), privilege review (legal advice / litigation privilege, waiver and redaction), and the production mechanics (format, confidentiality tiering, a defensible log). Use to plan or run disclosure, or to review an opponent's production. Not for the upstream preserve-everything duty → disputes/litigation-hold; not for the overall case strategy → disputes/early-case-assessment.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "disputes/settlement-agreement",
@@ -3937,11 +4249,62 @@
    "module": "employment",
    "name": "posh-compliance",
    "title": "POSH compliance & inquiry",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "IN"
    ],
-   "summary": "Internal Committee constitution, inquiry procedure and annual reporting under the POSH Act."
+   "summary": "Internal Committee constitution, inquiry procedure and annual reporting under the POSH Act.",
+   "meta": {
+    "name": "employment-posh-compliance",
+    "description": "Checks compliance with India's Sexual Harassment of Women at Workplace (POSH) Act: Internal Committee constitution (composition, external member, quorum), the complaint and inquiry procedure and timelines, interim reliefs, confidentiality, annual reporting and the policy/training mandate. Use to set up or audit POSH compliance, or to run an inquiry to procedure. Not for a general grievance/misconduct investigation → employment/workplace-investigation; not for drafting the standalone policy text → employment/employment-policy-drafter.",
+    "module": "employment",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "IN"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of compliance-audit (assess the org's POSH setup), inquiry-guide (run a specific complaint to the statutory procedure) or setup (stand up IC + policy + reporting from scratch)."
+     },
+     {
+      "name": "organisation",
+      "required": false,
+      "description": "Employee count and locations/branches, the current Internal Committee composition, the POSH policy status, and training/reporting history."
+     },
+     {
+      "name": "complaint",
+      "required": false,
+      "description": "For inquiry mode — the complaint (respondent, timing, nature), whether within the limitation period, and any interim-relief need."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "employment/workplace-investigation",
+     "employment/employment-policy-drafter",
+     "regulatory/whistleblower-programme",
+     "corporate/corporate-governance-review",
+     "employment/india-labour-codes"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# POSH Compliance & Inquiry\n\nTakes an organisation (or a specific complaint) and returns whether its POSH set-up meets the Act and how to run an inquiry to procedure: a correctly constituted Internal Committee, the statutory inquiry steps and timelines, confidentiality and interim reliefs, and the reporting/policy/training mandate. The deliverable is a compliance determination or a procedure-correct inquiry plan, not a general harassment-policy summary.\n\n## When to use / not use\n\n- Use: auditing an Indian employer's POSH compliance; constituting or fixing an Internal Committee; running a POSH complaint through the statutory inquiry correctly; preparing the annual report and the policy/training obligations.\n- Hand off: a general (non-POSH) grievance, misconduct, or whistleblowing investigation → `employment/workplace-investigation`; drafting the standalone policy document → `employment/employment-policy-drafter`; the whistleblowing/speak-up channel design → `regulatory/whistleblower-programme`; board-level oversight of the control → `corporate/corporate-governance-review`; broader labour-code obligations → `employment/india-labour-codes`.\n\n## Inputs to collect first\n\n1. **Employee count and locations** — 10+ employees requires an **Internal Committee (IC)** at each workplace; multiple branches/offices each need their own IC `[verify current]`.\n2. The **current IC composition** (presiding officer, members, external member) and whether members' terms are valid.\n3. The **policy, display, and training** status.\n4. **For a complaint:** the respondent, the timing (limitation), the nature of the allegation, and any interim-relief need.\n\n## Method\n\n1. **Confirm the IC is validly constituted.** An IC needs: a **Presiding Officer** who is a **senior woman** employee; at least **two members** committed to the cause / with legal/social-work experience; and **one external member** from an NGO/association familiar with sexual-harassment issues. At least **half** the members must be women. A defectively constituted IC can void the whole inquiry `[verify current]`.\n2. **Check jurisdiction and limitation.** The complaint must be a woman aggrieved at the workplace; it must normally be filed **within 3 months** (extendable by a further 3 months for sufficient cause). Confirm the IC (not an LC/employer panel) has jurisdiction.\n3. **Offer conciliation only on request.** The IC may attempt conciliation **if the complainant requests it** — but **not** with a monetary settlement as a basis, and only before the inquiry; don't impose it.\n4. **Run the inquiry to procedure.** Supply the complaint to the respondent (typically within 7 working days), allow a reply, follow **principles of natural justice** (both sides heard, documents/witnesses, right to represent — but **no lawyer** as of right), maintain the balance-of-probabilities standard, and complete the inquiry within **90 days**.\n5. **Handle interim reliefs.** During pendency the IC may recommend interim measures — transfer, leave (up to 3 months), or restraining the respondent from reporting on the complainant's work — on the complainant's request.\n6. **Protect confidentiality.** The identity of the complainant, respondent, witnesses, and the proceedings are confidential; breach carries a penalty. Publication/disclosure is restricted.\n7. **Report and recommend.** The IC submits its report within **10 days** of completing the inquiry; the employer must act on the recommendation (disciplinary action / compensation deduction) within the prescribed time; guard against **malicious** complaints (but mere inability to prove is not malice).\n8. **Meet the standing obligations.** A displayed **policy**, **annual report** to the District Officer (and the number of cases in the directors'/Board report where applicable), and regular **awareness/training** for employees and IC members.\n9. **Score against the Checks table** and set a determination: **COMPLIANT / GAPS TO FIX / NON-COMPLIANT** (audit) or a **procedure-correct inquiry plan** (inquiry mode).\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| IC absent or defectively constituted | Presiding senior woman + members + external + ≥½ women | S1 | Reconstitute the IC before any inquiry `[verify current]` |\n| No IC at a branch with 10+ employees | An IC at each qualifying workplace | S1 | Constitute per location |\n| Limitation / jurisdiction not checked | 3-month (extendable) window + IC jurisdiction confirmed | S2 | Confirm timing and forum |\n| Conciliation imposed / money-based | Only on request, pre-inquiry, non-monetary basis | S2 | Correct the conciliation handling |\n| Natural justice not followed | Both heard; documents/witnesses; no lawyer-as-right | S1 | Re-run the step properly |\n| 90-day inquiry / 10-day report timelines missed | Statutory timelines tracked | S2 | Diarise and complete on time |\n| Interim relief not offered on request | Transfer/leave/restraint considered | S2 | Offer the interim measure |\n| Confidentiality breached | Identities + proceedings kept confidential | S1 | Lock down disclosure |\n| Policy / annual report / training missing | Displayed policy + annual report + training | S2 | Close the standing-obligation gaps |\n\n## Output\n\nLead with `POSH: COMPLIANT | GAPS TO FIX | NON-COMPLIANT — <org> — <top gap>` (or `Inquiry plan: <complaint> — next step + deadline`). Then the output contract. Add:\n\n- **IC constitution**: composition check (presiding officer / external member / women majority) per location.\n- **Procedure** (inquiry mode): the steps, the 90-day/10-day timelines, interim reliefs, confidentiality.\n- **Standing obligations**: policy display, annual report, training status.\n- One JSON finding per gap with `category: \"posh\"`.\n\n## Edge cases & pitfalls\n\n- **Defective IC voids the inquiry**: missing the external member, the senior-woman presiding officer, or the women-majority is the most common fatal defect — fix constitution first.\n- **Branch-level ICs**: a single head-office IC doesn't cover other workplaces with 10+ employees — each needs its own.\n- **Conciliation misuse**: imposing conciliation, or settling for money, is non-compliant — it's only on the complainant's request and not monetary.\n- **Lawyer at the hearing**: parties have a right to represent themselves but **not** to be represented by a lawyer as of right — a common procedural error.\n- **\"Couldn't prove it\" ≠ malicious**: penalising a complainant for a failed-but-genuine complaint is itself a breach; malice needs a specific finding.\n\n## References\n\n- Volatile facts: cite `[verify current]` where IC-composition, the limitation window, or reporting thresholds under the POSH Act / Rules are load-bearing; `IN-LAB-01` where labour-code interactions apply.\n- The Sexual Harassment of Women at Workplace (Prevention, Prohibition and Redressal) Act 2013 and Rules; relevant Supreme Court/High Court guidance on IC constitution and natural justice.",
+   "references": {},
+   "description": "Checks compliance with India's Sexual Harassment of Women at Workplace (POSH) Act: Internal Committee constitution (composition, external member, quorum), the complaint and inquiry procedure and timelines, interim reliefs, confidentiality, annual reporting and the policy/training mandate. Use to set up or audit POSH compliance, or to run an inquiry to procedure. Not for a general grievance/misconduct investigation → employment/workplace-investigation; not for drafting the standalone policy text → employment/employment-policy-drafter.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "employment/restrictive-covenants",
@@ -4795,11 +5158,62 @@
    "module": "research",
    "name": "multi-jurisdiction-survey",
    "title": "Multi-jurisdiction survey",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Same question across many jurisdictions in a comparable grid."
+   "summary": "Same question across many jurisdictions in a comparable grid.",
+   "meta": {
+    "name": "research-multi-jurisdiction-survey",
+    "description": "Runs the same legal question across several jurisdictions and returns a comparable grid: the position per country, the governing instrument, the key divergences, and a confidence/coverage note per cell — built so the rows are genuinely comparable rather than a stack of local memos. Use to compare how multiple countries treat one issue. Not for a single-country deep dive → research/statute-analysis or research/india-legal-research; not for a cross-border personal-data transfer mechanism → privacy/cross-border-transfer.",
+    "module": "research",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "question",
+      "required": true,
+      "description": "The precise legal question to ask of every jurisdiction, framed so it maps onto each system (not assuming one country's categories)."
+     },
+     {
+      "name": "jurisdictions",
+      "required": true,
+      "description": "The list of countries/states to cover, and which is the home/benchmark jurisdiction if there is one."
+     },
+     {
+      "name": "depth",
+      "required": false,
+      "description": "How deep each cell must go (headline yes/no, the rule + key conditions, or a reasoned position) and the deadline/coverage expected."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "research/statute-analysis",
+     "research/india-legal-research",
+     "research/source-locked-answering",
+     "privacy/cross-border-transfer",
+     "regulatory/competition-merger-control"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Multi-Jurisdiction Survey\n\nTakes one question and a list of countries and returns a comparison grid whose rows are actually comparable: the same sub-questions asked of each jurisdiction, the local answer and its source, the divergences surfaced, and each cell's confidence flagged. The deliverable is a decision-ready comparison, not a pile of local summaries in different shapes.\n\n## When to use / not use\n\n- Use: comparing how several jurisdictions treat one issue (enforceability of a clause, a regulatory threshold, a statutory right); building a country matrix to decide where to act or how to standardise; scoping a cross-border rollout.\n- Hand off: a deep single-provision reading → `research/statute-analysis`; an India-only question → `research/india-legal-research`; answering strictly from a fixed brief with no outside authority → `research/source-locked-answering`; the mechanism for moving personal data across borders → `privacy/cross-border-transfer`; a merger-filing multi-jurisdiction threshold check (which has its own screening logic) → `regulatory/competition-merger-control`.\n\n## Inputs to collect first\n\n1. The **precise question**, framed neutrally so it maps onto each legal system rather than importing one country's categories.\n2. The **jurisdiction list** and the benchmark/home country if the comparison is against one.\n3. The **sub-questions** (the columns) that every cell must answer — fixing these first is what makes the grid comparable.\n4. The required depth and the local-law coverage available (and whether local counsel input is needed for any cell).\n\n## Method\n\n1. **Fix the columns before filling any cell.** Decompose the question into a small set of sub-questions every jurisdiction answers (e.g. *is it permitted? / threshold / conditions / penalty / is local-law confirmation needed?*). Inconsistent columns are what turn a survey into noise.\n2. **Frame the question to travel.** Strip home-jurisdiction assumptions; ask in functional terms (\"does the law restrict X?\") so a country with a different doctrinal route still has a place to answer.\n3. **Answer each jurisdiction against the same columns**, citing the governing instrument per cell. Use the per-jurisdiction discipline of `research/statute-analysis` within each cell; don't let one country's answer balloon and distort the grid.\n4. **Flag coverage and confidence per cell.** Mark where the answer is from primary law, from secondary sources, or **needs local-counsel confirmation** — a confident-looking grid that hides thin cells is dangerous.\n5. **Surface the divergences explicitly.** A separate \"key differences\" read: where jurisdictions split, the outliers, and the practical consequence — this is usually the real deliverable, not the cells themselves.\n6. **Note the as-of date and volatility.** Comparative law goes stale unevenly; date the survey and flag cells resting on pending or recently-changed law `[verify current]`.\n7. **Do not over-synthesise.** Where countries genuinely differ, say so; forcing a false \"broadly similar\" conclusion to tidy the grid misleads the decision.\n8. **Score against the Checks table** and present the grid + divergences + a short \"so what\" for the decision.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Columns differ across cells | One fixed sub-question set applied to all | S1 | Re-grid against common columns |\n| Question imports home-jurisdiction assumptions | Framed functionally to map onto each system | S2 | Re-frame neutrally |\n| Cell uncited | Governing instrument cited per cell | S2 | Add the source or mark unsupported |\n| Thin cell shown as confident | Coverage/confidence flagged per cell | S1 | Mark \"needs local-counsel confirmation\" |\n| Divergences buried in the grid | Key differences surfaced separately | S2 | Add the divergence read |\n| Survey undated / volatility ignored | As-of date + pending-law flags | S2 | Date it; flag volatile cells `[verify current]` |\n| False \"broadly similar\" synthesis | Real differences stated plainly | S2 | Correct the synthesis |\n| One country's cell distorts the grid | Comparable depth across cells | S3 | Trim to the common depth |\n\n## Output\n\nLead with `Survey: <question> across <n> jurisdictions — headline: <the key divergence or common position>`. Then the output contract. Add:\n\n- **Comparison grid**: jurisdiction × sub-questions, each cell with its source and a confidence flag.\n- **Key divergences**: where countries split and the practical consequence.\n- **Coverage notes**: cells needing local-counsel confirmation; as-of date.\n- One JSON finding per material divergence or low-confidence cell with `category: \"multi-jurisdiction\"`.\n\n## Edge cases & pitfalls\n\n- **Column drift**: the single most common failure is cells answering slightly different questions — lock the columns first.\n- **Home-jurisdiction blinkers**: asking the question in one country's doctrinal terms leaves systems with a different route looking like \"no law\", when they regulate it differently.\n- **False tidiness**: flattening genuine divergence into \"broadly similar\" to make the grid look clean is the error that burns the client in the outlier country.\n- **Uneven staleness**: one jurisdiction may have changed the law last month; an undated grid hides it — date and flag.\n- **Over-reliance on secondary sources**: a neat English-language summary of a foreign law may be out of date or wrong — flag cells that need local confirmation.\n\n## References\n\n- Volatile facts: `IN-CCI-01`, `EU-GDPR-01`, `EU-AIA-01..04` and other registered IDs where a surveyed cell rests on them; cite `[verify current]` on any volatile or pending cell.\n- Per-jurisdiction primary law and reputable comparative sources; local-counsel input for cells where the stakes justify it.",
+   "references": {},
+   "description": "Runs the same legal question across several jurisdictions and returns a comparable grid: the position per country, the governing instrument, the key divergences, and a confidence/coverage note per cell — built so the rows are genuinely comparable rather than a stack of local memos. Use to compare how multiple countries treat one issue. Not for a single-country deep dive → research/statute-analysis or research/india-legal-research; not for a cross-border personal-data transfer mechanism → privacy/cross-border-transfer.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "research/source-locked-answering",
