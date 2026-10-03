@@ -303,7 +303,7 @@ function SourcesList({ sources, grounded, onOpenSource }) {
 
 // Answer card for a QUESTION turn (capability overview, streamed answer, or
 // the graceful fallback) — never files a ticket.
-function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource, onResearch }) {
+function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource, onResearch, onDeepReview }) {
   if (turn.capability) {
     return (
       <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16 }}>
@@ -358,6 +358,7 @@ function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource, onRes
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14, alignItems: "center" }}>
         <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase" }}>Next</span>
         <button type="button" onClick={() => onFileInstead(turn.request)} style={chipBtn}>File this as a request →</button>
+        {!turn.answerError && onDeepReview && <button type="button" onClick={() => onDeepReview(turn.request)} style={chipBtn}>⚖ Deep skill review →</button>}
         {!turn.answerError && onResearch && <button type="button" onClick={() => onResearch(turn.request)} style={chipBtn}>🔎 Research across your documents →</button>}
         {onAsk && <button type="button" onClick={onAsk} style={chipBtn}>◎ Continue in Aurora</button>}
       </div>
@@ -368,7 +369,7 @@ function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource, onRes
 // Analyze card for an uploaded-document turn (B2) — upload progress, then a
 // single-document deep read. The document is persisted + indexed, so it's also
 // citable by later questions in the console.
-function AnalyzeCard({ turn, onFollowUp, onFileInstead }) {
+function AnalyzeCard({ turn, onFollowUp, onFileInstead, onDeepReview }) {
   const busy = turn.uploading || turn.analyzeLoading;
   return (
     <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16 }}>
@@ -394,6 +395,7 @@ function AnalyzeCard({ turn, onFollowUp, onFileInstead }) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14, alignItems: "center" }}>
           <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase" }}>Next</span>
           {turn.analysis && onFollowUp && <button type="button" onClick={onFollowUp} style={chipBtn}>Ask a follow-up →</button>}
+          {turn.analysis && onDeepReview && <button type="button" onClick={() => onDeepReview(`Review this document (${turn.fileName}) against the right legal playbook.`, { documents: [{ name: `${turn.fileName} (AEGIS analysis)`, text: turn.analysis }] })} style={chipBtn}>⚖ Deep skill review →</button>}
           {onFileInstead && <button type="button" onClick={() => onFileInstead(`Review the attached document: ${turn.fileName}`)} style={chipBtn}>File as a request →</button>}
         </div>
       )}
@@ -450,6 +452,74 @@ function ResearchCard({ turn, onFollowUp, onFileInstead, onOpenSource }) {
           {onFileInstead && <button type="button" onClick={() => onFileInstead(turn.request)} style={chipBtn}>File this as a request →</button>}
         </div>
       )}
+    </div>
+  );
+}
+
+// Deep skill review (step 2) — run a request (and any attached document) through
+// the best-matching @aegis/legal-skills playbook: shared standards + the skill's
+// output contract via the governed /api/one-legal/skill-review endpoint. Shows
+// WHICH playbook matched (routing is visible) + the structured answer. Read-only:
+// it files nothing and gates nothing — the output is a draft a lawyer reviews.
+function riskTierBadge(tier) {
+  if (!tier) return null;
+  const col = tier === "review-required" ? C.am : tier === "self-serve" ? C.gn : C.em;
+  const label = tier === "review-required" ? "review required" : tier.replace(/-/g, " ");
+  return { col, label };
+}
+function SkillReviewCard({ turn, onFollowUp, onFileInstead }) {
+  if (turn.reviewLoading) {
+    return (
+      <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16, display: "flex", alignItems: "center", gap: 10, color: C.t3, fontFamily: M, fontSize: 12 }}>
+        <span style={{ width: 12, height: 12, borderRadius: "50%", border: `2px solid ${C.br}`, borderTopColor: C.em, display: "inline-block", animation: "sp .7s linear infinite" }} />
+        Matching a playbook…
+      </div>
+    );
+  }
+  const m = turn.matched;
+  const badge = m && riskTierBadge(m.risk_tier);
+  return (
+    <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16 }}>
+      {turn.error ? (
+        <div style={{ color: C.t2, fontSize: 13, lineHeight: 1.6 }}>
+          <div style={{ color: C.am, fontFamily: M, fontSize: 11.5, marginBottom: 8 }}>⚠ {turn.error}</div>
+          I couldn&rsquo;t run the skill review just now — you can still file this as a request.
+        </div>
+      ) : (
+        <>
+          {/* Matched playbook — the routing is visible to the user. */}
+          {m && (
+            <div style={{ display: "flex", alignItems: "center", gap: 9, flexWrap: "wrap", marginBottom: 12, paddingBottom: 10, borderBottom: `1px solid ${C.br}` }}>
+              <span style={{ fontSize: 15 }} aria-hidden="true">⚖</span>
+              <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase" }}>Playbook</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: C.t1 }}>{m.title}</span>
+              <span style={{ fontSize: 8.5, fontFamily: M, color: C.tl, border: `1px solid ${C.br}`, borderRadius: 4, padding: "0 5px", letterSpacing: 0.4, textTransform: "uppercase" }}>{m.module}</span>
+              {badge && <span style={{ fontSize: 8.5, fontFamily: M, color: badge.col, border: `1px solid ${badge.col}`, borderRadius: 4, padding: "0 5px", letterSpacing: 0.4, textTransform: "uppercase" }}>{badge.label}</span>}
+            </div>
+          )}
+          {turn.note && !turn.answer && (
+            <div style={{ fontSize: 12.5, color: C.t3, lineHeight: 1.6 }}>{turn.note}</div>
+          )}
+          {turn.answer && (
+            <div style={{ fontSize: 13.5, color: C.t1, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{turn.answer}</div>
+          )}
+          {turn.degraded && (
+            <div style={{ marginTop: 10, color: C.am, fontFamily: M, fontSize: 11, background: C.s1, border: `1px solid ${C.br}`, borderRadius: 8, padding: "7px 10px" }}>
+              ⚠ Model execution is offline — matched the right playbook; open it to run manually.
+            </div>
+          )}
+          {turn.answer && !turn.degraded && (
+            <div style={{ marginTop: 12, fontSize: 10.5, fontFamily: M, color: C.t4, letterSpacing: 0.2, lineHeight: 1.5 }}>
+              Draft output — a qualified lawyer should review before anything is sent or relied on.
+            </div>
+          )}
+        </>
+      )}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14, alignItems: "center" }}>
+        <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase" }}>Next</span>
+        {onFollowUp && <button type="button" onClick={onFollowUp} style={chipBtn}>Ask a follow-up →</button>}
+        {onFileInstead && <button type="button" onClick={() => onFileInstead(turn.request)} style={chipBtn}>File this as a request →</button>}
+      </div>
     </div>
   );
 }
@@ -576,7 +646,11 @@ function WorkspaceRail({ turns, onOpenTicket, onNavigate, history, onRunSkill })
       { label: "Reading document", state: last.uploading ? "active" : "done" },
       { label: last.analyzeLoading ? "Analyzing" : last.error ? "Analysis" : "Analyzed", state: last.uploading ? "pending" : last.analyzeLoading ? "active" : last.error ? "error" : "done" },
     ];
-    return last.steps.map((s) => ({ label: s.label, state: s.state }));
+    if (last.kind === "skill-review") return [
+      { label: last.reviewLoading ? "Matching a playbook" : "Matched a playbook", state: last.reviewLoading ? "active" : last.error ? "error" : "done" },
+      { label: last.reviewLoading ? "Running the review" : last.error ? "Review" : "Reviewed", state: last.reviewLoading ? "pending" : last.error ? "error" : "done" },
+    ];
+    return (last.steps || []).map((s) => ({ label: s.label, state: s.state }));
   })();
 
   // Results produced across the session (single turns + compound tasks).
@@ -1043,6 +1117,39 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     runResearch(id, t);
   }, [runResearch]);
 
+  // Step 2 — deep skill review. Routes a request (and any attached document) to
+  // the best-matching @aegis/legal-skills playbook via /api/one-legal/skill-review
+  // (shared standards + the skill's output contract, run through the governed
+  // @aegis/ai proxy). Read-only: files nothing, gates nothing — the output is a
+  // draft. Degrade-safe: on model-offline the endpoint still returns the matched
+  // playbook so the user sees the routing.
+  const runSkillReviewTurn = useCallback(async (turnId, text, opts) => {
+    patchTurn(turnId, { reviewLoading: true, error: null });
+    try {
+      const resp = await fetch("/api/one-legal/skill-review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, jurisdiction: opts?.jurisdiction, documents: opts?.documents }),
+      });
+      const d = await resp.json().catch(() => ({}));
+      if (d && d.ok) {
+        patchTurn(turnId, { reviewLoading: false, matched: d.matched || null, answer: (d.answer || "").trim(), degraded: !!d.degraded, note: d.note || null });
+      } else {
+        patchTurn(turnId, { reviewLoading: false, error: (d && d.error) || "Skill review failed." });
+      }
+    } catch (e) {
+      patchTurn(turnId, { reviewLoading: false, error: friendlyAIError(e) });
+    }
+  }, [patchTurn]);
+
+  const runSkillReview = useCallback((text, opts) => {
+    const t = (text || "").trim();
+    if (t.length < 3) return;
+    const id = ++TURN_SEQ;
+    setTurns((ts) => [...ts, { id, kind: "skill-review", request: t, reviewLoading: true, matched: null, answer: null, degraded: false, note: null, error: null }]);
+    runSkillReviewTurn(id, t, opts);
+  }, [runSkillReviewTurn]);
+
   // C1 — generate an editable draft into the artifact canvas. Not a formal
   // Contract (that stays the governed contracts.draft tool); this is the fast,
   // editable-draft surface.
@@ -1179,6 +1286,8 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
         if (!t.answerLoading && (t.answer || t.answerError || t.capability)) rec(`a-${t.id}`, { title: t.request.slice(0, 80), request: t.request, kind: "ask", status: t.answerError ? "error" : "done" });
       } else if (t.kind === "research") {
         if (!t.researchLoading && (t.answer || t.error)) rec(`r-${t.id}`, { title: t.request.slice(0, 80), request: t.request, kind: "ask", status: t.error ? "error" : "done" });
+      } else if (t.kind === "skill-review") {
+        if (!t.reviewLoading && (t.answer || t.matched || t.error)) rec(`sr-${t.id}`, { title: (t.matched?.title || t.request).slice(0, 80), request: t.request, kind: "ask", status: t.error ? "error" : "done" });
       } else if (t.kind === "file") {
         if (t.result || t.error) rec(`f-${t.id}`, { title: t.result?.ticketId || t.request.slice(0, 60), request: t.request, kind: "file", status: t.error ? "error" : "done", resourceType: "IntakeTicket", resourceId: t.result?.ticketId, resourceLabel: t.result?.ticketId, navigate: "intake", error: t.error });
       } else if (t.kind === "analyze") {
@@ -1239,7 +1348,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
 
   if (!isOpen) return null;
 
-  const busy = turns.some((t) => t.kind === "ask" ? t.answerLoading : t.kind === "research" ? t.researchLoading : t.kind === "artifact" ? (t.draftLoading || t.saving) : t.kind === "analyze" ? (t.uploading || t.analyzeLoading) : t.kind === "compound" ? t.tasks.some((tk) => tk.state === "running") : (!t.result && !t.error));
+  const busy = turns.some((t) => t.kind === "ask" ? t.answerLoading : t.kind === "research" ? t.researchLoading : t.kind === "skill-review" ? t.reviewLoading : t.kind === "artifact" ? (t.draftLoading || t.saving) : t.kind === "analyze" ? (t.uploading || t.analyzeLoading) : t.kind === "compound" ? t.tasks.some((tk) => tk.state === "running") : (!t.result && !t.error));
   const firstName = (me?.name || "").trim().split(/\s+/)[0] || "";
 
   const composer = (big) => (
@@ -1306,6 +1415,17 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
               <span style={{ fontSize: 12.5, color: C.t3, lineHeight: 1.5, flex: 1 }}>{TIPS[new Date().getHours() % TIPS.length]}</span>
             </div>
             {composer(true)}
+            {/* Deep skill review (step 2) — run the typed task through the
+                best-matching @aegis/legal-skills playbook instead of routing it. */}
+            <div style={{ marginTop: 8, textAlign: "center" }}>
+              <button
+                type="button"
+                onClick={() => { if (input.trim().length >= 3) { runSkillReview(input); setInput(""); } }}
+                disabled={input.trim().length < 3}
+                title="Run your task through the best-matching legal playbook (shared standards + output contract). Read-only — files nothing."
+                style={{ background: "transparent", border: "none", color: input.trim().length < 3 ? C.t4 : C.em, fontFamily: M, fontSize: 10, letterSpacing: 0.6, textTransform: "uppercase", cursor: input.trim().length < 3 ? "default" : "pointer", opacity: input.trim().length < 3 ? 0.6 : 1 }}
+              >⚖ Deep skill review</button>
+            </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 18, justifyContent: "center" }}>
               {EXAMPLES.map((ex) => (
                 <button key={ex.text} type="button" onClick={() => startTurn(ex.text)} style={exampleChip}>
@@ -1344,13 +1464,15 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
                       {t.kind === "clarify" ? (
                         <ClarifyCard turn={t} onFile={fileRequest} />
                       ) : t.kind === "ask" ? (
-                        <AnswerCard turn={t} onExample={startTurn} onFileInstead={fileRequest} onAsk={handleAsk} onOpenSource={goModule} onResearch={startResearch} />
+                        <AnswerCard turn={t} onExample={startTurn} onFileInstead={fileRequest} onAsk={handleAsk} onOpenSource={goModule} onResearch={startResearch} onDeepReview={runSkillReview} />
                       ) : t.kind === "research" ? (
                         <ResearchCard turn={t} onFollowUp={focusComposer} onFileInstead={fileRequest} onOpenSource={goModule} />
                       ) : t.kind === "artifact" ? (
                         <ArtifactCard turn={t} onSave={saveArtifact} onRegenerate={runArtifactDraft} onFileInstead={fileRequest} />
                       ) : t.kind === "analyze" ? (
-                        <AnalyzeCard turn={t} onFollowUp={focusComposer} onFileInstead={fileRequest} />
+                        <AnalyzeCard turn={t} onFollowUp={focusComposer} onFileInstead={fileRequest} onDeepReview={runSkillReview} />
+                      ) : t.kind === "skill-review" ? (
+                        <SkillReviewCard turn={t} onFollowUp={focusComposer} onFileInstead={fileRequest} />
                       ) : t.kind === "compound" ? (
                         <CompoundCard turn={t} onOpenTicket={goIntake} onOpenCockpit={() => goIntake(null)} onFollowUp={focusComposer} onApprove={(task, targetId) => approveTask(t.id, task, targetId)} onFileInstead={(task) => fileTaskAsTicket(t.id, task)} onOpenNav={goModule} />
                       ) : (
