@@ -107,7 +107,7 @@
       "module": "intake",
       "name": "matter-scoping",
       "title": "Matter scoping",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -228,7 +228,7 @@
       "module": "contracts",
       "name": "dispute-resolution-clause",
       "title": "Dispute resolution clause design",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -239,7 +239,7 @@
       "module": "contracts",
       "name": "negotiation-prep",
       "title": "Negotiation preparation",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -511,7 +511,7 @@
       "module": "regulatory",
       "name": "competition-merger-control",
       "title": "Competition & merger control",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -679,7 +679,7 @@
       "module": "corporate",
       "name": "corporate-governance-review",
       "title": "Governance health check",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -758,7 +758,7 @@
       "module": "disputes",
       "name": "document-disclosure",
       "title": "Disclosure & production review",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -824,7 +824,7 @@
       "module": "employment",
       "name": "posh-compliance",
       "title": "POSH compliance & inquiry",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "IN"
       ],
@@ -1099,7 +1099,7 @@
       "module": "research",
       "name": "multi-jurisdiction-survey",
       "title": "Multi-jurisdiction survey",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],

@@ -60,7 +60,7 @@ To update law: edit the row in `_shared/volatile-facts.md`, bump `as_of`. The va
 ✅ built · 🗺️ planned
 
 <!-- CATALOG:START -->
-### Legal Intake & Triage — 4/5 built
+### Legal Intake & Triage — 5/5 built
 
 _Front door: classify, route and answer inbound legal requests_
 
@@ -69,10 +69,10 @@ _Front door: classify, route and answer inbound legal requests_
 | [Legal request triage](skills/intake/request-triage/SKILL.md) | ✅ built | global | Classify an inbound request by type, urgency and risk; route to self-serve, a skill, or a named lawyer; capture missing facts. |
 | [Self-service answer & escalation](skills/intake/self-service-responder/SKILL.md) | ✅ built | global | Answer routine questions from approved positions, and recognise the signals that require a lawyer instead. |
 | [Legal meeting brief](skills/intake/meeting-brief/SKILL.md) | ✅ built | global | Prepare a one-page brief for a negotiation, regulator, board or counterparty meeting from matter materials. |
-| Matter scoping | 🗺️ planned | global | Turn a triaged request into a defined scope, assumptions, exclusions and an effort estimate. |
+| [Matter scoping](skills/intake/matter-scoping/SKILL.md) | ✅ built | global | Turn a triaged request into a defined scope, assumptions, exclusions and an effort estimate. |
 | [Conflict check preparation](skills/intake/conflict-check-prep/SKILL.md) | ✅ built | global | Extract parties, affiliates and adverse interests to run a conflict search before opening a matter. |
 
-### Contracts — 10/16 built
+### Contracts — 12/16 built
 
 _Review, drafting, negotiation and post-signature obligations_
 
@@ -87,8 +87,8 @@ _Review, drafting, negotiation and post-signature obligations_
 | [Redline generator](skills/contracts/redline-generator/SKILL.md) | ✅ built | global | Turn review findings into tracked-change edits and a counterparty-facing issues list. |
 | Clause drafter from library | 🗺️ planned | global | Draft or adapt clauses from the approved clause library with variant selection and rationale. |
 | [SaaS & cloud agreement review](skills/contracts/saas-and-cloud-review/SKILL.md) | ✅ built | global | Customer- or vendor-side review of SaaS/cloud terms: SLAs, data, security, lock-in, liability. |
-| Dispute resolution clause design | 🗺️ planned | global | Design arbitration/jurisdiction clauses: seat, institution, rules, tiers, enforceability. |
-| Negotiation preparation | 🗺️ planned | global | Map interests, walk-away points, trade-offs and concession sequence before a negotiation. |
+| [Dispute resolution clause design](skills/contracts/dispute-resolution-clause/SKILL.md) | ✅ built | global | Design arbitration/jurisdiction clauses: seat, institution, rules, tiers, enforceability. |
+| [Negotiation preparation](skills/contracts/negotiation-prep/SKILL.md) | ✅ built | global | Map interests, walk-away points, trade-offs and concession sequence before a negotiation. |
 | [Renewal & termination advisor](skills/contracts/renewal-termination-advisor/SKILL.md) | ✅ built | global | Decide renew/renegotiate/exit ahead of a notice deadline, with exit mechanics. |
 | [Amendments, assignment & novation](skills/contracts/amendment-assignment-novation/SKILL.md) | ✅ built | global | Check change-of-control, assignment and amendment mechanics and draft the instrument. |
 | Online terms & consumer-terms audit | 🗺️ planned | global | Audit customer-facing terms for unfair terms, consumer-law and platform-rule issues. |
@@ -114,7 +114,7 @@ _Personal-data compliance across DPDPA, GDPR, US state laws and beyond_
 | [Legitimate interest assessment](skills/privacy/legitimate-interest-assessment/SKILL.md) | ✅ built | EU, UK | Three-part purpose/necessity/balancing test with documented outcome. |
 | Regional privacy pack | 🗺️ planned | BR, SG, VN, AE, SA | LGPD, PDPA, PDPL and Gulf regimes as jurisdiction modules on one engine. |
 
-### Regulatory & Compliance — 11/14 built
+### Regulatory & Compliance — 12/14 built
 
 _Applicability, change monitoring, AI governance, trade, anti-corruption, sector regimes_
 
@@ -126,7 +126,7 @@ _Applicability, change monitoring, AI governance, trade, anti-corruption, sector
 | [Sanctions screening & alert adjudication](skills/regulatory/sanctions-screening/SKILL.md) | ✅ built | global | Adjudicate screening hits and assess sanctions exposure in a transaction. |
 | [Export controls classification](skills/regulatory/export-controls/SKILL.md) | ✅ built | US, EU, IN | Classify items and technology; licence determination under EAR, EU dual-use and SCOMET. |
 | [Anti-bribery & corruption](skills/regulatory/anti-bribery/SKILL.md) | ✅ built | global | FCPA, UK Bribery Act and Prevention of Corruption Act risk review of payments and intermediaries. |
-| Competition & merger control | 🗺️ planned | global | Merger filing thresholds (incl. CCI deal-value test) and conduct-risk screening. |
+| [Competition & merger control](skills/regulatory/competition-merger-control/SKILL.md) | ✅ built | global | Merger filing thresholds (incl. CCI deal-value test) and conduct-risk screening. |
 | [Indian financial services regulation](skills/regulatory/financial-services-india/SKILL.md) | ✅ built | IN | RBI, SEBI and IRDAI requirements for fintech, lending, payments and outsourcing. |
 | [Security framework mapping](skills/regulatory/security-frameworks/SKILL.md) | ✅ built | global | Map controls across ISO 27001, SOC 2, NIST CSF and CERT-In directions; evidence gaps. |
 | [Operational resilience (DORA/NIS2)](skills/regulatory/operational-resilience/SKILL.md) | ✅ built | EU | ICT risk, third-party register and incident obligations for EU entities. |
@@ -135,7 +135,7 @@ _Applicability, change monitoring, AI governance, trade, anti-corruption, sector
 | Digital accessibility | 🗺️ planned | global | WCAG, Section 508, EAA and RPwD Act obligations for digital products. |
 | [Product cybersecurity obligations](skills/regulatory/product-cyber-obligations/SKILL.md) | ✅ built | EU, US | Cyber Resilience Act and similar secure-by-design and vulnerability-handling duties. |
 
-### Corporate, Governance & Board — 4/8 built
+### Corporate, Governance & Board — 5/8 built
 
 _Board work, entity compliance, M&A and securities_
 
@@ -148,9 +148,9 @@ _Board work, entity compliance, M&A and securities_
 | [FDI & FEMA assessment](skills/corporate/fdi-fema-assessment/SKILL.md) | ✅ built | IN | Route, sectoral caps, Press Note 3 and reporting for inbound investment. |
 | [Listed company disclosure](skills/corporate/listed-company-disclosure/SKILL.md) | ✅ built | IN | SEBI LODR materiality, disclosure timelines and insider-trading (PIT) controls. |
 | Shareholders' & founders' agreements | 🗺️ planned | global | Draft or review SHA/founders' terms: control, transfer, exit, vesting. |
-| Governance health check | 🗺️ planned | global | Board composition, committee charters and delegation-of-authority review. |
+| [Governance health check](skills/corporate/corporate-governance-review/SKILL.md) | ✅ built | global | Board composition, committee charters and delegation-of-authority review. |
 
-### Litigation & Disputes — 9/10 built
+### Litigation & Disputes — 10/10 built
 
 _Early case assessment, holds, chronology, strategy and settlement_
 
@@ -162,12 +162,12 @@ _Early case assessment, holds, chronology, strategy and settlement_
 | [Adversarial stress test](skills/disputes/adversarial-stress-test/SKILL.md) | ✅ built | global | Attack your own argument, contract position or settlement offer as opposing counsel would. |
 | [Pre-action letters & legal notices](skills/disputes/legal-notice-drafter/SKILL.md) | ✅ built | IN, UK, US | Demand letters and statutory notices (e.g. s.80 CPC, s.138 NI Act, PAP letters). |
 | [Procedural deadline calendar](skills/disputes/deadline-calendar/SKILL.md) | ✅ built | global | Compute limitation and procedural deadlines with verification flags. |
-| Disclosure & production review | 🗺️ planned | global | Relevance, privilege and production strategy for document disclosure. |
+| [Disclosure & production review](skills/disputes/document-disclosure/SKILL.md) | ✅ built | global | Relevance, privilege and production strategy for document disclosure. |
 | [Settlement agreement](skills/disputes/settlement-agreement/SKILL.md) | ✅ built | global | Draft or review settlement terms: release scope, confidentiality, tax and enforcement. |
 | [Arbitration strategy](skills/disputes/arbitration-strategy/SKILL.md) | ✅ built | global | Tribunal selection, interim relief and enforcement planning for arbitration. |
 | [Regulatory investigation response](skills/disputes/regulatory-investigation/SKILL.md) | ✅ built | global | Respond to regulator notices, dawn raids and information requests. |
 
-### Employment & People — 2/6 built
+### Employment & People — 3/6 built
 
 _Exits, investigations, restrictive covenants and workplace compliance_
 
@@ -175,7 +175,7 @@ _Exits, investigations, restrictive covenants and workplace compliance_
 |---|---|---|---|
 | [Termination risk review](skills/employment/termination-risk/SKILL.md) | ✅ built | global | Assess a proposed exit for legal risk and process defects, and produce a compliant exit plan. |
 | [Workplace investigation](skills/employment/workplace-investigation/SKILL.md) | ✅ built | global | Plan and run a fair investigation; draft the findings report. |
-| POSH compliance & inquiry | 🗺️ planned | IN | Internal Committee constitution, inquiry procedure and annual reporting under the POSH Act. |
+| [POSH compliance & inquiry](skills/employment/posh-compliance/SKILL.md) | ✅ built | IN | Internal Committee constitution, inquiry procedure and annual reporting under the POSH Act. |
 | Restrictive covenants | 🗺️ planned | global | Non-compete, non-solicit and confidentiality enforceability by jurisdiction. |
 | Indian labour codes | 🗺️ planned | IN | Wages, social security, IR and OSH code obligations and transition issues. |
 | Employment policy drafter | 🗺️ planned | global | Draft handbooks and policies aligned to local law and company practice. |
@@ -219,7 +219,7 @@ _Plans, RAID logs, reporting and continuous improvement_
 | Lessons learned | 🗺️ planned | global | Capture and reuse lessons across matters. |
 | Legal KPI pack | 🗺️ planned | global | Define and compute legal department KPIs from AEGIS data. |
 
-### Research & Verification — 5/6 built
+### Research & Verification — 6/6 built
 
 _Grounded research and the verification layer every other skill relies on_
 
@@ -228,7 +228,7 @@ _Grounded research and the verification layer every other skill relies on_
 | [Legal research memo](skills/research/legal-research-memo/SKILL.md) | ✅ built | global | Answer a legal question with a sourced, verified memo that separates law, application and uncertainty. |
 | [Citation & proposition verification](skills/research/citation-verification/SKILL.md) | ✅ built | global | Verify that every cited authority exists, says what it is cited for, and is still good law. |
 | [Statute & regulation analysis](skills/research/statute-analysis/SKILL.md) | ✅ built | global | Structured reading of a provision: scope, definitions, conditions, exceptions, consequences. |
-| Multi-jurisdiction survey | 🗺️ planned | global | Same question across many jurisdictions in a comparable grid. |
+| [Multi-jurisdiction survey](skills/research/multi-jurisdiction-survey/SKILL.md) | ✅ built | global | Same question across many jurisdictions in a comparable grid. |
 | [Source-locked answering](skills/research/source-locked-answering/SKILL.md) | ✅ built | global | Answer strictly from supplied documents with pinpoint support. |
 | [Indian legal research](skills/research/india-legal-research/SKILL.md) | ✅ built | IN | Research workflow for Indian statutes, rules, notifications and SC/HC judgments. |
 
