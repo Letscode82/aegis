@@ -158,6 +158,20 @@ export async function transitionContractStatus(
     afterJson: { status, stamped: Object.keys(stamps) } as never,
     metadata: { source: "contracts" } as never,
   });
+
+  // Post-signature obligation finalization (C-9): on execution, reconcile the
+  // obligation ledger to the executed terms and assign owners. Best-effort —
+  // a finalization failure must never roll back the execution itself. Dynamic
+  // import avoids a static service ↔ finalize cycle (finalize calls back into
+  // createObligation here).
+  if (status === "EXECUTED") {
+    try {
+      const { finalizeContractObligations } = await import("./obligation-finalize");
+      await finalizeContractObligations(organizationId, contractId, actor);
+    } catch (err) {
+      console.error("[contracts] obligation finalize on execution failed:", err);
+    }
+  }
   return updated;
 }
 

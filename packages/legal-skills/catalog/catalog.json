@@ -107,7 +107,7 @@
       "module": "intake",
       "name": "matter-scoping",
       "title": "Matter scoping",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -118,7 +118,7 @@
       "module": "intake",
       "name": "conflict-check-prep",
       "title": "Conflict check preparation",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -206,7 +206,7 @@
       "module": "contracts",
       "name": "clause-drafter",
       "title": "Clause drafter from library",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -228,7 +228,7 @@
       "module": "contracts",
       "name": "dispute-resolution-clause",
       "title": "Dispute resolution clause design",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -239,7 +239,7 @@
       "module": "contracts",
       "name": "negotiation-prep",
       "title": "Negotiation preparation",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -250,7 +250,7 @@
       "module": "contracts",
       "name": "renewal-termination-advisor",
       "title": "Renewal & termination advisor",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -272,7 +272,7 @@
       "module": "contracts",
       "name": "terms-of-service-audit",
       "title": "Online terms & consumer-terms audit",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -283,7 +283,7 @@
       "module": "contracts",
       "name": "sustainability-clauses",
       "title": "Sustainability & ESG clauses",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -294,7 +294,7 @@
       "module": "contracts",
       "name": "contract-template-builder",
       "title": "Contract template builder",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -428,7 +428,7 @@
       "module": "privacy",
       "name": "regional-privacy-pack",
       "title": "Regional privacy pack",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "BR",
         "SG",
@@ -511,7 +511,7 @@
       "module": "regulatory",
       "name": "competition-merger-control",
       "title": "Competition & merger control",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -555,7 +555,7 @@
       "module": "regulatory",
       "name": "esg-reporting",
       "title": "ESG & sustainability reporting",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -577,7 +577,7 @@
       "module": "regulatory",
       "name": "accessibility-compliance",
       "title": "Digital accessibility",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -622,7 +622,7 @@
       "module": "corporate",
       "name": "board-minutes-resolutions",
       "title": "Minutes & resolutions drafter",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "IN",
         "global"
@@ -634,7 +634,7 @@
       "module": "corporate",
       "name": "entity-compliance-calendar",
       "title": "Entity compliance calendar",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "IN",
         "global"
@@ -646,7 +646,7 @@
       "module": "corporate",
       "name": "fdi-fema-assessment",
       "title": "FDI & FEMA assessment",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "IN"
       ],
@@ -657,7 +657,7 @@
       "module": "corporate",
       "name": "listed-company-disclosure",
       "title": "Listed company disclosure",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "IN"
       ],
@@ -668,7 +668,7 @@
       "module": "corporate",
       "name": "shareholder-agreement",
       "title": "Shareholders' & founders' agreements",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -679,7 +679,7 @@
       "module": "corporate",
       "name": "corporate-governance-review",
       "title": "Governance health check",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -758,7 +758,7 @@
       "module": "disputes",
       "name": "document-disclosure",
       "title": "Disclosure & production review",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -780,7 +780,7 @@
       "module": "disputes",
       "name": "arbitration-strategy",
       "title": "Arbitration strategy",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -824,7 +824,7 @@
       "module": "employment",
       "name": "posh-compliance",
       "title": "POSH compliance & inquiry",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "IN"
       ],
@@ -835,7 +835,7 @@
       "module": "employment",
       "name": "restrictive-covenants",
       "title": "Restrictive covenants",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -846,7 +846,7 @@
       "module": "employment",
       "name": "india-labour-codes",
       "title": "Indian labour codes",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "IN"
       ],
@@ -857,7 +857,7 @@
       "module": "employment",
       "name": "employment-policy-drafter",
       "title": "Employment policy drafter",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -879,7 +879,7 @@
       "module": "ip",
       "name": "trademark-clearance",
       "title": "Trademark clearance",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -890,7 +890,7 @@
       "module": "ip",
       "name": "ip-ownership-audit",
       "title": "IP ownership & assignment audit",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -901,7 +901,7 @@
       "module": "ip",
       "name": "copyright-assessment",
       "title": "Copyright & originality assessment",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -912,7 +912,7 @@
       "module": "ip",
       "name": "infringement-takedown",
       "title": "Infringement & takedown",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -934,7 +934,7 @@
       "module": "outside-counsel",
       "name": "billing-guidelines",
       "title": "Engagement terms & billing guidelines",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -945,7 +945,7 @@
       "module": "outside-counsel",
       "name": "panel-rfp",
       "title": "Panel design & RFP",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -956,7 +956,7 @@
       "module": "outside-counsel",
       "name": "fee-arrangements",
       "title": "Alternative fee arrangements",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -978,7 +978,7 @@
       "module": "outside-counsel",
       "name": "performance-scorecard",
       "title": "Firm performance scorecard",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -989,7 +989,7 @@
       "module": "outside-counsel",
       "name": "local-counsel-management",
       "title": "Local counsel coordination",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1022,7 +1022,7 @@
       "module": "matters",
       "name": "raid-log",
       "title": "RAID log",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1044,7 +1044,7 @@
       "module": "matters",
       "name": "lessons-learned",
       "title": "Lessons learned",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1055,7 +1055,7 @@
       "module": "matters",
       "name": "legal-kpi-dashboard",
       "title": "Legal KPI pack",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1088,7 +1088,7 @@
       "module": "research",
       "name": "statute-analysis",
       "title": "Statute & regulation analysis",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1099,7 +1099,7 @@
       "module": "research",
       "name": "multi-jurisdiction-survey",
       "title": "Multi-jurisdiction survey",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1121,7 +1121,7 @@
       "module": "research",
       "name": "india-legal-research",
       "title": "Indian legal research",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "IN"
       ],
@@ -1143,7 +1143,7 @@
       "module": "drafting",
       "name": "persuasive-writing",
       "title": "Persuasive legal writing",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1154,7 +1154,7 @@
       "module": "drafting",
       "name": "legal-translation",
       "title": "Legal translation",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1176,7 +1176,7 @@
       "module": "drafting",
       "name": "legal-design-review",
       "title": "Legal design review",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1187,7 +1187,7 @@
       "module": "drafting",
       "name": "template-response-library",
       "title": "Response template library",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1231,7 +1231,7 @@
       "module": "platform",
       "name": "skill-authoring",
       "title": "Skill authoring",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1242,7 +1242,7 @@
       "module": "platform",
       "name": "ai-use-billing-record",
       "title": "AI-use time & billing record",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],

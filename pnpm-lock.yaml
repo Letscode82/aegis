@@ -26,6 +26,9 @@ importers:
       '@aegis/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@aegis/connectors':
+        specifier: workspace:*
+        version: link:../../packages/connectors
       '@aegis/contracts':
         specifier: workspace:*
         version: link:../../modules/contracts
@@ -534,6 +537,24 @@ importers:
         specifier: 1.6.1
         version: 1.6.1(@types/node@20.19.39)
 
+  packages/connectors:
+    devDependencies:
+      '@aegis/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@types/node':
+        specifier: ^20.17.9
+        version: 20.19.39
+      eslint:
+        specifier: ^8.57.1
+        version: 8.57.1
+      typescript:
+        specifier: 5.6.3
+        version: 5.6.3
+      vitest:
+        specifier: 1.6.1
+        version: 1.6.1(@types/node@20.19.39)
+
   packages/db:
     dependencies:
       '@aws-sdk/client-kms':
@@ -571,6 +592,28 @@ importers:
         specifier: 1.6.1
         version: 1.6.1(@types/node@20.19.39)
 
+  packages/dms:
+    dependencies:
+      '@aegis/connectors':
+        specifier: workspace:*
+        version: link:../connectors
+    devDependencies:
+      '@aegis/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@types/node':
+        specifier: ^20.17.9
+        version: 20.19.39
+      eslint:
+        specifier: ^8.57.1
+        version: 8.57.1
+      typescript:
+        specifier: 5.6.3
+        version: 5.6.3
+      vitest:
+        specifier: 1.6.1
+        version: 1.6.1(@types/node@20.19.39)
+
   packages/documents:
     dependencies:
       docx:
@@ -597,6 +640,28 @@ importers:
         version: 1.6.1(@types/node@20.19.39)
 
   packages/email:
+    devDependencies:
+      '@aegis/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@types/node':
+        specifier: ^20.17.9
+        version: 20.19.39
+      eslint:
+        specifier: ^8.57.1
+        version: 8.57.1
+      typescript:
+        specifier: 5.6.3
+        version: 5.6.3
+      vitest:
+        specifier: 1.6.1
+        version: 1.6.1(@types/node@20.19.39)
+
+  packages/esignature:
+    dependencies:
+      '@aegis/connectors':
+        specifier: workspace:*
+        version: link:../connectors
     devDependencies:
       '@aegis/eslint-config':
         specifier: workspace:*

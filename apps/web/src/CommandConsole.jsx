@@ -212,17 +212,27 @@ function TargetPicker({ kind, value, onChange }) {
   );
 }
 
-function ToolProposal({ task, onApprove, onFileInstead }) {
+function ToolProposal({ task, chained, onApprove, onFileInstead }) {
   const [targetId, setTargetId] = useState("");
   const needs = task.tool.needsTarget;
-  const ready = !needs || !!targetId;
+  // A spine step (OL-7) takes its target from the prior step's result — no
+  // manual picker. It can't be approved until that step has produced it.
+  const isChained = !!chained;
+  const effectiveTarget = isChained ? (chained.targetId || "") : targetId;
+  const waiting = isChained && !chained.ready;
+  const ready = !needs || !!effectiveTarget;
   return (
     <div style={{ border: `1px solid ${C.am}55`, background: C.amG, borderRadius: 10, padding: "10px 12px" }}>
       <div style={{ fontSize: 9, fontFamily: M, color: C.am, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 5 }}>Proposed action · needs your approval</div>
       <div style={{ fontSize: 12.5, color: C.t1, marginBottom: 10 }}>{task.tool.argsSummary}</div>
-      {needs && <TargetPicker kind={needs.kind} value={targetId} onChange={setTargetId} />}
+      {needs && !isChained && <TargetPicker kind={needs.kind} value={targetId} onChange={setTargetId} />}
+      {needs && isChained && (
+        <div style={{ fontSize: 11.5, fontFamily: M, color: waiting ? C.t4 : C.em, marginBottom: 10 }}>
+          {waiting ? `Waiting for “${chained.title}” to finish…` : `↳ targets ${chained.label}`}
+        </div>
+      )}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-        <button type="button" onClick={() => onApprove(task, targetId)} disabled={!ready} style={{ ...primaryBtn, opacity: ready ? 1 : 0.5 }}>Approve &amp; run →</button>
+        <button type="button" onClick={() => onApprove(task, effectiveTarget)} disabled={!ready || waiting} style={{ ...primaryBtn, opacity: (ready && !waiting) ? 1 : 0.5 }}>Approve &amp; run →</button>
         <button type="button" onClick={() => onFileInstead(task)} style={ghostBtn}>File as ticket instead</button>
       </div>
     </div>
@@ -235,7 +245,12 @@ function CompoundCard({ turn, onOpenTicket, onOpenCockpit, onFollowUp, onApprove
     <div>
       <div style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>Plan · {done}/{turn.tasks.length} tasks</div>
       <div style={{ display: "grid", gap: 12 }}>
-        {turn.tasks.map((task, i) => (
+        {turn.tasks.map((task, i) => {
+          // OL-7 spine chaining: a step with `dependsOn` takes its target from
+          // that earlier step's produced resource, and can't run until it's done.
+          const dep = typeof task.dependsOn === "number" ? turn.tasks[task.dependsOn] : null;
+          const chained = dep ? { ready: !!dep.toolResult, targetId: dep.toolResult?.resourceId || "", label: dep.toolResult?.resourceLabel || dep.title, title: dep.title } : null;
+          return (
           <div key={task.id} style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: "12px 14px" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 8 }}>
               <span style={{ width: 16, display: "inline-flex", justifyContent: "center" }} aria-hidden="true">{taskDot(task)}</span>
@@ -245,7 +260,7 @@ function CompoundCard({ turn, onOpenTicket, onOpenCockpit, onFollowUp, onApprove
 
             {/* Governed tool proposal — awaits the human Approve keystroke. */}
             {task.tool && task.state === "awaiting" ? (
-              <ToolProposal task={task} onApprove={onApprove} onFileInstead={onFileInstead} />
+              <ToolProposal task={task} chained={chained} onApprove={onApprove} onFileInstead={onFileInstead} />
             ) : (
               <div style={{ paddingLeft: 4 }}>{task.steps.map((s) => <StepRow key={s.key} step={s} />)}</div>
             )}
@@ -260,7 +275,8 @@ function CompoundCard({ turn, onOpenTicket, onOpenCockpit, onFollowUp, onApprove
             )}
             {task.result && <ResultCard result={task.result} onOpenTicket={onOpenTicket} onOpenCockpit={onOpenCockpit} onFollowUp={onFollowUp} onAsk={null} />}
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
@@ -303,7 +319,7 @@ function SourcesList({ sources, grounded, onOpenSource }) {
 
 // Answer card for a QUESTION turn (capability overview, streamed answer, or
 // the graceful fallback) — never files a ticket.
-function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource, onResearch, onDeepReview }) {
+function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource, onResearch, onResearchLaw, onDeepReview }) {
   if (turn.capability) {
     return (
       <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16 }}>
@@ -360,6 +376,7 @@ function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource, onRes
         <button type="button" onClick={() => onFileInstead(turn.request)} style={chipBtn}>File this as a request →</button>
         {!turn.answerError && onDeepReview && <button type="button" onClick={() => onDeepReview(turn.request)} style={chipBtn}>⚖ Deep skill review →</button>}
         {!turn.answerError && onResearch && <button type="button" onClick={() => onResearch(turn.request)} style={chipBtn}>🔎 Research across your documents →</button>}
+        {!turn.answerError && onResearchLaw && <button type="button" onClick={() => onResearchLaw(turn.request)} style={chipBtn}>⚖ Research the law →</button>}
         {onAsk && <button type="button" onClick={onAsk} style={chipBtn}>◎ Continue in Aurora</button>}
       </div>
     </div>
@@ -443,6 +460,92 @@ function ResearchCard({ turn, onFollowUp, onFileInstead, onOpenSource }) {
           )}
           <div style={{ fontSize: 13.5, color: C.t1, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{turn.answer}</div>
           <SourcesList sources={turn.sources} grounded={!turn.degraded && (turn.sources || []).length > 0} onOpenSource={onOpenSource} />
+        </>
+      )}
+      {!turn.researchLoading && (
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14, alignItems: "center" }}>
+          <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase" }}>Next</span>
+          {onFollowUp && <button type="button" onClick={onFollowUp} style={chipBtn}>Ask a follow-up →</button>}
+          {onFileInstead && <button type="button" onClick={() => onFileInstead(turn.request)} style={chipBtn}>File this as a request →</button>}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Legal authorities behind a C-4 research answer — external caselaw / statutes /
+// filings / EU law. Unlike SourcesList (org documents, opened in-app), each row
+// links out to the authority on its source site in a new tab.
+function AuthoritiesList({ sources }) {
+  if (!sources || sources.length === 0) return null;
+  const TYPE_LABEL = { caselaw: "case", statute: "statute", regulation: "reg", filing: "filing", "eu-law": "EU", other: "source" };
+  return (
+    <div style={{ marginTop: 14, borderTop: `1px solid ${C.br}`, paddingTop: 12 }}>
+      <div style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase", marginBottom: 8 }}>Authorities · from public legal databases</div>
+      <div style={{ display: "grid", gap: 6 }}>
+        {sources.map((s) => {
+          const meta = [s.citation, s.authority, s.date].filter(Boolean).join(" · ");
+          const Tag = s.url ? "a" : "div";
+          const linkProps = s.url ? { href: s.url, target: "_blank", rel: "noreferrer noopener" } : {};
+          return (
+            <Tag
+              key={s.n}
+              {...linkProps}
+              title={s.snippet}
+              style={{ textAlign: "left", display: "flex", gap: 9, alignItems: "baseline", padding: "7px 9px", background: C.s1, border: `1px solid ${C.br}`, borderRadius: 8, textDecoration: "none", cursor: s.url ? "pointer" : "default" }}
+            >
+              <span style={{ fontSize: 10, fontFamily: M, color: C.em, flexShrink: 0 }}>[{s.n}]</span>
+              <span style={{ minWidth: 0, flex: 1 }}>
+                <span style={{ fontSize: 12, color: C.t1, fontWeight: 600, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{s.title}</span>
+                <span style={{ fontSize: 11, color: C.t3, lineHeight: 1.45, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{meta}</span>
+              </span>
+              <span style={{ fontSize: 8, fontFamily: M, color: C.t4, letterSpacing: 0.5, textTransform: "uppercase", flexShrink: 0 }}>{TYPE_LABEL[s.type] || "source"} · {s.providerLabel}{s.url ? "  ↗" : ""}</span>
+            </Tag>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// Legal-authority research card (C-4) — ONE Legal's answer over the LAW itself
+// (caselaw, statutes, SEC filings, EU law) rather than the org's documents. The
+// answer is grounded + C-13 citation-checked server-side; a dropped-citation
+// warning surfaces here.
+function LegalResearchCard({ turn, onFollowUp, onFileInstead }) {
+  if (turn.researchLoading) {
+    return (
+      <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16, display: "flex", alignItems: "center", gap: 10, color: C.t3, fontFamily: M, fontSize: 12 }}>
+        <span style={{ width: 12, height: 12, borderRadius: "50%", border: `2px solid ${C.br}`, borderTopColor: C.em, display: "inline-block", animation: "sp .7s linear infinite" }} />
+        Researching case law, statutes &amp; filings…
+      </div>
+    );
+  }
+  const warnings = (turn.citations && turn.citations.warnings) || [];
+  const searched = Array.isArray(turn.providers) ? turn.providers : [];
+  return (
+    <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16 }}>
+      {turn.error ? (
+        <div style={{ color: C.t2, fontSize: 13, lineHeight: 1.6 }}>
+          <div style={{ color: C.am, fontFamily: M, fontSize: 11.5, marginBottom: 8 }}>⚠ {turn.error}</div>
+          I couldn&rsquo;t complete the legal research just now.
+        </div>
+      ) : (
+        <>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 8.5, fontFamily: M, color: C.em, border: `1px solid ${C.em}`, borderRadius: 4, padding: "0 5px", letterSpacing: 0.5, textTransform: "uppercase" }}>⚖ legal research</span>
+            {turn.degraded && <span style={{ fontSize: 8.5, fontFamily: M, color: C.am, border: `1px solid ${C.am}`, borderRadius: 4, padding: "0 5px", letterSpacing: 0.5, textTransform: "uppercase" }}>AI offline</span>}
+          </div>
+          <div style={{ fontSize: 13.5, color: C.t1, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{turn.answer}</div>
+          {warnings.includes("dropped-citations") && (
+            <div style={{ marginTop: 10, color: C.am, fontFamily: M, fontSize: 11, lineHeight: 1.5 }}>⚠ Removed {turn.citations.dropped} citation{turn.citations.dropped === 1 ? "" : "s"} that didn&rsquo;t match a retrieved authority.</div>
+          )}
+          <AuthoritiesList sources={turn.sources} />
+          {searched.length > 0 && (
+            <div style={{ marginTop: 10, fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.4 }}>
+              Searched: {searched.map((p) => `${p.label} ${p.ok ? "✓" : "✗"}`).join(" · ")}
+            </div>
+          )}
         </>
       )}
       {!turn.researchLoading && (
@@ -741,6 +844,11 @@ function WorkspaceRail({ turns, onOpenTicket, onNavigate, history, onRunSkill })
     if (last.kind === "research") return [
       { label: "Planning research", state: "done" },
       { label: last.researchLoading ? "Searching + reading documents" : "Researched", state: last.researchLoading ? "active" : last.error ? "error" : "done" },
+      { label: last.researchLoading ? "Synthesizing answer" : "Answered", state: last.researchLoading ? "pending" : last.error ? "error" : "done" },
+    ];
+    if (last.kind === "legal-research") return [
+      { label: "Planning research", state: "done" },
+      { label: last.researchLoading ? "Searching legal databases" : "Searched authorities", state: last.researchLoading ? "active" : last.error ? "error" : "done" },
       { label: last.researchLoading ? "Synthesizing answer" : "Answered", state: last.researchLoading ? "pending" : last.error ? "error" : "done" },
     ];
     if (last.kind === "artifact") return [
@@ -1202,6 +1310,43 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     runResearch(id, t);
   }, [runResearch]);
 
+  // C-4 — research the LAW (external caselaw / statutes / SEC filings / EU law)
+  // via /api/one-legal/research. Grounded + C-13 citation-checked server-side.
+  const runLegalResearch = useCallback(async (turnId, text) => {
+    patchTurn(turnId, { researchLoading: true });
+    try {
+      const resp = await fetch("/api/one-legal/research", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const d = await resp.json();
+      if (resp.ok && d && d.ok) {
+        patchTurn(turnId, {
+          researchLoading: false,
+          answer: String(d.answer || "").trim(),
+          sources: Array.isArray(d.sources) ? d.sources : [],
+          providers: Array.isArray(d.providers) ? d.providers : [],
+          citations: d.citations || null,
+          degraded: !!d.degraded,
+          grounded: !!d.grounded,
+        });
+      } else {
+        patchTurn(turnId, { researchLoading: false, error: (d && d.error) || "Legal research failed." });
+      }
+    } catch (e) {
+      patchTurn(turnId, { researchLoading: false, error: friendlyAIError(e) });
+    }
+  }, [patchTurn]);
+
+  const startLegalResearch = useCallback((text) => {
+    const t = String(text || "").trim();
+    if (!t) return;
+    const id = `t${Date.now()}${Math.random().toString(36).slice(2, 6)}`;
+    setTurns((ts) => [...ts, { id, kind: "legal-research", request: t, researchLoading: true, answer: null, sources: [], providers: [], error: null }]);
+    runLegalResearch(id, t);
+  }, [runLegalResearch]);
+
   // Step 2 — deep skill review. Routes a request (and any attached document) to
   // the best-matching @aegis/legal-skills playbook via /api/one-legal/skill-review
   // (shared standards + the skill's output contract, run through the governed
@@ -1301,7 +1446,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
           if (!dataLine) continue;
           try {
             const f = JSON.parse(dataLine.slice(6));
-            if (f.type === "task") tasks[f.index] = { title: f.title, request: f.request, tool: f.tool || null };
+            if (f.type === "task") tasks[f.index] = { title: f.title, request: f.request, tool: f.tool || null, dependsOn: f.dependsOn ?? null };
             else if (f.type === "error") return null;
           } catch { /* skip malformed */ }
         }
@@ -1329,7 +1474,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     const shouldCompound = tasks.length > 1 || tasks.some((tk) => tk.tool);
     if (!shouldCompound) { fileRequest(text); return; }
     const id = ++TURN_SEQ;
-    const taskObjs = tasks.slice(0, 5).map((tk, i) => ({ id: `${id}-${i}`, title: tk.title || `Task ${i + 1}`, request: tk.request || text, tool: tk.tool || null, steps: baseSteps(), result: null, toolResult: null, error: null, state: "pending" }));
+    const taskObjs = tasks.slice(0, 5).map((tk, i) => ({ id: `${id}-${i}`, title: tk.title || `Task ${i + 1}`, request: tk.request || text, tool: tk.tool || null, dependsOn: typeof tk.dependsOn === "number" ? tk.dependsOn : null, steps: baseSteps(), result: null, toolResult: null, error: null, state: "pending" }));
     setTurns((ts) => [...ts, { id, kind: "compound", request: text, tasks: taskObjs }]);
     runCompound(id, taskObjs);
   }, [fileRequest, runCompound, planViaRun]);
@@ -1510,7 +1655,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
 
   if (!isOpen) return null;
 
-  const busy = turns.some((t) => t.kind === "ask" ? t.answerLoading : t.kind === "research" ? t.researchLoading : t.kind === "skill-review" ? t.reviewLoading : t.kind === "artifact" ? (t.draftLoading || t.saving) : t.kind === "analyze" ? (t.uploading || t.analyzeLoading) : t.kind === "compound" ? t.tasks.some((tk) => tk.state === "running") : (!t.result && !t.error));
+  const busy = turns.some((t) => t.kind === "ask" ? t.answerLoading : (t.kind === "research" || t.kind === "legal-research") ? t.researchLoading : t.kind === "skill-review" ? t.reviewLoading : t.kind === "artifact" ? (t.draftLoading || t.saving) : t.kind === "analyze" ? (t.uploading || t.analyzeLoading) : t.kind === "compound" ? t.tasks.some((tk) => tk.state === "running") : (!t.result && !t.error));
   const firstName = (me?.name || "").trim().split(/\s+/)[0] || "";
 
   const composer = (big) => (
@@ -1626,9 +1771,11 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
                       {t.kind === "clarify" ? (
                         <ClarifyCard turn={t} onFile={fileRequest} />
                       ) : t.kind === "ask" ? (
-                        <AnswerCard turn={t} onExample={startTurn} onFileInstead={fileRequest} onAsk={handleAsk} onOpenSource={goModule} onResearch={startResearch} onDeepReview={runSkillReview} />
+                        <AnswerCard turn={t} onExample={startTurn} onFileInstead={fileRequest} onAsk={handleAsk} onOpenSource={goModule} onResearch={startResearch} onResearchLaw={startLegalResearch} onDeepReview={runSkillReview} />
                       ) : t.kind === "research" ? (
                         <ResearchCard turn={t} onFollowUp={focusComposer} onFileInstead={fileRequest} onOpenSource={goModule} />
+                      ) : t.kind === "legal-research" ? (
+                        <LegalResearchCard turn={t} onFollowUp={focusComposer} onFileInstead={fileRequest} />
                       ) : t.kind === "artifact" ? (
                         <ArtifactCard turn={t} onSave={saveArtifact} onRegenerate={runArtifactDraft} onFileInstead={fileRequest} />
                       ) : t.kind === "analyze" ? (

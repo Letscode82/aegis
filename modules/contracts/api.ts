@@ -121,6 +121,16 @@ export {
   type AiDraftResult,
 } from "./src/internal/ai-draft";
 
+// AI clause redline (C-1) — the Word add-in's brain: rewrite a clause per a
+// plain-language instruction and return word-level track-changes segments.
+export {
+  redlineClause,
+  RedlineValidationError,
+  type RedlineClauseInput,
+  type RedlineResult,
+  type RedlineRunner,
+} from "./src/internal/redline";
+
 // Third-party review assessment (CTR-13) — "what to sign / which clauses are we
 // not comfortable with", deterministic baseline + robust AI deep read.
 export {
@@ -207,13 +217,28 @@ export {
 } from "./src/internal/obligation-state-machine";
 
 // Obligation reminder / escalation engine (Phase 2c) — the pg-boss-ready
-// overdue → BREACHED sweep + its escalation-tier helper.
+// overdue → BREACHED sweep + its escalation-tier helper. C-9 adds the
+// proactive upcoming-due reminder pass (paired with the breach sweep).
 export {
   evaluateObligationBreaches,
   escalationTierForOverdue,
+  remindUpcomingObligations,
+  DEFAULT_REMINDER_WINDOW_DAYS,
   type ObligationBreachResult,
   type EscalationTier,
+  type ObligationReminderResult,
 } from "./src/internal/obligation-jobs";
+
+// Post-signature obligation finalization + owner assignment (C-9) — on
+// execution, reconcile the obligation ledger to the executed terms and assign
+// each commitment an owner (the matter lead). Deterministic, chain-sealed.
+export {
+  finalizeContractObligations,
+  resolveContractObligationOwner,
+  normalizeObligationDescription,
+  selectNewObligations,
+  type FinalizeObligationsResult,
+} from "./src/internal/obligation-finalize";
 
 export {
   getContractAlerts,
@@ -230,12 +255,14 @@ export {
   runAllOrgContractSweeps,
   runContractDigestForOrg,
   runAllOrgContractDigests,
+  runAllOrgObligationReminders,
   resolveDigestRecipients,
   parseDigestRecipients,
   mergeRecipients,
   DIGEST_ROLE_NAMES,
   type OrgSweepResult,
   type OrgDigestResult,
+  type OrgReminderResult,
   type AllOrgResult,
 } from "./src/internal/worker";
 

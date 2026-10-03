@@ -1,0 +1,25 @@
+{
+  "name": "@aegis/connectors",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Shared connector / OAuth framework (F-8). Provider-agnostic OAuth2 (authorization-code + refresh), a connector registry, and a token-store seam. The base for DMS sync (C-3), e-signature (C-5), and legal-authority research (C-4).",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "files": ["src"],
+  "scripts": {
+    "lint": "eslint src tests",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@aegis/eslint-config": "workspace:*",
+    "@types/node": "^20.17.9",
+    "eslint": "^8.57.1",
+    "typescript": "5.6.3",
+    "vitest": "1.6.1"
+  }
+}

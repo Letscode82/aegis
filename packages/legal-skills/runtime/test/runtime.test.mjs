@@ -7,16 +7,16 @@ import { loadRegistry, loadRegistryFromData, route, buildSystemPrompt, listSkill
 
 const reg = loadRegistry();
 
-test("registry has 60 built skills across modules", () => {
-  assert.equal(listSkills(reg).length, 60);
-  assert.ok(listSkills(reg, { status: null }).length > 100);
+test("registry has 106 built skills across modules", () => {
+  assert.equal(listSkills(reg).length, 106);
+  assert.equal(listSkills(reg, { status: null }).length, 106);
 });
 
 test("loadRegistryFromData indexes an imported object identically to loadRegistry", () => {
   // Simulates a bundler `import reg from "@aegis/legal-skills/registry.json"`.
   const raw = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "dist", "registry.json"), "utf8"));
   const reg2 = loadRegistryFromData(raw);
-  assert.equal(listSkills(reg2).length, 60);
+  assert.equal(listSkills(reg2).length, 106);
   const [best] = route(reg2, "can I sign this NDA from a vendor");
   assert.equal(best.id, "contracts/nda-triage");
   // buildSystemPrompt works off the object-loaded registry too.
@@ -59,7 +59,27 @@ test("system prompt includes standards before the skill", () => {
 });
 
 test("planned skills cannot be loaded", () => {
-  assert.throws(() => buildSystemPrompt(reg, ["contracts/clause-drafter"]), /planned/);
+  // Every catalogued skill is now built, so synthesize a planned entry to prove
+  // the persistence gate still refuses a not-built skill.
+  const planned = loadRegistryFromData({
+    shared: {},
+    skills: [
+      {
+        id: "demo/planned",
+        module: "demo",
+        name: "planned",
+        title: "Planned demo",
+        summary: "",
+        description: "",
+        version: "1.0.0",
+        risk_tier: "self-serve",
+        jurisdictions: ["global"],
+        status: "planned",
+        body: "x",
+      },
+    ],
+  });
+  assert.throws(() => buildSystemPrompt(planned, ["demo/planned"]), /planned/);
 });
 
 test("wrapDocuments escapes names", () => {

@@ -25,6 +25,15 @@ export {
   type MarkdownDocInput,
 } from "./markdown-docx";
 
+// Redline (track-changes) .docx — real Word revisions from redline segments (C-1).
+export {
+  renderRedlineDocx,
+  redlineDocxFilename,
+  type RedlineDocInput,
+  type RedlineSegment,
+  type RedlineSegmentType,
+} from "./redline-docx";
+
 // Document text extraction (.txt / .docx / .pdf → text). Dependency-free.
 export {
   extractDocumentText,

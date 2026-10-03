@@ -35,14 +35,15 @@ import { Permission, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
 import { assertAndAudit } from "../../../lib/authz";
 import { planTasks } from "../../../lib/one-legal/plan-tasks";
-import { getTool, executeGovernedTool, toolProposalFor } from "../../../lib/one-legal/tools";
+import { getTool, executeGovernedTool, toolProposalFor, proposalForTool, type ToolProposal } from "../../../lib/one-legal/tools";
+import { detectSpine } from "../../../lib/one-legal/spine";
 
 type ExecItem = { toolId?: string; text?: string; targetId?: string };
 
 type Frame =
-  | { type: "plan"; count: number }
-  | { type: "task"; index: number; title: string; request: string; tool: ReturnType<typeof toolProposalFor> }
-  | { type: "needs_approval"; index: number; tool: NonNullable<ReturnType<typeof toolProposalFor>> }
+  | { type: "plan"; count: number; spine?: boolean }
+  | { type: "task"; index: number; title: string; request: string; tool: ToolProposal | null; dependsOn?: number | null }
+  | { type: "needs_approval"; index: number; tool: ToolProposal }
   | { type: "task_started"; index: number; toolId: string }
   | { type: "task_succeeded"; index: number; result: { resourceId: string; resourceLabel: string; label: string; navigate: string; argsSummary: string } }
   | { type: "task_failed"; index: number; error: string }
@@ -108,11 +109,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     }
 
     // Plan mode — decompose + propose. Mutates nothing.
+    // The cross-module demo spine (OL-7) takes priority: a litigation-service
+    // trigger fans out into the ordered governed graph with chained targets.
+    const spine = detectSpine(text);
+    if (spine) {
+      send({ type: "plan", count: spine.length, spine: true });
+      spine.forEach((step, i) => {
+        const tool = proposalForTool(step.toolId, step.request);
+        send({ type: "task", index: i, title: step.title, request: step.request, tool, dependsOn: step.dependsOn });
+        if (tool) send({ type: "needs_approval", index: i, tool });
+      });
+      send({ type: "complete", planned: spine.length });
+      return res.end();
+    }
+
     const tasks = await planTasks(text);
     send({ type: "plan", count: tasks.length });
     tasks.forEach((tk, i) => {
       const tool = toolProposalFor(tk.request);
-      send({ type: "task", index: i, title: tk.title, request: tk.request, tool });
+      send({ type: "task", index: i, title: tk.title, request: tk.request, tool, dependsOn: null });
       if (tool) send({ type: "needs_approval", index: i, tool });
     });
     send({ type: "complete", planned: tasks.length });

@@ -92,3 +92,84 @@ export async function evaluateObligationBreaches(
     asOf: now.toISOString(),
   };
 }
+
+// ── Upcoming-due reminder pass (C-9) ─────────────────────────────────
+
+/** Default look-ahead window for the upcoming-obligation reminder. */
+export const DEFAULT_REMINDER_WINDOW_DAYS = 14;
+
+export interface ObligationReminderResult {
+  scanned: number;
+  reminded: number;
+  remindedObligationIds: string[];
+  windowDays: number;
+  asOf: string;
+}
+
+/**
+ * Remind owners of contract obligations coming due soon.
+ *
+ * Scans OPEN / IN_PROGRESS contract obligations whose dueDate falls in
+ * [now, now + windowDays] and writes a chain-sealed SYSTEM
+ * `contract.obligation.reminder` row (owner + days-until-due) for each one not
+ * already reminded for its current dueDate. Idempotent without a schema change:
+ * the obligation's `metadata.remindedForDueAt` is stamped with the dueDate it
+ * was reminded for, so a re-run in the same window is a no-op while a changed
+ * due date re-reminds. Pairs with `evaluateObligationBreaches` (the overdue →
+ * BREACHED sweep) — this is the proactive half.
+ */
+export async function remindUpcomingObligations(
+  organizationId: string,
+  opts?: { windowDays?: number },
+): Promise<ObligationReminderResult> {
+  const windowDays = opts?.windowDays ?? DEFAULT_REMINDER_WINDOW_DAYS;
+  const now = new Date();
+  const horizon = new Date(now.getTime() + windowDays * DAY_MS);
+
+  const upcoming = await prisma.obligation.findMany({
+    where: {
+      organizationId,
+      sourceType: "CONTRACT",
+      status: { in: ["OPEN", "IN_PROGRESS"] },
+      dueDate: { gte: now, lte: horizon }, // null dueDate never matches → excluded
+    },
+    select: { id: true, dueDate: true, sourceId: true, ownerId: true, metadata: true },
+  });
+
+  const reminded: string[] = [];
+  for (const o of upcoming) {
+    const dueIso = o.dueDate ? new Date(o.dueDate).toISOString() : null;
+    const prevMeta = (o.metadata as Record<string, unknown> | null) ?? {};
+    // Already reminded for this exact due date → skip (idempotent).
+    if (dueIso && prevMeta.remindedForDueAt === dueIso) continue;
+
+    const daysUntilDue = o.dueDate
+      ? Math.ceil((new Date(o.dueDate).getTime() - now.getTime()) / DAY_MS)
+      : null;
+
+    await logAudit({
+      organizationId,
+      actorId: null,
+      actorType: "SYSTEM",
+      action: "contract.obligation.reminder",
+      resourceType: "Obligation",
+      resourceId: o.id,
+      afterJson: { contractId: o.sourceId, dueDate: dueIso, daysUntilDue, ownerId: o.ownerId },
+      metadata: { source: "obligation-reminder-sweep", windowDays },
+    });
+
+    await prisma.obligation.update({
+      where: { id: o.id },
+      data: { metadata: { ...prevMeta, remindedForDueAt: dueIso } as never },
+    });
+    reminded.push(o.id);
+  }
+
+  return {
+    scanned: upcoming.length,
+    reminded: reminded.length,
+    remindedObligationIds: reminded,
+    windowDays,
+    asOf: now.toISOString(),
+  };
+}
