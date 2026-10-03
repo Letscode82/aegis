@@ -25,6 +25,18 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   if (!String(b.title || "").trim()) return res.status(400).json({ ok: false, error: "title is required" });
   if (!String(b.type || "").trim()) return res.status(400).json({ ok: false, error: "type is required" });
 
+  // Dynamic clause insertion (C-7): [{ clauseType, variant? }]. Coerce defensively.
+  const clauses = Array.isArray(b.clauses)
+    ? b.clauses
+        .map((c: unknown) => {
+          const o = (c && typeof c === "object" ? c : {}) as Record<string, unknown>;
+          const clauseType = String(o.clauseType || "").trim();
+          const variant = o.variant === "fallback" ? "fallback" : "standard";
+          return clauseType ? { clauseType, variant } : null;
+        })
+        .filter(Boolean)
+    : undefined;
+
   try {
     assertUserCanDo(user, Permission.ContractsCreate);
     const result = await authorContractFromTemplate(
@@ -40,6 +52,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         currency: b.currency ?? null,
         governingLaw: b.governingLaw ?? null,
         variables: b.variables && typeof b.variables === "object" ? b.variables : undefined,
+        clauses: clauses && clauses.length ? clauses : undefined,
       },
       { id: user.id, type: "USER" },
     );

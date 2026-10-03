@@ -20,6 +20,8 @@ const lbl = { fontSize: 9, fontFamily: M, letterSpacing: 1, textTransform: "uppe
 export function AuthorContractModal({ onClose, onCreated }) {
   const [templates, setTemplates] = useState([]);
   const [counterparties, setCounterparties] = useState([]);
+  const [clauseLib, setClauseLib] = useState([]);
+  const [selectedClauses, setSelectedClauses] = useState({}); // clauseType -> variant
   const [title, setTitle] = useState("");
   const [type, setType] = useState("NDA");
   const [templateKey, setTemplateKey] = useState("");
@@ -39,7 +41,19 @@ export function AuthorContractModal({ onClose, onCreated }) {
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => { if (d?.ok) setCounterparties(d.counterparties || []); })
       .catch(() => {});
+    fetch("/api/contracts/clause-library")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (d?.ok) setClauseLib(d.entries || []); })
+      .catch(() => {});
   }, []);
+
+  const toggleClause = (clauseType) => setSelectedClauses((prev) => {
+    const next = { ...prev };
+    if (next[clauseType]) delete next[clauseType];
+    else next[clauseType] = "standard";
+    return next;
+  });
+  const setClauseVariant = (clauseType, variant) => setSelectedClauses((prev) => ({ ...prev, [clauseType]: variant }));
 
   // When a template is chosen, default the title/type from it if still blank.
   const pickTemplate = (key) => {
@@ -66,6 +80,7 @@ export function AuthorContractModal({ onClose, onCreated }) {
           counterpartyId: counterpartyId || null,
           value: value === "" ? null : Number(value),
           currency, governingLaw: governingLaw.trim() || null,
+          clauses: Object.entries(selectedClauses).map(([clauseType, variant]) => ({ clauseType, variant })),
         }),
       });
       const d = await r.json();
@@ -130,6 +145,41 @@ export function AuthorContractModal({ onClose, onCreated }) {
               <input value={governingLaw} onChange={(e) => setGoverningLaw(e.target.value)} placeholder="Delaware" style={field} />
             </div>
           </div>
+
+          {/* Dynamic clause insertion from the library (C-7) */}
+          {clauseLib.length > 0 && (
+            <div>
+              <label style={lbl}>
+                Insert clauses from library
+                {Object.keys(selectedClauses).length > 0 && (
+                  <span style={{ color: C.bl, marginLeft: 6 }}>· {Object.keys(selectedClauses).length} selected</span>
+                )}
+              </label>
+              <div style={{ border: `1px solid ${C.br}`, borderRadius: 5, maxHeight: 168, overflowY: "auto", background: C.bg }}>
+                {clauseLib.map((cl) => {
+                  const sel = selectedClauses[cl.clauseType];
+                  return (
+                    <div key={cl.id} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 10px", borderBottom: `1px solid ${C.br}22` }}>
+                      <input type="checkbox" checked={!!sel} onChange={() => toggleClause(cl.clauseType)} style={{ cursor: "pointer" }} />
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <div style={{ fontSize: 11, color: C.t1 }}>{cl.title} <span style={{ color: C.t4, fontFamily: M, fontSize: 9 }}>{cl.clauseType}</span></div>
+                        {sel && <div style={{ fontSize: 9.5, color: C.t3, lineHeight: 1.4, marginTop: 2 }}>{(sel === "fallback" && cl.fallbackText) ? cl.fallbackText : cl.standardText}</div>}
+                      </div>
+                      {sel && cl.fallbackText && (
+                        <select value={sel} onChange={(e) => setClauseVariant(cl.clauseType, e.target.value)} style={{ ...field, width: "auto", padding: "4px 6px", fontSize: 9.5 }}>
+                          <option value="standard">Standard</option>
+                          <option value="fallback">Fallback</option>
+                        </select>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div style={{ fontSize: 9, color: C.t4, fontFamily: M, marginTop: 4, lineHeight: 1.5 }}>
+                Selected clauses are inserted at the template's {"{{clause:CODE}}"} markers (or appended), then extracted with the rest of the paper.
+              </div>
+            </div>
+          )}
         </div>
 
         {err && <div style={{ fontSize: 11, color: C.rd, fontFamily: M, marginTop: 12 }}>⚠ {err}</div>}
