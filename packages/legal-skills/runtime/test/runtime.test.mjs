@@ -7,8 +7,8 @@ import { loadRegistry, loadRegistryFromData, route, buildSystemPrompt, listSkill
 
 const reg = loadRegistry();
 
-test("registry has 30 built skills across modules", () => {
-  assert.equal(listSkills(reg).length, 30);
+test("registry has 36 built skills across modules", () => {
+  assert.equal(listSkills(reg).length, 36);
   assert.ok(listSkills(reg, { status: null }).length > 100);
 });
 
@@ -16,7 +16,7 @@ test("loadRegistryFromData indexes an imported object identically to loadRegistr
   // Simulates a bundler `import reg from "@aegis/legal-skills/registry.json"`.
   const raw = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "dist", "registry.json"), "utf8"));
   const reg2 = loadRegistryFromData(raw);
-  assert.equal(listSkills(reg2).length, 30);
+  assert.equal(listSkills(reg2).length, 36);
   const [best] = route(reg2, "can I sign this NDA from a vendor");
   assert.equal(best.id, "contracts/nda-triage");
   // buildSystemPrompt works off the object-loaded registry too.
@@ -27,11 +27,18 @@ test("loadRegistryFromData indexes an imported object identically to loadRegistr
 const cases = [
   ["can I sign this NDA from a vendor", "contracts/nda-triage"],
   ["we had a ransomware attack, who do we need to notify", "privacy/breach-response"],
-  ["review our DPDPA consent notice and gaps", "privacy/dpdpa-compliance"],
+  ["assess our DPDPA compliance obligations and gaps", "privacy/dpdpa-compliance"],
   ["outside counsel invoice looks inflated, check billing guidelines", "outside-counsel/invoice-review"],
   ["is this AGPL dependency okay to ship", "ip/open-source-review"],
   ["preserve documents, we expect to be sued", "disputes/litigation-hold"],
   ["classify our AI hiring tool under the EU AI Act", "regulatory/ai-governance"],
+  // SK-6 — the batch of newly built playbooks route to themselves.
+  ["draft or update a whistleblower speak-up policy", "regulatory/whistleblower-programme"],
+  ["run a legitimate interest assessment balancing test", "privacy/legitimate-interest-assessment"],
+  ["draft a layered privacy and consent notice", "privacy/privacy-notice-drafter"],
+  ["review our cookie banner and tracking consent", "privacy/cookie-and-tracking"],
+  ["build a matter budget and fee forecast", "outside-counsel/matter-budget"],
+  ["build a matter plan with critical path and milestones", "matters/matter-plan"],
 ];
 for (const [q, expected] of cases) {
   test(`routes: ${q}`, () => {

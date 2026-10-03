@@ -95,7 +95,7 @@ _Review, drafting, negotiation and post-signature obligations_
 | Sustainability & ESG clauses | 🗺️ planned | global | Add proportionate climate, human-rights and supply-chain clauses to commercial contracts. |
 | Contract template builder | 🗺️ planned | global | Build a new standard template with guidance notes and a negotiation playbook. |
 
-### Privacy & Data Protection — 4/12 built
+### Privacy & Data Protection — 7/12 built
 
 _Personal-data compliance across DPDPA, GDPR, US state laws and beyond_
 
@@ -106,15 +106,15 @@ _Personal-data compliance across DPDPA, GDPR, US state laws and beyond_
 | [Data processing agreement review](skills/privacy/dpa-review/SKILL.md) | ✅ built | global | Review or draft a DPA against GDPR Art. 28, DPDPA processor duties and the organisation's minimums. |
 | [Personal-data & cyber incident notification](skills/privacy/breach-response/SKILL.md) | ✅ built | global | Decide who must be notified, by when, across DPDPA, CERT-In, GDPR, US state and sector regimes. |
 | GDPR compliance programme | 🗺️ planned | EU, UK | Lawful basis, records of processing, rights handling and accountability under (UK) GDPR. |
-| Privacy & consent notice drafter | 🗺️ planned | global | Draft layered privacy notices and DPDPA itemised consent notices from a data inventory. |
+| [Privacy & consent notice drafter](skills/privacy/privacy-notice-drafter/SKILL.md) | ✅ built | global | Draft layered privacy notices and DPDPA itemised consent notices from a data inventory. |
 | Cross-border transfer assessment | 🗺️ planned | global | Transfer mechanism selection and transfer impact assessment. |
 | Data principal / subject request handling | 🗺️ planned | global | Verify, scope, answer or refuse access, correction, erasure and portability requests. |
 | US state privacy laws | 🗺️ planned | US | CCPA/CPRA and other state comprehensive privacy laws: applicability and obligations. |
-| Cookies, SDKs & tracking | 🗺️ planned | global | Consent and disclosure requirements for cookies, pixels and mobile SDKs. |
-| Legitimate interest assessment | 🗺️ planned | EU, UK | Three-part purpose/necessity/balancing test with documented outcome. |
+| [Cookies, SDKs & tracking](skills/privacy/cookie-and-tracking/SKILL.md) | ✅ built | global | Consent and disclosure requirements for cookies, pixels and mobile SDKs. |
+| [Legitimate interest assessment](skills/privacy/legitimate-interest-assessment/SKILL.md) | ✅ built | EU, UK | Three-part purpose/necessity/balancing test with documented outcome. |
 | Regional privacy pack | 🗺️ planned | BR, SG, VN, AE, SA | LGPD, PDPA, PDPL and Gulf regimes as jurisdiction modules on one engine. |
 
-### Regulatory & Compliance — 3/14 built
+### Regulatory & Compliance — 4/14 built
 
 _Applicability, change monitoring, AI governance, trade, anti-corruption, sector regimes_
 
@@ -131,7 +131,7 @@ _Applicability, change monitoring, AI governance, trade, anti-corruption, sector
 | Security framework mapping | 🗺️ planned | global | Map controls across ISO 27001, SOC 2, NIST CSF and CERT-In directions; evidence gaps. |
 | Operational resilience (DORA/NIS2) | 🗺️ planned | EU | ICT risk, third-party register and incident obligations for EU entities. |
 | ESG & sustainability reporting | 🗺️ planned | global | BRSR Core, CSRD/ESRS and ISSB disclosure readiness. |
-| Whistleblower programme | 🗺️ planned | global | Design or audit speak-up channels, protections and investigation workflow. |
+| [Whistleblower programme](skills/regulatory/whistleblower-programme/SKILL.md) | ✅ built | global | Design or audit speak-up channels, protections and investigation workflow. |
 | Digital accessibility | 🗺️ planned | global | WCAG, Section 508, EAA and RPwD Act obligations for digital products. |
 | Product cybersecurity obligations | 🗺️ planned | EU, US | Cyber Resilience Act and similar secure-by-design and vulnerability-handling duties. |
 
@@ -192,7 +192,7 @@ _Clearance, open source, ownership and enforcement_
 | Copyright & originality assessment | 🗺️ planned | global | Protectability, ownership and permitted-use analysis, including AI-generated content. |
 | Infringement & takedown | 🗺️ planned | global | Assess infringement and draft notices or responses (incl. IT Rules intermediaries). |
 
-### Outside Counsel & Spend — 1/7 built
+### Outside Counsel & Spend — 2/7 built
 
 _Panels, engagement terms, invoices, budgets and performance_
 
@@ -202,18 +202,18 @@ _Panels, engagement terms, invoices, budgets and performance_
 | Engagement terms & billing guidelines | 🗺️ planned | global | Draft and maintain outside counsel guidelines and engagement letters. |
 | Panel design & RFP | 🗺️ planned | global | Structure a panel, run an RFP and score proposals. |
 | Alternative fee arrangements | 🗺️ planned | global | Design fixed, capped, phased or success fees matched to scope and risk. |
-| Matter budget & forecast | 🗺️ planned | global | Build a phase budget and track burn against it. |
+| [Matter budget & forecast](skills/outside-counsel/matter-budget/SKILL.md) | ✅ built | global | Build a phase budget and track burn against it. |
 | Firm performance scorecard | 🗺️ planned | global | Post-matter feedback and quarterly firm reviews. |
 | Local counsel coordination | 🗺️ planned | global | Instruct and coordinate counsel across multiple jurisdictions. |
 
-### Matter Management & Legal Ops — 1/6 built
+### Matter Management & Legal Ops — 2/6 built
 
 _Plans, RAID logs, reporting and continuous improvement_
 
 | Skill | Status | Jurisdictions | What it does |
 |---|---|---|---|
 | [Matter status report](skills/matters/status-report/SKILL.md) | ✅ built | global | Turn emails, notes and trackers into a decision-oriented status report for a chosen audience. |
-| Matter plan & critical path | 🗺️ planned | global | Phases, workstreams, dependencies and milestones from agreed scope. |
+| [Matter plan & critical path](skills/matters/matter-plan/SKILL.md) | ✅ built | global | Phases, workstreams, dependencies and milestones from agreed scope. |
 | RAID log | 🗺️ planned | global | Risks, assumptions, issues and decisions captured from correspondence. |
 | Stakeholder communication plan | 🗺️ planned | global | Who needs what, when, and through which channel. |
 | Lessons learned | 🗺️ planned | global | Capture and reuse lessons across matters. |
