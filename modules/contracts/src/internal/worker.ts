@@ -14,7 +14,7 @@
 import { prisma, logAudit } from "@aegis/db";
 import { sendEmail, renderBasicEmail } from "@aegis/email";
 import { ensureRenewalNoticeObligations } from "./renewals";
-import { evaluateObligationBreaches } from "./obligation-jobs";
+import { evaluateObligationBreaches, remindUpcomingObligations, type ObligationReminderResult } from "./obligation-jobs";
 import { getContractDigest, type ContractDigest } from "./digest";
 
 // ── Pure helpers (unit-tested) ───────────────────────────────────────
@@ -88,6 +88,32 @@ export async function runAllOrgContractSweeps(): Promise<AllOrgResult<OrgSweepRe
     } catch (err) {
       failed += 1;
       results.push({ organizationId, noticesScanned: 0, noticesCreated: 0, obligationsBreached: 0, error: String((err as Error)?.message || err) });
+    }
+  }
+  return { orgs: ids.length, ran: ids.length - failed, failed, results, generatedAt: new Date().toISOString() };
+}
+
+// ── Upcoming-obligation reminder pass (C-9) ──────────────────────────
+
+export interface OrgReminderResult {
+  organizationId: string;
+  scanned: number;
+  reminded: number;
+  error?: string;
+}
+
+/** Remind upcoming obligations across every org. One org's failure is captured, not thrown. */
+export async function runAllOrgObligationReminders(opts?: { windowDays?: number }): Promise<AllOrgResult<OrgReminderResult>> {
+  const ids = await listOrganizationIds();
+  const results: OrgReminderResult[] = [];
+  let failed = 0;
+  for (const organizationId of ids) {
+    try {
+      const r: ObligationReminderResult = await remindUpcomingObligations(organizationId, opts);
+      results.push({ organizationId, scanned: r.scanned, reminded: r.reminded });
+    } catch (err) {
+      failed += 1;
+      results.push({ organizationId, scanned: 0, reminded: 0, error: String((err as Error)?.message || err) });
     }
   }
   return { orgs: ids.length, ran: ids.length - failed, failed, results, generatedAt: new Date().toISOString() };

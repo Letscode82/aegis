@@ -330,8 +330,13 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
 
             {/* Obligations */}
             <div style={{ padding: "14px 18px" }}>
-              <div style={{ fontSize: 10, fontFamily: M, color: C.t3, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 600, marginBottom: 10 }}>
-                Obligations &amp; key dates <span style={{ color: C.t4 }}>· {c.obligations.length} · {c.overdueObligationCount} overdue</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
+                <div style={{ fontSize: 10, fontFamily: M, color: C.t3, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 600 }}>
+                  Obligations &amp; key dates <span style={{ color: C.t4 }}>· {c.obligations.length} · {c.overdueObligationCount} overdue</span>
+                </div>
+                {canManage && (c.status === "EXECUTED" || c.status === "ACTIVE") && (
+                  <span style={{ marginLeft: "auto" }}><SyncObligationsButton contractId={contractId} onDone={load} /></span>
+                )}
               </div>
               {c.obligations.length === 0 ? (
                 <div style={{ fontSize: 11, color: C.t4, fontStyle: "italic" }}>No obligations tracked yet.</div>
@@ -737,6 +742,39 @@ const btn = (c) => ({
   padding: "4px 10px", borderRadius: 4, border: `1px solid ${c}`, background: "transparent",
   color: c, fontSize: 9.5, fontFamily: M, fontWeight: 600, letterSpacing: .5, cursor: "pointer", textTransform: "uppercase",
 });
+
+// ── Re-sync obligations from the (executed) terms (CLM C-9) ───────────
+//
+// Finalization runs automatically on execution; this is the manual re-run /
+// backfill. POSTs /finalize-obligations — extracts the contract's commitments,
+// creates any not yet tracked, and assigns the matter lead as owner. Chain-
+// sealed + idempotent, so a click on an already-finalized contract is a no-op.
+function SyncObligationsButton({ contractId, onDone }) {
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState(null);
+  const run = async () => {
+    setBusy(true); setMsg(null);
+    try {
+      const r = await fetch(`/api/contracts/${contractId}/finalize-obligations`, { method: "POST" });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      setMsg(d.created > 0 || d.assigned > 0 ? `+${d.created} tracked · ${d.assigned} assigned` : "Up to date");
+      onDone?.();
+    } catch (e) {
+      setMsg(String(e.message || e));
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}>
+      <button disabled={busy} onClick={run} title="Extract obligations from the executed terms and assign owners" style={{ ...btn(C.tl), opacity: busy ? .6 : 1 }}>
+        {busy ? "Syncing…" : "⟳ Re-sync from terms"}
+      </button>
+      {msg && <span style={{ fontSize: 9.5, color: C.t3, fontFamily: M }}>{msg}</span>}
+    </span>
+  );
+}
 
 // ── Turn-based negotiation (CLM Phase 4b) ────────────────────────────
 //

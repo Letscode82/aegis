@@ -45,6 +45,9 @@ describe("WORKER_JOBS catalog", () => {
     const names = WORKER_JOBS.map((j) => j.name);
     expect(names).toEqual(
       expect.arrayContaining([
+        "contract-sweeps",
+        "contract-digest",
+        "obligation-reminders",
         "defensibility-snapshot",
         "defensibility-cleanup",
         "dsar-sla-sweep",

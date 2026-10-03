@@ -11,7 +11,7 @@
  * trigger routes; this module only schedules them. All crons are UTC.
  */
 import { prisma } from "@aegis/db";
-import { runAllOrgContractSweeps, runAllOrgContractDigests } from "@aegis/contracts";
+import { runAllOrgContractSweeps, runAllOrgContractDigests, runAllOrgObligationReminders } from "@aegis/contracts";
 import { runAllOrgDsarSlaSweeps } from "@aegis/privacy";
 import { runDailySnapshotPass, runWeeklyCleanupPass } from "@aegis/matter";
 import { evaluateSlaBreaches } from "@aegis/intake/sla";
@@ -83,6 +83,12 @@ export const WORKER_JOBS: readonly WorkerJob[] = [
     cron: "0 8 * * 1", // weekly Monday 08:00 UTC
     description: "Email each org's leadership the weekly actionable-contract digest.",
     run: () => runAllOrgContractDigests(),
+  },
+  {
+    name: "obligation-reminders",
+    cron: "15 7 * * *", // daily 07:15 UTC (just after the sweep)
+    description: "Remind owners of contract obligations coming due within the window, all orgs (contract.obligation.reminder).",
+    run: () => runAllOrgObligationReminders(),
   },
   {
     name: "dsar-sla-sweep",
