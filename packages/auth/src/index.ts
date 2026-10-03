@@ -43,3 +43,12 @@ export {
   assertUserCanDo,
   AccessDeniedError,
 } from "./can-user-do";
+
+export {
+  type SsoConnectionRecord,
+  normalizeDomain,
+  emailDomain,
+  matchConnectionByEmail,
+  resolveSsoRoleName,
+  SSO_DEFAULT_ROLE,
+} from "./sso";

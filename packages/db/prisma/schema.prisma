@@ -3995,3 +3995,42 @@ model Vault {
 
   @@index([organizationId, updatedAt])
 }
+
+// ── C-6 · Per-tenant SSO / SAML federation ───────────────────────────
+// Each customer org federates to its OWN IdP (Entra ID / Okta / …),
+// brokered through Auth0 today. The row carries the tenant's IdP kind,
+// the broker connection name (login routes to it per tenant), the email
+// domains that map to this org (home-realm discovery + JIT), and the
+// least-privilege role first-login users are provisioned into.
+// `organizationId` is a plain scalar (localized pattern, same as Skill /
+// ConsoleSession) so the migration adds one table without touching
+// Organization.
+model OrganizationSsoConnection {
+  id              String      @id @default(cuid())
+  organizationId  String      @unique
+  /// Human-readable IdP label (admin UI + login hint).
+  displayName     String
+  /// Federation protocol. Auth0 brokers both today; recorded for
+  /// per-tenant login routing and the future direct-federation swap.
+  protocol        SsoProtocol @default(OIDC)
+  /// The Auth0 connection name that brokers this tenant's IdP. Login
+  /// routes to it via `?connection=`; blank falls back to Auth0 HRD.
+  connectionName  String
+  /// Email domains that map to this org (HRD + JIT), lower-cased.
+  emailDomains    String[]
+  /// Role first-login users are JIT-provisioned into. A canonical
+  /// RoleName; invalid values fall back to `requester` at resolve time.
+  defaultRoleName String      @default("requester")
+  /// Whether unknown verified users from these domains are provisioned.
+  jitProvisioning Boolean     @default(true)
+  enabled         Boolean     @default(true)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([organizationId])
+}
+
+enum SsoProtocol {
+  OIDC
+  SAML
+}

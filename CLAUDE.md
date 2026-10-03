@@ -902,6 +902,23 @@ the Auth0 SDK directly.
 admin) keeps `pnpm dev` zero-config, and the production guard prevents
 the silent-downgrade footgun. Both stay through the swap.
 
+**Shipped (C-6) — per-tenant federation seam.** The tenant-aware half
+of this migration already landed, Auth0 still brokering:
+`OrganizationSsoConnection` (one per org) carries each tenant's IdP
+protocol, the broker connection name, its email domains, and the
+least-privilege default role. `@aegis/auth/src/sso.ts` does pure
+home-realm discovery (`matchConnectionByEmail`) + role resolution;
+`getResolvedUser` provisions a first-login federated user into the
+**matched tenant's** org + role (the legacy `AEGIS_SSO_AUTO_PROVISION_DOMAINS`
+env allowlist stays as the single-tenant fallback). `/api/auth/login`
+accepts `?connection=<name>`, and `/api/auth/sso-hint` resolves it from
+an email so a login page can route per tenant. Admin CRUD lives at
+`/api/admin/sso/connections` (gated `admin:manage_users`, chain-sealed
+`auth.sso.connection.*` audit). The remaining step is purely the SDK
+swap (Auth0 broker → NextAuth direct SAML/OIDC per tenant): the config
+model, resolver, and routing seam are reused unchanged, so it stays the
+half-day job above. See `docs/sso-federation.md`.
+
 ---
 
 ## What's new in PRIV-1 (Privacy module — DSAR case handling)
