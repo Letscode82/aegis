@@ -32,7 +32,7 @@ const nextConfig = {
     },
   },
   // Workspace packages ship as source (.js/.jsx/.ts). Let Next.js transpile them.
-  transpilePackages: ["@aegis/ui", "@aegis/ai", "@aegis/intake", "@aegis/db", "@aegis/auth", "@aegis/contracts"],
+  transpilePackages: ["@aegis/ui", "@aegis/ai", "@aegis/intake", "@aegis/db", "@aegis/auth", "@aegis/contracts", "@aegis/connectors"],
   eslint: {
     // We run ESLint via turbo; don't block production builds on lint.
     ignoreDuringBuilds: true,
@@ -42,6 +42,17 @@ const nextConfig = {
   // runtime from node_modules (and the dynamic import()'s try/catch degrades
   // to "keep the filename" if they're ever absent).
   webpack: (config, { webpack, isServer }) => {
+    // @aegis/connectors is authored in TypeScript but uses explicit ".js"
+    // extensions on its relative imports (TS ESM style, as its own tsc +
+    // vitest resolve via "moduleResolution: Bundler"). Next's webpack doesn't
+    // rewrite ".js" → ".ts" by default, so teach it to: try the TS source
+    // first, then fall back to a real ".js" for genuine JS deps. Harmless for
+    // the repo's other (extensionless) packages.
+    config.resolve = config.resolve || {};
+    config.resolve.extensionAlias = {
+      ...(config.resolve.extensionAlias || {}),
+      ".js": [".ts", ".tsx", ".js"],
+    };
     if (isServer) {
       config.externals = config.externals || [];
       config.externals.push({ "pdf-parse": "commonjs pdf-parse", mammoth: "commonjs mammoth", xlsx: "commonjs xlsx", jszip: "commonjs jszip", "pst-extractor": "commonjs pst-extractor" });
