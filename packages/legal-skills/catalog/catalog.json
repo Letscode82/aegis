@@ -361,7 +361,7 @@
       "module": "privacy",
       "name": "privacy-notice-drafter",
       "title": "Privacy & consent notice drafter",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -405,7 +405,7 @@
       "module": "privacy",
       "name": "cookie-and-tracking",
       "title": "Cookies, SDKs & tracking",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -416,7 +416,7 @@
       "module": "privacy",
       "name": "legitimate-interest-assessment",
       "title": "Legitimate interest assessment",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "EU",
         "UK"
@@ -566,7 +566,7 @@
       "module": "regulatory",
       "name": "whistleblower-programme",
       "title": "Whistleblower programme",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -967,7 +967,7 @@
       "module": "outside-counsel",
       "name": "matter-budget",
       "title": "Matter budget & forecast",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1011,7 +1011,7 @@
       "module": "matters",
       "name": "matter-plan",
       "title": "Matter plan & critical path",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],

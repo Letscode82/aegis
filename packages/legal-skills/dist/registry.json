@@ -1238,11 +1238,66 @@
    "module": "privacy",
    "name": "privacy-notice-drafter",
    "title": "Privacy & consent notice drafter",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Draft layered privacy notices and DPDPA itemised consent notices from a data inventory."
+   "summary": "Draft layered privacy notices and DPDPA itemised consent notices from a data inventory.",
+   "meta": {
+    "name": "privacy-privacy-notice-drafter",
+    "description": "Drafts layered privacy notices and itemised consent notices from a data inventory: GDPR / UK GDPR Art. 13-14 transparency content and DPDPA notice/consent requirements, in plain language, with a short top layer and a full detailed layer. Use to write or refresh a privacy policy, a just-in-time notice, or a DPDPA consent notice. Not for the lawful-basis analysis behind it → privacy/legitimate-interest-assessment or privacy/gdpr-compliance; not for cookie-banner consent specifically → privacy/cookie-and-tracking.",
+    "module": "privacy",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "EU",
+     "UK",
+     "IN"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "inventory",
+      "required": true,
+      "description": "The processing inventory / ROPA — purposes, data categories, sources, lawful bases, recipients, transfers, retention."
+     },
+     {
+      "name": "audience",
+      "required": false,
+      "description": "Who the notice is for (customers, employees, website visitors, children) and the channel (website, app, just-in-time)."
+     },
+     {
+      "name": "regimes",
+      "required": false,
+      "description": "Which laws apply (GDPR/UK GDPR, DPDPA, US state laws) — drives the required content set."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "privacy/gdpr-compliance",
+     "privacy/legitimate-interest-assessment",
+     "privacy/cookie-and-tracking",
+     "privacy/data-subject-requests",
+     "privacy/us-state-privacy",
+     "drafting/plain-language-explainer"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Privacy & Consent Notice Drafter\n\nProduces a privacy notice that actually satisfies the transparency duties — layered so a reader gets the gist in seconds and the detail on demand — built from the data inventory rather than a generic template. For India, it also produces the DPDPA itemised consent notice. The deliverable is a notice that is complete, accurate to the processing, and readable.\n\n## When to use / not use\n\n- Use: drafting or refreshing a website/app/employee privacy notice; a just-in-time notice at a collection point; a DPDPA consent notice; aligning an existing notice to current processing.\n- Hand off: deciding or defending the lawful basis the notice states → `privacy/gdpr-compliance` / `privacy/legitimate-interest-assessment`; the cookie banner and tracker consent → `privacy/cookie-and-tracking`; how the notice describes rights handling → `privacy/data-subject-requests`; pure readability pass → `drafting/plain-language-explainer`.\n\n## Inputs to collect first\n\n1. The ROPA / inventory: every purpose with its data categories, lawful basis, recipients, transfers and retention. **The notice must mirror the inventory — do not invent purposes.**\n2. Audience and channel (customers vs employees vs visitors vs children; web/app/just-in-time).\n3. Whether data is collected from the individual (Art. 13) or obtained indirectly (Art. 14 — adds source + the within-one-month / at-first-contact timing).\n4. International transfers and the mechanism relied on.\n5. Controller identity and DPO/representative contact.\n\n## Method\n\n1. **Confirm the regimes** and assemble the required content set for each (union of duties where several apply).\n2. **GDPR / UK GDPR content** (Arts. 13-14): controller (and representative/DPO) identity and contact; purposes **and lawful basis for each** (and the legitimate interest where Art. 6(1)(f)); recipients/categories of recipients; international transfers and safeguards; retention period or criteria; data-subject rights (access, rectification, erasure, restriction, portability, **objection**, and withdrawing consent); right to complain to a supervisory authority; whether provision is statutory/contractual and the consequences of not providing; existence of automated decision-making/profiling with meaningful logic and consequences. For Art. 14 (indirect), add the **source** and the **categories** obtained, and meet the timing rule.\n3. **DPDPA content** (India): an **itemised** notice — the personal data and the specific purposes — in plain language, with the right to withdraw consent as easily as given, the Consent Manager option, the grievance route, and the Data Protection Board complaint right; offer the notice in English and the Eighth Schedule languages where required `[verify current]` (IN-DPDP-01, IN-DPDP-03).\n4. **US state content** (if in scope): categories collected/sold/shared, purposes, retention, consumer rights and the opt-out of sale/sharing and targeted advertising; link the mechanisms `[verify current]`.\n5. **Layer it**: a short top layer (who we are, what we do with data, your choices, how to contact us) linking to the full notice; add just-in-time notices at sensitive collection points.\n6. **Write in plain language**: short sentences, no legalese, define the few unavoidable terms; for a child-facing audience, age-appropriate wording.\n7. **Cross-check against the inventory**: every purpose in the inventory appears; no purpose in the notice is unsupported by the inventory; bases match the LIAs/consent records.\n8. **Score** and set a decision: **PUBLISH / PUBLISH WITH FIXES / REWRITE**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Purpose/basis mismatch with inventory | Every purpose has a stated, correct basis matching the ROPA | S2 | Reconcile with inventory/LIA |\n| Missing Art. 13/14 element | All mandated elements present (see Method 2) | S2 | Add the missing element(s) |\n| Art. 14 source/timing omitted | Source + categories + timing met for indirect data | S2 | Add source; fix timing |\n| Rights incomplete | All applicable rights + how to exercise + complaint right | S2 | Add the rights block |\n| Transfers not disclosed | Transfers + mechanism named | S2 | Add transfers section |\n| Retention vague | Period or clear criteria per purpose | S3 | State retention/criteria |\n| DPDPA notice not itemised | Item-by-item data × purpose, withdrawal + grievance | S2 (India) | Rebuild as itemised notice |\n| Not layered / unreadable | Short top layer + full layer; plain language | S3 | Re-layer and simplify |\n| Automated decisions not disclosed | ADM/profiling logic + consequences stated | S2 if ADM present | Add ADM disclosure |\n| Children's audience not age-appropriate | Age-appropriate wording + extra protections | S2 | Rewrite for the audience |\n\n## Output\n\nLead with `Decision: PUBLISH | PUBLISH WITH FIXES | REWRITE — <key gap or \"complete\">`. Then the output contract. Add:\n\n- **The notice** as titled sections: top layer, then the full notice (who we are · what we collect · purposes & bases · sharing · transfers · retention · your rights · cookies link · contact & complaints). For India, also the **itemised consent notice** table (data item · purpose · withdrawal).\n- **Coverage matrix**: required element · present? · where.\n- One JSON finding per gap with `category: \"transparency\"`.\n\n## Edge cases & pitfalls\n\n- **Template drift**: a notice that promises purposes you no longer run (or omits ones you do) is a transparency breach — drive it from the live inventory.\n- **Basis-by-copy-paste**: \"legitimate interests\" stated with no interest named, or \"consent\" where there is no consent mechanism, is a common and serious error — match the notice to the real basis/LIA.\n- **Art. 14 timing**: for indirectly obtained data, the within-one-month / first-communication / before-disclosure rule is easy to miss.\n- **DPDPA ≠ GDPR**: do not relabel a GDPR notice as DPDPA-compliant — the itemised consent notice, withdrawal parity and language requirements are distinct `[verify current]`.\n- **Dark-pattern consent**: pre-ticked boxes and nudged \"accept\" undermine the whole notice; keep choices genuine.\n\n## References\n\n- Volatile facts: IN-DPDP-01, IN-DPDP-03 (DPDP Rules timing); mark `[verify current]` on any date/threshold.\n- GDPR / UK GDPR Arts. 12-14, 21, 22; DPDP Act 2023 ss.5-6 and DPDP Rules 2025; US state privacy notice duties (CCPA/CPRA and successors) `[verify current]`.",
+   "references": {},
+   "description": "Drafts layered privacy notices and itemised consent notices from a data inventory: GDPR / UK GDPR Art. 13-14 transparency content and DPDPA notice/consent requirements, in plain language, with a short top layer and a full detailed layer. Use to write or refresh a privacy policy, a just-in-time notice, or a DPDPA consent notice. Not for the lawful-basis analysis behind it → privacy/legitimate-interest-assessment or privacy/gdpr-compliance; not for cookie-banner consent specifically → privacy/cookie-and-tracking.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "privacy/cross-border-transfer",
@@ -1282,23 +1337,129 @@
    "module": "privacy",
    "name": "cookie-and-tracking",
    "title": "Cookies, SDKs & tracking",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Consent and disclosure requirements for cookies, pixels and mobile SDKs."
+   "summary": "Consent and disclosure requirements for cookies, pixels and mobile SDKs.",
+   "meta": {
+    "name": "privacy-cookie-and-tracking",
+    "description": "Assesses and fixes consent and disclosure for cookies, pixels, tags and mobile SDKs: ePrivacy consent for non- essential storage/access, the strictly-necessary exemption, consent-banner design (no dark patterns), a tracker inventory, and the GDPR/DPDPA overlay. Use to review a cookie banner, build a cookie policy, or audit website/app trackers. Not for the site's full privacy notice → privacy/privacy-notice-drafter; not for the legitimate-interests analysis of other processing → privacy/legitimate-interest-assessment.",
+    "module": "privacy",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "EU",
+     "UK",
+     "IN"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of audit (review existing banner/trackers), policy (draft a cookie policy) or design (specify a compliant consent flow)."
+     },
+     {
+      "name": "tracker_inventory",
+      "required": false,
+      "description": "List of cookies/pixels/SDKs — name, provider, purpose (essential / functional / analytics / advertising), duration, and whether first- or third-party."
+     },
+     {
+      "name": "jurisdictions",
+      "required": false,
+      "description": "Markets served — drives the consent model (EU/UK opt-in vs some US opt-out regimes)."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "privacy/privacy-notice-drafter",
+     "privacy/legitimate-interest-assessment",
+     "privacy/us-state-privacy",
+     "privacy/gdpr-compliance",
+     "regulatory/ai-governance"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Cookies, SDKs & Tracking\n\nGets consent and disclosure right for everything that stores or reads information on a user's device — cookies, pixels, tags, fingerprinting and mobile SDKs — under ePrivacy (consent) with the GDPR/DPDPA overlay. The deliverable is a defensible consent model plus a cookie policy that matches the trackers actually running.\n\n## When to use / not use\n\n- Use: reviewing a cookie banner or CMP; building a cookie/tracking policy; auditing the trackers on a site or app; specifying a compliant consent flow for a new build; reconciling the banner with what actually fires.\n- Hand off: the site's overall privacy notice → `privacy/privacy-notice-drafter`; the LI analysis for non-cookie processing → `privacy/legitimate-interest-assessment`; US opt-out-of-sale/sharing and GPC specifics → `privacy/us-state-privacy`.\n\n## Inputs to collect first\n\n1. The **actual** tracker inventory (scan the site/app, don't trust the policy) — name, provider, purpose, first/third-party, duration.\n2. Markets served (EU/UK opt-in vs some US opt-out models) and audience (children?).\n3. The current banner/CMP behaviour: what fires **before** consent, and what each button does.\n4. Whether any tracking feeds advertising, cross-site profiling, or AI model training.\n\n## Method\n\n1. **Classify each tracker** by purpose: strictly necessary, functional/preferences, analytics, advertising/profiling. Only **strictly necessary** (needed to provide a service the user explicitly requested — e.g. session, load-balancing, cart, security) is exempt from consent.\n2. **Apply the ePrivacy consent rule**: storing or accessing information on a device for anything **non-essential** requires **prior, specific, informed, freely-given consent** — before the tracker fires. \"Analytics\" and \"advertising\" are not strictly necessary; neither is consent replaceable by legitimate interests for device storage/access.\n3. **Assess the consent mechanism** (no dark patterns): \"Accept all\" and \"Reject all\" must be **equally prominent and equally easy** (reject available at the first layer); no pre-ticked boxes; granular choice by purpose; no cookie walls where that negates \"freely given\" `[verify current]`; easy withdrawal as simple as giving; re-prompt on material change.\n4. **Check pre-consent firing**: nothing non-essential should load before consent — the commonest and most-enforced failure. Verify tags are gated, not just hidden.\n5. **GDPR overlay**: once consent is the ePrivacy gate, the resulting processing still needs GDPR compliance — the privacy notice, retention, international transfers (many ad/analytics vendors transfer to the US — check the mechanism), and no special-category inference without an Art. 9 condition.\n6. **India / DPDPA overlay**: device identifiers tied to an individual are personal data; consent must meet DPDPA standards (itemised, withdrawable); children's tracking/behavioural monitoring/targeted ads are restricted (s.9) `[verify current]` (IN-DPDP-03).\n7. **US overlay** (if in scope): many states use an **opt-out** model for sale/share and targeted advertising, honour **Global Privacy Control**, and require a \"Do Not Sell or Share\" link — different from EU opt-in `[verify current]`.\n8. **Reconcile policy ↔ reality**: the cookie policy/table must list exactly the trackers that run, their purpose and duration; remove orphan entries and add undisclosed ones.\n9. **Score** and set a decision: **COMPLIANT / FIX BEFORE RELEASE / STOP (non-essential firing pre-consent)**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Non-essential trackers fire before consent | Nothing non-essential loads pre-consent | S1 | Gate all non-essential tags at the CMP |\n| \"Reject\" harder than \"Accept\" | Equal prominence; reject at first layer | S2 | Redesign banner |\n| Pre-ticked / bundled consent | Granular, unticked, per-purpose | S2 | Un-bundle; default off |\n| Consent used where exemption misclaimed | Strictly-necessary limited to service-essential | S2 | Reclassify; gate the rest |\n| Cookie wall negating free consent | Genuine choice to decline non-essential | S2 | Remove/limit wall `[verify current]` |\n| Policy ≠ actual trackers | Cookie table matches what fires | S2 | Rebuild table from a live scan |\n| No withdrawal mechanism | Withdraw as easy as consent; persistent control | S2 | Add a standing preferences link |\n| International transfer by ad/analytics vendor unaddressed | Transfer mechanism in place + disclosed | S2 | `privacy/cross-border-transfer` |\n| Children tracked without protection | No behavioural tracking/targeted ads to children | S1 (India/known-child) | Disable for children |\n| US opt-out / GPC not honoured | \"Do Not Sell/Share\" + GPC respected | S2 (US) | `privacy/us-state-privacy` |\n\n## Output\n\nLead with `Decision: COMPLIANT | FIX BEFORE RELEASE | STOP — <headline failure or \"clean\">`. Then the output contract. Add:\n\n- **Tracker table**: name · provider · purpose · essential? · consent required? · duration · first/third-party · status.\n- **Banner findings**: pre-consent firing, button parity, granularity, withdrawal.\n- Policy mode: the cookie policy as a titled section with the tracker table embedded.\n- One JSON finding per issue with `category: \"cookies\"`.\n\n## Edge cases & pitfalls\n\n- **\"Analytics is essential\"**: it is not — convenience to you is not necessity to the user; gate it behind consent.\n- **Server-side / GTM ≠ exempt**: moving tags server-side does not remove the consent requirement for device access.\n- **Fingerprinting and SDKs count**: ePrivacy covers *any* access to device information, not just cookies — mobile SDKs and fingerprinting are in scope.\n- **Opt-in vs opt-out by market**: don't apply one global model — EU/UK is opt-in; several US states are opt-out with GPC.\n- **Silence isn't consent**: continuing to browse is not valid consent in the EU/UK.\n\n## References\n\n- Volatile facts: IN-DPDP-03 (DPDPA timing); mark `[verify current]` on any date/threshold or evolving regulator position (cookie walls, consent-or-pay).\n- ePrivacy Directive 2002/58/EC Art. 5(3) (and national implementations, e.g. PECR in the UK); GDPR Arts. 6, 7, 9, 44-49; EDPB cookie/consent guidance `[verify current]`; DPDP Act 2023 s.9; US state privacy laws and Global Privacy Control `[verify current]`.",
+   "references": {},
+   "description": "Assesses and fixes consent and disclosure for cookies, pixels, tags and mobile SDKs: ePrivacy consent for non- essential storage/access, the strictly-necessary exemption, consent-banner design (no dark patterns), a tracker inventory, and the GDPR/DPDPA overlay. Use to review a cookie banner, build a cookie policy, or audit website/app trackers. Not for the site's full privacy notice → privacy/privacy-notice-drafter; not for the legitimate-interests analysis of other processing → privacy/legitimate-interest-assessment.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "privacy/legitimate-interest-assessment",
    "module": "privacy",
    "name": "legitimate-interest-assessment",
    "title": "Legitimate interest assessment",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "EU",
     "UK"
    ],
-   "summary": "Three-part purpose/necessity/balancing test with documented outcome."
+   "summary": "Three-part purpose/necessity/balancing test with documented outcome.",
+   "meta": {
+    "name": "privacy-legitimate-interest-assessment",
+    "description": "Runs and documents a legitimate-interests assessment (LIA) under GDPR / UK GDPR Art. 6(1)(f): the three-part purpose, necessity and balancing test, with safeguards, the objection right, and a recorded outcome. Use when relying on legitimate interests as the lawful basis (direct marketing to existing customers, fraud prevention, network security, intra-group transfers, analytics). Not for choosing a lawful basis from scratch → privacy/gdpr-compliance; not for an AI/high-risk DPIA → privacy/privacy-impact-assessment.",
+    "module": "privacy",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "EU",
+     "UK"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "processing",
+      "required": true,
+      "description": "The processing activity — purpose, data categories, data subjects, source, who it is shared with, and retention."
+     },
+     {
+      "name": "our_interest",
+      "required": false,
+      "description": "The business (or third-party) interest relied on, and whether a less intrusive alternative exists."
+     },
+     {
+      "name": "context",
+      "required": false,
+      "description": "Reasonable expectations of the data subjects, any children/vulnerable groups, special-category data, and existing safeguards."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "privacy/gdpr-compliance",
+     "privacy/privacy-impact-assessment",
+     "privacy/privacy-notice-drafter",
+     "privacy/cookie-and-tracking",
+     "privacy/data-subject-requests"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Legitimate Interest Assessment (LIA)\n\nDocuments whether legitimate interests (GDPR Art. 6(1)(f)) is an appropriate lawful basis for a processing activity, by working the three-part test and recording the outcome so it is defensible to a regulator and to data subjects. The deliverable is a completed LIA with a clear go / no-go and the safeguards the \"go\" depends on.\n\n## When to use / not use\n\n- Use: relying (or proposing to rely) on legitimate interests — customer-base direct marketing, fraud prevention, information/network security, debt recovery, intra-group administrative transfers, product analytics, enrichment, and most B2B processing.\n- Hand off: picking a lawful basis in the first place → `privacy/gdpr-compliance`; a high-risk/large-scale or new-tech activity that needs a full DPIA → `privacy/privacy-impact-assessment` (an LIA can feed it); cookies/SDKs, which usually need **consent** under ePrivacy, not LI → `privacy/cookie-and-tracking`; DPDPA/India, which has **no** legitimate-interests basis of this kind → `privacy/gdpr-compliance` / the India pack.\n\n## Inputs to collect first\n\n1. The precise purpose (specific, not \"business purposes\") and whether it is our interest or a third party's.\n2. Data categories, volume, data subjects, and source (collected from them or obtained indirectly).\n3. Whether any data is special-category (Art. 9) or criminal-offence data, or relates to children.\n4. Data subjects' reasonable expectations given the relationship and how data was collected.\n5. Existing and available safeguards (minimisation, pseudonymisation, opt-out, retention limits).\n\n## Method\n\nWork the three parts in order; a failure at any part means **do not** rely on LI.\n\n1. **Purpose test — is there a legitimate interest?**\n   - Name the interest specifically; it can be ours or a third party's (and includes commercial interests). Confirm it is real, present and lawful.\n   - Note any sector/recital support (e.g. Recital 47 direct marketing *may* be a legitimate interest; Recital 49 network/information security).\n2. **Necessity test — is the processing necessary for it?**\n   - Is the processing a *targeted and proportionate* way to achieve the interest, with **no less intrusive alternative**? If the aim is achievable another way (less data, consent where practical, aggregation), LI necessity fails.\n3. **Balancing test — do the individual's interests override?** Weigh:\n   - **Nature of the data** — special-category or criminal-offence data heavily tilts against LI (and Art. 9 needs its own condition regardless); children's data needs extra weight.\n   - **Reasonable expectations** — would the individual expect this use given how you got the data and your relationship? Unexpected, invisible or novel uses tilt against.\n   - **Impact** — intrusiveness, volume, whether it enables tracking/profiling or significant decisions, and the risk of harm.\n   - **Safeguards** — minimisation, pseudonymisation, transparency, easy opt-out/objection, short retention — these can tip a borderline case to \"pass\".\n4. **Right to object** — Art. 21: data subjects can object to LI-based processing at any time; for **direct marketing** the objection is **absolute** (Art. 21(2)-(3)) and must be honoured with no balancing. Confirm an easy opt-out exists and the privacy notice discloses the LI basis and the objection right.\n5. **Record the outcome** — pass / fail per part, the safeguards relied on, the residual risk, and the date/owner. Keep it with the ROPA so it can be produced on request.\n6. **Score** and set a decision: **RELY ON LI (with safeguards) / DO NOT RELY — use <basis> / RELY ONLY IF <condition>**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Interest vague / not identified | Specific, real, lawful interest named | S2 | Re-state the purpose precisely |\n| Necessity not shown / less intrusive route exists | Processing is targeted; no lighter alternative | S2 | Use the lighter route or another basis |\n| Special-category or criminal-offence data on LI alone | Art. 9/10 condition secured; LI alone insufficient | S1 | Stop; secure Art. 9 condition or consent |\n| Children's data not given extra weight | Heightened balancing; often consent | S2 | Re-balance; consider consent |\n| Processing outside reasonable expectations | Expectation supported by relationship/notice | S2 | Add transparency or drop the use |\n| No easy opt-out / objection route | Simple, free objection; absolute for marketing | S1 for direct marketing | Build opt-out before go-live |\n| LI basis not disclosed in the notice | Notice names LI + the interest + objection right | S2 | `privacy/privacy-notice-drafter` |\n| No recorded LIA | Dated LIA stored with the ROPA | S3 | Document and file |\n| Relying on LI for cookies/tracking | ePrivacy consent, not LI | S2 | `privacy/cookie-and-tracking` |\n\n## Output\n\nLead with `Decision: RELY ON LI | DO NOT RELY (use <basis>) | RELY ONLY IF <condition> — <one-line reason>`. Then the output contract. Add:\n\n- **LIA record**: purpose test · necessity test · balancing (data nature · expectations · impact · safeguards) — each with a one-line conclusion.\n- **Safeguards relied on** and the **objection route**.\n- One JSON finding per failed/at-risk part with `category: \"lawful-basis\"`.\n\n## Edge cases & pitfalls\n\n- **Consent dressed as LI**: if you could and should have asked for consent (e.g. non-essential tracking), LI is not a workaround — and ePrivacy may mandate consent regardless.\n- **Marketing objection is absolute**: no balancing once an individual objects to direct marketing — suppress, don't debate.\n- **DPDPA has no LI basis**: do not port this analysis to India; DPDPA relies on consent or specified \"legitimate uses\" (s.7) with different contours `[verify current]`.\n- **Special-category trap**: Art. 6 LI never substitutes for an Art. 9 condition — you need both.\n- **One LIA per purpose**: a new purpose is a new LIA, not a tweak to the old one.\n\n## References\n\n- Volatile facts: cite DPDPA/India points via the India pack where relevant; mark `[verify current]`.\n- GDPR / UK GDPR Arts. 6(1)(f), 9, 10, 13-14, 21; Recitals 47-49; ICO legitimate-interests guidance and LIA template; EDPB guidance on Art. 6(1)(f) `[verify current]`.",
+   "references": {},
+   "description": "Runs and documents a legitimate-interests assessment (LIA) under GDPR / UK GDPR Art. 6(1)(f): the three-part purpose, necessity and balancing test, with safeguards, the objection right, and a recorded outcome. Use when relying on legitimate interests as the lawful basis (direct marketing to existing customers, fraud prevention, network security, intra-group transfers, analytics). Not for choosing a lawful basis from scratch → privacy/gdpr-compliance; not for an AI/high-risk DPIA → privacy/privacy-impact-assessment.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "privacy/regional-privacy-pack",
@@ -1653,11 +1814,72 @@
    "module": "regulatory",
    "name": "whistleblower-programme",
    "title": "Whistleblower programme",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Design or audit speak-up channels, protections and investigation workflow."
+   "summary": "Design or audit speak-up channels, protections and investigation workflow.",
+   "meta": {
+    "name": "regulatory-whistleblower-programme",
+    "description": "Designs or audits a speak-up / whistleblower programme: reporting channels, confidentiality, anti-retaliation protection, investigation workflow and governance reporting, across the EU Whistleblowing Directive, UK PIDA, US (SOX / Dodd-Frank) and India (Companies Act vigil mechanism, SEBI LODR). Use to draft or update a whistleblower / speak-up policy, stand up a channel, or review a programme against the law. Not for investigating a single live report → employment/workplace-investigation; not for the channel's privacy notice → privacy/privacy-notice-drafter.",
+    "module": "regulatory",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "EU",
+     "UK",
+     "US",
+     "IN"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of draft (new policy/programme), audit (review an existing programme against the law) or channel (stand up / assess a reporting channel)."
+     },
+     {
+      "name": "footprint",
+      "required": false,
+      "description": "Where the organisation operates and headcount per country — drives which regimes bind (EU 50-employee threshold, India company class, US listing status)."
+     },
+     {
+      "name": "existing_policy",
+      "required": false,
+      "description": "Current whistleblowing / code-of-conduct / grievance policy and any channel vendor in use."
+     },
+     {
+      "name": "sector",
+      "required": false,
+      "description": "Financial services, listed company, public sector, healthcare — adds sector duties (e.g. SEBI LODR, FCA SYSC 18, SOX audit committee)."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "employment/workplace-investigation",
+     "disputes/regulatory-investigation",
+     "regulatory/anti-bribery",
+     "privacy/privacy-notice-drafter",
+     "drafting/policy-drafter",
+     "corporate/corporate-governance-review"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Whistleblower Programme\n\nBuilds or stress-tests a speak-up programme so reports surface internally, reach a competent handler, are investigated fairly, and never cost the reporter their job — then proves all of that on the record. The deliverable is a defensible programme (policy + channel + workflow + governance), not just a policy document.\n\n## When to use / not use\n\n- Use: drafting or refreshing a whistleblower / speak-up policy; choosing or assessing a reporting channel (hotline, web form, ombudsperson); mapping which regimes bind across the footprint; preparing the audit-committee / board view of the programme.\n- Hand off: a specific report has come in and needs investigating → `employment/workplace-investigation` (people conduct) or `disputes/regulatory-investigation` (regulator-facing); bribery/corruption controls the programme feeds → `regulatory/anti-bribery`; the data-protection notice and retention for the channel → `privacy/privacy-notice-drafter`; the policy house style and approval → `drafting/policy-drafter`.\n\n## Inputs to collect first\n\n1. Countries of operation and headcount per country (sets the EU 50-worker threshold and group-sharing analysis).\n2. Entity type: EU listing, US SEC registrant, Indian company class (listed / prescribed), regulated financial entity.\n3. Who currently handles concerns, through what channels, and whether any are anonymous.\n4. Existing policy, code of conduct, and the retaliation/grievance interface.\n5. Scope intended: wrongdoing only, or the wider \"any concern\" speak-up culture.\n\n## Method\n\n1. **Map the binding regimes** across the footprint. State which apply and why:\n   - **EU** — Directive (EU) 2019/1937 requires internal channels for legal entities with **50+ workers** (and all financial-services firms and public bodies regardless of size), acknowledgement within **7 days**, feedback within **3 months**, confidential handling, and a prohibition on retaliation with a reversed burden of proof. Transposition and detail vary by member state — treat the national transposing law as controlling and mark `[verify current]`.\n   - **UK** — Public Interest Disclosure Act 1998 (in the Employment Rights Act 1996): protects \"qualifying disclosures\" in the public interest made to prescribed persons; no mandatory internal-channel statute for general employers, but FCA/PRA **SYSC 18** mandates channels for regulated firms.\n   - **US** — SOX s.806 (anti-retaliation) and s.301 (audit-committee complaint procedures for listed companies); Dodd-Frank SEC whistleblower bounty and anti-retaliation; sector programmes.\n   - **India** — Companies Act 2013 **s.177(9)-(10)** vigil mechanism (listed companies and prescribed classes; audit-committee oversight; direct access to the chair); **SEBI LODR Reg. 4(2)(d)(iv) / 22** for listed entities; the Whistle Blowers Protection Act 2014 covers public-sector disclosures and is **not** in general private-sector force — do not cite it as a private-employer duty `[verify current]`.\n2. **Decide scope and reportable categories** — at minimum legal/regulatory breaches, fraud, bribery, safety, and harm to the public; say whether personal grievances route elsewhere.\n3. **Design the channels** — multiple, accessible routes (web, phone, in person, to a named independent person), available to workers *and* often third parties (suppliers, contractors) where the regime requires; support anonymous reporting where lawful; allow external reporting to a competent authority without losing protection.\n4. **Confidentiality & anonymity** — restrict access to reporter identity to the handler; separate the case file from HR records; state when identity may have to be revealed (legal compulsion) and that the reporter is told first where possible.\n5. **Anti-retaliation** — prohibit detriment, name examples (dismissal, demotion, exclusion, informal freeze-out), extend protection to facilitators and witnesses, and reflect the **reversed burden** where it applies (the employer must show any detriment was unrelated).\n6. **Triage & investigation workflow** — intake → acknowledge (≤7 days EU) → assess/triage → conflicts check → investigate or refer → outcome → feedback to reporter (≤3 months EU) → remediation. Keep the handler independent of the subject.\n7. **Governance & reporting** — audit-committee / board oversight, periodic metrics (volume, categories, outcomes, time-to-close, substantiation rate), and programme review cadence.\n8. **Data protection** — the channel processes personal data; require a lawful basis, a privacy notice, tight access, and defined retention (delete unfounded reports promptly; keep substantiated ones per policy). Cross-reference the DPA/DPDPA analysis.\n9. **Score gaps** against the Checks table and set a decision: **APPROVE / APPROVE WITH CONDITIONS / REJECT**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Mandatory internal channel missing (EU 50+, regulated firm, listed co.) | Compliant channel live in each in-scope entity | S1 | Stand up channel before go-live |\n| No anti-retaliation protection / no reversed-burden reflected | Explicit prohibition + examples + burden shift where law requires | S1 | Add protection clause; train managers |\n| Acknowledgement / feedback timelines absent | ≤7 days ack, ≤3 months feedback (EU) stated and tracked | S2 | Add SLA to workflow + case system |\n| Confidentiality of reporter identity not guaranteed | Access-restricted handling; disclosure only on legal compulsion with notice | S2 | Re-architect access controls |\n| No anonymous route where expected | Anonymous intake supported and lawful in-country | S3 (S2 where market-standard/required) | Add anonymous channel |\n| Handler not independent of subject | Conflicts check + escalation to chair/audit committee | S2 | Add recusal + escalation path |\n| Third parties excluded where regime includes them | Channel open to contractors/suppliers as required | S3 | Extend scope |\n| No governance reporting | Periodic metrics to audit committee/board | S3 | Add reporting pack |\n| Data protection not addressed | Lawful basis, notice, retention, access limits | S2 | `privacy/privacy-notice-drafter` + retention rule |\n| No records / defensibility trail | Case log with timeline, decisions, outcomes | S2 | Adopt case-management system |\n\n## Output\n\nLead with `Decision: APPROVE | APPROVE WITH CONDITIONS | REJECT — <key reason>`. Then the output contract. Add:\n\n- **Applicability matrix**: entity / country · regime · threshold met? · key duty · status.\n- **Gap list** mapped to the Checks table with owners and due dates.\n- Draft mode: return the policy as a titled section (purpose, scope, channels, confidentiality, anti-retaliation, process & timelines, roles, data protection, review) plus a short manager/worker-facing summary. One JSON finding per gap with `category: \"whistleblowing\"`.\n\n## Edge cases & pitfalls\n\n- **Group sharing**: EU rules on whether group entities can share one channel are member-state-specific — do not assume a single group hotline satisfies every local law `[verify current]`.\n- **Anonymous ≠ always lawful**: some jurisdictions restrict or discourage anonymous reports — check per country rather than defaulting to \"anonymous everywhere\".\n- **India public vs private**: the Whistle Blowers Protection Act 2014 is a public-sector instrument; private-company duties flow from the Companies Act vigil mechanism and SEBI LODR, not that Act.\n- **Personal grievances**: routing everything through the whistleblowing channel buries real wrongdoing — keep an HR grievance path and signpost it.\n- **Retaliation by omission**: freeze-outs and missed promotions are detriment too; managers need training, not just a clause.\n\n## References\n\n- Volatile facts: cite live where a date/threshold is load-bearing; mark `[verify current]`.\n- Directive (EU) 2019/1937; national transposing laws; Public Interest Disclosure Act 1998 (UK); FCA SYSC 18; SOX ss.301, 806; Dodd-Frank s.922; Companies Act 2013 s.177(9)-(10) and Rule 7 (Meetings of Board) (India); SEBI LODR Reg. 4/22.",
+   "references": {},
+   "description": "Designs or audits a speak-up / whistleblower programme: reporting channels, confidentiality, anti-retaliation protection, investigation workflow and governance reporting, across the EU Whistleblowing Directive, UK PIDA, US (SOX / Dodd-Frank) and India (Companies Act vigil mechanism, SEBI LODR). Use to draft or update a whistleblower / speak-up policy, stand up a channel, or review a programme against the law. Not for investigating a single live report → employment/workplace-investigation; not for the channel's privacy notice → privacy/privacy-notice-drafter.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "regulatory/accessibility-compliance",
@@ -2674,11 +2896,66 @@
    "module": "outside-counsel",
    "name": "matter-budget",
    "title": "Matter budget & forecast",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Build a phase budget and track burn against it."
+   "summary": "Build a phase budget and track burn against it.",
+   "meta": {
+    "name": "outside-counsel-matter-budget",
+    "description": "Builds a phase-based budget and fee forecast for a legal matter and tracks burn against it: phase breakdown, fee-arrangement choice, assumptions and contingencies, approval thresholds, and a variance / early-warning view. Use to scope a budget for a new matter or outside-counsel engagement, pressure-test a firm's estimate, or set up burn tracking. Not for reviewing an invoice against the budget → outside-counsel/invoice-review; not for the matter's work plan → matters/matter-plan.",
+    "module": "outside-counsel",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "self-serve",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of build (new budget), review (pressure-test a firm's estimate) or track (burn vs budget from time/invoice data)."
+     },
+     {
+      "name": "matter",
+      "required": true,
+      "description": "Matter type, scope, complexity, likely duration, jurisdiction(s), and the outcome sought."
+     },
+     {
+      "name": "fee_context",
+      "required": false,
+      "description": "Rate card or proposed fee arrangement, any budget ceiling, and prior comparable matters."
+     },
+     {
+      "name": "actuals",
+      "required": false,
+      "description": "For track mode — fees billed/accrued to date by phase."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md"
+    ],
+    "related": [
+     "outside-counsel/invoice-review",
+     "outside-counsel/fee-arrangements",
+     "outside-counsel/billing-guidelines",
+     "matters/matter-plan",
+     "matters/legal-kpi-dashboard"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Matter Budget & Forecast\n\nTurns a matter's scope into a defensible phase budget, picks the fee arrangement that fits the risk, and sets up the burn-tracking that catches an overrun while there is still time to act. The output is a budget a GC can approve and hold counsel to.\n\n## When to use / not use\n\n- Use: scoping spend for a new matter; setting an outside-counsel budget before instructing; pressure-testing a firm's estimate; building the burn tracker for a live matter.\n- Hand off: an invoice to check against guidelines/budget → `outside-counsel/invoice-review`; choosing between hourly / fixed / capped / success fees in depth → `outside-counsel/fee-arrangements`; the substantive work plan and critical path → `matters/matter-plan`.\n\n## Inputs to collect first\n\n1. Matter type, scope boundaries, and the outcome sought (settle, defend, close, file).\n2. Complexity drivers: parties, jurisdictions, document volume, novelty, urgency.\n3. Likely phases and duration, and the key decision points that could change scope.\n4. Rate card / proposed fee arrangement and any approved ceiling.\n5. Comparable prior matters, if any, for calibration.\n\n## Method\n\n1. **Phase the matter** using a standard task-based structure (adapt to type). Litigation example: assessment → pleadings → discovery/disclosure → motions → expert → pre-trial → trial → appeal. Transaction example: structuring → diligence → drafting → negotiation → signing → closing → post-closing.\n2. **Estimate each phase** bottom-up: tasks × staffing mix × hours × rate, or a fixed/capped figure where the phase is predictable. State the staffing leverage (partner/associate/paralegal split) — over-weighted senior time is the most common overrun.\n3. **Choose the fee arrangement per phase**: hourly where scope is uncertain, fixed/capped where it is predictable, success/contingency where interests align and it is permitted. Flag any arrangement that needs a conflict or ethics check `[verify current]`.\n4. **Add assumptions and contingency**: list the assumptions each number depends on (no appeal, ≤N custodians, one round of negotiation) and a contingency line sized to the uncertainty, not a flat percentage applied blindly.\n5. **Set approval thresholds and triggers**: the ceiling, the per-phase caps, and the events that require a re-forecast (scope change, new party, adverse ruling).\n6. **Build the tracker** (track mode): compare actuals to phase budget, compute % burn and projected outturn, and raise an early-warning when a phase crosses a threshold (e.g. 80% burn before the phase is 80% done).\n7. **Score** the budget's soundness and set a decision: **APPROVE / APPROVE WITH CONDITIONS / REVISE**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| No phase breakdown | Task-based phases with per-phase figures | S2 | Rebuild bottom-up |\n| Assumptions unstated | Every number tied to a named assumption | S2 | List assumptions; re-estimate exposed lines |\n| Staffing leverage wrong | Junior-weighted where appropriate; senior time justified | S3 | Re-mix staffing; renegotiate |\n| Fee arrangement mismatched to risk | Fixed/capped where predictable; hourly where not | S3 | Switch arrangement per phase |\n| No contingency / blanket % | Contingency sized to real uncertainty | S3 | Right-size contingency |\n| No ceiling or re-forecast triggers | Ceiling + events that force re-forecast | S2 | Add thresholds and triggers |\n| No burn tracking | Actuals vs budget with early warning | S2 (track mode) | Stand up tracker |\n| Scope creep unmanaged | Change-control: new scope = new estimate + approval | S2 | Add change-control step |\n\n## Output\n\nLead with `Decision: APPROVE | APPROVE WITH CONDITIONS | REVISE — <headline number + confidence>`. Then the output contract. Add:\n\n- **Budget table**: phase · scope · fee basis · estimate · assumptions.\n- **Totals**: base, contingency, ceiling; staffing leverage summary.\n- Track mode: phase · budget · actual · % burn · projected outturn · status (🟢/🟡/🔴).\n- One JSON finding per material risk or overrun with `category: \"budget\"`.\n\n## Edge cases & pitfalls\n\n- **False precision**: a tidy number with no assumptions is less useful than a range with stated drivers — show the range.\n- **Contingency as a slush fund**: contingency covers *identified* uncertainty, not scope you forgot to price.\n- **Phase blending**: firms that bill across phases hide overruns — require phase codes in billing guidelines so the tracker works.\n- **The 80/80 rule**: 80% of budget burned before 80% of the phase is done is the earliest reliable overrun signal — wire it into the tracker.\n\n## References\n\n- `outside-counsel/billing-guidelines` for the billing codes the tracker depends on; `outside-counsel/fee-arrangements` for arrangement selection.",
+   "references": {},
+   "description": "Builds a phase-based budget and fee forecast for a legal matter and tracks burn against it: phase breakdown, fee-arrangement choice, assumptions and contingencies, approval thresholds, and a variance / early-warning view. Use to scope a budget for a new matter or outside-counsel engagement, pressure-test a firm's estimate, or set up burn tracking. Not for reviewing an invoice against the budget → outside-counsel/invoice-review; not for the matter's work plan → matters/matter-plan.",
+   "risk_tier": "self-serve",
+   "version": "1.0.0"
   },
   {
    "id": "outside-counsel/performance-scorecard",
@@ -2781,11 +3058,61 @@
    "module": "matters",
    "name": "matter-plan",
    "title": "Matter plan & critical path",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Phases, workstreams, dependencies and milestones from agreed scope."
+   "summary": "Phases, workstreams, dependencies and milestones from agreed scope.",
+   "meta": {
+    "name": "matters-matter-plan",
+    "description": "Turns an agreed matter scope into a work plan: phases, workstreams, dependencies, critical path, milestones, owners and RACI, and the key risks/decisions along the way. Use to plan a new matter, build a project plan for a transaction or dispute, or sequence the work after intake. Not for the cost view → outside-counsel/matter-budget; not for scoping the matter itself at intake → intake/matter-scoping.",
+    "module": "matters",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "self-serve",
+    "inputs": [
+     {
+      "name": "matter",
+      "required": true,
+      "description": "Matter type, agreed scope and objective, key dates/deadlines, and the parties/teams involved."
+     },
+     {
+      "name": "constraints",
+      "required": false,
+      "description": "Hard deadlines (court, regulatory, deal), resource limits, and external dependencies (counsel, experts, counterparties)."
+     },
+     {
+      "name": "known_risks",
+      "required": false,
+      "description": "Risks or open decisions already identified that the plan must account for."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md"
+    ],
+    "related": [
+     "intake/matter-scoping",
+     "outside-counsel/matter-budget",
+     "matters/raid-log",
+     "matters/status-report",
+     "matters/stakeholder-comms"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Matter Plan & Critical Path\n\nConverts an agreed scope into a sequenced plan a team can execute: what happens in what order, who owns it, what it depends on, and which dates cannot move. The output is a plan plus the critical path and the risks that threaten it — not a flat task list.\n\n## When to use / not use\n\n- Use: planning a new matter after scope is agreed; building a transaction or litigation project plan; re-planning after a scope change or an adverse event.\n- Hand off: scoping the matter at intake (issues, budget, staffing) → `intake/matter-scoping`; the money view → `outside-counsel/matter-budget`; tracking risks/assumptions/issues/decisions as the matter runs → `matters/raid-log`; reporting progress → `matters/status-report`.\n\n## Inputs to collect first\n\n1. Objective and definition of done for the matter.\n2. Hard dates: statutory/court deadlines, deal timetable, regulatory windows — mark the non-movable ones.\n3. Workstreams and the teams/people who own them (internal and external).\n4. Known dependencies on third parties (counsel, experts, counterparties, authorities).\n5. Known risks and the decisions that will shape the path.\n\n## Method\n\n1. **Confirm scope and objective** in one line; list explicit out-of-scope items so the plan has edges.\n2. **Break into phases and workstreams** appropriate to the type (transaction: diligence/drafting/negotiation/signing/closing; dispute: assessment/pleadings/disclosure/evidence/hearing; investigation: scoping/collection/analysis/reporting).\n3. **Sequence and find dependencies**: for each task note what must finish first (finish-to-start) and what can run in parallel. Mark external dependencies distinctly — they are the usual slip points.\n4. **Identify the critical path**: the longest chain of dependent tasks that sets the earliest finish. Anchor it to the non-movable dates and work backwards; flag where the path has no slack.\n5. **Set milestones and owners**: name a milestone per phase with a date and an owner; assign each workstream a single accountable owner (RACI — one A per task).\n6. **Surface risks and decisions**: list what could knock the plan off the critical path and the decisions that gate progress; give each a trigger and an owner (feed `matters/raid-log`).\n7. **Build the schedule view**: phases with start/finish, dependencies, milestones, and the critical path highlighted. Add buffer only where uncertainty is real and name what it absorbs.\n8. **Score** the plan's executability and set a decision: **APPROVE / APPROVE WITH CONDITIONS / REVISE**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| No defined objective / done | One-line objective + out-of-scope list | S2 | Define with the matter owner first |\n| Non-movable dates not anchored | Court/regulatory/deal dates marked and planned back from | S1 if a hard deadline is at risk | Re-plan to protect the date |\n| Dependencies missing | Each task's predecessors + external dependencies mapped | S2 | Map dependencies; re-sequence |\n| No critical path | Longest dependent chain identified and watched | S2 | Compute critical path |\n| Owners unassigned / multiple As | One accountable owner per workstream (RACI) | S2 | Assign single owners |\n| Milestones vague | Dated, verifiable milestones per phase | S3 | Make milestones testable |\n| Risks to the path untracked | Each path risk has a trigger + owner | S3 | Feed `matters/raid-log` |\n| No slack where uncertainty is high | Buffer sized to real uncertainty, named | S3 | Add targeted buffer |\n\n## Output\n\nLead with `Decision: APPROVE | APPROVE WITH CONDITIONS | REVISE — <earliest finish + the binding constraint>`. Then the output contract. Add:\n\n- **Plan table**: phase/task · owner (A) · depends on · start → finish · milestone?\n- **Critical path**: the ordered chain and where it has no slack.\n- **Risks to the path**: risk · trigger · owner · mitigation.\n- One JSON finding per threat to the critical path with `category: \"schedule\"`.\n\n## Edge cases & pitfalls\n\n- **A date is not a plan**: a deadline with no backward-planned path behind it is the commonest way matters slip — plan back from every hard date.\n- **Parallel ≠ free**: parallel workstreams still compete for the same people; check resource clashes, not just logical dependencies.\n- **External slip**: counsel, experts and counterparties cause most delay — build their lead times in and track them as dependencies, not assumptions.\n- **Plan vs log**: this skill produces the plan; keep the living risk/issue/decision record in `matters/raid-log` so the plan stays stable.\n\n## References\n\n- `matters/raid-log` for live risk/assumption/issue/decision tracking; `matters/status-report` for progress reporting against this plan.",
+   "references": {},
+   "description": "Turns an agreed matter scope into a work plan: phases, workstreams, dependencies, critical path, milestones, owners and RACI, and the key risks/decisions along the way. Use to plan a new matter, build a project plan for a transaction or dispute, or sequence the work after intake. Not for the cost view → outside-counsel/matter-budget; not for scoping the matter itself at intake → intake/matter-scoping.",
+   "risk_tier": "self-serve",
+   "version": "1.0.0"
   },
   {
    "id": "matters/raid-log",
