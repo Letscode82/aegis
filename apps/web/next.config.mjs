@@ -42,16 +42,16 @@ const nextConfig = {
   // runtime from node_modules (and the dynamic import()'s try/catch degrades
   // to "keep the filename" if they're ever absent).
   webpack: (config, { webpack, isServer }) => {
-    // @aegis/connectors is authored in TypeScript but uses explicit ".js"
-    // extensions on its relative imports (TS ESM style, as its own tsc +
-    // vitest resolve via "moduleResolution: Bundler"). Next's webpack doesn't
-    // rewrite ".js" → ".ts" by default, so teach it to: try the TS source
-    // first, then fall back to a real ".js" for genuine JS deps. Harmless for
-    // the repo's other (extensionless) packages.
-    config.resolve = config.resolve || {};
+    // Workspace packages authored with NodeNext-style explicit `.js` import
+    // specifiers (e.g. @aegis/connectors: `from "./oauth.js"`) ship as `.ts`
+    // source. Next adds `.ts`/`.tsx` to resolve.extensions so EXTENSIONLESS
+    // workspace imports resolve, but a literal `./oauth.js` specifier does not
+    // map to `oauth.ts` without this alias. Map `.js` → try `.ts`/`.tsx` first,
+    // then fall through to a real `.js` (so shipped `.js` deps still resolve).
     config.resolve.extensionAlias = {
       ...(config.resolve.extensionAlias || {}),
       ".js": [".ts", ".tsx", ".js"],
+      ".mjs": [".mts", ".mjs"],
     };
     if (isServer) {
       config.externals = config.externals || [];

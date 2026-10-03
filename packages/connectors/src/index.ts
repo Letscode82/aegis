@@ -56,3 +56,18 @@ export {
   eurLexProvider,
   buildSparql,
 } from "./research.js";
+
+// Microsoft 365 connector descriptors (C-1 Word add-in, C-2 Outlook triage).
+export {
+  OFFICE_WORD_CONNECTOR_ID,
+  OUTLOOK_CONNECTOR_ID,
+  OFFICE_WORD_SCOPES,
+  OUTLOOK_SCOPES,
+  microsoftAuthorizeUrl,
+  microsoftTokenUrl,
+  microsoftOAuthConfig,
+  microsoftConnectorDescriptor,
+  officeWordDescriptor,
+  outlookDescriptor,
+  type MicrosoftConnectorOptions,
+} from "./office.js";
