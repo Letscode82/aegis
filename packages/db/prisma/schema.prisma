@@ -3914,6 +3914,42 @@ model LegalTask {
   @@index([sessionId, createdAt])
 }
 
+// ── Org-authored ONE Legal skills (SK-7) ─────────────────────────────
+// Admin-editable skills behind the same E1 shape as the built-in catalog
+// (apps/web/lib/one-legal/skills.ts). Org skills merge with the static
+// catalog at read time: a new `slug` adds a skill; a `slug` that matches a
+// built-in overrides it (and `enabled:false` hides a built-in). Every
+// mutation is chain-sealed via logAudit. organizationId is a plain scalar
+// (same localized pattern as ConsoleSession) so this model touches no
+// existing table.
+model Skill {
+  id             String   @id @default(cuid())
+  organizationId String
+  /// Stable client-side id. Unique per org; matching a built-in catalog id
+  /// overrides that built-in.
+  slug           String
+  label          String
+  description    String
+  icon           String   @default("✦")
+  /// "route" | "research" | "prefill" — same SkillAction union as the catalog.
+  action         String
+  prompt         String
+  category       String
+  /// string[] of intake categories the skill covers (catalog `cats`).
+  cats           Json     @default("[]")
+  /// Optional pin to a built @aegis/legal-skills playbook id (SK-5 shape).
+  reviewSkillId  String?
+  featured       Boolean  @default(false)
+  enabled        Boolean  @default(true)
+  createdById    String?
+  updatedById    String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([organizationId, slug])
+  @@index([organizationId, category])
+}
+
 // ── Semantic search embeddings (K1) ──────────────────────────────────
 // Text-chunk embeddings backing @aegis/search's semantic retrieval. The
 // `embedding` column is pgvector (`Unsupported`) — read/written only via raw
