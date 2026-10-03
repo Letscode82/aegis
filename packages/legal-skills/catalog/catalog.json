@@ -428,7 +428,7 @@
       "module": "privacy",
       "name": "regional-privacy-pack",
       "title": "Regional privacy pack",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "BR",
         "SG",
@@ -555,7 +555,7 @@
       "module": "regulatory",
       "name": "esg-reporting",
       "title": "ESG & sustainability reporting",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -577,7 +577,7 @@
       "module": "regulatory",
       "name": "accessibility-compliance",
       "title": "Digital accessibility",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1187,7 +1187,7 @@
       "module": "drafting",
       "name": "template-response-library",
       "title": "Response template library",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1231,7 +1231,7 @@
       "module": "platform",
       "name": "skill-authoring",
       "title": "Skill authoring",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1242,7 +1242,7 @@
       "module": "platform",
       "name": "ai-use-billing-record",
       "title": "AI-use time & billing record",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
