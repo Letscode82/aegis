@@ -2314,7 +2314,7 @@
    "module": "privacy",
    "name": "regional-privacy-pack",
    "title": "Regional privacy pack",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "BR",
     "SG",
@@ -2322,7 +2322,63 @@
     "AE",
     "SA"
    ],
-   "summary": "LGPD, PDPA, PDPL and Gulf regimes as jurisdiction modules on one engine."
+   "summary": "LGPD, PDPA, PDPL and Gulf regimes as jurisdiction modules on one engine.",
+   "meta": {
+    "name": "privacy-regional-privacy-pack",
+    "description": "Applies the emerging-market privacy regimes as jurisdiction modules on one engine — Brazil LGPD, Singapore PDPA, Vietnam PDPD/PDPL, UAE PDPL and Saudi PDPL — mapping each to legal basis, data-subject rights, cross-border transfer, breach notification, local-representative/registration and penalty specifics, and flagging where they diverge from a GDPR baseline. Use when a product touches BR/SG/VN/AE/SA and you need the per-country obligations. Not for GDPR itself → privacy/gdpr-compliance; not for India DPDP → privacy/dpdpa-compliance; not for US states → privacy/us-state-privacy.",
+    "module": "privacy",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "BR",
+     "SG",
+     "VN",
+     "AE",
+     "SA"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "jurisdictions",
+      "required": true,
+      "description": "Which of BR / SG / VN / AE / SA are in scope (one or several), and whether the entity is established there or only targets/monitors residents."
+     },
+     {
+      "name": "processing",
+      "required": false,
+      "description": "The processing activity — data categories (incl. sensitive), roles (controller/processor), purposes, and whether data leaves the country."
+     },
+     {
+      "name": "posture",
+      "required": false,
+      "description": "What's already in place (notices, consent, DPO/representative, registration) so the output is a gap list, not a restatement of law."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "privacy/gdpr-compliance",
+     "privacy/dpdpa-compliance",
+     "privacy/us-state-privacy",
+     "privacy/cross-border-transfer",
+     "privacy/data-subject-requests",
+     "regulatory/applicability-mapper"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Regional Privacy Pack\n\nTakes a processing activity touching Brazil, Singapore, Vietnam, the UAE or Saudi Arabia and returns the per-country privacy obligations against a GDPR baseline: legal basis, rights, transfer rules, breach timelines, local-presence/registration, and penalties — with the divergences flagged. The deliverable is a jurisdiction-by-jurisdiction gap list, not a single blurred \"regional\" answer.\n\n## When to use / not use\n\n- Use: scoping privacy obligations for a product/processing activity in BR, SG, VN, AE or SA; comparing one of these regimes to a GDPR programme you already run; building a per-country compliance checklist (basis, rights, transfer, breach, representative, registration).\n- Hand off: the EU GDPR assessment itself → `privacy/gdpr-compliance`; India DPDP Act/Rules → `privacy/dpdpa-compliance`; US state laws → `privacy/us-state-privacy`; the mechanics of a specific transfer → `privacy/cross-border-transfer`; handling an individual rights request → `privacy/data-subject-requests`; the \"which laws even apply\" triage across many regimes → `regulatory/applicability-mapper`.\n\n## Inputs to collect first\n\n1. **Which jurisdictions** (BR/SG/VN/AE/SA) and whether the entity is **established** there or only **targets/monitors** residents — extraterritorial reach differs per regime.\n2. The **processing**: data categories (flag sensitive/children), controller vs processor role, purposes, and whether data **leaves the country**.\n3. The **current posture** (notice, consent/basis, DPO or local representative, any registration) so the output is a gap list.\n4. Whether a **free-zone** regime applies (UAE: DIFC/ADGM have their own data-protection laws distinct from the federal PDPL).\n\n## Method\n\n1. **Treat each jurisdiction as a module on one engine.** The common engine is the GDPR-shaped lifecycle (basis → notice → rights → transfer → breach → accountability); each country is a module that overrides specific cells. Run the engine per country, don't average them.\n2. **Fix the legal basis model per regime.** LGPD has ten bases incl. legitimate interest; Singapore PDPA runs on consent + statutory exceptions + the legitimate-interests/business-improvement bases; Vietnam leans heavily on **consent** with tight carve-outs; UAE and Saudi PDPL enumerate bases with consent prominent. Don't assume a GDPR basis transplants.\n3. **Map data-subject rights per country.** Access/correction/deletion/portability/objection exist unevenly — confirm which rights, the response window, and any fee/ID-verification rule for each regime rather than offering a generic rights menu.\n4. **Nail cross-border transfer — the biggest divergence.** Each regime has its own mechanism (adequacy/ whitelists, standard contractual clauses, consent, or regulator approval) and some impose **localisation or prior-approval** steps (notably Vietnam and Saudi for certain data). Resolve transfer per country → `privacy/cross-border-transfer`.\n5. **Set breach-notification timelines per regime** — they are not the GDPR 72 hours by default; record the authority-notification and data-subject-notification trigger and window for each country `[verify current]`.\n6. **Check local-presence and registration duties.** DPO/representative appointment, local registration/filing, and record-keeping obligations differ (e.g. representative requirements, Saudi registration regime) — list them per country.\n7. **Record penalties and enforcement posture** so risk is proportionate — fine ceilings and regulator activity vary widely across these five.\n8. **Flag sensitive/children/biometric overrides** and any sector rule that layers on top.\n9. **Score against the Checks table** and output one compliance block per in-scope jurisdiction with divergences from the GDPR baseline called out, plus the prioritised gaps.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Regimes blurred into one \"regional\" answer | Each jurisdiction assessed as its own module | S2 | Split per country |\n| Legal basis assumed to transplant from GDPR | Basis confirmed against each regime's model | S1 | Re-derive basis per country |\n| Rights menu generic, not per-regime | Each country's rights + window confirmed | S2 | Map rights per regime |\n| Transfer mechanism not resolved per country | Per-regime mechanism / localisation checked | S1 | Resolve transfer per country `[verify current]` |\n| Breach timeline assumed 72h | Per-regime authority + subject windows set | S2 | Record each timeline `[verify current]` |\n| Local representative / registration missed | DPO/rep + registration duties listed | S2 | Add the local-presence duties |\n| Free-zone vs federal (UAE) confused | DIFC/ADGM vs federal PDPL identified | S2 | Pick the right UAE regime |\n| Penalties / sensitive-data overrides ignored | Fine ceilings + sensitive rules noted | S3 | Add penalty + sensitive overrides |\n\n## Output\n\nLead with `Regional privacy: <jurisdictions> — <n> gaps, top: <the highest-risk one>`. Then the output contract. Add:\n\n- **Per jurisdiction**: basis · rights · transfer · breach · local presence/registration · penalties, each with the divergence from the GDPR baseline.\n- **Gaps**: the prioritised per-country actions.\n- **Cross-border**: where localisation or prior approval blocks a flow.\n- One JSON finding per gap with `category: \"regional-privacy\"` and a `jurisdiction` field.\n\n## Edge cases & pitfalls\n\n- **Assuming GDPR covers it**: a mature GDPR programme does not satisfy Vietnam's consent-localisation or Saudi/UAE specifics — run each module.\n- **UAE federal vs free zone**: DIFC and ADGM have their own laws; applying the federal PDPL to a DIFC entity (or vice versa) is a category error.\n- **Consent over-reliance**: treating consent as the universal basis breaks where a regime restricts withdrawal handling or requires a different basis for employee/children's data.\n- **Transfer by habit**: reusing EU SCCs without checking each country's accepted mechanism (or localisation) can make the transfer unlawful locally.\n- **Stale timelines**: breach windows and registration regimes in these jurisdictions are actively changing — mark them `[verify current]`.\n\n## References\n\n- Volatile facts: none of these regimes has a registered ID yet — cite `[verify current]` on every timeline, transfer mechanism and registration duty.\n- The governing instruments (Brazil LGPD; Singapore PDPA; Vietnam PDPD 13/2023 and the PDPL; UAE Federal Decree-Law 45/2021 + DIFC/ADGM laws; Saudi PDPL and its regulations) and each regulator's current guidance.",
+   "references": {},
+   "description": "Applies the emerging-market privacy regimes as jurisdiction modules on one engine — Brazil LGPD, Singapore PDPA, Vietnam PDPD/PDPL, UAE PDPL and Saudi PDPL — mapping each to legal basis, data-subject rights, cross-border transfer, breach notification, local-representative/registration and penalty specifics, and flagging where they diverge from a GDPR baseline. Use when a product touches BR/SG/VN/AE/SA and you need the per-country obligations. Not for GDPR itself → privacy/gdpr-compliance; not for India DPDP → privacy/dpdpa-compliance; not for US states → privacy/us-state-privacy.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "regulatory/applicability-mapper",
@@ -3053,11 +3109,64 @@
    "module": "regulatory",
    "name": "esg-reporting",
    "title": "ESG & sustainability reporting",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "BRSR Core, CSRD/ESRS and ISSB disclosure readiness."
+   "summary": "BRSR Core, CSRD/ESRS and ISSB disclosure readiness.",
+   "meta": {
+    "name": "regulatory-esg-reporting",
+    "description": "Assesses readiness for mandatory sustainability disclosure across the converging regimes — India BRSR / BRSR Core, EU CSRD/ESRS, and the ISSB (IFRS S1/S2) baseline — determining which applies and when, mapping the required disclosures, and surfacing the data and double-materiality gaps. Use to scope ESG reporting obligations or prepare a first disclosure. Not for sustainability clauses in a contract → contracts/sustainability-clauses; not for listed- company periodic disclosure → corporate/listed-company-disclosure.",
+    "module": "regulatory",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "IN",
+     "EU"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "organisation",
+      "required": true,
+      "description": "The entity — size (turnover/employees/balance sheet), listing status and market, sectors, and where it operates or has value-chain exposure."
+     },
+     {
+      "name": "regimes",
+      "required": false,
+      "description": "Which frameworks are in question (BRSR/BRSR Core, CSRD/ESRS, ISSB/IFRS S1-S2) or \"work out which apply\"."
+     },
+     {
+      "name": "posture",
+      "required": false,
+      "description": "What's already reported (voluntary ESG report, GRI/TCFD, prior BRSR) and the data/assurance capability in place."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "regulatory/applicability-mapper",
+     "corporate/listed-company-disclosure",
+     "contracts/sustainability-clauses",
+     "regulatory/regulatory-change-monitor",
+     "corporate/entity-compliance-calendar"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# ESG & Sustainability Reporting\n\nTakes an organisation and returns which mandatory sustainability-disclosure regime bites (India BRSR/BRSR Core, EU CSRD/ESRS, ISSB baseline), the required disclosure content, and the data/materiality/assurance gaps to close before the first filing. The deliverable is an applicability + readiness assessment with a gap list, not a restatement of a framework.\n\n## When to use / not use\n\n- Use: working out whether BRSR, CSRD or ISSB applies and from when; scoping the disclosures a first mandatory sustainability report must carry; gap-assessing current ESG reporting against a mandatory framework; preparing for assurance.\n- Hand off: drafting sustainability/human-rights terms into a contract → `contracts/sustainability-clauses`; general listed-company periodic/event disclosure → `corporate/listed-company-disclosure`; the broad \"which regulations apply to us\" triage → `regulatory/applicability-mapper`; keeping on top of framework changes over time → `regulatory/regulatory-change-monitor`; the filing-deadline calendar → `corporate/entity-compliance-calendar`.\n\n## Inputs to collect first\n\n1. The **organisation's size** (turnover / employees / balance-sheet total), **listing status and market**, and **sectors** — these drive phased applicability under every regime.\n2. **Where it operates and sources** — EU nexus (incl. non-EU parents with EU turnover under CSRD's third-country rule) and value-chain geography.\n3. Which **regimes** are in question, or ask the skill to work them out.\n4. The **current posture**: any voluntary report, GRI/TCFD alignment, prior BRSR filing, and the state of ESG **data systems and assurance**.\n\n## Method\n\n1. **Determine applicability and timing per regime first** — this is the whole value. BRSR/BRSR Core: SEBI's top-listed-entity phase-in and value-chain reporting. CSRD/ESRS: the size/listing thresholds and the phased first-report years, plus the third-country-undertaking rule and any **omnibus** change to scope/timing. ISSB: adoption is per-jurisdiction, so check whether the local regulator has mandated IFRS S1/S2 `[verify current]`.\n2. **Anchor on the right materiality model.** CSRD/ESRS requires **double materiality** (impact *and* financial); ISSB is **financial materiality** (enterprise value); BRSR sits closer to impact/stakeholder reporting. Using the wrong lens produces the wrong disclosures — fix it before drafting.\n3. **Map the disclosure architecture.** All three share the governance / strategy / risk-management / metrics-and-targets spine (TCFD-derived); map the organisation's content onto each applicable regime's structure (ESRS topical standards; IFRS S2 climate; BRSR's nine principles + Core attributes).\n4. **Scope the value chain.** CSRD and BRSR Core both reach up/down the value chain (Scope 3, supplier data, BRSR Core value-chain disclosure) — identify where the data has to come from third parties and flag the collection gap early → `contracts/sustainability-clauses` for the flow-down.\n5. **Pin down climate/GHG metrics.** Scope 1/2 and material Scope 3 emissions, transition plan, targets and scenario analysis are the hard-data core — confirm what's measured vs estimated and the methodology.\n6. **Plan for assurance.** Limited (moving toward reasonable) assurance applies under CSRD and to BRSR Core attributes — reportable claims need an auditable evidence trail, not just a narrative.\n7. **Avoid greenwashing in the disclosure itself.** Statements must be substantiated and balanced; unsupported \"net-zero\"/\"green\" claims in a regulated report carry securities and consumer-law exposure.\n8. **Build the gap list and roadmap** — data gaps, materiality-assessment gap, assurance-readiness gap, and the filing deadline — sequenced to the first mandatory report.\n9. **Score against the Checks table** and output applicability + per-regime disclosure map + prioritised gaps.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Applicability / first-year not established | Phase-in + thresholds resolved per regime | S1 | Determine applicability first `[verify current]` |\n| Wrong materiality lens | Double (CSRD) vs financial (ISSB) vs BRSR applied | S1 | Re-run with the correct lens |\n| Disclosure content not mapped to the regime | Governance/strategy/risk/metrics mapped per standard | S2 | Map content to each framework |\n| Value chain / Scope 3 ignored | Value-chain + Scope 3 data sources identified | S2 | Scope the value chain |\n| GHG metrics unmethodical | Scope 1/2/3 basis + methodology stated | S2 | Fix the emissions basis |\n| Assurance-readiness not considered | Evidence trail for assured items exists | S2 | Build the assurance evidence |\n| Greenwashing in the report | Claims substantiated + balanced | S1 | Substantiate or remove the claim |\n| Deadline/calendar not set | First-report year + filing date recorded | S3 | Add to the compliance calendar |\n\n## Output\n\nLead with `ESG reporting: <regimes that apply> — first report <year> — top gap: <the one that blocks filing>`. Then the output contract. Add:\n\n- **Applicability**: which regime(s), thresholds met, first mandatory year.\n- **Materiality**: the lens each regime requires and the assessment gap.\n- **Disclosure map**: required content per applicable framework, with what's covered vs missing.\n- **Data & assurance gaps**: value-chain/Scope 3, methodology, assurance-readiness.\n- One JSON finding per gap with `category: \"esg-reporting\"`.\n\n## Edge cases & pitfalls\n\n- **Assuming a voluntary GRI/TCFD report already complies**: mandatory ESRS/BRSR Core/ISSB have specific structures and assurance — a glossy voluntary report rarely maps cleanly.\n- **Single-materiality shortcut under CSRD**: skipping the impact side of double materiality under-scopes the whole report.\n- **Forgetting the EU third-country reach**: a non-EU group can fall into CSRD via EU-generated turnover + an EU branch/subsidiary.\n- **Scope 3 as an afterthought**: value-chain data takes a reporting cycle to collect — flag it at the start, not at filing.\n- **Greenwashing by enthusiasm**: aspirational net-zero language without a substantiated transition plan is a regulated-disclosure risk, not marketing.\n\n## References\n\n- Volatile facts: cite `[verify current]` on every applicability threshold, phase-in year and any CSRD-omnibus scope/timing change, and on whether the local regulator has mandated ISSB — all are moving.\n- The governing instruments (SEBI LODR / BRSR & BRSR Core framework; EU CSRD Directive 2022/2464 + the ESRS; IFRS S1/S2 as adopted locally) and current regulator guidance.",
+   "references": {},
+   "description": "Assesses readiness for mandatory sustainability disclosure across the converging regimes — India BRSR / BRSR Core, EU CSRD/ESRS, and the ISSB (IFRS S1/S2) baseline — determining which applies and when, mapping the required disclosures, and surfacing the data and double-materiality gaps. Use to scope ESG reporting obligations or prepare a first disclosure. Not for sustainability clauses in a contract → contracts/sustainability-clauses; not for listed- company periodic disclosure → corporate/listed-company-disclosure.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "regulatory/whistleblower-programme",
@@ -3136,11 +3245,65 @@
    "module": "regulatory",
    "name": "accessibility-compliance",
    "title": "Digital accessibility",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "WCAG, Section 508, EAA and RPwD Act obligations for digital products."
+   "summary": "WCAG, Section 508, EAA and RPwD Act obligations for digital products.",
+   "meta": {
+    "name": "regulatory-accessibility-compliance",
+    "description": "Assesses a digital product against the converging accessibility regimes — WCAG 2.1/2.2 as the technical baseline, US Section 508 + ADA, the EU European Accessibility Act, and India's RPwD Act 2016 — determining which apply, the conformance level and deadline, the legal exposure, and the remediation priorities. Use to scope accessibility obligations or triage a risk/complaint. Not for the readability redesign of a document → drafting/legal-design- review; not for the broad which-laws-apply triage → regulatory/applicability-mapper.",
+    "module": "regulatory",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "EU",
+     "US",
+     "IN"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "product",
+      "required": true,
+      "description": "The digital product/service — type (website, mobile app, SaaS, e-commerce, banking, ticketing, e-book/e-reader), audience (consumer/public-sector/employee), and markets it serves."
+     },
+     {
+      "name": "trigger",
+      "required": false,
+      "description": "Why now — a procurement requirement, an EAA deadline, a received complaint/demand letter, a public-sector obligation, or a proactive audit."
+     },
+     {
+      "name": "posture",
+      "required": false,
+      "description": "Any existing accessibility work — a VPAT/conformance statement, prior WCAG audit, or accessibility statement already published."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "drafting/legal-design-review",
+     "regulatory/applicability-mapper",
+     "contracts/terms-of-service-audit",
+     "regulatory/product-cyber-obligations",
+     "regulatory/regulatory-change-monitor"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Digital Accessibility\n\nTakes a digital product and returns which accessibility regime applies (WCAG baseline, US Section 508/ADA, EU EAA, India RPwD), the required conformance level and deadline, the legal exposure, and the remediation priorities. The deliverable is an applicability + exposure assessment with a prioritised fix list, not a raw automated-scan dump.\n\n## When to use / not use\n\n- Use: scoping which accessibility laws apply to a website/app/service and to what level; triaging an accessibility complaint, demand letter or procurement blocker; preparing for an EAA deadline; turning a WCAG audit into a legal-risk-prioritised remediation plan; drafting/validating an accessibility statement.\n- Hand off: improving a *document's* readability/usability/layout (not digital-product conformance) → `drafting/legal-design-review`; the broad \"which regulations apply to us\" triage → `regulatory/applicability-mapper`; the consumer-law/terms audit of an online service → `contracts/terms-of-service-audit`; product cyber/CE-type obligations → `regulatory/product-cyber-obligations`; tracking regime changes over time → `regulatory/regulatory-change-monitor`.\n\n## Inputs to collect first\n\n1. The **product type** (website, mobile app, SaaS, e-commerce, banking, ticketing/transport, e-book/e-reader, self-service terminal) and whether it's **consumer, public-sector, or employee**-facing.\n2. The **markets served** — EU (EAA), US (federal procurement vs private ADA), India (RPwD / public vs private).\n3. The **trigger** — a procurement VPAT request, an EAA deadline, a complaint/demand letter, or a proactive audit.\n4. The **current posture**: any VPAT/conformance statement, prior WCAG audit, or published accessibility statement.\n\n## Method\n\n1. **Determine applicability per regime first.** US **Section 508** binds federal agencies and their vendors (VPAT/ICT); the **ADA** drives private-sector web-accessibility litigation via DOJ guidance and case law (no single federal web standard, but WCAG is the de-facto benchmark). The **EAA** (Directive 2019/882) applies to specified products/services (e-commerce, banking, e-books, ticketing, etc.) from **28 June 2025**, with micro-enterprise and disproportionate-burden carve-outs. India's **RPwD Act 2016** + rules and the GIGW guidelines bind government and, increasingly, private services `[verify current]`.\n2. **Set the technical baseline — WCAG.** Almost every regime resolves to **WCAG 2.1 (often moving to 2.2) at level AA** as the conformance target. Fix the exact version and level each applicable regime demands rather than assuming \"WCAG AA\" universally.\n3. **Separate real conformance from an automated scan.** Automated tools catch ~30-40% of issues; the legally material failures (keyboard operability, focus order, meaningful alt text, form labels, captions, contrast, screen-reader semantics) need manual + assistive-technology testing. Don't let a green scan imply conformance.\n4. **Prioritise by user impact and legal exposure, not by scan severity.** A single blocking barrier on a core journey (checkout, login, account recovery) outweighs dozens of cosmetic issues — rank remediation by whether a disabled user can complete the critical task.\n5. **Map the legal exposure per regime.** Private ADA suits/demand letters (US), EAA market-surveillance enforcement + withdrawal risk (EU), public-procurement disqualification (508/India), and reputational harm. State what a failure actually triggers.\n6. **Check the accessibility statement / conformance documentation.** EAA and public-sector regimes require a published accessibility statement; procurement requires a VPAT — validate it is accurate (a false statement is its own exposure), not aspirational.\n7. **Handle carve-outs properly.** Disproportionate-burden and micro-enterprise exemptions under the EAA must be **assessed and documented**, not assumed — an undocumented \"it's too hard\" is not a defence.\n8. **Build the remediation roadmap** — blocking barriers on critical journeys first, then AA gaps, then enhancements — with owners and the regime deadline.\n9. **Score against the Checks table** and output applicability + conformance target + exposure + prioritised remediation.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Applicability / deadline not established | Per-regime scope + date resolved | S1 | Determine applicability first `[verify current]` |\n| Wrong WCAG version/level assumed | Exact version + level per regime fixed | S2 | Set the right target |\n| Automated scan treated as conformance | Manual + AT testing of key journeys done | S1 | Add manual/AT testing |\n| Remediation ranked by scan, not impact | Blocking barriers on core journeys first | S2 | Re-prioritise by task completion |\n| Legal exposure not mapped | Suit/enforcement/procurement risk stated | S2 | Map the exposure per regime |\n| Accessibility statement inaccurate/missing | Statement + VPAT accurate where required | S2 | Fix or publish the statement |\n| Carve-out assumed, not documented | Disproportionate-burden assessed + recorded | S2 | Document the exemption or drop it |\n| No owned remediation roadmap | Prioritised fixes + owners + deadline | S3 | Build the roadmap |\n\n## Output\n\nLead with `Accessibility: <regimes that apply> — target <WCAG x.x AA> — top risk: <the blocking barrier or deadline>`. Then the output contract. Add:\n\n- **Applicability**: which regimes, scope, conformance level, deadline.\n- **Conformance gaps**: the legally material failures (not the full scan), by user journey.\n- **Exposure**: what a failure triggers per regime.\n- **Remediation roadmap**: blocking barriers first, with owners and the deadline.\n- One JSON finding per gap with `category: \"accessibility\"`.\n\n## Edge cases & pitfalls\n\n- **Green-scan complacency**: an automated pass misses keyboard, focus, semantics and alt-text quality — the exact issues that drive complaints.\n- **\"WCAG AA\" without a version**: 2.1 vs 2.2 and the specific success criteria differ; naming the wrong one under-scopes the work.\n- **Assuming the ADA has a fixed web standard**: it doesn't — but WCAG AA is the practical benchmark courts and the DOJ reference, so \"no standard\" is not a defence.\n- **Undocumented disproportionate burden**: claiming the EAA exemption without the documented assessment is no defence.\n- **Aspirational accessibility statement**: publishing a conformance claim the product doesn't meet creates fresh liability.\n\n## References\n\n- Volatile facts: cite `[verify current]` on EAA scope/dates, the applicable WCAG version/level, and RPwD/GIGW private-sector reach — all are moving.\n- The governing instruments (WCAG 2.1/2.2; US Section 508 / ADA + DOJ guidance; EU Directive 2019/882 (EAA) + EN 301 549; India RPwD Act 2016, rules and GIGW) and current regulator/standards guidance.",
+   "references": {},
+   "description": "Assesses a digital product against the converging accessibility regimes — WCAG 2.1/2.2 as the technical baseline, US Section 508 + ADA, the EU European Accessibility Act, and India's RPwD Act 2016 — determining which apply, the conformance level and deadline, the legal exposure, and the remediation priorities. Use to scope accessibility obligations or triage a risk/complaint. Not for the readability redesign of a document → drafting/legal-design- review; not for the broad which-laws-apply triage → regulatory/applicability-mapper.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "regulatory/product-cyber-obligations",
@@ -6759,11 +6922,62 @@
    "module": "drafting",
    "name": "template-response-library",
    "title": "Response template library",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Build and maintain approved responses for recurring queries."
+   "summary": "Build and maintain approved responses for recurring queries.",
+   "meta": {
+    "name": "drafting-template-response-library",
+    "description": "Builds and maintains a library of approved, reusable responses for recurring legal queries — clustering the real question behind repeat asks, drafting a parameterised template with the safe default answer plus the escalate-to-a- lawyer boundary, grounding each in an authoritative source, and giving every template an owner and a review date so the library stays current. Use to create or curate the canned answers behind a self-service responder or a team's FAQ. Not for answering a single live question → intake/self-service-responder; not for drafting an internal policy → drafting/policy-drafter.",
+    "module": "drafting",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "self-serve",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of build (create templates from a set of recurring queries) or maintain (review/refresh an existing library — find stale, duplicated, or drifted entries)."
+     },
+     {
+      "name": "queries",
+      "required": false,
+      "description": "The recurring questions (from intake logs, an inbox, a self-service tool) and, for maintain mode, the current library and its last-reviewed dates."
+     },
+     {
+      "name": "boundaries",
+      "required": false,
+      "description": "Which questions may be answered self-serve vs must route to a lawyer, the house position/source for each topic, and the tone/brand for responses."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "intake/self-service-responder",
+     "drafting/policy-drafter",
+     "drafting/plain-language-explainer",
+     "matters/lessons-learned",
+     "research/source-locked-answering"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Response Template Library\n\nTakes a set of recurring legal queries and returns a library of approved, parameterised responses — each with the safe default answer, the escalate-to-a-lawyer boundary, a grounding source, an owner, and a review date. The deliverable is a maintainable template set (or a refresh of one), not a pile of one-off canned replies that rot.\n\n## When to use / not use\n\n- Use: building the approved answers behind a self-service responder or team FAQ; turning repeat intake questions into reusable templates; auditing and refreshing an existing response library for staleness, duplication, or drifted positions.\n- Hand off: answering one live question for a requester right now → `intake/self-service-responder`; drafting the underlying internal **policy** the templates reference → `drafting/policy-drafter`; rewriting a template into lay-reader language → `drafting/plain-language-explainer`; capturing lessons that should feed new templates → `matters/lessons-learned`; the strict grounded-answer discipline a template's content must follow → `research/source-locked-answering`.\n\n## Inputs to collect first\n\n1. The **recurring queries** — ideally from intake logs / an inbox / the self-service tool, with volume so high-frequency topics are prioritised.\n2. The **boundaries**: which topics are safe to answer self-serve vs must **route to a lawyer** (anything advice-like, fact-specific, or high-stakes).\n3. The **house position and authoritative source** for each topic (policy, playbook, statute) so answers are grounded, not invented.\n4. For **maintain** mode: the current library and each entry's **last-reviewed date** and usage.\n\n## Method\n\n1. **Cluster to the real question, not the words.** Group repeat asks by the underlying question (ten phrasings of \"can I sign this NDA?\" are one template). Deduplicate first — a library's value is coverage without redundancy.\n2. **Decide answerable-vs-route per cluster.** For each, set whether a template can safely answer it or must hand off to a lawyer. When in doubt, the template's job is to **triage and route**, not to give advice → `intake/self-service-responder`. Never template legal advice on a fact-specific or high-stakes question.\n3. **Draft the template parameterised.** Write the safe default answer with explicit **variables** (`{{party}}`, `{{jurisdiction}}`, `{{amount}}`) and conditional branches, so one template serves the cluster rather than spawning near-duplicates.\n4. **Ground every answer in a source.** Each template cites the house policy/playbook/authority it rests on → `research/source-locked-answering`; an ungrounded canned answer is how a wrong position scales across the whole org.\n5. **Build in the boundary and the escape hatch.** Every template states what it does *not* cover and the clear \"talk to Legal / raise a matter\" route, so edge cases escalate instead of getting a confidently-wrong canned reply.\n6. **Set tone and consistency.** Align voice/brand and keep positions consistent across the library — contradictory templates on adjacent topics erode trust.\n7. **Assign owner + review cadence per template.** A template with no owner and no review date is a future wrong answer. Tie topics that depend on volatile facts to the review cycle so they refresh when the law moves `[verify current]`.\n8. **(Maintain mode)** find **stale** (past review date / volatile-fact changed), **duplicated**, **drifted** (no longer matches current policy), and **unused** entries; propose merge/refresh/retire with reasons.\n9. **Make it findable.** Tag/triage each template so the responder and humans surface the right one; a good answer no one can find is not reused.\n10. **Score against the Checks table** and output the template set (or the maintenance report) with owners and review dates.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Duplicates / near-duplicates | Clustered to the real question, deduped | S2 | Merge into one parameterised template |\n| Templates legal advice it shouldn't | Answerable-vs-route decided; advice routed | S1 | Convert to triage + route |\n| Answer not grounded in a source | Each template cites policy/playbook/authority | S1 | Ground or remove the answer |\n| No boundary / escalation route | Scope limit + \"talk to Legal\" escape stated | S1 | Add the boundary + route |\n| Not parameterised | Variables + branches, not hard-coded answers | S2 | Parameterise the template |\n| Inconsistent positions across library | Positions consistent + consistent tone | S2 | Reconcile the conflicting templates |\n| No owner / review date | Owner + review cadence per template | S1 | Assign owner + review date |\n| Volatile fact not tied to review | Volatile-dependent topics flagged + dated | S2 | Link to the review cycle `[verify current]` |\n| (Maintain) stale/drifted/unused not found | Stale/dupe/drift/unused surfaced | S2 | Propose merge/refresh/retire |\n\n## Output\n\nLead with `Template library: <n templates, n routed-not-answered> — top gap: <the one that matters most>` (build) or `Library review: <n stale, n duplicate, n drifted>` (maintain). Then the output contract. Add:\n\n- **Templates**: each with its cluster, the parameterised answer, the source, the boundary/route, owner, and review date.\n- **(Maintain)**: the merge/refresh/retire list with reasons.\n- **Coverage**: high-frequency questions with no template yet.\n- One JSON finding per template or maintenance action with `category: \"response-template\"`.\n\n## Edge cases & pitfalls\n\n- **Templating advice**: a canned answer to a fact-specific or high-stakes question scales a wrong answer across the org — route it instead.\n- **Ungrounded canned answers**: without a cited source, a drifted position propagates silently through every use.\n- **No owner, no refresh**: a library with no owners and review dates becomes a bank of out-of-date answers.\n- **Near-duplicate sprawl**: separate templates for trivial phrasing differences make the library unmaintainable — cluster and parameterise.\n- **Missing escape hatch**: a template with no \"this doesn't cover X — talk to Legal\" boundary gives confident wrong answers to edge cases.\n\n## References\n\n- Volatile facts: cite `[verify current]` in any template whose answer depends on a date/threshold that changes, and tie it to the review cadence.\n- Standard knowledge-management / canned-response practice; the house policies, playbooks and authorities each template rests on; the self-service responder and source-locked-answering disciplines.",
+   "references": {},
+   "description": "Builds and maintains a library of approved, reusable responses for recurring legal queries — clustering the real question behind repeat asks, drafting a parameterised template with the safe default answer plus the escalate-to-a- lawyer boundary, grounding each in an authoritative source, and giving every template an owner and a review date so the library stays current. Use to create or curate the canned answers behind a self-service responder or a team's FAQ. Not for answering a single live question → intake/self-service-responder; not for drafting an internal policy → drafting/policy-drafter.",
+   "risk_tier": "self-serve",
+   "version": "1.0.0"
   },
   {
    "id": "platform/skill-security-audit",
@@ -6955,22 +7169,124 @@
    "module": "platform",
    "name": "skill-authoring",
    "title": "Skill authoring",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Turn a lawyer's expertise into a new AEGIS skill that passes validation."
+   "summary": "Turn a lawyer's expertise into a new AEGIS skill that passes validation.",
+   "meta": {
+    "name": "platform-skill-authoring",
+    "description": "Turns a lawyer's expertise into a new AEGIS skill that passes validation and routes correctly: pick the catalog slot, write the router-matchable description, structure the SKILL.md (when-to-use, inputs, method as decision rules, a severity-scored Checks table, output contract, edge cases), ground it in the shared standards and volatile-facts register, and dry-run build + validate. Use to draft a new playbook or fix one that fails validation/routing. Not for security-reviewing an authored skill → platform/skill-security-audit; not for drafting an internal policy → drafting/policy-drafter.",
+    "module": "platform",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "internal",
+    "inputs": [
+     {
+      "name": "expertise",
+      "required": true,
+      "description": "The legal know-how to capture — the task, the decision rules an expert applies, what good vs bad looks like, and the trigger phrases a user would type."
+     },
+     {
+      "name": "slot",
+      "required": false,
+      "description": "The intended catalog id (module/name) if known, or the module it belongs in; the skill must fit one of the locked catalog entries, not invent a new module."
+     },
+     {
+      "name": "mode",
+      "required": false,
+      "description": "One of author (write a new SKILL.md) or fix (diagnose why an existing skill fails validate.py or routes wrongly)."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "platform/skill-security-audit",
+     "platform/ai-work-audit-trail",
+     "platform/prompt-injection-guard",
+     "drafting/policy-drafter",
+     "research/source-locked-answering"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Skill Authoring\n\nTakes a lawyer's expertise and produces a new AEGIS `SKILL.md` that passes `validate.py --strict`, routes on the right queries, and honours the house standards — or diagnoses why an existing skill fails. The deliverable is a build-clean, correctly-routing skill grounded in sources, not prose that merely reads well.\n\n## When to use / not use\n\n- Use: drafting a new playbook from subject-matter expertise; converting a checklist/memo into a structured skill; fixing a skill that fails validation, routes to the wrong queries, or drifts from the standards.\n- Hand off: the adversarial security/prompt-injection review of an authored skill → `platform/skill-security-audit`; screening untrusted input a skill will process → `platform/prompt-injection-guard`; auditing the AI-decision record a skill produces → `platform/ai-work-audit-trail`; drafting the internal **policy** a skill might reference (not a skill itself) → `drafting/policy-drafter`; the grounded-answer discipline the skill's content must follow → `research/source-locked-answering`.\n\n## Inputs to collect first\n\n1. The **expertise to capture**: the task, the **decision rules** an expert applies (\"if X then escalate unless Y\"), what good vs bad output looks like, and the **trigger phrases** a user would type.\n2. The **catalog slot** — the `module/name` id. A skill must fit a **locked catalog entry**; it never invents a 12th module or a new id without a catalog change first.\n3. The **mode**: author a new skill, or fix a failing one.\n4. The **authoritative sources** the skill will rest on (statute, policy, playbook) and any **volatile facts** it depends on.\n\n## Method\n\n1. **Confirm the catalog slot first.** The id must exist in `catalog/catalog.json` with `status` moving to `built`; `name` must equal `{module}-{skill-name}` and match the folder `skills/<module>/<name>/`. No slot → stop and get the catalog entry added; don't freelance a module.\n2. **Write the description for the router, not the reader.** ≤600 chars, stating WHAT it produces and WHEN to use it with real trigger phrases, and it must contain a literal \"Use when/for/before/after/to …\" so the matcher indexes it. Include the \"Not for … → other-skill-id\" boundary so near-miss queries route away.\n3. **Structure the body to the required sections.** The validator checks for *when to use*, *inputs*, *method*, *output*, *edge cases* — use the house headings (`When to use / not use`, `Inputs to collect first`, `Method`, `Output`, `Edge cases & pitfalls`, `References`). A missing section is a `--strict` failure.\n4. **Write the Method as decision rules, not description.** Each step says what to check and the decision it drives; prefer \"if X, then S2 unless Y\" over narration — the skill's value is the judgement encoded, not the summary of the law.\n5. **Build a severity-scored Checks table** (issue · good position · default severity S1-S4 · fallback) against `_shared/severity-scale.md`, so output is consistent and machine-gradable.\n6. **Ground every substantive claim** in a source and route volatile facts through `_shared/volatile-facts.md` — cite only **registered** IDs (unregistered IDs warn) and mark anything date/threshold-dependent `[verify current]`. Set `depends_on` to the four shared files and `related` to real catalog ids only (both are validated).\n7. **Honour the non-negotiable harness.** A skill configures WHAT the assistant does; it can **never** instruct the model to bypass human sign-off, ignore the confidentiality/documents-as-data rules, or act on untrusted input — those invariants live in STANDARDS and the persistence layer, not in a skill's prose.\n8. **Set the right `risk_tier`** (`internal` / `review-required` / `self-serve`) to the real stakes, a semver `version`, and a current `last_reviewed`.\n9. **Dry-run the pipeline.** Run `python scripts/build.py` then `python scripts/validate.py --strict` and `node --test runtime/test/*.test.mjs`; fix every error **and** warning (strict fails on warnings) and confirm the skill routes on its trigger phrases via `route()`.\n10. **Score against the Checks table** and output the SKILL.md (or the fix diagnosis) plus the clean validate/build/test result.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| No catalog slot / invented module | Exists in catalog; name matches folder | S1 | Add the catalog entry first |\n| Description not router-matchable | ≤600 chars + \"Use when…\" + boundary | S1 | Rewrite the description |\n| Required section missing | when-to-use/inputs/method/output/edge-cases present | S1 | Add the missing section |\n| Method is description, not decision rules | Steps encode judgement (\"if X then …\") | S2 | Rewrite as decision rules |\n| No severity-scored Checks table | Issue · good · S1-S4 · fallback table | S2 | Add the Checks table |\n| Claims ungrounded / bad volatile-fact IDs | Sourced; only registered IDs; `[verify current]` | S1 | Ground + fix the IDs |\n| Invalid depends_on / related | 4 shared files; related are real catalog ids | S2 | Correct the references |\n| Skill tries to weaken the harness | No bypass of sign-off / confidentiality / data-as-data | S1 | Remove — the harness is non-negotiable |\n| Pipeline not run clean | build + validate --strict + runtime tests pass | S1 | Fix every error and warning |\n\n## Output\n\nLead with `Skill: <module/name> — validate --strict: 0/0 · routes on <trigger>` (author) or `Fix: <skill> — <n> issues, top: <the blocker>` (fix). Then the output contract. Add:\n\n- **The SKILL.md** (author mode) ready to commit, or the **diagnosis + patch** (fix mode).\n- **Routing check**: the trigger phrases it now matches, and the near-misses it correctly declines.\n- **Pipeline result**: build / validate --strict / runtime-test outcome.\n- One JSON finding per authoring/validation issue with `category: \"skill-authoring\"`.\n\n## Edge cases & pitfalls\n\n- **Inventing a module or id**: the 11 modules and the catalog are locked — a skill with no catalog slot never ships; get the entry added first.\n- **Description written for humans**: a lovely summary that lacks trigger phrases and the \"Use when…\" marker won't route — the router indexes the description.\n- **Prose instead of judgement**: a method that restates the law teaches the model nothing; encode the decision rules an expert actually applies.\n- **Harness erosion**: any wording that nudges the model to skip approval, exfiltrate client data, or trust an untrusted document is a hard fail, however helpful it seems.\n- **Green on errors, blind to warnings**: `--strict` fails on warnings (stale date, unregistered volatile-fact ID, missing section) — a \"no errors\" run can still be a failing build.\n\n## References\n\n- `templates/SKILL.template.md` (the house skeleton); `_shared/STANDARDS.md`, `_shared/severity-scale.md`, `_shared/output-contract.md`, `_shared/volatile-facts.md`; `scripts/build.py` + `scripts/validate.py`; `catalog/catalog.json`.\n- Volatile facts: none of its own; this is an authoring discipline — but it enforces correct use of the register in the skills it produces.",
+   "references": {},
+   "description": "Turns a lawyer's expertise into a new AEGIS skill that passes validation and routes correctly: pick the catalog slot, write the router-matchable description, structure the SKILL.md (when-to-use, inputs, method as decision rules, a severity-scored Checks table, output contract, edge cases), ground it in the shared standards and volatile-facts register, and dry-run build + validate. Use to draft a new playbook or fix one that fails validation/routing. Not for security-reviewing an authored skill → platform/skill-security-audit; not for drafting an internal policy → drafting/policy-drafter.",
+   "risk_tier": "internal",
+   "version": "1.0.0"
   },
   {
    "id": "platform/ai-use-billing-record",
    "module": "platform",
    "name": "ai-use-billing-record",
    "title": "AI-use time & billing record",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Record and disclose AI assistance in time entries per firm/bar guidance."
+   "summary": "Record and disclose AI assistance in time entries per firm/bar guidance.",
+   "meta": {
+    "name": "platform-ai-use-billing-record",
+    "description": "Produces a defensible time-and-billing record for AI-assisted legal work: whether the AI-saved time may be billed, how to describe the work without padding or false hours, when to disclose AI use to the client or under outside- counsel guidelines, and the confidentiality check before client data touches a model — grounded in the reasonable- fee duty. Use to record/review AI-assisted time or set a billing-disclosure policy. Not for the AI-decision audit trail → platform/ai-work-audit-trail; not for reviewing a firm's invoice → outside-counsel/invoice-review.",
+    "module": "platform",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "work",
+      "required": true,
+      "description": "The AI-assisted task — what the AI did, actual human time spent reviewing/finalising, and the fee model (hourly / fixed / contingent) it will be billed under."
+     },
+     {
+      "name": "mode",
+      "required": false,
+      "description": "One of record (produce the time entry + disclosure for one piece of work) or policy (set the firm/team's AI-billing + disclosure rules)."
+     },
+     {
+      "name": "constraints",
+      "required": false,
+      "description": "The engagement letter / outside-counsel guidelines terms on efficiency, technology and disclosure; the client's AI stance; and the bar/jurisdiction whose rules govern."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "platform/ai-work-audit-trail",
+     "outside-counsel/billing-guidelines",
+     "outside-counsel/invoice-review",
+     "outside-counsel/fee-arrangements",
+     "regulatory/ai-governance"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# AI-Use Time & Billing Record\n\nTakes a piece of AI-assisted legal work and returns a defensible billing record: what may be charged, how the entry is described honestly, whether and how AI use is disclosed, and the confidentiality check before client data touches a model. The deliverable is a compliant time entry + disclosure (or a billing policy), grounded in the reasonable-fee duty — not a bigger number.\n\n## When to use / not use\n\n- Use: recording time for work an AI tool assisted; checking whether AI efficiency gains can be billed and how to describe them; setting a firm/team policy for AI-use disclosure and billing; preparing for an outside-counsel-guidelines or client question about AI on the bill.\n- Hand off: the end-to-end reconstructable record of what the AI did and who approved it → `platform/ai-work-audit-trail`; reviewing an outside firm's submitted invoice → `outside-counsel/invoice-review`; the OCG/billing-guideline terms themselves → `outside-counsel/billing-guidelines`; structuring the fee arrangement (fixed/AFA) → `outside-counsel/fee-arrangements`; the AI-governance policy framing → `regulatory/ai-governance`.\n\n## Inputs to collect first\n\n1. The **work**: what the AI did, the **actual human time** spent directing/reviewing/finalising it, and the **fee model** (hourly, fixed, contingent).\n2. The **engagement terms / outside-counsel guidelines** on technology, efficiency and disclosure, and the **client's AI stance**.\n3. The **governing bar/jurisdiction** whose professional-conduct rules apply.\n4. Whether **client-confidential data** was or will be entered into the tool, and the tool's confidentiality posture.\n\n## Method\n\n1. **Confidentiality gate first — before billing is even in question.** If client-confidential or privileged data went into a model, confirm it was a tool approved for that data (no training on inputs, appropriate contract) and that confidentiality duties were met; a billing entry can't launder a confidentiality breach → `regulatory/ai-governance`.\n2. **Bill *time actually spent*, never time the AI saved.** Under an hourly model you charge the human hours genuinely worked (directing, reviewing, correcting the AI); you do **not** bill the hours the task *would* have taken without the tool. Inventing or inflating hours to capture the efficiency gain is a false record and a reasonable-fee violation `[verify current]`.\n3. **Don't double-charge the tool.** A general AI-subscription cost is overhead recovered through rates, not a separate client disbursement, unless the engagement expressly allows a specific, actual, reasonable cost to be passed through — check the terms before adding any AI line-item.\n4. **Describe the work honestly and specifically.** The narrative reflects what was done (e.g. \"review and revise AI-assisted first draft of X\"); avoid both padding and misleadingly implying unaided manual work where disclosure or the client's expectations require candour. No block-billing that hides the AI-assisted portion.\n5. **Resolve disclosure to the client.** Decide whether AI use must be disclosed — driven by the engagement letter / OCGs (many now require consent or prohibit AI on certain work), the bar's guidance, and the materiality of the AI's role. When in doubt on a material use, disclose; silence where terms require consent is the risk.\n6. **Apply the fee model correctly.** On **fixed/AFA/contingent** fees the efficiency benefit is generally the firm's to keep (that's the deal) — but the reasonable-fee duty, honest narratives and any OCG efficiency-sharing term still bind. On hourly, efficiency reduces the bill; don't restructure to hourly just to recapture it.\n7. **Keep the evidence trail.** Preserve what supports the entry — actual time, the AI's role, the approval that a human reviewed the output — so the bill is defensible on audit → `platform/ai-work-audit-trail`.\n8. **(Policy mode)** set firm/team rules: approved tools + data classes, the bill-time-not-savings rule, the narrative standard, the disclosure trigger, and the no-pass-through-without-terms rule.\n9. **Score against the Checks table** and output the time entry + disclosure decision (or the policy), with the reasonable-fee basis stated.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Client data in an unvetted tool | Approved-for-data tool; confidentiality met | S1 | Stop; resolve confidentiality first |\n| Billing time the AI saved, not time spent | Only actual human hours billed (hourly) | S1 | Correct to real hours |\n| Padded / invented hours | Hours reflect work genuinely done | S1 | Remove the inflation |\n| Tool cost double-charged | Overhead in rate; pass-through only if terms allow | S2 | Drop the line-item or cite the term |\n| Narrative misleading / block-billed | Specific, honest description of the work | S2 | Rewrite the narrative |\n| Disclosure required but not made | AI use disclosed where OCG/bar/materiality requires | S1 | Disclose per the terms `[verify current]` |\n| Fee model misapplied | Efficiency handled correctly per fee type | S2 | Apply the right model |\n| No evidence trail | Time + AI role + human approval preserved | S3 | Build the record → ai-work-audit-trail |\n\n## Output\n\nLead with `Billing record: <billable? y/n> — disclose AI: <y/n> — reasonable-fee basis: <one line>`. Then the output contract. Add:\n\n- **Time entry**: the hours and the honest narrative.\n- **Billability**: what may and may not be charged, and why (fee model + reasonable-fee duty).\n- **Disclosure**: whether AI use is disclosed, to whom, and the trigger (OCG/bar/materiality).\n- **Confidentiality note**: the data-into-tool check result.\n- One JSON finding per billing/disclosure issue with `category: \"ai-billing\"`.\n\n## Edge cases & pitfalls\n\n- **Billing the counterfactual**: charging the hours a task *would* have taken without AI is a false time record — bill only time actually spent.\n- **Confidentiality laundering**: a tidy bill does not cure client data having been fed into an unvetted model; the confidentiality breach is the headline issue.\n- **Silent material use under consent-required terms**: where the engagement letter/OCGs require disclosure or consent for AI, staying quiet is the violation.\n- **Restructuring to recapture savings**: flipping an hourly matter to fixed purely to keep the efficiency gain, or padding to the same effect, is a reasonable-fee problem.\n- **Pass-through by default**: adding an AI-tool line to the invoice without an express, actual-cost term double-charges overhead already in the rate.\n\n## References\n\n- Volatile facts: cite `[verify current]` on the governing bar's AI-billing/disclosure guidance and any OCG term — these are evolving quickly and vary by jurisdiction and client.\n- The reasonable-fee and confidentiality duties under the applicable professional-conduct rules; recent bar/ethics opinions on generative-AI billing and disclosure; the engagement letter and outside-counsel guidelines in force.",
+   "references": {},
+   "description": "Produces a defensible time-and-billing record for AI-assisted legal work: whether the AI-saved time may be billed, how to describe the work without padding or false hours, when to disclose AI use to the client or under outside- counsel guidelines, and the confidentiality check before client data touches a model — grounded in the reasonable- fee duty. Use to record/review AI-assisted time or set a billing-disclosure policy. Not for the AI-decision audit trail → platform/ai-work-audit-trail; not for reviewing a firm's invoice → outside-counsel/invoice-review.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   }
  ]
 }

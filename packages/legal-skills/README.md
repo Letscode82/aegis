@@ -95,7 +95,7 @@ _Review, drafting, negotiation and post-signature obligations_
 | [Sustainability & ESG clauses](skills/contracts/sustainability-clauses/SKILL.md) | ✅ built | global | Add proportionate climate, human-rights and supply-chain clauses to commercial contracts. |
 | [Contract template builder](skills/contracts/contract-template-builder/SKILL.md) | ✅ built | global | Build a new standard template with guidance notes and a negotiation playbook. |
 
-### Privacy & Data Protection — 11/12 built
+### Privacy & Data Protection — 12/12 built
 
 _Personal-data compliance across DPDPA, GDPR, US state laws and beyond_
 
@@ -112,9 +112,9 @@ _Personal-data compliance across DPDPA, GDPR, US state laws and beyond_
 | [US state privacy laws](skills/privacy/us-state-privacy/SKILL.md) | ✅ built | US | CCPA/CPRA and other state comprehensive privacy laws: applicability and obligations. |
 | [Cookies, SDKs & tracking](skills/privacy/cookie-and-tracking/SKILL.md) | ✅ built | global | Consent and disclosure requirements for cookies, pixels and mobile SDKs. |
 | [Legitimate interest assessment](skills/privacy/legitimate-interest-assessment/SKILL.md) | ✅ built | EU, UK | Three-part purpose/necessity/balancing test with documented outcome. |
-| Regional privacy pack | 🗺️ planned | BR, SG, VN, AE, SA | LGPD, PDPA, PDPL and Gulf regimes as jurisdiction modules on one engine. |
+| [Regional privacy pack](skills/privacy/regional-privacy-pack/SKILL.md) | ✅ built | BR, SG, VN, AE, SA | LGPD, PDPA, PDPL and Gulf regimes as jurisdiction modules on one engine. |
 
-### Regulatory & Compliance — 12/14 built
+### Regulatory & Compliance — 14/14 built
 
 _Applicability, change monitoring, AI governance, trade, anti-corruption, sector regimes_
 
@@ -130,9 +130,9 @@ _Applicability, change monitoring, AI governance, trade, anti-corruption, sector
 | [Indian financial services regulation](skills/regulatory/financial-services-india/SKILL.md) | ✅ built | IN | RBI, SEBI and IRDAI requirements for fintech, lending, payments and outsourcing. |
 | [Security framework mapping](skills/regulatory/security-frameworks/SKILL.md) | ✅ built | global | Map controls across ISO 27001, SOC 2, NIST CSF and CERT-In directions; evidence gaps. |
 | [Operational resilience (DORA/NIS2)](skills/regulatory/operational-resilience/SKILL.md) | ✅ built | EU | ICT risk, third-party register and incident obligations for EU entities. |
-| ESG & sustainability reporting | 🗺️ planned | global | BRSR Core, CSRD/ESRS and ISSB disclosure readiness. |
+| [ESG & sustainability reporting](skills/regulatory/esg-reporting/SKILL.md) | ✅ built | global | BRSR Core, CSRD/ESRS and ISSB disclosure readiness. |
 | [Whistleblower programme](skills/regulatory/whistleblower-programme/SKILL.md) | ✅ built | global | Design or audit speak-up channels, protections and investigation workflow. |
-| Digital accessibility | 🗺️ planned | global | WCAG, Section 508, EAA and RPwD Act obligations for digital products. |
+| [Digital accessibility](skills/regulatory/accessibility-compliance/SKILL.md) | ✅ built | global | WCAG, Section 508, EAA and RPwD Act obligations for digital products. |
 | [Product cybersecurity obligations](skills/regulatory/product-cyber-obligations/SKILL.md) | ✅ built | EU, US | Cyber Resilience Act and similar secure-by-design and vulnerability-handling duties. |
 
 ### Corporate, Governance & Board — 8/8 built
@@ -232,7 +232,7 @@ _Grounded research and the verification layer every other skill relies on_
 | [Source-locked answering](skills/research/source-locked-answering/SKILL.md) | ✅ built | global | Answer strictly from supplied documents with pinpoint support. |
 | [Indian legal research](skills/research/india-legal-research/SKILL.md) | ✅ built | IN | Research workflow for Indian statutes, rules, notifications and SC/HC judgments. |
 
-### Writing & Communication — 5/6 built
+### Writing & Communication — 6/6 built
 
 _Plain-language, persuasive, translated and policy writing_
 
@@ -243,9 +243,9 @@ _Plain-language, persuasive, translated and policy writing_
 | [Legal translation](skills/drafting/legal-translation/SKILL.md) | ✅ built | global | Translate legal documents preserving legal effect, with term notes. |
 | [Corporate policy drafter](skills/drafting/policy-drafter/SKILL.md) | ✅ built | global | Draft internal policies with scope, roles, controls and review cycle. |
 | [Legal design review](skills/drafting/legal-design-review/SKILL.md) | ✅ built | global | Score and improve a document's readability and usability. |
-| Response template library | 🗺️ planned | global | Build and maintain approved responses for recurring queries. |
+| [Response template library](skills/drafting/template-response-library/SKILL.md) | ✅ built | global | Build and maintain approved responses for recurring queries. |
 
-### Platform & Skill Governance — 3/5 built
+### Platform & Skill Governance — 5/5 built
 
 _Safety and auditability of AI-assisted legal work inside AEGIS_
 
@@ -254,8 +254,8 @@ _Safety and auditability of AI-assisted legal work inside AEGIS_
 | [Skill security audit](skills/platform/skill-security-audit/SKILL.md) | ✅ built | global | Audit a third-party or internal skill for injection, exfiltration, unsafe tools and licence issues before enabling it in AEGIS. |
 | [AI-assisted work audit trail](skills/platform/ai-work-audit-trail/SKILL.md) | ✅ built | global | Record inputs, sources, model and human sign-off for AI-assisted legal work. |
 | [Prompt-injection guard](skills/platform/prompt-injection-guard/SKILL.md) | ✅ built | global | Treat document content as data; detect and neutralise embedded instructions. |
-| Skill authoring | 🗺️ planned | global | Turn a lawyer's expertise into a new AEGIS skill that passes validation. |
-| AI-use time & billing record | 🗺️ planned | global | Record and disclose AI assistance in time entries per firm/bar guidance. |
+| [Skill authoring](skills/platform/skill-authoring/SKILL.md) | ✅ built | global | Turn a lawyer's expertise into a new AEGIS skill that passes validation. |
+| [AI-use time & billing record](skills/platform/ai-use-billing-record/SKILL.md) | ✅ built | global | Record and disclose AI assistance in time entries per firm/bar guidance. |
 <!-- CATALOG:END -->
 
 ## Disclaimer
