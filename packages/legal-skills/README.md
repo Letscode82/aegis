@@ -72,7 +72,7 @@ _Front door: classify, route and answer inbound legal requests_
 | Matter scoping | 🗺️ planned | global | Turn a triaged request into a defined scope, assumptions, exclusions and an effort estimate. |
 | Conflict check preparation | 🗺️ planned | global | Extract parties, affiliates and adverse interests to run a conflict search before opening a matter. |
 
-### Contracts — 6/16 built
+### Contracts — 7/16 built
 
 _Review, drafting, negotiation and post-signature obligations_
 
@@ -86,7 +86,7 @@ _Review, drafting, negotiation and post-signature obligations_
 | [Vendor & third-party due diligence](skills/contracts/vendor-due-diligence/SKILL.md) | ✅ built | global | Risk-tier a supplier and run proportionate legal, privacy, security, sanctions and financial checks. |
 | Redline generator | 🗺️ planned | global | Turn review findings into tracked-change edits and a counterparty-facing issues list. |
 | Clause drafter from library | 🗺️ planned | global | Draft or adapt clauses from the approved clause library with variant selection and rationale. |
-| SaaS & cloud agreement review | 🗺️ planned | global | Customer- or vendor-side review of SaaS/cloud terms: SLAs, data, security, lock-in, liability. |
+| [SaaS & cloud agreement review](skills/contracts/saas-and-cloud-review/SKILL.md) | ✅ built | global | Customer- or vendor-side review of SaaS/cloud terms: SLAs, data, security, lock-in, liability. |
 | Dispute resolution clause design | 🗺️ planned | global | Design arbitration/jurisdiction clauses: seat, institution, rules, tiers, enforceability. |
 | Negotiation preparation | 🗺️ planned | global | Map interests, walk-away points, trade-offs and concession sequence before a negotiation. |
 | Renewal & termination advisor | 🗺️ planned | global | Decide renew/renegotiate/exit ahead of a notice deadline, with exit mechanics. |
@@ -95,7 +95,7 @@ _Review, drafting, negotiation and post-signature obligations_
 | Sustainability & ESG clauses | 🗺️ planned | global | Add proportionate climate, human-rights and supply-chain clauses to commercial contracts. |
 | Contract template builder | 🗺️ planned | global | Build a new standard template with guidance notes and a negotiation playbook. |
 
-### Privacy & Data Protection — 7/12 built
+### Privacy & Data Protection — 9/12 built
 
 _Personal-data compliance across DPDPA, GDPR, US state laws and beyond_
 
@@ -105,16 +105,16 @@ _Personal-data compliance across DPDPA, GDPR, US state laws and beyond_
 | [Privacy impact assessment (DPIA)](skills/privacy/privacy-impact-assessment/SKILL.md) | ✅ built | global | Regime-agnostic DPIA/PIA: necessity, risk to individuals, mitigations and residual risk sign-off. |
 | [Data processing agreement review](skills/privacy/dpa-review/SKILL.md) | ✅ built | global | Review or draft a DPA against GDPR Art. 28, DPDPA processor duties and the organisation's minimums. |
 | [Personal-data & cyber incident notification](skills/privacy/breach-response/SKILL.md) | ✅ built | global | Decide who must be notified, by when, across DPDPA, CERT-In, GDPR, US state and sector regimes. |
-| GDPR compliance programme | 🗺️ planned | EU, UK | Lawful basis, records of processing, rights handling and accountability under (UK) GDPR. |
+| [GDPR compliance programme](skills/privacy/gdpr-compliance/SKILL.md) | ✅ built | EU, UK | Lawful basis, records of processing, rights handling and accountability under (UK) GDPR. |
 | [Privacy & consent notice drafter](skills/privacy/privacy-notice-drafter/SKILL.md) | ✅ built | global | Draft layered privacy notices and DPDPA itemised consent notices from a data inventory. |
 | Cross-border transfer assessment | 🗺️ planned | global | Transfer mechanism selection and transfer impact assessment. |
-| Data principal / subject request handling | 🗺️ planned | global | Verify, scope, answer or refuse access, correction, erasure and portability requests. |
+| [Data principal / subject request handling](skills/privacy/data-subject-requests/SKILL.md) | ✅ built | global | Verify, scope, answer or refuse access, correction, erasure and portability requests. |
 | US state privacy laws | 🗺️ planned | US | CCPA/CPRA and other state comprehensive privacy laws: applicability and obligations. |
 | [Cookies, SDKs & tracking](skills/privacy/cookie-and-tracking/SKILL.md) | ✅ built | global | Consent and disclosure requirements for cookies, pixels and mobile SDKs. |
 | [Legitimate interest assessment](skills/privacy/legitimate-interest-assessment/SKILL.md) | ✅ built | EU, UK | Three-part purpose/necessity/balancing test with documented outcome. |
 | Regional privacy pack | 🗺️ planned | BR, SG, VN, AE, SA | LGPD, PDPA, PDPL and Gulf regimes as jurisdiction modules on one engine. |
 
-### Regulatory & Compliance — 4/14 built
+### Regulatory & Compliance — 7/14 built
 
 _Applicability, change monitoring, AI governance, trade, anti-corruption, sector regimes_
 
@@ -123,12 +123,12 @@ _Applicability, change monitoring, AI governance, trade, anti-corruption, sector
 | [Regulatory applicability mapper](skills/regulatory/applicability-mapper/SKILL.md) | ✅ built | global | Given a product, activity or deal, identify every regime that applies, how they interact, and what each demands. |
 | [Regulatory change impact](skills/regulatory/regulatory-change-monitor/SKILL.md) | ✅ built | global | Convert a new law, rule, circular or guidance into impact, owners, deadlines and actions. |
 | [AI system governance](skills/regulatory/ai-governance/SKILL.md) | ✅ built | global | Classify and govern AI systems across the EU AI Act, NIST AI RMF, ISO/IEC 42001 and Indian guidance. |
-| Sanctions screening & alert adjudication | 🗺️ planned | global | Adjudicate screening hits and assess sanctions exposure in a transaction. |
+| [Sanctions screening & alert adjudication](skills/regulatory/sanctions-screening/SKILL.md) | ✅ built | global | Adjudicate screening hits and assess sanctions exposure in a transaction. |
 | Export controls classification | 🗺️ planned | US, EU, IN | Classify items and technology; licence determination under EAR, EU dual-use and SCOMET. |
-| Anti-bribery & corruption | 🗺️ planned | global | FCPA, UK Bribery Act and Prevention of Corruption Act risk review of payments and intermediaries. |
+| [Anti-bribery & corruption](skills/regulatory/anti-bribery/SKILL.md) | ✅ built | global | FCPA, UK Bribery Act and Prevention of Corruption Act risk review of payments and intermediaries. |
 | Competition & merger control | 🗺️ planned | global | Merger filing thresholds (incl. CCI deal-value test) and conduct-risk screening. |
 | Indian financial services regulation | 🗺️ planned | IN | RBI, SEBI and IRDAI requirements for fintech, lending, payments and outsourcing. |
-| Security framework mapping | 🗺️ planned | global | Map controls across ISO 27001, SOC 2, NIST CSF and CERT-In directions; evidence gaps. |
+| [Security framework mapping](skills/regulatory/security-frameworks/SKILL.md) | ✅ built | global | Map controls across ISO 27001, SOC 2, NIST CSF and CERT-In directions; evidence gaps. |
 | Operational resilience (DORA/NIS2) | 🗺️ planned | EU | ICT risk, third-party register and incident obligations for EU entities. |
 | ESG & sustainability reporting | 🗺️ planned | global | BRSR Core, CSRD/ESRS and ISSB disclosure readiness. |
 | [Whistleblower programme](skills/regulatory/whistleblower-programme/SKILL.md) | ✅ built | global | Design or audit speak-up channels, protections and investigation workflow. |
@@ -150,7 +150,7 @@ _Board work, entity compliance, M&A and securities_
 | Shareholders' & founders' agreements | 🗺️ planned | global | Draft or review SHA/founders' terms: control, transfer, exit, vesting. |
 | Governance health check | 🗺️ planned | global | Board composition, committee charters and delegation-of-authority review. |
 
-### Litigation & Disputes — 4/10 built
+### Litigation & Disputes — 5/10 built
 
 _Early case assessment, holds, chronology, strategy and settlement_
 
@@ -161,7 +161,7 @@ _Early case assessment, holds, chronology, strategy and settlement_
 | [Case chronology builder](skills/disputes/chronology-builder/SKILL.md) | ✅ built | global | Build a sourced, dated chronology from a document set, flagging gaps and conflicts. |
 | [Adversarial stress test](skills/disputes/adversarial-stress-test/SKILL.md) | ✅ built | global | Attack your own argument, contract position or settlement offer as opposing counsel would. |
 | Pre-action letters & legal notices | 🗺️ planned | IN, UK, US | Demand letters and statutory notices (e.g. s.80 CPC, s.138 NI Act, PAP letters). |
-| Procedural deadline calendar | 🗺️ planned | global | Compute limitation and procedural deadlines with verification flags. |
+| [Procedural deadline calendar](skills/disputes/deadline-calendar/SKILL.md) | ✅ built | global | Compute limitation and procedural deadlines with verification flags. |
 | Disclosure & production review | 🗺️ planned | global | Relevance, privilege and production strategy for document disclosure. |
 | Settlement agreement | 🗺️ planned | global | Draft or review settlement terms: release scope, confidentiality, tax and enforcement. |
 | Arbitration strategy | 🗺️ planned | global | Tribunal selection, interim relief and enforcement planning for arbitration. |
@@ -232,7 +232,7 @@ _Grounded research and the verification layer every other skill relies on_
 | Source-locked answering | 🗺️ planned | global | Answer strictly from supplied documents with pinpoint support. |
 | Indian legal research | 🗺️ planned | IN | Research workflow for Indian statutes, rules, notifications and SC/HC judgments. |
 
-### Writing & Communication — 1/6 built
+### Writing & Communication — 2/6 built
 
 _Plain-language, persuasive, translated and policy writing_
 
@@ -241,7 +241,7 @@ _Plain-language, persuasive, translated and policy writing_
 | [Plain-language explainer](skills/drafting/plain-language-explainer/SKILL.md) | ✅ built | global | Translate legal analysis into a clear, accurate explanation for a business reader. |
 | Persuasive legal writing | 🗺️ planned | global | Structure and edit briefs, submissions and advocacy letters. |
 | Legal translation | 🗺️ planned | global | Translate legal documents preserving legal effect, with term notes. |
-| Corporate policy drafter | 🗺️ planned | global | Draft internal policies with scope, roles, controls and review cycle. |
+| [Corporate policy drafter](skills/drafting/policy-drafter/SKILL.md) | ✅ built | global | Draft internal policies with scope, roles, controls and review cycle. |
 | Legal design review | 🗺️ planned | global | Score and improve a document's readability and usability. |
 | Response template library | 🗺️ planned | global | Build and maintain approved responses for recurring queries. |
 

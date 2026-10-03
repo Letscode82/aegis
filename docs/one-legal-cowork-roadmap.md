@@ -330,10 +330,10 @@ Legend: 🔴 not started · 🟡 in progress / in review · 🟢 mitigated · �
 | CW-4 | Attorney-grade `.docx` deliverable → edit → approve → send back to requester | = OL-5 | P1 | ✅ #477 — Word export of C1 canvas (`renderMarkdownDocx` + `/api/one-legal/artifact-docx` + "⬇ Word" button); email-send is the remaining follow-up |
 | CW-5 | Cockpit RFI round-trip (questions back to requester) | new; pairs with C-10 | P2 | 🔴 |
 
-> The **OL-1…OL-8** plan in §6 remains the orchestration backbone (all 🔴 not started). CW-* above are the immediate Cowork-feel wins layered on it; CW-4 is OL-5, CW-2/3 ride OL-6.
+> The **OL-1…OL-8** plan in §6 is the orchestration backbone. Shipped: OL-1 compound-request window (✅ #437), OL-2 governed tool-registry + human-approved execution with matter/contracts/privacy/legal-hold/invoice tools (✅ #438–#441, #444), OL-4 persisted runs — `ConsoleSession` + `LegalTask` (✅ #445), OL-5 artifact canvas + Word export (✅ #452, #477 / CW-4), OL-8 parallel task execution (✅ #444). Remaining: OL-3 universal `AgentDecision` gating, OL-6 skills = agents + ladders, OL-7 the cross-module demo spine, and the Intake `api.ts` split enabler (🔴). CW-* above are the immediate Cowork-feel wins layered on it; CW-4 is OL-5, CW-2/3 ride OL-6.
 
 ### Reusable legal skills (clean-room `@aegis/legal-skills`)
-A clean-room, Apache-2.0 package of original AEGIS playbooks — shared standards (S1–S4 severity scale, JSON output contract, volatile-facts handling), a zero-dependency runtime (route → build system prompt → wrap documents as data), and a catalog of 106 scenarios across 13 modules (30 built, rest planned). The "brain" the ONE Legal surfaces run on.
+A clean-room, Apache-2.0 package of original AEGIS playbooks — shared standards (S1–S4 severity scale, JSON output contract, volatile-facts handling), a zero-dependency runtime (route → build system prompt → wrap documents as data), and a catalog of 106 scenarios across 13 modules (44 built, rest planned). The "brain" the ONE Legal surfaces run on.
 
 | ID | Item | Priority | Status |
 |---|---|---|---|
@@ -341,9 +341,9 @@ A clean-room, Apache-2.0 package of original AEGIS playbooks — shared standard
 | SK-2 | `POST /api/one-legal/skill-review` — first live use (route → standards + playbook → governed `@aegis/ai`; gated + audited; degrade-safe) | P1 | ✅ #482 |
 | SK-3 | Console **"Deep skill review"** surface (landing + AnswerCard escalation + uploaded-document review; shows the matched playbook) | P1 | ✅ #483 |
 | SK-4 | **Standards adoption** — converge the 11 oKF intake agents onto the S1–S4 severity scale + JSON output contract (one source of truth for output shape) | P1 | ✅ — `@aegis/legal-skills/output-contract` is the executable scale; every agent rec carries a normalized `overall` (S1–S4/Info) + structured `findings`, persisted on `AgentRecommendation` |
-| SK-5 | **Wire E1 one-click skills → `/skill-review`** — review chips pinned to a built playbook run the governed endpoint (instruction as task, pasted text as data) instead of filing | P2 | 🟡 #484 (in review) |
-| SK-6 | Build out the remaining catalogued playbooks (`status: planned` → `built`) | P2 | 🟡 in progress — batch 1 built (36/106): whistleblower-programme, legitimate-interest-assessment, privacy-notice-drafter, cookie-and-tracking, matter-budget, matter-plan. 70 still planned. |
-| SK-7 | Admin-editable skills (`Skill` table + CRUD) behind the E1 shape (org-authored playbooks) | P3 | 🟡 #489 (in review) |
+| SK-5 | **Wire E1 one-click skills → `/skill-review`** — review chips pinned to a built playbook run the governed endpoint (instruction as task, pasted text as data) instead of filing | P2 | ✅ #484 |
+| SK-6 | Build out the remaining catalogued playbooks (`status: planned` → `built`) | P2 | 🟡 in progress — **44/106 built**. Batch 1 (#487): whistleblower-programme, legitimate-interest-assessment, privacy-notice-drafter, cookie-and-tracking, matter-budget, matter-plan. Batch 2: gdpr-compliance, sanctions-screening, security-frameworks, saas-and-cloud-review, data-subject-requests, anti-bribery, deadline-calendar, policy-drafter (the planned playbooks most hand-off-referenced by built ones + behind the biggest E1 chip categories). 62 still planned. |
+| SK-7 | Admin-editable skills (`Skill` table + CRUD) behind the E1 shape (org-authored playbooks) | P3 | ✅ #489 |
 
 > Also shipped on the ONE Legal front door (context for the above): full-breadth E1 skill library — 79 one-click skills across 14 categories (✅ #480); this Cowork-for-Legal roadmap doc (✅ #475).
 
@@ -358,7 +358,7 @@ A clean-room, Apache-2.0 package of original AEGIS playbooks — shared standard
 |---|:--:|:--:|:--:|---|---|
 | Cited Q&A over your own docs | ✅ | ✅ | ✅ | ✅ K1 (self-hosted) | parity |
 | Bulk / tabular multi-doc review grid | ✅ | ✅ | ~ | ✅ `packages/review` + Vault V1c | parity |
-| Agentic workflows / ladders | ✅ | ✅ | ✅ | 🟡 engine + `GOVERNANCE_LIBRARY`, orchestrator pending (OL-2) | close |
+| Agentic workflows / ladders | ✅ | ✅ | ✅ | 🟢 engine + `GOVERNANCE_LIBRARY` + governed orchestrator & tool registry (OL-2/OL-4/OL-8 ✅); cross-module spine (OL-7) + skills-as-ladders (OL-6) pending | close |
 | Breadth across legal-ops lifecycle | ❌ | ❌ | ❌ | ✅✅ | **AEGIS wins** |
 | Chain-sealed audit + human-gate governance | ~ | ~ | ~ | ✅✅ | **AEGIS wins** |
 | Legal hold / eDiscovery | ❌ | ❌ | ❌ | ✅✅ | **AEGIS wins** |
