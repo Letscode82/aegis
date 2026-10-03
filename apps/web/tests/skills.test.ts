@@ -82,9 +82,9 @@ describe("the whistleblower-policy bug is fixed", () => {
       "whistleblower-policy", "cookie-policy", "privacy-notice", "cpr-letter",
       "disclosure-list", "deadline-calendar", "preservation-notice",
       "board-resolution", "entity-formation", "governance-attest",
-      "budget-build", "matter-scope", "matter-plan", "status-report",
+      "budget-build", "matter-scope", "matter-plan",
       "rfp-pitch", "engagement-terms", "local-counsel", "memo",
-      "legal-notice", "plain-language", "legal-translation",
+      "legal-notice", "legal-translation",
     ];
     for (const id of draftIds) {
       expect(resolveSkillTarget(byId(id)), id).toBe("draft");
@@ -102,9 +102,22 @@ describe("each skill's surface matches its intent", () => {
       "screening-adjudication", "dismissal-screen", "settlement-review",
       "trademark-clearance", "ip-assignment", "copyright-originality",
       "invoice-review", "oc-performance",
+      // SK-5 — playbook-backed drafting-ish skills run through the governed
+      // playbook (they carry a reviewSkillId), not the canvas.
+      "plain-language", "status-report",
     ];
     for (const id of reviewIds) {
       expect(resolveSkillTarget(byId(id)), id).toBe("review");
+    }
+  });
+
+  // SK-5 — any skill backed by a built @aegis/legal-skills playbook must open the
+  // governed review surface (never the intake router or the canvas).
+  it("every playbook-backed skill resolves to the review surface", () => {
+    const backed = SKILLS.filter((s) => s.reviewSkillId);
+    expect(backed.length).toBeGreaterThan(0);
+    for (const s of backed) {
+      expect(resolveSkillTarget(s), s.id).toBe("review");
     }
   });
 

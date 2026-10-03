@@ -71,6 +71,15 @@ export interface OneLegalSkill {
    * can never silently file a mismatched intake ticket.
    */
   run?: SkillTarget;
+  /**
+   * SK-5 — when set, this skill is backed by a built `@aegis/legal-skills`
+   * playbook (an id in the package registry). When a review-style skill is
+   * dispatched to the governed `POST /api/one-legal/skill-review` endpoint, this
+   * playbook id is passed so the shared standards + the skill's JSON output
+   * contract are applied. Only the chip path uses it; typing the same text
+   * freehand routes as before.
+   */
+  reviewSkillId?: string;
 }
 
 /**
@@ -182,7 +191,7 @@ export const SKILLS: OneLegalSkill[] = [
   { id: "budget-build", label: "Matter budget", desc: "Build a matter budget and fee estimate.", icon: "▤", action: "prefill", prompt: "Build a matter budget and fee estimate (phases, assumptions, ranges) for: ", run: "draft", cats: [], category: "Legal Spend & Ops" },
   { id: "matter-scope", label: "Matter intake scoping", desc: "Scope a new matter: issues, budget, staffing.", icon: "◫", action: "prefill", prompt: "Scope a new matter — issues, risks, budget, and staffing — for: ", run: "draft", cats: [], category: "Legal Spend & Ops" },
   { id: "matter-plan", label: "Matter plan", desc: "Build a matter plan with phases, tasks, milestones.", icon: "▤", action: "prefill", prompt: "Build a matter plan with phases, tasks, owners, and milestones for: ", run: "draft", cats: [], category: "Legal Spend & Ops" },
-  { id: "status-report", label: "Status report", desc: "Draft a matter status report.", icon: "▤", action: "prefill", prompt: "Draft a concise matter status report (progress, risks, next steps, spend) for: ", run: "draft", cats: [], category: "Legal Spend & Ops" },
+  { id: "status-report", label: "Status report", desc: "Draft a matter status report.", icon: "▤", action: "prefill", prompt: "Draft a concise matter status report (progress, risks, next steps, spend) for: ", cats: [], category: "Legal Spend & Ops" },
 
   // ── Outside Counsel ───────────────────────────────────────────────────────
   { id: "oc-performance", label: "Outside-counsel review", desc: "Review outside-counsel performance and billing.", icon: "⇤", action: "prefill", prompt: "Review outside-counsel performance and billing (quality, budget adherence, outcomes) on: ", cats: [], category: "Outside Counsel" },
@@ -201,7 +210,7 @@ export const SKILLS: OneLegalSkill[] = [
   { id: "memo", label: "Draft a memo", desc: "Open the canvas on a memo you can edit and save.", icon: "▤", action: "prefill", prompt: "Draft a memo summarizing ", run: "draft", cats: [], category: "Drafting & Translation", featured: true },
   { id: "legal-notice", label: "Draft a legal notice", desc: "Draft a formal legal notice or letter on the canvas.", icon: "✎", action: "prefill", prompt: "Draft a formal legal notice regarding ", run: "draft", cats: [], category: "Drafting & Translation" },
   { id: "summarize-doc", label: "Summarize a document", desc: "Summarize a document; pull key dates, parties, obligations.", icon: "▤", action: "prefill", prompt: "Summarize this document and extract the key dates, parties, and obligations: ", cats: [], category: "Drafting & Translation" },
-  { id: "plain-language", label: "Plain-language rewrite", desc: "Rewrite legal text for a business audience.", icon: "✎", action: "prefill", prompt: "Rewrite this legal text in plain language for a business audience, keeping the meaning exact: ", run: "draft", cats: [], category: "Drafting & Translation" },
+  { id: "plain-language", label: "Plain-language rewrite", desc: "Rewrite legal text for a business audience.", icon: "✎", action: "prefill", prompt: "Rewrite this legal text in plain language for a business audience, keeping the meaning exact: ", cats: [], category: "Drafting & Translation" },
   { id: "legal-translation", label: "Legal translation", desc: "Translate legal text, preserving legal meaning.", icon: "✎", action: "prefill", prompt: "Translate this legal text into the requested language, preserving legal meaning and defined terms: ", run: "draft", cats: [], category: "Drafting & Translation" },
 
   // ── Cross-module · One Brain (AEGIS go-beyond) ────────────────────────────
@@ -210,3 +219,40 @@ export const SKILLS: OneLegalSkill[] = [
   { id: "holds-overview", label: "Holds overview", desc: "Which matters have active legal holds.", icon: "⚖", action: "route", prompt: "Which matters have active legal holds?", cats: [], category: "Cross-module · One Brain" },
   { id: "intake-queue", label: "Intake queue", desc: "How many intake tickets are open, by status.", icon: "◷", action: "route", prompt: "How many intake tickets are open, by status?", cats: [], category: "Cross-module · One Brain" },
 ];
+
+// SK-5 — pin review/analysis skills to a built @aegis/legal-skills playbook.
+// Deliberately excludes the route-to-file skills (legal-hold, vendor DD intake,
+// DPIA open, …): those must keep their governed filing path, not become a
+// read-only playbook read. Each value is an id that exists + is `status:"built"`
+// in the package registry (packages/legal-skills/dist/registry.json).
+const REVIEW_PLAYBOOK: Record<string, string> = {
+  // Contracts & commercial
+  "nda-review": "contracts/nda-triage",
+  "contract-review": "contracts/contract-review",
+  "msa-saas-review": "contracts/contract-review",
+  "playbook-check": "contracts/contract-review",
+  "tos-scan": "contracts/contract-review",
+  // Privacy
+  "dpa-review": "privacy/dpa-review",
+  "breach-response": "privacy/breach-response",
+  // Compliance / regulatory
+  "ai-act-classify": "regulatory/ai-governance",
+  // Litigation & disputes
+  "demand-letter": "disputes/early-case-assessment",
+  "opposing-counsel-review": "disputes/adversarial-stress-test",
+  "settlement-pressure": "disputes/adversarial-stress-test",
+  // Employment
+  "dismissal-screen": "employment/termination-risk",
+  // Spend / outside counsel
+  "invoice-review": "outside-counsel/invoice-review",
+  // IP
+  // Research & drafting
+  "citation-verify": "research/citation-verification",
+  "plain-language": "drafting/plain-language-explainer",
+  // Ops
+  "status-report": "matters/status-report",
+};
+for (const s of SKILLS) {
+  const pid = REVIEW_PLAYBOOK[s.id];
+  if (pid) s.reviewSkillId = pid;
+}

@@ -922,9 +922,10 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
   const recordedRef = useRef(new Set());
-  // E1 — the skill a `prefill` click armed the composer with, so submitting the
-  // completed prompt dispatches to the skill's own surface (draft canvas /
-  // governed playbook / router) instead of being re-classified by intake triage.
+  // E1 / SK-5 — the skill a `prefill` click armed the composer with, so
+  // submitting the completed prompt dispatches to the skill's own surface
+  // (draft canvas / governed playbook incl. its pinned reviewSkillId / router)
+  // instead of being re-classified by intake triage.
   const pendingSkillRef = useRef(null);
 
   const isOpen = embedded || open;
@@ -1213,7 +1214,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       const resp = await fetch("/api/one-legal/skill-review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, jurisdiction: opts?.jurisdiction, documents: opts?.documents }),
+        body: JSON.stringify({ text, jurisdiction: opts?.jurisdiction, documents: opts?.documents, skillId: opts?.skillId }),
       });
       const d = await resp.json().catch(() => ({}));
       if (d && d.ok) {
@@ -1309,34 +1310,42 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     runAsk(id, t, capability);
   }, [clarifyThenFile, planAndRun, runAsk, startArtifact]);
 
-  // Dispatch a submitted composer value. If a `prefill` skill armed the composer
-  // and its prompt prefix is still present (the user only filled in the blank),
-  // route to THAT skill's surface — draft canvas / governed playbook / research /
-  // router — instead of re-classifying the text through intake triage. This is
-  // the fix for drafting skills (e.g. "whistleblower policy") that used to land
-  // on the Privacy / DSAR intake form. Anything else goes through the router.
-  const dispatchByTarget = useCallback((target, text) => {
-    if (target === "draft") { startArtifact(text); return; }
-    if (target === "review") { setInput(""); runSkillReview(text); return; }
-    if (target === "research") { setInput(""); startResearch(text); return; }
-    startTurn(text); // "route"
-  }, [startArtifact, runSkillReview, startResearch, startTurn]);
-
+  // Dispatch a submitted composer value to the surface that matches the armed
+  // skill. A `prefill` skill that still carries its prompt prefix (the user only
+  // filled in the blank) routes to THAT skill's surface — draft canvas / governed
+  // playbook / research / router — instead of being re-classified by intake
+  // triage. This fixes drafting skills (e.g. "whistleblower policy") that used to
+  // land on the Privacy / DSAR intake form.
+  //
+  // SK-5 — a review skill pinned to a built playbook (`reviewSkillId`) runs
+  // through /api/one-legal/skill-review with that playbook: the skill's prompt is
+  // the instruction and the appended text is the document. Anything the user
+  // typed over the prompt falls through to the router, so freehand text behaves
+  // exactly as before.
   const submitComposer = useCallback((text) => {
-    const t = (text || "").trim();
+    const t = (text ?? input).trim();
     if (t.length < 3) return;
     const sk = pendingSkillRef.current;
     if (sk) {
       const prefix = String(sk.prompt || "").replace(/[\s:]+$/, "").trim();
       if (prefix && t.toLowerCase().startsWith(prefix.toLowerCase())) {
         pendingSkillRef.current = null;
-        dispatchByTarget(resolveSkillTarget(sk), t);
+        setInput("");
+        const target = resolveSkillTarget(sk);
+        if (target === "draft") { startArtifact(t); return; }
+        if (target === "research") { startResearch(t); return; }
+        if (target === "review") {
+          const body = t.slice(prefix.length).replace(/^[:\s]+/, "").trim();
+          runSkillReview(prefix || t, { skillId: sk.reviewSkillId, documents: body ? [{ name: "Pasted text", text: body }] : undefined });
+          return;
+        }
+        startTurn(t); // "route"
         return;
       }
       pendingSkillRef.current = null; // user replaced the prompt — treat as typed input
     }
     startTurn(t);
-  }, [dispatchByTarget, startTurn]);
+  }, [input, startArtifact, startResearch, runSkillReview, startTurn]);
 
   // E1 — run a reusable skill (playbook). "prefill" arms the composer with the
   // prompt for the user to complete, then dispatches to the skill's own surface
@@ -1478,7 +1487,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       <input
         ref={inputRef}
         value={input}
-        onChange={(e) => setInput(e.target.value)}
+        onChange={(e) => { const v = e.target.value; if (pendingSkillRef.current && !v.startsWith(pendingSkillRef.current.prompt)) pendingSkillRef.current = null; setInput(v); }}
         onKeyDown={(e) => { if (e.key === "Enter" && input.trim().length >= 3) submitComposer(input); }}
         placeholder={turns.length === 0 ? "Describe a request, ask a question, or attach a document…" : "Ask, file a request, or attach a document…"}
         aria-label="Ask AEGIS or file a legal request"
