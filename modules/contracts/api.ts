@@ -121,6 +121,16 @@ export {
   type AiDraftResult,
 } from "./src/internal/ai-draft";
 
+// AI clause redline (C-1) — the Word add-in's brain: rewrite a clause per a
+// plain-language instruction and return word-level track-changes segments.
+export {
+  redlineClause,
+  RedlineValidationError,
+  type RedlineClauseInput,
+  type RedlineResult,
+  type RedlineRunner,
+} from "./src/internal/redline";
+
 // Third-party review assessment (CTR-13) — "what to sign / which clauses are we
 // not comfortable with", deterministic baseline + robust AI deep read.
 export {

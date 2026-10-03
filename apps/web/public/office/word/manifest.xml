@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  AEGIS Word add-in manifest (C-1).
+
+  Sideload for development against `pnpm dev` (apps/web on :5173). For any other
+  host, replace every `https://localhost:5173` below with the AEGIS base URL the
+  add-in is served from (the SourceLocation + AppDomain + icon URLs must all be
+  https and reachable by Word). The task pane calls the same-origin AEGIS API
+  (/api/office/word/*) using the user's AEGIS session.
+-->
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xsi:type="TaskPaneApp">
+  <Id>7f3a1c2e-9b44-4d7a-8c21-aegiswordc1ad</Id>
+  <Version>0.1.0</Version>
+  <ProviderName>AEGIS</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="AEGIS Redline" />
+  <Description DefaultValue="AI clause redlining as Word tracked changes, governed by AEGIS." />
+  <SupportUrl DefaultValue="https://localhost:5173/" />
+  <AppDomains>
+    <AppDomain>https://localhost:5173</AppDomain>
+  </AppDomains>
+  <Hosts>
+    <Host Name="Document" />
+  </Hosts>
+  <Requirements>
+    <Sets DefaultMinVersion="1.3">
+      <Set Name="WordApi" MinVersion="1.3" />
+    </Sets>
+  </Requirements>
+  <DefaultSettings>
+    <SourceLocation DefaultValue="https://localhost:5173/office/word/taskpane.html" />
+  </DefaultSettings>
+  <Permissions>ReadWriteDocument</Permissions>
+</OfficeApp>

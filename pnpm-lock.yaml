@@ -26,6 +26,9 @@ importers:
       '@aegis/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@aegis/connectors':
+        specifier: workspace:*
+        version: link:../../packages/connectors
       '@aegis/contracts':
         specifier: workspace:*
         version: link:../../modules/contracts

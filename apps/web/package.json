@@ -16,6 +16,7 @@
     "@aegis/ai": "workspace:*",
     "@aegis/contracts": "workspace:*",
     "@aegis/auth": "workspace:*",
+    "@aegis/connectors": "workspace:*",
     "@aegis/db": "workspace:*",
     "@aegis/documents": "workspace:*",
     "@aegis/intake": "workspace:*",
