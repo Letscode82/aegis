@@ -195,7 +195,7 @@
       "module": "contracts",
       "name": "redline-generator",
       "title": "Redline generator",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -261,7 +261,7 @@
       "module": "contracts",
       "name": "amendment-assignment-novation",
       "title": "Amendments, assignment & novation",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -394,7 +394,7 @@
       "module": "privacy",
       "name": "us-state-privacy",
       "title": "US state privacy laws",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "US"
       ],
@@ -522,7 +522,7 @@
       "module": "regulatory",
       "name": "financial-services-india",
       "title": "Indian financial services regulation",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "IN"
       ],
@@ -588,7 +588,7 @@
       "module": "regulatory",
       "name": "product-cyber-obligations",
       "title": "Product cybersecurity obligations",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "EU",
         "US"
@@ -734,7 +734,7 @@
       "module": "disputes",
       "name": "legal-notice-drafter",
       "title": "Pre-action letters & legal notices",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "IN",
         "UK",
@@ -769,7 +769,7 @@
       "module": "disputes",
       "name": "settlement-agreement",
       "title": "Settlement agreement",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1110,7 +1110,7 @@
       "module": "research",
       "name": "source-locked-answering",
       "title": "Source-locked answering",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
