@@ -3431,11 +3431,63 @@
    "module": "corporate",
    "name": "shareholder-agreement",
    "title": "Shareholders' & founders' agreements",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Draft or review SHA/founders' terms: control, transfer, exit, vesting."
+   "summary": "Draft or review SHA/founders' terms: control, transfer, exit, vesting.",
+   "meta": {
+    "name": "corporate-shareholder-agreement",
+    "description": "Drafts or reviews a shareholders'/founders' agreement: control and board rights, reserved matters/veto, share transfer restrictions (ROFR/ROFO, tag/drag, lock-in), founder vesting and leaver provisions, anti-dilution and issue of new shares, exit/liquidity (IPO, sale, buy-back), deadlock resolution, and consistency with the articles. Use to paper or assess an SHA/founders' terms. Not for the financing-round economics of a term sheet alone; not for the board-meeting mechanics → corporate/board-minutes-resolutions.",
+    "module": "corporate",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "IN"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of draft (produce an SHA / founders' agreement), review (assess a draft or the other side's) or term-check (confirm a specific right works — e.g. drag, veto, vesting)."
+     },
+     {
+      "name": "deal",
+      "required": false,
+      "description": "The company, the shareholders and their stakes, the investor/founder dynamic, and the key commercial terms agreed (control, transfers, exit, vesting)."
+     },
+     {
+      "name": "documents",
+      "required": false,
+      "description": "Any existing SHA/articles/term sheet, the cap table, and the governing law."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "corporate/board-minutes-resolutions",
+     "corporate/corporate-governance-review",
+     "corporate/fdi-fema-assessment",
+     "contracts/contract-review",
+     "corporate/ma-due-diligence"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Shareholders' & Founders' Agreements\n\nTakes an agreed (or proposed) shareholder deal and returns an SHA/founders' agreement that allocates control, transfers, vesting and exit cleanly — and actually works against the company's articles and governing law. The deliverable is a drafted/reviewed agreement with the control, transfer and enforceability traps flagged, not a boilerplate SHA.\n\n## When to use / not use\n\n- Use: drafting or reviewing an SHA or founders' agreement; stress-testing a specific right (drag-along, veto, vesting, pre-emption); aligning an SHA with the articles; papering a financing round's governance/transfer terms.\n- Hand off: the board-meeting/resolution mechanics the SHA references → `corporate/board-minutes-resolutions`; the broader governance-structure review → `corporate/corporate-governance-review`; FEMA/FDI constraints on a foreign investor's rights/transfers → `corporate/fdi-fema-assessment`; a general commercial-contract review of ancillary agreements → `contracts/contract-review`; acquisition-driven share transfers at deal scale → `corporate/ma-due-diligence`.\n\n## Inputs to collect first\n\n1. The **cap table** and the shareholders (founders, investors, ESOP pool) with stakes.\n2. The **agreed commercial terms**: control/board composition, reserved matters, transfer restrictions, exit, vesting.\n3. The **articles of association** (the SHA must be consistent with, and often reflected in, them) and the governing law.\n4. Any **term sheet** the SHA implements and the investor/founder dynamic (control vs protection).\n\n## Method\n\n1. **Allocate control and board rights.** Board composition and appointment rights, chair/casting vote, and **reserved matters / investor veto** (the list of decisions needing special consent) — calibrate the veto list to protection without paralysing the company.\n2. **Set transfer restrictions.** **Lock-in/vesting** periods, **right of first refusal/offer (ROFR/ROFO)**, **tag-along** (minority can join a sale) and **drag-along** (majority can force a sale) with their thresholds and mechanics — these are the most-litigated clauses; define trigger, price and process precisely.\n3. **Handle founder vesting and leavers.** Vesting schedule (cliff + vesting), and **good-leaver/bad-leaver** treatment of unvested (and sometimes vested) shares — the single biggest founder-dispute source; define the leaver categories and the buy-back price mechanism.\n4. **Address new issues and anti-dilution.** Pre-emption rights on new shares, the ESOP pool, and any **anti-dilution** protection (full-ratchet vs broad-based weighted-average) — state the mechanism, not just the label.\n5. **Plan exit and liquidity.** IPO cooperation, sale/trade-exit mechanics, buy-back/put-call options, and any liquidation-preference interaction — so the end-state is agreed, not improvised.\n6. **Build deadlock resolution.** For 50/50 or veto-heavy structures, a real deadlock mechanism (escalation, casting vote, buy-sell/\"Russian roulette\"/Texas shoot-out, or exit) — absence of one is a time-bomb.\n7. **Reconcile with the articles and law.** Where a term must bind third parties or the company, it usually has to be in the **articles** (an SHA binds only the parties); check enforceability of drag/transfer restrictions and any statutory limits (e.g. restrictions on private-company share transfers, FEMA pricing/transfer limits for foreign holders) `[verify current]`.\n8. **Check consistency and survival.** Governing law, dispute resolution → `contracts/dispute-resolution-clause`, confidentiality, and that defined terms/cross-references are coherent.\n9. **Score against the Checks table** and set a verdict: **SOUND / FIXES NEEDED / NOT ENFORCEABLE AS DRAFTED**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Veto/reserved-matters list over- or under-broad | Protection calibrated; company not paralysed | S2 | Re-scope the veto list |\n| Transfer restrictions (ROFR/tag/drag) ill-defined | Trigger, price, process precise | S1 | Define the mechanics fully |\n| Founder vesting / leaver terms missing or vague | Vesting + good/bad-leaver + buy-back price | S1 | Add leaver mechanics |\n| Anti-dilution labelled, not specified | Mechanism (ratchet vs weighted-average) stated | S2 | Specify the formula |\n| Exit / liquidity not papered | IPO/sale/buy-back mechanics agreed | S2 | Add exit provisions |\n| No deadlock resolution | Real deadlock mechanism for veto/50-50 | S1 | Add a deadlock route |\n| SHA term that needs the articles isn't in them | Third-party/company-binding terms in articles | S1 | Reflect in the articles `[verify current]` |\n| Statutory/FEMA transfer limits ignored | Transfer/pricing limits respected | S2 | Comply with the limits → fdi-fema-assessment |\n| Inconsistent definitions / dispute clause | Coherent defined terms + DR clause | S2 | Reconcile the drafting |\n\n## Output\n\nLead with `Verdict: SOUND | FIXES NEEDED | NOT ENFORCEABLE AS DRAFTED — <company> — <key issue>`. Then the output contract. Add:\n\n- **Control**: board rights + reserved-matters/veto list.\n- **Transfers**: lock-in · ROFR/ROFO · tag · drag (with thresholds/mechanics).\n- **Founders**: vesting + good/bad-leaver + buy-back price.\n- **Economics & exit**: pre-emption/anti-dilution + exit/liquidity + deadlock.\n- **Articles/law fit**: what must move into the articles + statutory limits.\n- One JSON finding per issue with `category: \"sha\"`.\n\n## Edge cases & pitfalls\n\n- **SHA vs articles**: an SHA binds only its parties — a drag-along or transfer restriction that must bind the company or future shareholders usually has to be in the **articles**, or it fails when it matters.\n- **Vague drag/tag triggers**: ill-defined thresholds, price basis, or process on drag/tag clauses are the most litigated terms — pin every mechanic.\n- **Leaver landmine**: no good/bad-leaver treatment (or an unclear buy-back price) turns a founder exit into a valuation war — define it up front.\n- **No deadlock route**: a 50/50 or veto-heavy SHA with no deadlock mechanism can freeze the company — build the exit before it's needed.\n- **Statutory/FEMA limits**: private-company transfer restrictions and FEMA pricing/transfer rules can override a clause for a foreign holder — check before relying on it.\n\n## References\n\n- Volatile facts: cite `[verify current]` where a share-transfer restriction's enforceability, a FEMA pricing/transfer limit, or a stamping requirement is load-bearing; `IN-STMP-SEC-01` for securities-transfer stamp duty.\n- The governing company law on share transfers and articles (e.g. Companies Act 2013 in India), FEMA for foreign shareholders, and standard SHA/VC term conventions.",
+   "references": {},
+   "description": "Drafts or reviews a shareholders'/founders' agreement: control and board rights, reserved matters/veto, share transfer restrictions (ROFR/ROFO, tag/drag, lock-in), founder vesting and leaver provisions, anti-dilution and issue of new shares, exit/liquidity (IPO, sale, buy-back), deadlock resolution, and consistency with the articles. Use to paper or assess an SHA/founders' terms. Not for the financing-round economics of a term sheet alone; not for the board-meeting mechanics → corporate/board-minutes-resolutions.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "corporate/corporate-governance-review",
@@ -4415,11 +4467,65 @@
    "module": "employment",
    "name": "restrictive-covenants",
    "title": "Restrictive covenants",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Non-compete, non-solicit and confidentiality enforceability by jurisdiction."
+   "summary": "Non-compete, non-solicit and confidentiality enforceability by jurisdiction.",
+   "meta": {
+    "name": "employment-restrictive-covenants",
+    "description": "Assesses and drafts post-employment restrictive covenants — non-compete, non-solicit (customers/employees), non-dealing and confidentiality — for enforceability by jurisdiction: legitimate interest protected, reasonableness of scope/duration/geography, consideration, and the local-law reality (e.g. non-competes largely void in India s.27 and in much of the US). Use to draft or test covenants. Not for the whole employment policy stack → employment/employment-policy-drafter; not for a trade-secret/IP-ownership question → ip/ip-ownership-audit.",
+    "module": "employment",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "IN",
+     "US",
+     "UK"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of draft (produce covenants), review (test a clause's enforceability) or enforce-check (assess whether an existing covenant can be relied on against a departing employee)."
+     },
+     {
+      "name": "context",
+      "required": false,
+      "description": "The jurisdiction(s) and the employee's role/seniority and access to clients/confidential info, the legitimate interest at stake, and the proposed scope/duration/geography."
+     },
+     {
+      "name": "constraints",
+      "required": false,
+      "description": "Any consideration offered, garden-leave availability, and whether this is at hire, mid-employment, or on exit."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "employment/employment-policy-drafter",
+     "ip/ip-ownership-audit",
+     "employment/termination-risk",
+     "disputes/early-case-assessment",
+     "contracts/contract-review"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Restrictive Covenants\n\nTakes a restrictive-covenant need (or an existing clause) and returns an enforceability-driven assessment and draft: what legitimate interest is protected, whether the scope/duration/geography is reasonable *in the relevant jurisdiction*, and whether it will actually bite — because in many places the default answer is \"void\". The deliverable is a jurisdiction-aware enforceability verdict + draft, not a boilerplate non-compete.\n\n## When to use / not use\n\n- Use: drafting non-compete / non-solicit / non-dealing / confidentiality covenants; testing whether an existing clause is enforceable; deciding whether to rely on a covenant against a departing employee.\n- Hand off: the general handbook/policy suite → `employment/employment-policy-drafter`; protecting trade secrets / IP ownership (a stronger route than a void non-compete) → `ip/ip-ownership-audit`; the dismissal-risk analysis around an exit → `employment/termination-risk`; the merits of litigating/injuncting a breach → `disputes/early-case-assessment`; covenants embedded in a commercial/sale agreement → `contracts/contract-review`.\n\n## Inputs to collect first\n\n1. The **jurisdiction(s)** governing the employment — enforceability varies enormously and this is the first question.\n2. The employee's **role, seniority, and access** to clients, confidential information, and key relationships.\n3. The **legitimate interest** to protect (trade secrets, client connections, stable workforce) — the thing a court actually weighs.\n4. The proposed **scope, duration, geography**, any **consideration/garden-leave**, and the stage (hire/mid-term/exit).\n\n## Method\n\n1. **Lead with the jurisdiction's baseline — it's often restrictive.** In **India, s.27 of the Contract Act** voids most post-employment non-competes (in-term restraints and genuine confidentiality survive); several **US states (notably California) ban employee non-competes**, and US federal/state law is tightening `[verify current]`. The UK and others enforce only **reasonable** covenants. Don't draft a US/UK-style non-compete for India and assume it works.\n2. **Anchor to a legitimate protectable interest.** Courts enforce covenants only to protect a legitimate interest (trade secrets/confidential info, customer connections, workforce stability) — not to suppress ordinary competition. Name the interest; a covenant without one is unenforceable.\n3. **Prefer the narrowest tool that protects the interest.** A **confidentiality** clause and a **non-solicit/non-deal** (customers, employees) are far more enforceable than a blanket non-compete; use the least-restrictive covenant that does the job — and trade-secret/IP protection may do it better → `ip/ip-ownership-audit`.\n4. **Test reasonableness on three axes.** **Duration** (months, proportionate to the interest), **geography** (where the interest actually exists), and **scope of activity/clients** (limited to those the employee dealt with, not the whole market). Over-broad on any axis risks the whole covenant being struck down (and many courts **won't rewrite**/blue-pencil it).\n5. **Check consideration and timing.** A covenant imposed mid-employment or on exit may need fresh **consideration** to bind; one buried in a signed-later document may fail. At hire, the job is usually consideration; confirm per jurisdiction `[verify current]`.\n6. **Consider garden leave as an alternative/complement.** Paid garden leave can protect the interest during notice without an unenforceable post-termination restraint — often the more reliable lever.\n7. **Draft defensively.** Tie each restriction to the named interest, keep each axis minimal and severable (separate covenants so one failing doesn't sink the rest), and avoid cascading/over-reaching definitions.\n8. **For enforce-check:** assess likelihood of an injunction, the clean-hands/breach-by-employer risk, and whether the interest and reasonableness will hold — and whether a trade-secret claim is the stronger route.\n9. **Score against the Checks table** and set a verdict: **ENFORCEABLE (as drafted) / ENFORCEABLE IF NARROWED / LIKELY VOID**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Jurisdiction baseline ignored (void-by-default) | Local enforceability confirmed first | S1 | Re-assess for the jurisdiction `[verify current]` |\n| No legitimate protectable interest named | Covenant tied to a real interest | S1 | Name the interest or drop the covenant |\n| Blanket non-compete where a narrower tool fits | Confidentiality / non-solicit preferred | S2 | Use the least-restrictive covenant |\n| Duration unreasonable | Proportionate, short period | S1 | Shorten to what's defensible |\n| Geography over-broad | Limited to where the interest exists | S2 | Narrow the territory |\n| Activity/client scope too wide | Limited to the employee's actual dealings | S2 | Restrict to relevant clients/activity |\n| No / insufficient consideration | Fresh consideration where required | S2 | Provide consideration `[verify current]` |\n| Not severable (all-or-nothing) | Separate, severable covenants | S2 | Split the restrictions |\n| Garden-leave alternative not considered | Garden leave weighed | S3 | Consider garden leave |\n\n## Output\n\nLead with `Verdict: ENFORCEABLE | ENFORCEABLE IF NARROWED | LIKELY VOID — <jurisdiction> — <key reason>`. Then the output contract. Add:\n\n- **Jurisdiction baseline**: the local default and what survives it.\n- **Interest**: the legitimate interest each covenant protects.\n- **Reasonableness**: duration · geography · activity/client scope.\n- **Consideration & alternatives**: consideration status, garden leave, trade-secret route.\n- **Draft / redline** of the covenants (severable). One JSON finding per issue with `category: \"restrictive-covenant\"`.\n\n## Edge cases & pitfalls\n\n- **India s.27**: a post-employment non-compete is generally **void** in India — relying on one is the classic error; use confidentiality + in-term restraints + trade-secret protection instead.\n- **California / US bans**: employee non-competes are void in California and increasingly restricted elsewhere in the US — a US-wide template is wrong.\n- **Over-broad = all void**: many courts won't blue-pencil an over-wide covenant — one unreasonable axis can strike the whole thing, so keep each axis minimal and severable.\n- **No fresh consideration**: a covenant added mid-employment without new consideration may not bind — check the timing.\n- **Non-compete when non-solicit would do**: reaching for the broadest restraint when a narrower, enforceable one protects the interest just loses in court — match the tool to the interest.\n\n## References\n\n- Volatile facts: cite `[verify current]` on jurisdiction enforceability (India s.27; US state/federal non-compete bans, which are actively changing; UK reform proposals). This is a fast-moving area.\n- Indian Contract Act s.27; US state non-compete statutes and any federal rule; UK reasonableness case law; and the employer's trade-secret/IP protections as the alternative route.",
+   "references": {},
+   "description": "Assesses and drafts post-employment restrictive covenants — non-compete, non-solicit (customers/employees), non-dealing and confidentiality — for enforceability by jurisdiction: legitimate interest protected, reasonableness of scope/duration/geography, consideration, and the local-law reality (e.g. non-competes largely void in India s.27 and in much of the US). Use to draft or test covenants. Not for the whole employment policy stack → employment/employment-policy-drafter; not for a trade-secret/IP-ownership question → ip/ip-ownership-audit.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "employment/india-labour-codes",
@@ -4629,11 +4735,63 @@
    "module": "ip",
    "name": "trademark-clearance",
    "title": "Trademark clearance",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Knockout and full-search analysis for a proposed mark across target classes."
+   "summary": "Knockout and full-search analysis for a proposed mark across target classes.",
+   "meta": {
+    "name": "ip-trademark-clearance",
+    "description": "Clears a proposed trademark before adoption: a knockout screen for identical/near-identical marks, then a fuller search across the relevant classes and territories assessing likelihood of confusion (mark similarity, goods/services proximity, channels), distinctiveness/descriptiveness, and other bars (deceptive, conflicting prior rights, common- law use). Use to decide whether a name/logo is safe to adopt and register. Not for assessing infringement of an existing mark or drafting a takedown → ip/infringement-takedown; not for confirming ownership chain → ip/ip-ownership-audit.",
+    "module": "ip",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "IN"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of knockout (fast identical/near-identical screen), full-clearance (fuller confusion + registrability analysis) or registrability (assess distinctiveness/absolute grounds only)."
+     },
+     {
+      "name": "mark",
+      "required": false,
+      "description": "The proposed mark (word/logo/combo), the goods/services and their Nice classes, and the target territories."
+     },
+     {
+      "name": "context",
+      "required": false,
+      "description": "Any search results to hand, the intended use/branding, and how much risk the business will accept."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "ip/infringement-takedown",
+     "ip/ip-ownership-audit",
+     "ip/copyright-assessment",
+     "contracts/contract-review",
+     "research/multi-jurisdiction-survey"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Trademark Clearance\n\nTakes a proposed mark and returns whether it is safe to adopt and register: a knockout screen, then a confusion and registrability analysis across the right classes and territories, with a clear risk rating and the fallbacks. The deliverable is a clearance opinion with a risk level and next steps, not a bare \"the name seems free\".\n\n## When to use / not use\n\n- Use: clearing a new brand/product name or logo before adoption; a fast knockout screen; a fuller clearance across classes and countries; assessing whether a mark is registrable (distinctive enough) at all.\n- Hand off: assessing whether an existing mark infringes yours (or responding to a claim) and drafting notices → `ip/infringement-takedown`; confirming who owns a mark/chain of title → `ip/ip-ownership-audit`; copyright in a logo's artistic work → `ip/copyright-assessment`; the trademark assignment/licence terms in a contract → `contracts/contract-review`; a broad multi-country availability grid → `research/multi-jurisdiction-survey`.\n\n## Inputs to collect first\n\n1. The **proposed mark** (word, logo, or combined) and its exact form.\n2. The **goods/services** and their **Nice classes** — clearance is class- and goods-specific, not absolute.\n3. The **target territories** — rights are national; clear where you'll use/register.\n4. The business's **risk appetite** and intended use/branding.\n\n## Method\n\n1. **Run a knockout screen first.** Search the relevant registers for **identical and near-identical** marks in the target classes/territories; an obvious senior mark kills the name cheaply before a full search. Clear the knockout before spending on the full clearance.\n2. **Define the class scope correctly.** Search the classes of the actual goods/services **and** related/overlapping classes where confusion could arise — a mark free in your class can still be blocked by a confusingly similar mark in an adjacent one.\n3. **Assess likelihood of confusion (the core test).** Weigh **mark similarity** (visual, phonetic, conceptual), **proximity of goods/services**, trade channels and consumer sophistication, and the senior mark's strength/reputation. Similar marks on related goods is the classic refusal/opposition ground.\n4. **Test registrability (absolute grounds).** Is the mark **distinctive** or merely **descriptive/generic** (describing the goods), deceptive, or otherwise barred (geographical, laudatory, protected emblems)? A descriptive mark may be unregistrable or weak even if no one else holds it.\n5. **Look beyond the register.** Check **common-law / unregistered** use and well-known marks (which can block even without registration), company/domain names, and prior use in first-to-use jurisdictions; the register isn't the whole picture.\n6. **Account for territory rules.** First-to-file vs first-to-use, honest-concurrent-use, and any local specifics (in India, the Register + well-known-marks list and prior-use rights) `[verify current]`.\n7. **Rate the risk and give options.** Rate **HIGH / MEDIUM / LOW** adoption risk with the reasons; where blocked, offer fallbacks — narrow the specification, coexistence/consent agreement, a design/stylised form, or choose a different mark.\n8. **State the limits of the search.** Note coverage (which registers/territories searched, as-of date), that clearance reduces but doesn't eliminate risk, and that a full search/opinion may be warranted before launch.\n9. **Score against the Checks table** and set a verdict: **CLEAR TO ADOPT / ADOPT WITH CONDITIONS / DO NOT ADOPT**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| No knockout screen before full work | Identical/near-identical screened first | S2 | Run the knockout screen |\n| Wrong/narrow class scope | Actual + related classes searched | S1 | Expand to overlapping classes |\n| Confusion analysis superficial | Similarity × goods proximity × channels weighed | S1 | Do the full confusion analysis |\n| Registrability (descriptiveness) not tested | Distinctiveness/absolute grounds assessed | S2 | Test the absolute grounds |\n| Register-only search (no common law) | Unregistered/well-known/domain use checked | S1 | Search beyond the register |\n| Territory rule (file vs use) ignored | First-to-file/use + local specifics applied | S2 | Apply the territory rule `[verify current]` |\n| Risk not rated / no fallback | HIGH/MED/LOW + options given | S2 | Rate and offer alternatives |\n| Search limits not stated | Coverage + as-of date + residual risk noted | S2 | State the scope and caveats |\n\n## Output\n\nLead with `Verdict: CLEAR TO ADOPT | ADOPT WITH CONDITIONS | DO NOT ADOPT — <mark> in <classes/territories> — risk: HIGH|MED|LOW`. Then the output contract. Add:\n\n- **Knockout**: identical/near-identical hits, if any.\n- **Confusion analysis**: the closest marks and the similarity × proximity assessment.\n- **Registrability**: distinctiveness / absolute-grounds result.\n- **Beyond-register**: common-law / well-known / domain findings.\n- **Options**: fallbacks where blocked; search scope + as-of date + caveats.\n- One JSON finding per conflict/risk with `category: \"trademark-clearance\"`.\n\n## Edge cases & pitfalls\n\n- **Class blindness**: a mark free in your class can be blocked by a confusingly similar mark in an adjacent class on related goods — search the overlap, not just your class.\n- **Register-only comfort**: unregistered/common-law use and well-known marks can block adoption even with a clean register — look beyond it.\n- **Descriptive = weak/void**: a descriptive name may be unregistrable or nearly unenforceable even if no one else holds it — test distinctiveness.\n- **Territory assumptions**: first-to-use vs first-to-file changes who wins — clearing in one country says nothing about another.\n- **Over-claiming clearance**: presenting a knockout screen as a full clearance gives false comfort — state coverage and residual risk.\n\n## References\n\n- Volatile facts: cite `[verify current]` where a territory's first-to-file/use rule, well-known-mark treatment, or classification specifics are load-bearing.\n- The relevant trademark registers and the Nice Classification; the governing trademark statute (e.g. India Trade Marks Act 1999; and target-territory law); likelihood-of-confusion and absolute-grounds case law.",
+   "references": {},
+   "description": "Clears a proposed trademark before adoption: a knockout screen for identical/near-identical marks, then a fuller search across the relevant classes and territories assessing likelihood of confusion (mark similarity, goods/services proximity, channels), distinctiveness/descriptiveness, and other bars (deceptive, conflicting prior rights, common- law use). Use to decide whether a name/logo is safe to adopt and register. Not for assessing infringement of an existing mark or drafting a takedown → ip/infringement-takedown; not for confirming ownership chain → ip/ip-ownership-audit.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "ip/ip-ownership-audit",
@@ -4856,33 +5014,186 @@
    "module": "outside-counsel",
    "name": "billing-guidelines",
    "title": "Engagement terms & billing guidelines",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Draft and maintain outside counsel guidelines and engagement letters."
+   "summary": "Draft and maintain outside counsel guidelines and engagement letters.",
+   "meta": {
+    "name": "outside-counsel-billing-guidelines",
+    "description": "Drafts or reviews outside-counsel guidelines (OCG) and the engagement letter: scope and staffing controls, rate and rate-freeze terms, the billing rules (increments, block-billing/travel/admin bans, budget + approval thresholds), conflicts, confidentiality/privilege and data handling, and the enforcement/audit mechanics. Use to stand up or tighten OCGs. Not for checking a specific invoice against the rules → outside-counsel/invoice-review; not for designing the fee model → outside-counsel/fee-arrangements.",
+    "module": "outside-counsel",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of draft (produce OCGs / engagement terms), review (assess an existing set or a firm's engagement letter) or gap-check (find missing controls vs good practice)."
+     },
+     {
+      "name": "context",
+      "required": false,
+      "description": "The client's matter mix and spend, whether an e-billing system is used, the firms engaged, and any existing OCG/engagement letter."
+     },
+     {
+      "name": "priorities",
+      "required": false,
+      "description": "The cost/behaviour controls that matter most (rate freezes, staffing limits, budget discipline, diversity, data security)."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "outside-counsel/invoice-review",
+     "outside-counsel/fee-arrangements",
+     "outside-counsel/matter-budget",
+     "outside-counsel/panel-rfp",
+     "outside-counsel/performance-scorecard"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Engagement Terms & Billing Guidelines\n\nTakes a client's outside-counsel relationship and returns guidelines and engagement terms that actually control cost and behaviour: scope and staffing limits, enforceable billing rules, budget discipline, and the conflicts/confidentiality/data terms — written so the invoice-review step has something to enforce. The deliverable is an enforceable OCG + engagement letter (or a review of one), not a wish-list the firm ignores.\n\n## When to use / not use\n\n- Use: drafting or refreshing outside-counsel guidelines and the engagement letter; reviewing a firm's proposed engagement terms; finding gaps in existing OCGs; aligning the guidelines with an e-billing system so rules are machine-enforceable.\n- Hand off: auditing a specific invoice against the guidelines → `outside-counsel/invoice-review`; designing the fee model (fixed/capped/success) → `outside-counsel/fee-arrangements`; the per-matter budget/forecast → `outside-counsel/matter-budget`; selecting/structuring the firm panel → `outside-counsel/panel-rfp`; scoring firm performance after matters → `outside-counsel/performance-scorecard`.\n\n## Inputs to collect first\n\n1. The **matter mix and spend profile** (litigation vs transactional, volume), and whether an **e-billing** system enforces rules.\n2. The existing **OCG / engagement letter** (for review) and the firms engaged.\n3. The **priority controls** — rate freezes, staffing caps, budget thresholds, diversity, data security.\n4. The governing-law and any regulatory constraints on the retainer.\n\n## Method\n\n1. **Set scope, staffing and rate controls.** Define who may work the matter (partner/associate/paralegal mix, no unapproved timekeepers), a **rate card + rate-freeze** (annual increases capped or frozen), and limits on partner time for routine work — the levers that actually move cost.\n2. **Write enforceable billing rules.** Ban or limit **block-billing**, vague narratives, administrative/clerical time, internal conferencing beyond a cap, travel time (or bill at reduced rate), and first-class travel; set billing **increments** (0.1h) and require task-coded, itemised narratives — so `outside-counsel/invoice-review` can enforce them.\n3. **Impose budget and approval discipline.** Require a **matter budget** up front, variance thresholds that trigger re-approval, and **pre-approval** for expensive steps (experts, e-discovery vendors, senior-partner surges) and for exceeding the budget → `outside-counsel/matter-budget`.\n4. **Handle conflicts and confidentiality.** Conflict-check and ongoing-conflict disclosure obligations, confidentiality/privilege protection, and restrictions on using the client's matter for marketing or precedent without consent.\n5. **Address data security and privilege.** Where the firm handles client data, set security standards, breach-notification duties, data-location/residency and return/deletion on closure — and preserve privilege across the e-billing/third-party chain.\n6. **Add the modern-OCG terms.** Diversity-and-inclusion staffing expectations/reporting, efficiency/technology expectations, and any AI-use disclosure (whether the firm must disclose GenAI assistance and who bears the risk) `[verify current]` → `platform/ai-use-billing-record`.\n7. **Make it enforceable.** Specify the consequence of non-compliance (write-downs, non-payment of non-compliant entries), the audit right, dispute mechanics, and that the OCG **prevails over the firm's engagement letter** on conflict — a common gap that guts the guidelines.\n8. **Keep it proportionate.** Scale the controls to the relationship; a 40-page OCG for a small retainer gets ignored — target the rules that matter.\n9. **Score against the Checks table** and set a verdict: **ENFORCEABLE & COMPLETE / GAPS TO FIX / WEAK (redraft)**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| No staffing / rate controls or rate freeze | Timekeeper mix + rate card + freeze set | S1 | Add staffing and rate terms |\n| Billing rules vague / unenforceable | Block-billing/admin/travel rules + increments + task codes | S1 | Write machine-enforceable rules |\n| No budget / variance / pre-approval discipline | Budget required + thresholds + pre-approvals | S1 | Add budget controls → matter-budget |\n| Conflicts / confidentiality terms thin | Conflict disclosure + confidentiality + marketing limits | S2 | Strengthen the terms |\n| Data security / privilege not addressed | Security standard + breach duty + return/deletion | S2 | Add the data terms |\n| D&I / efficiency / AI-use terms absent | Modern-OCG expectations included | S3 | Add where relevant `[verify current]` |\n| OCG doesn't prevail over engagement letter | Order-of-precedence clause present | S1 | Add the precedence clause |\n| No consequence / audit right for non-compliance | Write-down + audit + dispute mechanics | S2 | Add enforcement teeth |\n| Disproportionate / ignored-in-practice | Controls scaled to the relationship | S3 | Trim to what matters |\n\n## Output\n\nLead with `OCG: ENFORCEABLE & COMPLETE | GAPS TO FIX | WEAK — <relationship> — <top gap>`. Then the output contract. Add:\n\n- **Controls**: staffing · rates/freeze · billing rules (the enforceable list).\n- **Budget discipline**: budget requirement, variance thresholds, pre-approvals.\n- **Conflicts / confidentiality / data**: the terms and any gaps.\n- **Enforcement**: precedence, consequence, audit right.\n- **Draft / redline** of the OCG + engagement terms. One JSON finding per issue with `category: \"billing-guidelines\"`.\n\n## Edge cases & pitfalls\n\n- **Unenforceable narratives**: rules the e-billing system can't test (vague \"reasonableness\") get ignored — write task-code/increment/block-billing rules a reviewer or system can apply.\n- **Engagement letter overrides OCG**: without an order-of-precedence clause, the firm's letter (with its own, laxer terms) can trump the guidelines — fix precedence.\n- **No teeth**: guidelines with no write-down/non-payment consequence and no audit right are advisory — the firm bills as it likes.\n- **Budget as decoration**: a budget requirement with no variance threshold or re-approval gate doesn't control overruns — tie spend to pre-approval.\n- **Over-long OCGs**: a bloated guideline for a modest relationship gets filed and forgotten — proportion the controls.\n\n## References\n\n- Volatile facts: cite `[verify current]` where a bar rule on fee-sharing, AI-use disclosure, or client-data handling constrains the terms; `platform/ai-use-billing-record` for AI-disclosure interplay.\n- Standard outside-counsel-guideline practice and e-billing task-code standards (e.g. UTBMS); the governing retainer/professional-conduct rules.",
+   "references": {},
+   "description": "Drafts or reviews outside-counsel guidelines (OCG) and the engagement letter: scope and staffing controls, rate and rate-freeze terms, the billing rules (increments, block-billing/travel/admin bans, budget + approval thresholds), conflicts, confidentiality/privilege and data handling, and the enforcement/audit mechanics. Use to stand up or tighten OCGs. Not for checking a specific invoice against the rules → outside-counsel/invoice-review; not for designing the fee model → outside-counsel/fee-arrangements.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "outside-counsel/panel-rfp",
    "module": "outside-counsel",
    "name": "panel-rfp",
    "title": "Panel design & RFP",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Structure a panel, run an RFP and score proposals."
+   "summary": "Structure a panel, run an RFP and score proposals.",
+   "meta": {
+    "name": "outside-counsel-panel-rfp",
+    "description": "Structures a legal panel and runs the RFP: segment the work into categories, set the panel shape (firms per category, primary/secondary), build weighted evaluation criteria (expertise, price, service, diversity, conflicts, data security), design the RFP and scoring rubric, and plan onboarding and review. Use to design or re-tender a panel. Not for scoring an incumbent firm's ongoing performance → outside-counsel/performance-scorecard; not for designing the fee model itself → outside-counsel/fee-arrangements.",
+    "module": "outside-counsel",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of design (structure the panel + criteria), run-rfp (build the RFP + scoring rubric) or evaluate (score received proposals against the rubric)."
+     },
+     {
+      "name": "spend",
+      "required": false,
+      "description": "The legal work mix and spend by category/jurisdiction, current firms, and the drivers for the panel (cost, quality, coverage, consolidation)."
+     },
+     {
+      "name": "priorities",
+      "required": false,
+      "description": "What matters most — price, specialist depth, geographic coverage, diversity, innovation/technology, relationship."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "outside-counsel/fee-arrangements",
+     "outside-counsel/billing-guidelines",
+     "outside-counsel/performance-scorecard",
+     "outside-counsel/local-counsel-management",
+     "outside-counsel/matter-budget"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Panel Design & RFP\n\nTakes a legal-spend profile and returns a panel structure and an RFP that selects firms on the right criteria: work segmented into categories, a sensible panel shape, weighted and transparent scoring, and an onboarding/review plan. The deliverable is a defensible panel design + RFP + rubric (or a scored evaluation), not a generic \"send out an RFP\".\n\n## When to use / not use\n\n- Use: designing or re-tendering an outside-counsel panel; segmenting spend and setting panel shape; building the RFP questionnaire and weighted scoring rubric; evaluating received proposals consistently.\n- Hand off: scoring an incumbent firm's delivery over time → `outside-counsel/performance-scorecard`; designing the fee model the RFP asks firms to price against → `outside-counsel/fee-arrangements`; the guidelines/engagement terms panel firms must accept → `outside-counsel/billing-guidelines`; coordinating multi-jurisdiction local counsel → `outside-counsel/local-counsel-management`; the per-matter budget → `outside-counsel/matter-budget`.\n\n## Inputs to collect first\n\n1. The **work mix and spend by category and jurisdiction** — the panel is built around the actual demand, not a generic practice list.\n2. The **drivers** for the panel (cost reduction, quality, coverage, consolidation) and the **priority weights**.\n3. The **current firms** and incumbents' performance signals.\n4. Any procurement rules/process the organisation must follow.\n\n## Method\n\n1. **Segment the work into categories.** Group spend by practice area and jurisdiction (e.g. disputes, M&A, employment, IP, by region); the panel shape follows the segments, not the other way round. Separate high-volume/commoditisable work (price-led) from bet-the-company work (expertise-led).\n2. **Set the panel shape per category.** Decide firms per category, primary vs secondary tiers, whether to consolidate for leverage or keep breadth for conflicts/coverage, and sole-source vs competitive categories.\n3. **Build weighted evaluation criteria — before seeing proposals.** Expertise/track record, **price/fee model**, service/responsiveness, **conflicts** capacity, **data security**, diversity-and-inclusion, innovation/technology, and cultural fit — each with an explicit weight tied to the drivers. Fixing weights up front prevents post-hoc bias.\n4. **Design the RFP.** Clear scope and volumes, the questions mapped to the criteria, a standard **rate/fee template** so bids are comparable, mandatory terms (acceptance of the OCG/engagement terms, conflicts disclosure, data-security attestations), and the timeline.\n5. **Make bids comparable.** Require pricing in a fixed format (blended rates, fee caps, AFAs where wanted → `outside-counsel/fee-arrangements`) so you compare like with like, not one firm's discount against another's AFA.\n6. **Score transparently.** Apply the weighted rubric to each proposal; separate price from quality scoring; sanity-check for low-ball pricing that won't hold and for conflicts that would sideline a firm.\n7. **Plan onboarding and governance.** Onboarding (OCG acceptance, e-billing setup, relationship leads), volume commitments/expectations, and the **review cadence** that feeds the scorecard → `outside-counsel/performance-scorecard`.\n8. **Keep it fair and defensible.** Consistent information to all bidders, documented scoring, and a clear decision rationale — so the result survives scrutiny and preserves firm relationships.\n9. **Score against the Checks table** and output the panel design + RFP + rubric (or the scored evaluation with a recommendation).\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Panel not segmented by actual demand | Categories built from spend mix + jurisdictions | S1 | Re-segment around real demand |\n| Criteria/weights set after seeing bids | Weighted rubric fixed before evaluation | S1 | Fix weights up front |\n| Bids not comparable (no fee template) | Standard rate/fee format required | S1 | Impose a pricing template |\n| Conflicts / data-security not scored | Conflicts capacity + security attestations assessed | S2 | Add to the rubric |\n| Price and quality conflated | Separate price and quality scoring | S2 | Split the scoring |\n| Low-ball pricing not stress-tested | Sustainability of the bid checked | S2 | Probe the pricing |\n| D&I / innovation ignored where prioritised | Priority criteria represented | S3 | Add the criteria |\n| No onboarding / review plan | Onboarding + review cadence set | S2 | Add governance → performance-scorecard |\n| Process not fair / documented | Equal info + documented rationale | S2 | Make the process defensible |\n\n## Output\n\nLead with `Panel: <n categories / n firms> — RFP ready | evaluation: recommend <firm(s)>`. Then the output contract. Add:\n\n- **Segmentation & shape**: categories, firms-per-category, primary/secondary.\n- **Rubric**: criteria + weights, tied to the drivers.\n- **RFP**: scope, questions, pricing template, mandatory terms, timeline.\n- **(Evaluate mode)** scored matrix + recommendation + conflicts/pricing flags.\n- One JSON finding per design/scoring issue with `category: \"panel-rfp\"`.\n\n## Edge cases & pitfalls\n\n- **Generic categories**: a panel built around a textbook practice list instead of the client's real spend mis-covers the work — segment from demand.\n- **Moving the goalposts**: setting or re-weighting criteria after bids arrive invites bias and challenge — lock the rubric first.\n- **Apples-to-oranges bids**: without a fixed pricing template, a blended-rate bid and an AFA bid can't be compared — standardise the format.\n- **Low-ball trap**: the cheapest bid that staffs junior-heavy or won't hold its rates costs more later — stress-test sustainability.\n- **Conflicts blindness**: picking a firm that's conflicted out of your core disputes wastes a panel seat — score conflicts capacity.\n\n## References\n\n- Volatile facts: generally none; cite `[verify current]` only where a procurement rule constrains the process.\n- Standard panel-management and legal-procurement practice; the organisation's spend data and procurement policy; UTBMS/AFA pricing conventions for comparability.",
+   "references": {},
+   "description": "Structures a legal panel and runs the RFP: segment the work into categories, set the panel shape (firms per category, primary/secondary), build weighted evaluation criteria (expertise, price, service, diversity, conflicts, data security), design the RFP and scoring rubric, and plan onboarding and review. Use to design or re-tender a panel. Not for scoring an incumbent firm's ongoing performance → outside-counsel/performance-scorecard; not for designing the fee model itself → outside-counsel/fee-arrangements.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "outside-counsel/fee-arrangements",
    "module": "outside-counsel",
    "name": "fee-arrangements",
    "title": "Alternative fee arrangements",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Design fixed, capped, phased or success fees matched to scope and risk."
+   "summary": "Design fixed, capped, phased or success fees matched to scope and risk.",
+   "meta": {
+    "name": "outside-counsel-fee-arrangements",
+    "description": "Designs the fee model for a matter or portfolio — hourly, fixed/flat, capped, collared, phased, retainer, contingency or success fee, or a blended AFA — matched to the scope, predictability and risk, with the scope definition, assumptions, change mechanism and incentive-alignment that make it hold. Use to choose and structure a fee arrangement. Not for the per-matter budget/forecast → outside-counsel/matter-budget; not for the OCG billing rules → outside-counsel/billing-guidelines.",
+    "module": "outside-counsel",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of design (choose + structure the fee model), review (assess a firm's proposed fee arrangement) or compare (weigh options for a matter/portfolio)."
+     },
+     {
+      "name": "matter",
+      "required": false,
+      "description": "The matter or portfolio, its scope and predictability, the risk profile and desired outcome, and the budget/appetite."
+     },
+     {
+      "name": "constraints",
+      "required": false,
+      "description": "Any ethical limits on fee type (e.g. contingency restrictions), the firm's proposal, and how success would be measured."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "outside-counsel/matter-budget",
+     "outside-counsel/billing-guidelines",
+     "outside-counsel/panel-rfp",
+     "outside-counsel/performance-scorecard",
+     "disputes/early-case-assessment"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Alternative Fee Arrangements\n\nTakes a matter (or portfolio) and returns the fee model that fits its scope, predictability and risk — with the scope, assumptions, change mechanism and incentives drawn tightly enough that the arrangement holds. The deliverable is a structured fee design (or a review of a proposal) with the risk-allocation and incentive traps flagged, not a preference for \"fixed fee\" in the abstract.\n\n## When to use / not use\n\n- Use: choosing and structuring a fee arrangement for a matter or portfolio; reviewing a firm's fee proposal; comparing hourly vs fixed vs capped vs success-based options against scope and risk.\n- Hand off: building the cost forecast/budget once a model is chosen → `outside-counsel/matter-budget`; the OCG billing rules the fee sits inside → `outside-counsel/billing-guidelines`; pricing collected across a panel tender → `outside-counsel/panel-rfp`; measuring whether the firm delivered value → `outside-counsel/performance-scorecard`; the case-merits assessment behind a contingency/success fee → `disputes/early-case-assessment`.\n\n## Inputs to collect first\n\n1. The **matter/portfolio** and its **scope predictability** — the single biggest driver of which model works.\n2. The **risk profile** and the client's **appetite** (certainty vs potential upside), and how **success** is defined.\n3. Any **ethical/regulatory limits** on fee type (contingency/conditional-fee restrictions by jurisdiction and matter type) `[verify current]`.\n4. The firm's proposal (for review) and historical cost data for similar matters.\n\n## Method\n\n1. **Match the model to predictability and risk.** Well-scoped, repeatable work suits **fixed/flat** fees; uncertain-scope work suits **hourly with a cap or collar** or **phased** fees (fix each phase as scope clarifies); outcome-driven disputes may suit **contingency/success** fees; steady-state advice suits a **retainer**. Don't fix-fee genuinely unpredictable work, or burn hourly on commoditisable work.\n2. **Define scope and assumptions tightly — this makes or breaks an AFA.** A fixed/capped fee is only as good as its scope statement and stated assumptions (number of parties, rounds, jurisdictions, document volume); vague scope turns every surprise into a dispute → `outside-counsel/matter-budget`.\n3. **Build the change mechanism.** Specify what counts as out-of-scope and how it's priced (hourly overflow, pre-agreed unit rates, re-set trigger) so scope creep is handled by formula, not fight.\n4. **Allocate risk deliberately.** A **cap** protects the client but the firm bears overrun risk (watch under-staffing); a **collar** shares it; a **success fee** transfers outcome risk at the cost of upside. State who bears what and the behavioural effect.\n5. **Align incentives — and guard against the perverse ones.** A fixed fee can incentivise under-servicing; hourly incentivises inefficiency; contingency can incentivise early settlement over the client's interest. Pair the model with quality safeguards and, where useful, a holdback/bonus tied to outcome or satisfaction.\n6. **Check the ethics.** Contingency/conditional fees are restricted or barred for certain matters and in certain jurisdictions (and for certain parties); confirm the model is permissible and the agreement meets any writing/consent requirements `[verify current]`.\n7. **Make success measurable (for success/contingency).** Define the trigger and the measure objectively (outcome, threshold, milestone) so the fee event isn't itself a dispute.\n8. **Document and sanity-check.** Blended rate / total-cost estimate, worked examples at best/expected/worst case, and a comparison to the hourly baseline so the client sees the trade.\n9. **Score against the Checks table** and set a recommendation: the chosen model, the scope/assumptions, the change mechanism, and the risk split.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Model mismatched to scope predictability | Fixed for scoped, phased/capped for uncertain | S1 | Re-match the model to the work |\n| Scope / assumptions not defined | Tight scope + explicit assumptions | S1 | Define scope → matter-budget |\n| No out-of-scope / change mechanism | Change pricing + re-set trigger set | S1 | Add the change mechanism |\n| Risk allocation unstated | Who bears overrun/outcome risk is explicit | S2 | State the risk split |\n| Perverse incentive unguarded | Quality safeguard / holdback paired | S2 | Add the counter-incentive |\n| Ethical limit on fee type missed | Contingency/conditional permissibility confirmed | S1 | Verify and comply `[verify current]` |\n| Success trigger subjective | Objective measure/milestone defined | S2 | Make the trigger measurable |\n| No baseline comparison / worked examples | Best/expected/worst vs hourly shown | S3 | Add the comparison |\n| Writing/consent formality missed | Fee agreement meets form requirements | S2 | Paper it properly |\n\n## Output\n\nLead with `Fee model: <model> — <matter> — risk split: <who bears what>`. Then the output contract. Add:\n\n- **Model & rationale**: the chosen arrangement and why it fits scope/risk.\n- **Scope & assumptions**: the tight scope statement and its assumptions.\n- **Change mechanism**: out-of-scope pricing / re-set triggers.\n- **Incentives & ethics**: risk allocation, safeguards, permissibility.\n- **Economics**: blended/total estimate + best/expected/worst examples.\n- One JSON finding per issue with `category: \"fee-arrangement\"`.\n\n## Edge cases & pitfalls\n\n- **Fixed fee on unknowable scope**: fixing a price before scope is understood guarantees either an overrun dispute or a padded quote — phase it instead.\n- **Scope statement as afterthought**: the AFA lives or dies on its scope and assumptions — vague scope converts every surprise into a fee fight.\n- **Cap that invites under-staffing**: a hard cap with no quality safeguard can push the firm to under-resource — pair with service standards.\n- **Contingency where barred**: success/contingency fees are restricted in many jurisdictions and matter types — confirm permissibility before proposing.\n- **Unmeasurable \"success\"**: a success fee tied to a subjective outcome becomes its own dispute — define the trigger objectively.\n\n## References\n\n- Volatile facts: cite `[verify current]` where a jurisdiction's rules on contingency/conditional fees, fee-sharing, or fee-agreement formalities are load-bearing.\n- Standard AFA design practice and the governing professional-conduct/fee rules; the matter's scope and the client's risk appetite.",
+   "references": {},
+   "description": "Designs the fee model for a matter or portfolio — hourly, fixed/flat, capped, collared, phased, retainer, contingency or success fee, or a blended AFA — matched to the scope, predictability and risk, with the scope definition, assumptions, change mechanism and incentive-alignment that make it hold. Use to choose and structure a fee arrangement. Not for the per-matter budget/forecast → outside-counsel/matter-budget; not for the OCG billing rules → outside-counsel/billing-guidelines.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "outside-counsel/matter-budget",
@@ -4955,22 +5266,124 @@
    "module": "outside-counsel",
    "name": "performance-scorecard",
    "title": "Firm performance scorecard",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Post-matter feedback and quarterly firm reviews."
+   "summary": "Post-matter feedback and quarterly firm reviews.",
+   "meta": {
+    "name": "outside-counsel-performance-scorecard",
+    "description": "Designs and runs outside-counsel performance evaluation: the scorecard dimensions (legal quality/outcomes, responsiveness/service, cost discipline/budget accuracy, efficiency/innovation, diversity, relationship), how each is measured and weighted, the post-matter feedback capture, and the quarterly/annual firm review that feeds panel decisions. Use to build or run a firm scorecard. Not for selecting firms via an RFP → outside-counsel/panel-rfp; not for computing department-wide KPIs → matters/legal-kpi-dashboard.",
+    "module": "outside-counsel",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "self-serve",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of design (build the scorecard + cadence), capture (structure post-matter feedback for one matter/firm) or review (compile a quarterly/annual firm review from collected data)."
+     },
+     {
+      "name": "firms",
+      "required": false,
+      "description": "The firm(s) under review, the matters they handled, and any existing feedback/spend/outcome data."
+     },
+     {
+      "name": "priorities",
+      "required": false,
+      "description": "Which dimensions matter most (outcomes, cost, service, diversity, innovation) and the audience for the review."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "outside-counsel/panel-rfp",
+     "outside-counsel/billing-guidelines",
+     "outside-counsel/matter-budget",
+     "outside-counsel/invoice-review",
+     "matters/legal-kpi-dashboard"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Firm Performance Scorecard\n\nTakes an outside-counsel relationship and returns a fair, decision-useful evaluation: scorecard dimensions defined and weighted, feedback captured close to the work, and a review that actually informs panel and instruction decisions. The deliverable is a defined scorecard (or a compiled review), not a vague \"they did fine\".\n\n## When to use / not use\n\n- Use: building a firm-performance scorecard; capturing structured feedback right after a matter; compiling a quarterly/annual firm review that feeds panel and work-allocation decisions.\n- Hand off: selecting or re-tendering firms via a competitive process → `outside-counsel/panel-rfp`; the OCG terms performance is measured against → `outside-counsel/billing-guidelines`; the budget-accuracy data that feeds the cost dimension → `outside-counsel/matter-budget` and `outside-counsel/invoice-review`; department-wide (not firm-specific) KPIs → `matters/legal-kpi-dashboard`.\n\n## Inputs to collect first\n\n1. The **firm(s) and matters** under review and any **feedback/spend/outcome** data already held.\n2. The **priority dimensions** (outcomes, cost, service, diversity, innovation) and their weights.\n3. The **audience** (GC, panel committee, the firm itself) — the review's tone and detail follow it.\n4. The review **cadence** (per-matter + quarterly/annual).\n\n## Method\n\n1. **Define the dimensions and how each is measured.** Typical set: **legal quality/outcomes**, **responsiveness/service**, **cost discipline** (budget accuracy, write-downs, OCG compliance), **efficiency/innovation** (use of technology, staffing leverage), **diversity-and-inclusion** of the team, and **relationship/commerciality**. For each, state the evidence that scores it — a score with no basis is opinion.\n2. **Weight to the client's priorities.** Fix weights up front tied to what the client values; don't let a strong outcome mask chronic over-billing, or vice versa.\n3. **Separate outcome from performance.** A matter can be lost with excellent lawyering or won despite poor service — score the firm's *conduct and value*, not just the result, so the scorecard isn't pure outcome-luck.\n4. **Capture feedback close to the work.** Structure a short post-matter feedback form completed by the matter owner while memory is fresh; aggregate across matters rather than relying on one halo/horns impression.\n5. **Use objective data where it exists.** Budget accuracy (estimate vs actual), write-down rates, OCG-compliance/invoice-rejection rates, and responsiveness SLAs come from `outside-counsel/matter-budget` / `invoice-review` — anchor the subjective scores to these.\n6. **Guard against bias.** Multiple raters where possible, consistent scale definitions, and a check that recency, relationship, or a single bad interaction isn't dominating; note sample size (one small matter is weak evidence).\n7. **Make it actionable and two-way.** The review should drive decisions (more/less work, rate conversations, off-panel) and be shared constructively with the firm with specific examples — a scorecard nobody acts on is theatre.\n8. **Track trend.** Compare against prior periods and the panel average so improvement/decline is visible, and feed the result into the next panel decision → `outside-counsel/panel-rfp`.\n9. **Score against the Checks table** and output the scorecard definition (or the compiled review with scores, evidence, and recommended actions).\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Dimensions undefined / unmeasurable | Each dimension has a measurement basis | S1 | Define the evidence per dimension |\n| Weights not set to priorities | Weighted to what the client values | S2 | Fix weights up front |\n| Outcome conflated with performance | Conduct/value scored separately from result | S1 | Separate the two |\n| Feedback not captured near the work | Post-matter form while fresh | S2 | Capture at matter close |\n| Subjective scores not anchored to data | Budget/write-down/compliance data used | S2 | Anchor to objective metrics |\n| Bias / tiny sample unguarded | Multiple raters + sample size noted | S2 | Flag thin evidence; add raters |\n| Review not actionable | Decisions + specific examples | S2 | Tie scores to actions |\n| No trend / panel comparison | Period-over-period + vs panel average | S3 | Add the trend view |\n| One-way / never shared with firm | Constructive two-way feedback | S3 | Share with examples |\n\n## Output\n\nLead with `Scorecard: <firm> — overall <score/band> — top action: <keep/grow/address/off-panel>`. Then the output contract. Add:\n\n- **Dimensions & weights**: each with its measurement basis.\n- **Scores & evidence**: per dimension, anchored to data where possible.\n- **Outcome vs performance**: the result, and the conduct/value separately.\n- **Actions & trend**: recommended decisions + period/panel comparison.\n- One JSON finding per weak dimension or data gap with `category: \"firm-scorecard\"`.\n\n## Edge cases & pitfalls\n\n- **Outcome luck**: scoring a firm high because the matter was won (or low because it was lost) rewards luck, not lawyering — separate conduct from result.\n- **Halo/horns**: one memorable interaction dominating the whole score — capture per-matter and aggregate.\n- **Opinion dressed as score**: numbers with no evidence basis are unaccountable — require the basis.\n- **Thin sample**: judging a firm on one small matter is weak — note sample size and weight accordingly.\n- **Scorecard theatre**: a review nobody acts on, or that's never shared with the firm, changes nothing — tie it to decisions and feedback.\n\n## References\n\n- Volatile facts: none; this is an evaluation-design discipline.\n- Standard firm-evaluation practice; the objective data from budget/invoice/OCG-compliance tracking; the client's own priorities and panel structure.",
+   "references": {},
+   "description": "Designs and runs outside-counsel performance evaluation: the scorecard dimensions (legal quality/outcomes, responsiveness/service, cost discipline/budget accuracy, efficiency/innovation, diversity, relationship), how each is measured and weighted, the post-matter feedback capture, and the quarterly/annual firm review that feeds panel decisions. Use to build or run a firm scorecard. Not for selecting firms via an RFP → outside-counsel/panel-rfp; not for computing department-wide KPIs → matters/legal-kpi-dashboard.",
+   "risk_tier": "self-serve",
+   "version": "1.0.0"
   },
   {
    "id": "outside-counsel/local-counsel-management",
    "module": "outside-counsel",
    "name": "local-counsel-management",
    "title": "Local counsel coordination",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Instruct and coordinate counsel across multiple jurisdictions."
+   "summary": "Instruct and coordinate counsel across multiple jurisdictions.",
+   "meta": {
+    "name": "outside-counsel-local-counsel-management",
+    "description": "Coordinates local/foreign counsel across multiple jurisdictions on one matter: scoping each jurisdiction's role, instructing consistently, running a central matter spine (issues list, deadlines, privilege, document handling), reconciling conflicting local advice, and controlling cost/quality across the set. Use to instruct and run multi-jurisdiction counsel. Not for selecting the panel they come from → outside-counsel/panel-rfp; not for the comparative legal grid itself → research/multi-jurisdiction-survey.",
+    "module": "outside-counsel",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of plan (scope + instruct the multi-jurisdiction set), coordinate (run the live matter across counsel) or reconcile (resolve conflicting local advice into one client position)."
+     },
+     {
+      "name": "matter",
+      "required": false,
+      "description": "The matter, the jurisdictions involved and each one's role (lead, local filing, enforcement, advice), the deadlines, and which firm leads where."
+     },
+     {
+      "name": "constraints",
+      "required": false,
+      "description": "Budget, privilege/confidentiality constraints, language/time-zone issues, and whether a lead counsel coordinates or the client does."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "outside-counsel/panel-rfp",
+     "outside-counsel/billing-guidelines",
+     "research/multi-jurisdiction-survey",
+     "disputes/arbitration-strategy",
+     "matters/matter-plan"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Local Counsel Coordination\n\nTakes a multi-jurisdiction matter and returns a coordination plan that keeps many local firms pulling in one direction: each jurisdiction's role scoped, consistent instructions, a central spine for deadlines/privilege/documents, and a way to reconcile conflicting local advice. The deliverable is a run-the-matter coordination plan with the privilege and consistency traps flagged, not a list of firms.\n\n## When to use / not use\n\n- Use: instructing and running local/foreign counsel across several jurisdictions on one matter (a cross-border deal, dispute, investigation, or filing programme); keeping advice and strategy consistent; controlling cost and quality across the set.\n- Hand off: selecting/tendering the firms → `outside-counsel/panel-rfp`; the pure comparative-law grid (without the instruct/coordinate layer) → `research/multi-jurisdiction-survey`; the arbitration-specific seat/enforcement strategy → `disputes/arbitration-strategy`; the overall matter plan/critical path → `matters/matter-plan`; the billing rules each firm must follow → `outside-counsel/billing-guidelines`.\n\n## Inputs to collect first\n\n1. The **matter** and the **jurisdictions** involved, with each one's **role** (lead advice, local filing, enforcement, litigation, regulatory).\n2. Who **coordinates** — a lead counsel or the client's in-house team — and the reporting line.\n3. The **deadlines** (often jurisdiction-specific and interdependent) and the **budget**.\n4. **Privilege/confidentiality** constraints and practical factors (language, time zones).\n\n## Method\n\n1. **Scope each jurisdiction's role precisely.** Define what each local firm is (and is not) instructed to do; overlapping or gapped scopes waste money and leave holes. Decide where one jurisdiction leads and others support.\n2. **Instruct consistently from one brief.** Issue a common instruction/question set so local answers are comparable and the strategy is coherent; avoid each firm running its own theory. Where comparison is the point, use `research/multi-jurisdiction-survey`'s fixed-column discipline.\n3. **Run a central matter spine.** One owner holds the master issues list, the consolidated **deadline calendar** (with dependencies between jurisdictions), the document index, and the decision log → `matters/matter-plan`. Local firms feed the spine; they don't each keep their own version of the truth.\n4. **Protect privilege across borders — carefully.** Privilege rules differ by jurisdiction (in-house privilege is limited or absent in some; common-interest/joint-defence privilege varies); route sensitive communications to preserve privilege and don't assume one country's protection travels `[verify current]`.\n5. **Reconcile conflicting local advice.** When firms disagree or local law genuinely diverges, surface it, get the basis for each view, and resolve to a single **client position** (or an explicit per-jurisdiction split) rather than leaving the conflict unmanaged → `research/multi-jurisdiction-survey`.\n6. **Control cost and quality consistently.** Apply the OCG/billing rules and budgets to every firm, watch for duplicated work across firms, and set a consistent quality bar and reporting format → `outside-counsel/billing-guidelines`.\n7. **Manage the practical layer.** Time zones, language (and translation of key documents → `drafting/legal-translation`), local filing formalities, and who signs/files what where.\n8. **Keep the client informed with one voice.** Consolidated status up to the client, not a dozen separate updates; the coordinator synthesises.\n9. **Score against the Checks table** and output the coordination plan (roles, spine, privilege map, reconciliation) or the resolved position.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Overlapping / gapped jurisdiction scopes | Each role scoped; no gaps or duplication | S1 | Re-scope the set |\n| Inconsistent instructions across firms | One common brief / question set | S2 | Instruct from a single brief |\n| No central spine (deadlines/issues/docs) | One owner holds the master spine | S1 | Stand up the matter spine → matter-plan |\n| Interdependent deadlines not mapped | Cross-jurisdiction dependencies tracked | S1 | Build the consolidated calendar |\n| Privilege assumed to travel | Per-jurisdiction privilege routed deliberately | S1 | Map privilege; protect sensitive comms `[verify current]` |\n| Conflicting local advice left unresolved | Reconciled to a client position or explicit split | S2 | Resolve the conflict |\n| Cost/quality controls inconsistent | OCG + budget applied to all firms | S2 | Apply controls uniformly |\n| Duplicated work across firms | Work allocation de-conflicted | S2 | Remove the overlap |\n| Client gets fragmented updates | One consolidated status | S3 | Synthesise to one voice |\n\n## Output\n\nLead with `Coordination: <matter> across <n jurisdictions> — lead: <firm/role> — key risk: <privilege/deadline/conflict>`. Then the output contract. Add:\n\n- **Role map**: jurisdiction · firm · scope · lead/support.\n- **Matter spine**: owner, consolidated deadlines (with dependencies), document index.\n- **Privilege map**: how sensitive communications are routed per jurisdiction.\n- **Reconciliation**: any conflicting advice and the resolved position.\n- **Cost/quality**: the uniform controls applied.\n- One JSON finding per coordination risk with `category: \"local-counsel\"`.\n\n## Edge cases & pitfalls\n\n- **Scope gaps and overlaps**: unclear roles leave a filing nobody owns or two firms billing the same work — scope each precisely.\n- **Privilege doesn't travel**: assuming home-jurisdiction privilege protects a communication with foreign counsel can waive it — route sensitive comms deliberately.\n- **Interdependent deadlines**: a filing in one country that depends on a step in another fails silently without a consolidated, dependency-aware calendar.\n- **Unresolved divergence**: leaving two firms' conflicting advice on the table hands the client an unmanaged risk — reconcile to one position or an explicit split.\n- **Twelve voices**: uncoordinated direct updates from every firm overwhelm the client and hide the throughline — the coordinator speaks once.\n\n## References\n\n- Volatile facts: cite `[verify current]` where a jurisdiction's privilege rule or local filing formality is load-bearing; use `research/multi-jurisdiction-survey` for the underlying comparative positions.\n- Standard cross-border matter-coordination practice; per-jurisdiction privilege/conduct rules; the OCG/billing controls applied across the firm set.",
+   "references": {},
+   "description": "Coordinates local/foreign counsel across multiple jurisdictions on one matter: scoping each jurisdiction's role, instructing consistently, running a central matter spine (issues list, deadlines, privilege, document handling), reconciling conflicting local advice, and controlling cost/quality across the set. Use to instruct and run multi-jurisdiction counsel. Not for selecting the panel they come from → outside-counsel/panel-rfp; not for the comparative legal grid itself → research/multi-jurisdiction-survey.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "matters/status-report",

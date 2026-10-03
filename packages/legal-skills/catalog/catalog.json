@@ -668,7 +668,7 @@
       "module": "corporate",
       "name": "shareholder-agreement",
       "title": "Shareholders' & founders' agreements",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -835,7 +835,7 @@
       "module": "employment",
       "name": "restrictive-covenants",
       "title": "Restrictive covenants",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -879,7 +879,7 @@
       "module": "ip",
       "name": "trademark-clearance",
       "title": "Trademark clearance",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -934,7 +934,7 @@
       "module": "outside-counsel",
       "name": "billing-guidelines",
       "title": "Engagement terms & billing guidelines",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -945,7 +945,7 @@
       "module": "outside-counsel",
       "name": "panel-rfp",
       "title": "Panel design & RFP",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -956,7 +956,7 @@
       "module": "outside-counsel",
       "name": "fee-arrangements",
       "title": "Alternative fee arrangements",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -978,7 +978,7 @@
       "module": "outside-counsel",
       "name": "performance-scorecard",
       "title": "Firm performance scorecard",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -989,7 +989,7 @@
       "module": "outside-counsel",
       "name": "local-counsel-management",
       "title": "Local counsel coordination",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
