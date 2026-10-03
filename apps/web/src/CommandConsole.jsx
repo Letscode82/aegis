@@ -1274,17 +1274,56 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     }
   }, [patchTurn, sessionId]);
 
+  // Stream the plan from the unified /api/one-legal/run SSE route (OL-2′), so
+  // tasks appear as they resolve. Returns the task list, or null to signal the
+  // caller should fall back to the synchronous /plan route.
+  const planViaRun = useCallback(async (text) => {
+    let response;
+    try {
+      response = await fetch("/api/one-legal/run", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+    } catch { return null; }
+    const ctype = response.headers.get("content-type") || "";
+    if (!response.ok || !response.body || !ctype.includes("text/event-stream")) return null;
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+    const tasks = [];
+    try {
+      for (;;) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        let idx;
+        while ((idx = buffer.indexOf("\n\n")) >= 0) {
+          const frame = buffer.slice(0, idx);
+          buffer = buffer.slice(idx + 2);
+          const dataLine = frame.split("\n").find((l) => l.startsWith("data: "));
+          if (!dataLine) continue;
+          try {
+            const f = JSON.parse(dataLine.slice(6));
+            if (f.type === "task") tasks[f.index] = { title: f.title, request: f.request, tool: f.tool || null };
+            else if (f.type === "error") return null;
+          } catch { /* skip malformed */ }
+        }
+      }
+    } catch { return tasks.filter(Boolean).length ? tasks.filter(Boolean) : null; }
+    return tasks.filter(Boolean);
+  }, []);
+
   // Decompose a (likely-compound) request into tasks, then run them as a
   // compound execution window. Falls back to a single turn when the planner
   // returns one task (or is unavailable).
   const planAndRun = useCallback(async (text) => {
-    let tasks = null;
-    try {
-      const r = await fetch("/api/one-legal/plan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
-      const d = await r.json();
-      if (r.ok && d.ok && Array.isArray(d.tasks) && d.tasks.length >= 1) tasks = d.tasks;
-    } catch { /* planner unavailable → single turn */ }
-    if (!tasks) { fileRequest(text); return; }
+    let tasks = await planViaRun(text);
+    if (!tasks || tasks.length < 1) {
+      // Streaming unavailable → synchronous /plan route (unchanged behavior).
+      try {
+        const r = await fetch("/api/one-legal/plan", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+        const d = await r.json();
+        if (r.ok && d.ok && Array.isArray(d.tasks) && d.tasks.length >= 1) tasks = d.tasks;
+      } catch { /* planner unavailable → single turn */ }
+    }
+    if (!tasks || tasks.length < 1) { fileRequest(text); return; }
     // Compound window when there are several tasks, or any task proposes a
     // governed tool worth surfacing for approval.
     const shouldCompound = tasks.length > 1 || tasks.some((tk) => tk.tool);
@@ -1293,7 +1332,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     const taskObjs = tasks.slice(0, 5).map((tk, i) => ({ id: `${id}-${i}`, title: tk.title || `Task ${i + 1}`, request: tk.request || text, tool: tk.tool || null, steps: baseSteps(), result: null, toolResult: null, error: null, state: "pending" }));
     setTurns((ts) => [...ts, { id, kind: "compound", request: text, tasks: taskObjs }]);
     runCompound(id, taskObjs);
-  }, [fileRequest, runCompound]);
+  }, [fileRequest, runCompound, planViaRun]);
 
   // Route a submission by intent: question → answer; compound request → plan
   // into tasks; single request → file.
