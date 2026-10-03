@@ -33,3 +33,5 @@ export {
 
 export { ConnectorRegistry, connectorRegistry } from "./registry.js";
 export { InMemoryTokenStore, getValidAccessToken } from "./token-store.js";
+export { DbTokenStore } from "./db-token-store.js";
+export type { ConnectorCredentialRow, ConnectorCredentialClient, SecretCrypto } from "./db-token-store.js";

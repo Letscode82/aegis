@@ -3995,3 +3995,40 @@ model Vault {
 
   @@index([organizationId, updatedAt])
 }
+
+/// Per-org credentials for a shared-framework connector (F-8).
+///
+/// The generic persistence behind `@aegis/connectors`' `TokenStore` seam:
+/// one row per (organization, connectorId), holding the OAuth access/refresh
+/// tokens encrypted at rest via `@aegis/db.encryptSecret` (the same v1/v2
+/// helper as `OrganizationM365Credential`; KMS envelope encryption sunsets
+/// the dev crypto before first paying customer per CLAUDE.md). `connectorId`
+/// is the registry id ("docusign", "imanage", …). `organizationId` is a plain
+/// scalar — the localized additive pattern (same as `Skill` / `ConsoleSession`),
+/// so the migration touches no existing table.
+model OrgConnectorCredential {
+  id                    String    @id @default(cuid())
+  organizationId        String
+  /// Registry id of the connector these credentials authorize.
+  connectorId           String
+  /// Lifecycle: "not_connected" | "connected" | "expired" | "error".
+  status                String    @default("not_connected")
+  /// Human label for the connected account (e.g. the service-account UPN).
+  accountLabel          String?
+  /// Space-delimited scopes the provider actually granted.
+  scopesGranted         String?
+  /// Encrypted OAuth tokens (null until first authorization).
+  encryptedAccessToken  Bytes?
+  encryptedRefreshToken Bytes?
+  tokenExpiresAt        DateTime?
+  tokenType             String?
+  authorizedById        String?
+  authorizedAt          DateTime?
+  lastRefreshedAt       DateTime?
+  lastError             String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@unique([organizationId, connectorId])
+  @@index([organizationId, status])
+}
