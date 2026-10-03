@@ -31,14 +31,15 @@ describe("validateSkillInput", () => {
     });
     expect(ok).toBe(true);
     expect(errors).toEqual([]);
-    expect(value.slug).toBe("whistleblower-policy");
-    expect(value.label).toBe("Whistleblower policy");
-    expect(value.prompt).toBe("Draft a whistleblower policy for:");
-    expect(value.action).toBe("prefill");
-    expect(value.cats).toEqual(["Policy", "Governance"]);
-    expect(value.featured).toBe(true);
-    expect(value.enabled).toBe(false);
-    expect(value.icon).toBe("✦");
+    const v = value as unknown as Record<string, unknown>;
+    expect(v.slug).toBe("whistleblower-policy");
+    expect(v.label).toBe("Whistleblower policy");
+    expect(v.prompt).toBe("Draft a whistleblower policy for:");
+    expect(v.action).toBe("prefill");
+    expect(v.cats).toEqual(["Policy", "Governance"]);
+    expect(v.featured).toBe(true);
+    expect(v.enabled).toBe(false);
+    expect(v.icon).toBe("✦");
   });
 
   it("rejects a bad slug, missing fields, bad action", () => {
@@ -61,8 +62,9 @@ describe("validateSkillInput", () => {
   it("partial mode only checks supplied fields", () => {
     const { ok, value } = validateSkillInput({ label: "New label" }, { partial: true });
     expect(ok).toBe(true);
-    expect(Object.keys(value)).toEqual(["label"]);
-    expect(value.label).toBe("New label");
+    const v = value as unknown as Record<string, unknown>;
+    expect(Object.keys(v)).toEqual(["label"]);
+    expect(v.label).toBe("New label");
   });
 
   it("partial mode still rejects a supplied bad field", () => {
@@ -80,7 +82,7 @@ describe("validateSkillInput", () => {
       action: "route",
     });
     expect(ok).toBe(true);
-    expect(value.enabled).toBe(true);
+    expect((value as unknown as Record<string, unknown>).enabled).toBe(true);
   });
 });
 
@@ -97,7 +99,7 @@ describe("orgSkillToCatalog", () => {
       category: "Legal Research",
       featured: true,
       reviewSkillId: "contract-review",
-    });
+    }) as unknown as Record<string, unknown>;
     expect(c.id).toBe("my-skill");
     expect(c.label).toBe("My skill");
     expect(c.desc).toBe("desc here");
@@ -112,7 +114,7 @@ describe("orgSkillToCatalog", () => {
   });
 
   it("defaults icon and omits reviewSkillId when absent", () => {
-    const c = orgSkillToCatalog({ slug: "s", label: "S", description: null, action: "route", prompt: "p", cats: null, category: "C" });
+    const c = orgSkillToCatalog({ slug: "s", label: "S", description: null, action: "route", prompt: "p", cats: null, category: "C" }) as unknown as Record<string, unknown>;
     expect(c.icon).toBe("✦");
     expect(c.desc).toBe("");
     expect(c.cats).toEqual([]);
@@ -131,35 +133,35 @@ describe("mergeSkills", () => {
   });
 
   it("overrides a built-in in place when slug matches id", () => {
-    const out = mergeSkills(STATICS, [
+    const out: Array<Record<string, unknown>> = mergeSkills(STATICS, [
       { slug: "nda-draft", label: "NDA (custom)", description: "ours", icon: "✎", action: "route", prompt: "Draft our NDA", cats: ["NDA"], category: "Contracts & Commercial", featured: false, enabled: true },
     ]);
     expect(out.length).toBe(2);
-    expect(out[0].id).toBe("nda-draft");
-    expect(out[0].label).toBe("NDA (custom)");
-    expect(out[0]._source).toBe("override");
-    expect(out[1].id).toBe("dsar");
+    expect(out[0]!.id).toBe("nda-draft");
+    expect(out[0]!.label).toBe("NDA (custom)");
+    expect(out[0]!._source).toBe("override");
+    expect(out[1]!.id).toBe("dsar");
   });
 
   it("hides a built-in when the override row is disabled", () => {
-    const out = mergeSkills(STATICS, [
+    const out: Array<Record<string, unknown>> = mergeSkills(STATICS, [
       { slug: "dsar", label: "x", description: "x", action: "route", prompt: "x", category: "x", enabled: false },
     ]);
     expect(out.length).toBe(1);
-    expect(out[0].id).toBe("nda-draft");
+    expect(out[0]!.id).toBe("nda-draft");
   });
 
   it("appends a net-new org skill after the built-ins", () => {
-    const out = mergeSkills(STATICS, [
+    const out: Array<Record<string, unknown>> = mergeSkills(STATICS, [
       { slug: "whistleblower", label: "Whistleblower", description: "policy", icon: "✦", action: "prefill", prompt: "Draft WB policy: ", cats: [], category: "Compliance & Frameworks", enabled: true },
     ]);
     expect(out.length).toBe(3);
-    expect(out[2].id).toBe("whistleblower");
-    expect(out[2]._source).toBe("org");
+    expect(out[2]!.id).toBe("whistleblower");
+    expect(out[2]!._source).toBe("org");
   });
 
   it("drops a disabled net-new org skill", () => {
-    const out = mergeSkills(STATICS, [
+    const out: Array<Record<string, unknown>> = mergeSkills(STATICS, [
       { slug: "hidden", label: "H", description: "h", action: "route", prompt: "h", category: "C", enabled: false },
     ]);
     expect(out.length).toBe(2);
