@@ -1827,6 +1827,13 @@ model AgentRecommendation {
   reasoning       String // why the agent recommends this
   concerns        Json                      @default("[]") // string[]
   citations       Json                      @default("[]") // [{id, title}]
+  /// SK-4 — the AEGIS shared output contract (@aegis/legal-skills). Every
+  /// agent recommendation rolls up to one severity on the S1–S4/Info scale
+  /// (null = not assessed), so findings from the eleven intake agents and the
+  /// skill surfaces are comparable. `findingsJson` holds the structured
+  /// finding list when the agent produced one (okf agents); [] otherwise.
+  overallSeverity String? // "S1" | "S2" | "S3" | "S4" | "Info" | null
+  findingsJson    Json                      @default("[]")
   /// GC Suite agent contract — approver-facing "risks to weigh before
   /// approving" checklist (string[]) and the playbook/standard stamp
   /// ({id, version}) the agent applied.

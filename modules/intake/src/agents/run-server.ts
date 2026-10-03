@@ -51,6 +51,9 @@ interface AgentRecShape {
   /** Agent 9 — SLA sized to the shortest extracted deadline. */
   proposedSlaHours?: number | null;
   alternativeTone?: string | null;
+  /** SK-4 — shared output contract: severity (S1–S4/Info|null) + findings. */
+  overall?: string | null;
+  findings?: unknown;
   mock?: boolean;
 }
 
@@ -192,6 +195,8 @@ export async function runAgentForTicketServer(
         risksJson: (rec.risks ?? []) as never,
         playbookJson: (rec.playbook ?? null) as never,
         shortFormReply: rec.alternativeTone ?? null,
+        overallSeverity: rec.overall ?? null,
+        findingsJson: (rec.findings ?? []) as never,
         status: AgentRecommendationStatus.PENDING,
         reviewedBy: null,
         reviewedAt: null,
