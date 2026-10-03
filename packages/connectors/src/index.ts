@@ -36,6 +36,27 @@ export { InMemoryTokenStore, getValidAccessToken } from "./token-store.js";
 export { DbTokenStore } from "./db-token-store.js";
 export type { ConnectorCredentialRow, ConnectorCredentialClient, SecretCrypto } from "./db-token-store.js";
 
+// C-4 — legal-authority research layer (caselaw / statute / EDGAR / EUR-Lex).
+export type {
+  LegalAuthority,
+  ResearchQuery,
+  ResearchHttp,
+  ResearchProvider,
+  ResearchProviderContext,
+  ProviderStatus,
+  ResearchResult,
+} from "./research.js";
+export {
+  runResearch,
+  selectProviders,
+  defaultResearchProviders,
+  courtListenerProvider,
+  govInfoProvider,
+  edgarProvider,
+  eurLexProvider,
+  buildSparql,
+} from "./research.js";
+
 // Microsoft 365 connector descriptors (C-1 Word add-in, C-2 Outlook triage).
 export {
   OFFICE_WORD_CONNECTOR_ID,
