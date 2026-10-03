@@ -42,6 +42,16 @@ export interface OneLegalSkill {
   cats: string[];
   category: string;
   featured?: boolean;
+  /**
+   * SK-5 — when set, this skill is backed by a built `@aegis/legal-skills`
+   * playbook (an id in the package registry). Invoking a review-style
+   * ("prefill") skill from a chip and then supplying the document runs it
+   * through the governed `POST /api/one-legal/skill-review` endpoint with this
+   * playbook (shared standards + the skill's JSON output contract) instead of
+   * filing an intake ticket. Only the chip path changes; typing the same text
+   * freehand routes as before.
+   */
+  reviewSkillId?: string;
 }
 
 /** Display order for grouping skills in the rail. */
@@ -170,3 +180,40 @@ export const SKILLS: OneLegalSkill[] = [
   { id: "holds-overview", label: "Holds overview", desc: "Which matters have active legal holds.", icon: "⚖", action: "route", prompt: "Which matters have active legal holds?", cats: [], category: "Cross-module · One Brain" },
   { id: "intake-queue", label: "Intake queue", desc: "How many intake tickets are open, by status.", icon: "◷", action: "route", prompt: "How many intake tickets are open, by status?", cats: [], category: "Cross-module · One Brain" },
 ];
+
+// SK-5 — pin review/analysis skills to a built @aegis/legal-skills playbook.
+// Deliberately excludes the route-to-file skills (legal-hold, vendor DD intake,
+// DPIA open, …): those must keep their governed filing path, not become a
+// read-only playbook read. Each value is an id that exists + is `status:"built"`
+// in the package registry (packages/legal-skills/dist/registry.json).
+const REVIEW_PLAYBOOK: Record<string, string> = {
+  // Contracts & commercial
+  "nda-review": "contracts/nda-triage",
+  "contract-review": "contracts/contract-review",
+  "msa-saas-review": "contracts/contract-review",
+  "playbook-check": "contracts/contract-review",
+  "tos-scan": "contracts/contract-review",
+  // Privacy
+  "dpa-review": "privacy/dpa-review",
+  "breach-response": "privacy/breach-response",
+  // Compliance / regulatory
+  "ai-act-classify": "regulatory/ai-governance",
+  // Litigation & disputes
+  "demand-letter": "disputes/early-case-assessment",
+  "opposing-counsel-review": "disputes/adversarial-stress-test",
+  "settlement-pressure": "disputes/adversarial-stress-test",
+  // Employment
+  "dismissal-screen": "employment/termination-risk",
+  // Spend / outside counsel
+  "invoice-review": "outside-counsel/invoice-review",
+  // IP
+  // Research & drafting
+  "citation-verify": "research/citation-verification",
+  "plain-language": "drafting/plain-language-explainer",
+  // Ops
+  "status-report": "matters/status-report",
+};
+for (const s of SKILLS) {
+  const pid = REVIEW_PLAYBOOK[s.id];
+  if (pid) s.reviewSkillId = pid;
+}

@@ -841,6 +841,9 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   const startedRef = useRef(false);
   const inputRef = useRef(null);
   const fileInputRef = useRef(null);
+  // SK-5 — active review-skill pin: { skillId, prefix } while a pinned review
+  // skill's prefilled instruction is in the composer; null otherwise.
+  const pendingReviewRef = useRef(null);
   const recordedRef = useRef(new Set());
 
   const isOpen = embedded || open;
@@ -1228,13 +1231,44 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   // E1 — run a reusable skill (playbook). "prefill" drops the prompt in the
   // composer for the user to complete; the others route through the same
   // pipeline as typed input, so governance is unchanged.
+  //
+  // SK-5 — a review skill pinned to a built playbook (`reviewSkillId`) still
+  // prefills, but we remember the pin so the completed submission runs through
+  // /api/one-legal/skill-review with that playbook instead of filing a ticket.
+  // Only this chip path is affected; the pin is cleared if the user edits away
+  // from the prefilled instruction (see the composer onChange guard).
   const runSkill = useCallback((skill) => {
     if (!skill) return;
     const p = skill.prompt || "";
-    if (skill.action === "prefill") { setInput(p); setTimeout(() => inputRef.current?.focus(), 0); return; }
+    if (skill.action === "prefill") {
+      pendingReviewRef.current = skill.reviewSkillId ? { skillId: skill.reviewSkillId, prefix: p } : null;
+      setInput(p);
+      setTimeout(() => inputRef.current?.focus(), 0);
+      return;
+    }
     if (skill.action === "research") { startResearch(p); return; }
     startTurn(p); // "route" — intent router (ask / file / tool / compound)
   }, [startResearch, startTurn]);
+
+  // Submit the composer. Honors an active SK-5 review pin: when the user
+  // completed a pinned review skill's prefilled instruction with a document, run
+  // the governed playbook (instruction as the task, the appended text as data)
+  // rather than routing/filing. Otherwise behave exactly as before.
+  const submitComposer = useCallback(() => {
+    const t = input.trim();
+    if (t.length < 3) return;
+    const pr = pendingReviewRef.current;
+    if (pr && input.startsWith(pr.prefix) && input.length > pr.prefix.length) {
+      pendingReviewRef.current = null;
+      const docText = input.slice(pr.prefix.length).trim();
+      const instruction = pr.prefix.replace(/[:\s]+$/, "").trim() || pr.prefix.trim();
+      runSkillReview(instruction, { skillId: pr.skillId, documents: docText ? [{ name: "Pasted text", text: docText }] : undefined });
+      setInput("");
+      return;
+    }
+    pendingReviewRef.current = null;
+    startTurn(input);
+  }, [input, runSkillReview, startTurn]);
 
   // Auto-run a seeded request once when opened from the omnibox.
   useEffect(() => {
@@ -1364,13 +1398,13 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       <input
         ref={inputRef}
         value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={(e) => { if (e.key === "Enter" && input.trim().length >= 3) startTurn(input); }}
+        onChange={(e) => { const v = e.target.value; if (pendingReviewRef.current && !v.startsWith(pendingReviewRef.current.prefix)) pendingReviewRef.current = null; setInput(v); }}
+        onKeyDown={(e) => { if (e.key === "Enter" && input.trim().length >= 3) submitComposer(); }}
         placeholder={turns.length === 0 ? "Describe a request, ask a question, or attach a document…" : "Ask, file a request, or attach a document…"}
         aria-label="Ask AEGIS or file a legal request"
         style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: C.t1, fontFamily: F, fontSize: big ? 15 : 13, padding: "8px 0" }}
       />
-      <button type="button" onClick={() => { if (input.trim().length >= 3) startTurn(input); }} disabled={input.trim().length < 3} style={{ ...primaryBtn, opacity: input.trim().length < 3 ? 0.5 : 1, flexShrink: 0 }}>Route ⏎</button>
+      <button type="button" onClick={() => { if (input.trim().length >= 3) submitComposer(); }} disabled={input.trim().length < 3} style={{ ...primaryBtn, opacity: input.trim().length < 3 ? 0.5 : 1, flexShrink: 0 }}>Route ⏎</button>
     </div>
   );
 
