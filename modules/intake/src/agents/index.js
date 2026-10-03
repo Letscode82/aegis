@@ -9,7 +9,7 @@ import { NoticeMgmtAgent } from "./notice-mgmt";
 import { ContractSpecialistAgent } from "./contract-specialist";
 import { PrivacyAssessmentAgent } from "./privacy-assessment";
 import { MarketingReviewAgent } from "./marketing-review";
-import { buildRec, buildDegradedRec } from "./build-rec";
+import { buildRec, buildDegradedRec, severityFromTriageRiskFlag } from "./build-rec";
 import { callClaude, callClaudeJSON, friendlyAIError } from "@aegis/ai";
 import { appendAgentLog } from "../storage/agent-log";
 import { descriptionLead } from "../intake/ticket-desc.js";
@@ -164,6 +164,18 @@ export async function processTicketWithAgent(ticket,settings,preferredAgentId){
     await appendAgentLog({type:"no-agent-match",ticketId:ticket.id,desc:(ticket.desc||"").slice(0,80)});
     return {agent:null,recommendation:null};
   }
+  // SK-4 — converge every agent onto the shared severity scale. When the
+  // agent didn't assess severity itself (the code-mode agents, and the
+  // degraded path), fill `overall` from the ticket's triage risk so the rec
+  // always carries a scale-conformant severity. An agent-provided `overall`
+  // (okf JSON path) is left untouched.
+  const stampOverall=(rec)=>{
+    if(rec&&rec.overall==null){
+      const sev=severityFromTriageRiskFlag(ticket&&ticket.aiTriage&&ticket.aiTriage.riskFlag);
+      if(sev) rec.overall=sev;
+    }
+    return rec;
+  };
   // oKF execution flip: if the agent's PUBLISHED definition opts into "okf"
   // execution, run the generic runtime from that definition so the Agent
   // Designer's edits (prompt / thresholds / knowledge) drive live output.
@@ -174,6 +186,7 @@ export async function processTicketWithAgent(ticket,settings,preferredAgentId){
   try{
     const okfRec=await tryOkfExecution(agent,ticket);
     if(okfRec){
+      stampOverall(okfRec);
       await appendAgentLog({type:"recommendation-generated",ticketId:ticket.id,agentId:agent.id,confidence:okfRec.confidence,action:okfRec.suggestedAction,engine:"okf"});
       return {agent,recommendation:okfRec};
     }
@@ -182,17 +195,18 @@ export async function processTicketWithAgent(ticket,settings,preferredAgentId){
   }
   try{
     const rec=await agent.process(ticket);
+    stampOverall(rec);
     await appendAgentLog({type:"recommendation-generated",ticketId:ticket.id,agentId:agent.id,confidence:rec.confidence,action:rec.suggestedAction});
     return {agent,recommendation:rec};
   }catch(e){
     console.error(`[agent:${agent.id}] process failed:`,e);
     await appendAgentLog({type:"agent-error",ticketId:ticket.id,agentId:agent.id,status:e&&e.status,error:String(e).slice(0,200)});
     // Produce a visible low-confidence recommendation so the ticket doesn't silently fail
-    return {agent,recommendation:buildRec(agent.id,{
+    return {agent,recommendation:stampOverall(buildRec(agent.id,{
       confidence:0.25,suggestedAction:"flag-for-review",draftedResponse:"",
       reasoning:`Agent ${agent.name} encountered an error. Manual triage recommended.`,
       concerns:[friendlyAIError(e)],
-    })};
+    }))};
   }
 }
 

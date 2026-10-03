@@ -125,6 +125,9 @@ type V8Ticket = {
     risks?: unknown;
     playbook?: unknown;
     alternativeTone?: string | null;
+    /** SK-4 — shared output contract: severity (S1–S4/Info|null) + findings. */
+    overall?: string | null;
+    findings?: unknown;
   } | null;
   conversation?: Array<{
     role: string;
@@ -229,6 +232,8 @@ async function loadTicketsV8(orgId: string): Promise<V8Ticket[]> {
             risks: rec.risksJson as unknown,
             playbook: rec.playbookJson as unknown,
             alternativeTone: rec.shortFormReply,
+            overall: rec.overallSeverity,
+            findings: rec.findingsJson as unknown,
           }
         : null,
       conversation: t.conversation.length
@@ -894,6 +899,8 @@ async function saveTicketsV8(
           risksJson: (r.risks ?? []) as never,
           playbookJson: (r.playbook ?? null) as never,
           shortFormReply: r.alternativeTone ?? null,
+          overallSeverity: r.overall ?? null,
+          findingsJson: (r.findings ?? []) as never,
           status: recStatus,
           reviewedBy: recStatus === AgentRecommendationStatus.PENDING ? null : actor,
           reviewedAt: recStatus === AgentRecommendationStatus.PENDING ? null : new Date(),
