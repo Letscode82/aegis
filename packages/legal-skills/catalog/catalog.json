@@ -372,7 +372,7 @@
       "module": "privacy",
       "name": "cross-border-transfer",
       "title": "Cross-border transfer assessment",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -487,7 +487,7 @@
       "module": "regulatory",
       "name": "export-controls",
       "title": "Export controls classification",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "US",
         "EU",
@@ -544,7 +544,7 @@
       "module": "regulatory",
       "name": "operational-resilience",
       "title": "Operational resilience (DORA/NIS2)",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "EU"
       ],
@@ -791,7 +791,7 @@
       "module": "disputes",
       "name": "regulatory-investigation",
       "title": "Regulatory investigation response",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -813,7 +813,7 @@
       "module": "employment",
       "name": "workplace-investigation",
       "title": "Workplace investigation",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1033,7 +1033,7 @@
       "module": "matters",
       "name": "stakeholder-comms",
       "title": "Stakeholder communication plan",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1209,7 +1209,7 @@
       "module": "platform",
       "name": "ai-work-audit-trail",
       "title": "AI-assisted work audit trail",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1220,7 +1220,7 @@
       "module": "platform",
       "name": "prompt-injection-guard",
       "title": "Prompt-injection guard",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],

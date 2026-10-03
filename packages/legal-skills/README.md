@@ -95,7 +95,7 @@ _Review, drafting, negotiation and post-signature obligations_
 | Sustainability & ESG clauses | 🗺️ planned | global | Add proportionate climate, human-rights and supply-chain clauses to commercial contracts. |
 | Contract template builder | 🗺️ planned | global | Build a new standard template with guidance notes and a negotiation playbook. |
 
-### Privacy & Data Protection — 9/12 built
+### Privacy & Data Protection — 10/12 built
 
 _Personal-data compliance across DPDPA, GDPR, US state laws and beyond_
 
@@ -107,14 +107,14 @@ _Personal-data compliance across DPDPA, GDPR, US state laws and beyond_
 | [Personal-data & cyber incident notification](skills/privacy/breach-response/SKILL.md) | ✅ built | global | Decide who must be notified, by when, across DPDPA, CERT-In, GDPR, US state and sector regimes. |
 | [GDPR compliance programme](skills/privacy/gdpr-compliance/SKILL.md) | ✅ built | EU, UK | Lawful basis, records of processing, rights handling and accountability under (UK) GDPR. |
 | [Privacy & consent notice drafter](skills/privacy/privacy-notice-drafter/SKILL.md) | ✅ built | global | Draft layered privacy notices and DPDPA itemised consent notices from a data inventory. |
-| Cross-border transfer assessment | 🗺️ planned | global | Transfer mechanism selection and transfer impact assessment. |
+| [Cross-border transfer assessment](skills/privacy/cross-border-transfer/SKILL.md) | ✅ built | global | Transfer mechanism selection and transfer impact assessment. |
 | [Data principal / subject request handling](skills/privacy/data-subject-requests/SKILL.md) | ✅ built | global | Verify, scope, answer or refuse access, correction, erasure and portability requests. |
 | US state privacy laws | 🗺️ planned | US | CCPA/CPRA and other state comprehensive privacy laws: applicability and obligations. |
 | [Cookies, SDKs & tracking](skills/privacy/cookie-and-tracking/SKILL.md) | ✅ built | global | Consent and disclosure requirements for cookies, pixels and mobile SDKs. |
 | [Legitimate interest assessment](skills/privacy/legitimate-interest-assessment/SKILL.md) | ✅ built | EU, UK | Three-part purpose/necessity/balancing test with documented outcome. |
 | Regional privacy pack | 🗺️ planned | BR, SG, VN, AE, SA | LGPD, PDPA, PDPL and Gulf regimes as jurisdiction modules on one engine. |
 
-### Regulatory & Compliance — 7/14 built
+### Regulatory & Compliance — 9/14 built
 
 _Applicability, change monitoring, AI governance, trade, anti-corruption, sector regimes_
 
@@ -124,12 +124,12 @@ _Applicability, change monitoring, AI governance, trade, anti-corruption, sector
 | [Regulatory change impact](skills/regulatory/regulatory-change-monitor/SKILL.md) | ✅ built | global | Convert a new law, rule, circular or guidance into impact, owners, deadlines and actions. |
 | [AI system governance](skills/regulatory/ai-governance/SKILL.md) | ✅ built | global | Classify and govern AI systems across the EU AI Act, NIST AI RMF, ISO/IEC 42001 and Indian guidance. |
 | [Sanctions screening & alert adjudication](skills/regulatory/sanctions-screening/SKILL.md) | ✅ built | global | Adjudicate screening hits and assess sanctions exposure in a transaction. |
-| Export controls classification | 🗺️ planned | US, EU, IN | Classify items and technology; licence determination under EAR, EU dual-use and SCOMET. |
+| [Export controls classification](skills/regulatory/export-controls/SKILL.md) | ✅ built | US, EU, IN | Classify items and technology; licence determination under EAR, EU dual-use and SCOMET. |
 | [Anti-bribery & corruption](skills/regulatory/anti-bribery/SKILL.md) | ✅ built | global | FCPA, UK Bribery Act and Prevention of Corruption Act risk review of payments and intermediaries. |
 | Competition & merger control | 🗺️ planned | global | Merger filing thresholds (incl. CCI deal-value test) and conduct-risk screening. |
 | Indian financial services regulation | 🗺️ planned | IN | RBI, SEBI and IRDAI requirements for fintech, lending, payments and outsourcing. |
 | [Security framework mapping](skills/regulatory/security-frameworks/SKILL.md) | ✅ built | global | Map controls across ISO 27001, SOC 2, NIST CSF and CERT-In directions; evidence gaps. |
-| Operational resilience (DORA/NIS2) | 🗺️ planned | EU | ICT risk, third-party register and incident obligations for EU entities. |
+| [Operational resilience (DORA/NIS2)](skills/regulatory/operational-resilience/SKILL.md) | ✅ built | EU | ICT risk, third-party register and incident obligations for EU entities. |
 | ESG & sustainability reporting | 🗺️ planned | global | BRSR Core, CSRD/ESRS and ISSB disclosure readiness. |
 | [Whistleblower programme](skills/regulatory/whistleblower-programme/SKILL.md) | ✅ built | global | Design or audit speak-up channels, protections and investigation workflow. |
 | Digital accessibility | 🗺️ planned | global | WCAG, Section 508, EAA and RPwD Act obligations for digital products. |
@@ -150,7 +150,7 @@ _Board work, entity compliance, M&A and securities_
 | Shareholders' & founders' agreements | 🗺️ planned | global | Draft or review SHA/founders' terms: control, transfer, exit, vesting. |
 | Governance health check | 🗺️ planned | global | Board composition, committee charters and delegation-of-authority review. |
 
-### Litigation & Disputes — 5/10 built
+### Litigation & Disputes — 6/10 built
 
 _Early case assessment, holds, chronology, strategy and settlement_
 
@@ -165,16 +165,16 @@ _Early case assessment, holds, chronology, strategy and settlement_
 | Disclosure & production review | 🗺️ planned | global | Relevance, privilege and production strategy for document disclosure. |
 | Settlement agreement | 🗺️ planned | global | Draft or review settlement terms: release scope, confidentiality, tax and enforcement. |
 | Arbitration strategy | 🗺️ planned | global | Tribunal selection, interim relief and enforcement planning for arbitration. |
-| Regulatory investigation response | 🗺️ planned | global | Respond to regulator notices, dawn raids and information requests. |
+| [Regulatory investigation response](skills/disputes/regulatory-investigation/SKILL.md) | ✅ built | global | Respond to regulator notices, dawn raids and information requests. |
 
-### Employment & People — 1/6 built
+### Employment & People — 2/6 built
 
 _Exits, investigations, restrictive covenants and workplace compliance_
 
 | Skill | Status | Jurisdictions | What it does |
 |---|---|---|---|
 | [Termination risk review](skills/employment/termination-risk/SKILL.md) | ✅ built | global | Assess a proposed exit for legal risk and process defects, and produce a compliant exit plan. |
-| Workplace investigation | 🗺️ planned | global | Plan and run a fair investigation; draft the findings report. |
+| [Workplace investigation](skills/employment/workplace-investigation/SKILL.md) | ✅ built | global | Plan and run a fair investigation; draft the findings report. |
 | POSH compliance & inquiry | 🗺️ planned | IN | Internal Committee constitution, inquiry procedure and annual reporting under the POSH Act. |
 | Restrictive covenants | 🗺️ planned | global | Non-compete, non-solicit and confidentiality enforceability by jurisdiction. |
 | Indian labour codes | 🗺️ planned | IN | Wages, social security, IR and OSH code obligations and transition issues. |
@@ -206,7 +206,7 @@ _Panels, engagement terms, invoices, budgets and performance_
 | Firm performance scorecard | 🗺️ planned | global | Post-matter feedback and quarterly firm reviews. |
 | Local counsel coordination | 🗺️ planned | global | Instruct and coordinate counsel across multiple jurisdictions. |
 
-### Matter Management & Legal Ops — 2/6 built
+### Matter Management & Legal Ops — 3/6 built
 
 _Plans, RAID logs, reporting and continuous improvement_
 
@@ -215,7 +215,7 @@ _Plans, RAID logs, reporting and continuous improvement_
 | [Matter status report](skills/matters/status-report/SKILL.md) | ✅ built | global | Turn emails, notes and trackers into a decision-oriented status report for a chosen audience. |
 | [Matter plan & critical path](skills/matters/matter-plan/SKILL.md) | ✅ built | global | Phases, workstreams, dependencies and milestones from agreed scope. |
 | RAID log | 🗺️ planned | global | Risks, assumptions, issues and decisions captured from correspondence. |
-| Stakeholder communication plan | 🗺️ planned | global | Who needs what, when, and through which channel. |
+| [Stakeholder communication plan](skills/matters/stakeholder-comms/SKILL.md) | ✅ built | global | Who needs what, when, and through which channel. |
 | Lessons learned | 🗺️ planned | global | Capture and reuse lessons across matters. |
 | Legal KPI pack | 🗺️ planned | global | Define and compute legal department KPIs from AEGIS data. |
 
@@ -245,15 +245,15 @@ _Plain-language, persuasive, translated and policy writing_
 | Legal design review | 🗺️ planned | global | Score and improve a document's readability and usability. |
 | Response template library | 🗺️ planned | global | Build and maintain approved responses for recurring queries. |
 
-### Platform & Skill Governance — 1/5 built
+### Platform & Skill Governance — 3/5 built
 
 _Safety and auditability of AI-assisted legal work inside AEGIS_
 
 | Skill | Status | Jurisdictions | What it does |
 |---|---|---|---|
 | [Skill security audit](skills/platform/skill-security-audit/SKILL.md) | ✅ built | global | Audit a third-party or internal skill for injection, exfiltration, unsafe tools and licence issues before enabling it in AEGIS. |
-| AI-assisted work audit trail | 🗺️ planned | global | Record inputs, sources, model and human sign-off for AI-assisted legal work. |
-| Prompt-injection guard | 🗺️ planned | global | Treat document content as data; detect and neutralise embedded instructions. |
+| [AI-assisted work audit trail](skills/platform/ai-work-audit-trail/SKILL.md) | ✅ built | global | Record inputs, sources, model and human sign-off for AI-assisted legal work. |
+| [Prompt-injection guard](skills/platform/prompt-injection-guard/SKILL.md) | ✅ built | global | Treat document content as data; detect and neutralise embedded instructions. |
 | Skill authoring | 🗺️ planned | global | Turn a lawyer's expertise into a new AEGIS skill that passes validation. |
 | AI-use time & billing record | 🗺️ planned | global | Record and disclose AI assistance in time entries per firm/bar guidance. |
 <!-- CATALOG:END -->
