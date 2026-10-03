@@ -83,11 +83,21 @@ export function makeAuthHandler(): AuthHandler {
       return;
     }
     const { handleAuth, handleLogin } = await import("@auth0/nextjs-auth0");
-    // W4-7 — enterprise SSO: when AUTH0_ENTERPRISE_CONNECTION names an
-    // Auth0 enterprise connection (e.g. the Entra ID connection for the
-    // client tenant), /api/auth/login sends users straight to that IdP
-    // instead of the Auth0 universal-login picker. Unset = unchanged.
-    const connection = process.env.AUTH0_ENTERPRISE_CONNECTION;
+    // Per-tenant SSO routing (C-6), with the W4-7 single-tenant env as
+    // fallback:
+    //   - `/api/auth/login?connection=<name>` routes straight to that
+    //     tenant's brokered IdP connection. A login page resolves the
+    //     connection for an email via /api/auth/sso-hint (home-realm
+    //     discovery over OrganizationSsoConnection) and appends it here.
+    //   - otherwise AUTH0_ENTERPRISE_CONNECTION, when set, pins a single
+    //     enterprise connection (unchanged behaviour).
+    //   - otherwise Auth0's universal-login picker / its own HRD.
+    const requested = req.query.connection;
+    const connectionParam =
+      typeof requested === "string" && requested.trim().length > 0
+        ? requested.trim()
+        : undefined;
+    const connection = connectionParam ?? process.env.AUTH0_ENTERPRISE_CONNECTION;
     const handler = connection
       ? handleAuth({
           login: handleLogin({

@@ -38,6 +38,11 @@ import {
   ALL_ROLES,
   Permission,
 } from "./index";
+import {
+  matchConnectionByEmail,
+  resolveSsoRoleName,
+  type SsoConnectionRecord,
+} from "./sso";
 
 const REQUIRED_ENV_VARS = [
   "AUTH0_SECRET",
@@ -214,21 +219,48 @@ export function isJitEligible(
 const JIT_DEFAULT_ROLE: RoleName = "requester";
 
 /**
- * Provision a first-login SSO user: User row with the `requester`
+ * Load every enabled per-tenant SSO connection (C-6). Used for home-realm
+ * discovery at JIT time. Small table (one row per org), read on the
+ * provisioning path only, so no caching is needed.
+ */
+export async function loadEnabledSsoConnections(): Promise<SsoConnectionRecord[]> {
+  const rows = await prisma.organizationSsoConnection.findMany({
+    where: { enabled: true },
+    select: {
+      organizationId: true,
+      connectionName: true,
+      emailDomains: true,
+      defaultRoleName: true,
+      jitProvisioning: true,
+      enabled: true,
+    },
+  });
+  return rows;
+}
+
+/**
+ * Provision a first-login SSO user: a User row with a least-privilege
  * role, a linked Person (so filed tickets attribute correctly), and a
  * chain-sealed `auth.user.jit_provisioned` audit row. Returns null if
- * the platform isn't in a provisionable state (no org / no requester
- * role seeded) — the caller then refuses the session, same as strict
- * mode.
+ * the platform isn't in a provisionable state (no org / role not seeded)
+ * — the caller then refuses the session, same as strict mode.
+ *
+ * `target` (C-6) pins the org + role from the matched tenant SSO
+ * connection; without it (the legacy env-allowlist path) the user lands
+ * in the first org with the `requester` role.
  */
 export async function jitProvisionUser(
   email: string,
   name?: string,
+  target?: { organizationId: string; roleName: RoleName },
 ): Promise<AuthUser | null> {
-  const org = await prisma.organization.findFirst({ select: { id: true } });
-  if (!org) return null;
+  const orgId = target?.organizationId
+    ?? (await prisma.organization.findFirst({ select: { id: true } }))?.id;
+  if (!orgId) return null;
+  const roleName: RoleName = target?.roleName ?? JIT_DEFAULT_ROLE;
+  const org = { id: orgId };
   const role = await prisma.role.findFirst({
-    where: { organizationId: org.id, name: JIT_DEFAULT_ROLE },
+    where: { organizationId: org.id, name: roleName },
     select: { id: true },
   });
   if (!role) return null;
@@ -261,8 +293,8 @@ export async function jitProvisionUser(
     action: "auth.user.jit_provisioned",
     resourceType: "User",
     resourceId: user.id,
-    afterJson: { email, name: displayName, role: JIT_DEFAULT_ROLE },
-    metadata: { source: "sso-jit" },
+    afterJson: { email, name: displayName, role: roleName },
+    metadata: { source: "sso-jit", tenantScoped: Boolean(target) },
   });
   return resolveByEmail(email);
 }
@@ -277,14 +309,31 @@ async function resolveByEmail(
     include: { role: true, organization: true },
   });
   if (!dbUser) {
-    // Strict by default — the seed owns the canonical user list. The
-    // one sanctioned exception: a REAL session (allowJit) whose email
-    // domain is on the SSO auto-provision allowlist (W4-7).
-    if (
-      hint?.allowJit &&
-      isJitEligible(email, process.env.AEGIS_SSO_AUTO_PROVISION_DOMAINS)
-    ) {
-      return jitProvisionUser(email, hint.name);
+    // Strict by default — the seed owns the canonical user list. Two
+    // sanctioned exceptions, both only on a REAL session (allowJit):
+    //
+    //   1. C-6 — a per-tenant SSO connection whose emailDomains match
+    //      this email. The user is provisioned into THAT connection's
+    //      org with its configured default role (home-realm discovery).
+    //   2. W4-7 (legacy) — the AEGIS_SSO_AUTO_PROVISION_DOMAINS env
+    //      allowlist, which provisions into the first org as `requester`.
+    //
+    // The DB connection wins when both could apply, because it is the
+    // per-tenant source of truth; the env allowlist stays as the
+    // single-tenant fallback for deployments that haven't configured a
+    // connection row.
+    if (hint?.allowJit) {
+      const connections = await loadEnabledSsoConnections().catch(() => []);
+      const match = matchConnectionByEmail(email, connections);
+      if (match && match.jitProvisioning) {
+        return jitProvisionUser(email, hint.name, {
+          organizationId: match.organizationId,
+          roleName: resolveSsoRoleName(match),
+        });
+      }
+      if (isJitEligible(email, process.env.AEGIS_SSO_AUTO_PROVISION_DOMAINS)) {
+        return jitProvisionUser(email, hint.name);
+      }
     }
     return null;
   }
