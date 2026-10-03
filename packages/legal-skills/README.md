@@ -72,7 +72,7 @@ _Front door: classify, route and answer inbound legal requests_
 | [Matter scoping](skills/intake/matter-scoping/SKILL.md) | ✅ built | global | Turn a triaged request into a defined scope, assumptions, exclusions and an effort estimate. |
 | [Conflict check preparation](skills/intake/conflict-check-prep/SKILL.md) | ✅ built | global | Extract parties, affiliates and adverse interests to run a conflict search before opening a matter. |
 
-### Contracts — 12/16 built
+### Contracts — 16/16 built
 
 _Review, drafting, negotiation and post-signature obligations_
 
@@ -85,15 +85,15 @@ _Review, drafting, negotiation and post-signature obligations_
 | [Indian commercial contract check](skills/contracts/india-commercial-contract/SKILL.md) | ✅ built | IN | Enforceability check under Indian law: Contract Act, stamp duty, execution formalities, arbitration and governing-law choices. |
 | [Vendor & third-party due diligence](skills/contracts/vendor-due-diligence/SKILL.md) | ✅ built | global | Risk-tier a supplier and run proportionate legal, privacy, security, sanctions and financial checks. |
 | [Redline generator](skills/contracts/redline-generator/SKILL.md) | ✅ built | global | Turn review findings into tracked-change edits and a counterparty-facing issues list. |
-| Clause drafter from library | 🗺️ planned | global | Draft or adapt clauses from the approved clause library with variant selection and rationale. |
+| [Clause drafter from library](skills/contracts/clause-drafter/SKILL.md) | ✅ built | global | Draft or adapt clauses from the approved clause library with variant selection and rationale. |
 | [SaaS & cloud agreement review](skills/contracts/saas-and-cloud-review/SKILL.md) | ✅ built | global | Customer- or vendor-side review of SaaS/cloud terms: SLAs, data, security, lock-in, liability. |
 | [Dispute resolution clause design](skills/contracts/dispute-resolution-clause/SKILL.md) | ✅ built | global | Design arbitration/jurisdiction clauses: seat, institution, rules, tiers, enforceability. |
 | [Negotiation preparation](skills/contracts/negotiation-prep/SKILL.md) | ✅ built | global | Map interests, walk-away points, trade-offs and concession sequence before a negotiation. |
 | [Renewal & termination advisor](skills/contracts/renewal-termination-advisor/SKILL.md) | ✅ built | global | Decide renew/renegotiate/exit ahead of a notice deadline, with exit mechanics. |
 | [Amendments, assignment & novation](skills/contracts/amendment-assignment-novation/SKILL.md) | ✅ built | global | Check change-of-control, assignment and amendment mechanics and draft the instrument. |
-| Online terms & consumer-terms audit | 🗺️ planned | global | Audit customer-facing terms for unfair terms, consumer-law and platform-rule issues. |
-| Sustainability & ESG clauses | 🗺️ planned | global | Add proportionate climate, human-rights and supply-chain clauses to commercial contracts. |
-| Contract template builder | 🗺️ planned | global | Build a new standard template with guidance notes and a negotiation playbook. |
+| [Online terms & consumer-terms audit](skills/contracts/terms-of-service-audit/SKILL.md) | ✅ built | global | Audit customer-facing terms for unfair terms, consumer-law and platform-rule issues. |
+| [Sustainability & ESG clauses](skills/contracts/sustainability-clauses/SKILL.md) | ✅ built | global | Add proportionate climate, human-rights and supply-chain clauses to commercial contracts. |
+| [Contract template builder](skills/contracts/contract-template-builder/SKILL.md) | ✅ built | global | Build a new standard template with guidance notes and a negotiation playbook. |
 
 ### Privacy & Data Protection — 11/12 built
 
@@ -180,7 +180,7 @@ _Exits, investigations, restrictive covenants and workplace compliance_
 | [Indian labour codes](skills/employment/india-labour-codes/SKILL.md) | ✅ built | IN | Wages, social security, IR and OSH code obligations and transition issues. |
 | [Employment policy drafter](skills/employment/employment-policy-drafter/SKILL.md) | ✅ built | global | Draft handbooks and policies aligned to local law and company practice. |
 
-### Intellectual Property — 4/5 built
+### Intellectual Property — 5/5 built
 
 _Clearance, open source, ownership and enforcement_
 
@@ -190,7 +190,7 @@ _Clearance, open source, ownership and enforcement_
 | [Trademark clearance](skills/ip/trademark-clearance/SKILL.md) | ✅ built | global | Knockout and full-search analysis for a proposed mark across target classes. |
 | [IP ownership & assignment audit](skills/ip/ip-ownership-audit/SKILL.md) | ✅ built | global | Confirm chain of title from employees, contractors and acquisitions. |
 | [Copyright & originality assessment](skills/ip/copyright-assessment/SKILL.md) | ✅ built | global | Protectability, ownership and permitted-use analysis, including AI-generated content. |
-| Infringement & takedown | 🗺️ planned | global | Assess infringement and draft notices or responses (incl. IT Rules intermediaries). |
+| [Infringement & takedown](skills/ip/infringement-takedown/SKILL.md) | ✅ built | global | Assess infringement and draft notices or responses (incl. IT Rules intermediaries). |
 
 ### Outside Counsel & Spend — 7/7 built
 
@@ -206,7 +206,7 @@ _Panels, engagement terms, invoices, budgets and performance_
 | [Firm performance scorecard](skills/outside-counsel/performance-scorecard/SKILL.md) | ✅ built | global | Post-matter feedback and quarterly firm reviews. |
 | [Local counsel coordination](skills/outside-counsel/local-counsel-management/SKILL.md) | ✅ built | global | Instruct and coordinate counsel across multiple jurisdictions. |
 
-### Matter Management & Legal Ops — 5/6 built
+### Matter Management & Legal Ops — 6/6 built
 
 _Plans, RAID logs, reporting and continuous improvement_
 
@@ -216,7 +216,7 @@ _Plans, RAID logs, reporting and continuous improvement_
 | [Matter plan & critical path](skills/matters/matter-plan/SKILL.md) | ✅ built | global | Phases, workstreams, dependencies and milestones from agreed scope. |
 | [RAID log](skills/matters/raid-log/SKILL.md) | ✅ built | global | Risks, assumptions, issues and decisions captured from correspondence. |
 | [Stakeholder communication plan](skills/matters/stakeholder-comms/SKILL.md) | ✅ built | global | Who needs what, when, and through which channel. |
-| Lessons learned | 🗺️ planned | global | Capture and reuse lessons across matters. |
+| [Lessons learned](skills/matters/lessons-learned/SKILL.md) | ✅ built | global | Capture and reuse lessons across matters. |
 | [Legal KPI pack](skills/matters/legal-kpi-dashboard/SKILL.md) | ✅ built | global | Define and compute legal department KPIs from AEGIS data. |
 
 ### Research & Verification — 6/6 built
@@ -232,7 +232,7 @@ _Grounded research and the verification layer every other skill relies on_
 | [Source-locked answering](skills/research/source-locked-answering/SKILL.md) | ✅ built | global | Answer strictly from supplied documents with pinpoint support. |
 | [Indian legal research](skills/research/india-legal-research/SKILL.md) | ✅ built | IN | Research workflow for Indian statutes, rules, notifications and SC/HC judgments. |
 
-### Writing & Communication — 3/6 built
+### Writing & Communication — 5/6 built
 
 _Plain-language, persuasive, translated and policy writing_
 
@@ -240,9 +240,9 @@ _Plain-language, persuasive, translated and policy writing_
 |---|---|---|---|
 | [Plain-language explainer](skills/drafting/plain-language-explainer/SKILL.md) | ✅ built | global | Translate legal analysis into a clear, accurate explanation for a business reader. |
 | [Persuasive legal writing](skills/drafting/persuasive-writing/SKILL.md) | ✅ built | global | Structure and edit briefs, submissions and advocacy letters. |
-| Legal translation | 🗺️ planned | global | Translate legal documents preserving legal effect, with term notes. |
+| [Legal translation](skills/drafting/legal-translation/SKILL.md) | ✅ built | global | Translate legal documents preserving legal effect, with term notes. |
 | [Corporate policy drafter](skills/drafting/policy-drafter/SKILL.md) | ✅ built | global | Draft internal policies with scope, roles, controls and review cycle. |
-| Legal design review | 🗺️ planned | global | Score and improve a document's readability and usability. |
+| [Legal design review](skills/drafting/legal-design-review/SKILL.md) | ✅ built | global | Score and improve a document's readability and usability. |
 | Response template library | 🗺️ planned | global | Build and maintain approved responses for recurring queries. |
 
 ### Platform & Skill Governance — 3/5 built
