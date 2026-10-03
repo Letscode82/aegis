@@ -307,11 +307,62 @@
    "module": "intake",
    "name": "conflict-check-prep",
    "title": "Conflict check preparation",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Extract parties, affiliates and adverse interests to run a conflict search before opening a matter."
+   "summary": "Extract parties, affiliates and adverse interests to run a conflict search before opening a matter.",
+   "meta": {
+    "name": "intake-conflict-check-prep",
+    "description": "Prepares a conflict-of-interest check before a matter opens: extracts every party, affiliate, beneficial owner, adverse party and material related name from the request, builds the search terms (including aliases and former names), and frames the adversity and confidentiality questions the check must answer. Use to assemble the inputs for a conflicts search and spot obvious conflicts early. Not for scoping the matter's work → intake/matter-scoping; not for triaging/routing the request → intake/request-triage.",
+    "module": "intake",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "request",
+      "required": true,
+      "description": "The matter request / engagement details — who wants the work, against whom, about what, and any documents naming the parties."
+     },
+     {
+      "name": "known_relationships",
+      "required": false,
+      "description": "Any already-known prior engagements, related entities, or existing clients that might bear on the check."
+     },
+     {
+      "name": "scope",
+      "required": false,
+      "description": "Whether this is a new client or existing, the type of matter, and whether an information barrier might be contemplated."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "intake/matter-scoping",
+     "intake/request-triage",
+     "disputes/early-case-assessment",
+     "corporate/ma-due-diligence",
+     "matters/matter-plan"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Conflict Check Preparation\n\nTakes a new matter request and produces the complete, de-duplicated set of names and search terms a conflicts check needs — every party, affiliate, beneficial owner and adverse interest — plus the adversity/confidentiality questions to resolve. The deliverable is a conflict-search brief that lets the run catch real conflicts, not a one-line \"run conflicts\".\n\n## When to use / not use\n\n- Use: before opening a matter or accepting an engagement; assembling the party list and search terms for a conflicts database run; spotting an obvious direct conflict early; preparing the facts for a conflicts-waiver decision.\n- Hand off: defining the actual work/deliverables of the matter → `intake/matter-scoping`; routing and prioritising the incoming request → `intake/request-triage`; the merits/strategy once the matter is cleared → `disputes/early-case-assessment`; mapping a target's corporate tree in an acquisition → `corporate/ma-due-diligence`; planning the matter after clearance → `matters/matter-plan`.\n\n## Inputs to collect first\n\n1. The **client** (and who within it instructs) and whether they are new or existing.\n2. The **adverse parties** — opponents, counterparties, and anyone whose interests are against the client's.\n3. **Affiliates and related names**: parent/subsidiaries, beneficial owners, directors/officers, trading names, former names, and key individuals.\n4. The **subject matter** (to test issue/positional conflicts and confidentiality overlap with other matters).\n5. Any known prior dealings with any of these names.\n\n## Method\n\n1. **Enumerate every party and role.** Client, adverse parties, and interested third parties (insurers, guarantors, co-defendants, lenders) — each tagged with its role, because adversity depends on role, not just name.\n2. **Expand entities to their web.** For each corporate party, capture parent, material subsidiaries, beneficial owners, and key individuals (directors, signatories) — conflicts hide in affiliates, not the headline name.\n3. **Generate name variants.** Add trading/brand names, former names, abbreviations, transliteration/spelling variants, and individual aliases — a search on the exact legal name alone misses the real match.\n4. **Build the search-term set.** Produce the de-duplicated list of strings to run against the conflicts database, grouped by party, with the variants attached. This is the core deliverable.\n5. **Frame the adversity questions.** State who is adverse to whom and on what; note **positional/issue conflicts** (taking a stance against a position held for another client) and **business conflicts** (key client, referral source) that a name search won't surface.\n6. **Flag confidentiality overlap.** Identify where acting might require, or risk misuse of, confidential information held from another matter — the basis for an information barrier or a decline.\n7. **Spot the obvious conflicts now.** Where the request itself reveals a direct adversity to a known client, surface it immediately rather than waiting for the database run.\n8. **Prepare the waiver/consent angle.** Where a conflict may be consentable, note whose informed consent and/or an information barrier would be needed — this is a decision for the responsible lawyer, not an auto-clear.\n9. **Score against the Checks table** and output the search brief with a provisional **CLEAR TO SEARCH / POSSIBLE CONFLICT FLAGGED / DIRECT CONFLICT APPARENT** status.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| A party/role omitted | Every party + interested third party listed | S1 | Add the missing party |\n| Affiliates / beneficial owners not expanded | Corporate tree + owners + key individuals captured | S1 | Expand each entity |\n| Name variants / aliases missing | Trading/former names + spelling variants added | S2 | Generate the variants |\n| Only the client side searched | Adverse + interested parties all in the term set | S1 | Add the adverse names |\n| Positional / business conflict ignored | Issue + key-client conflicts considered | S2 | Flag non-name conflicts |\n| Confidentiality overlap unassessed | Prior-matter info-barrier risk checked | S2 | Flag the overlap |\n| Obvious direct conflict not surfaced early | Request screened for known adversity | S1 | Escalate immediately |\n| Conflict auto-cleared without the decision-maker | Waiver/consent routed to responsible lawyer | S2 | Do not self-clear; escalate |\n| Duplicate/garbled search terms | De-duplicated, grouped term set | S3 | Clean the list |\n\n## Output\n\nLead with `Status: CLEAR TO SEARCH | POSSIBLE CONFLICT FLAGGED | DIRECT CONFLICT APPARENT — <client v. adverse> — <note>`. Then the output contract. Add:\n\n- **Party map**: each party · role · affiliates/owners/key individuals.\n- **Search terms**: the de-duplicated, variant-expanded list grouped by party.\n- **Adversity & positional questions**: who is adverse on what; any issue/business conflict.\n- **Confidentiality overlap**: prior-matter risks and any info-barrier need.\n- One JSON finding per flagged conflict/risk with `category: \"conflict-check\"`.\n\n## Edge cases & pitfalls\n\n- **Name-only searching**: running the exact legal name without affiliates, owners and variants is how real conflicts slip through — expand first.\n- **Forgetting the adverse side**: a conflicts run that only searches the client's own names checks the wrong thing — adverse and interested parties are the point.\n- **Invisible positional conflicts**: a database never flags a positional/issue or key-client business conflict — these need human judgement, so surface them for decision.\n- **Self-clearing**: treating \"no database hit\" as clearance ignores consentable conflicts and confidentiality barriers — route the judgement call to the responsible lawyer.\n- **Stale entity data**: former names and recent reorganisations are exactly where matches live — chase current and historic names.\n\n## References\n\n- Volatile facts: generally none; conflict rules are professional-conduct rules, cited `[verify current]` where a specific bar's rule governs.\n- The applicable professional-conduct conflict rules (e.g. Bar Council of India / SRA / ABA Model Rules as relevant); the firm's conflicts database and engagement records.",
+   "references": {},
+   "description": "Prepares a conflict-of-interest check before a matter opens: extracts every party, affiliate, beneficial owner, adverse party and material related name from the request, builds the search terms (including aliases and former names), and frames the adversity and confidentiality questions the check must answer. Use to assemble the inputs for a conflicts search and spot obvious conflicts early. Not for scoping the matter's work → intake/matter-scoping; not for triaging/routing the request → intake/request-triage.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "contracts/contract-review",
@@ -949,11 +1000,62 @@
    "module": "contracts",
    "name": "renewal-termination-advisor",
    "title": "Renewal & termination advisor",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Decide renew/renegotiate/exit ahead of a notice deadline, with exit mechanics."
+   "summary": "Decide renew/renegotiate/exit ahead of a notice deadline, with exit mechanics.",
+   "meta": {
+    "name": "contracts-renewal-termination-advisor",
+    "description": "Decides renew / renegotiate / exit ahead of a contract's notice deadline, and sets out the exit mechanics: the auto-renewal and notice-window math, termination rights (for cause / convenience / change of law), the consequences of letting it roll, wind-down and transition obligations, and the drop-dead date to act by. Use before a renewal or notice deadline, or when considering exit. Not for the full risk review of the contract → contracts/contract-review; not for choosing an amendment vs novation instrument → contracts/amendment-assignment-novation.",
+    "module": "contracts",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of decide (renew/renegotiate/exit recommendation), deadline-check (compute the notice window and drop-dead date) or exit-plan (map termination route + wind-down)."
+     },
+     {
+      "name": "contract",
+      "required": false,
+      "description": "The contract, especially its term, auto-renewal, notice, termination (cause/convenience), and post-termination/transition clauses, and the governing law."
+     },
+     {
+      "name": "context",
+      "required": false,
+      "description": "Whether the relationship is working, commercial pressures (price, performance, dependency), today's date, and any replacement/alternative lined up."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "contracts/contract-review",
+     "contracts/amendment-assignment-novation",
+     "contracts/negotiation-prep",
+     "contracts/obligation-extraction",
+     "disputes/legal-notice-drafter"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Renewal & Termination Advisor\n\nTakes a contract approaching a renewal or notice deadline and returns a decision — renew, renegotiate, or exit — with the deadline math and the exit mechanics worked out, so the client acts *before* the window closes rather than discovering an auto-renewal after it has rolled. The deliverable is a dated recommendation with a drop-dead date, not a general comment on the contract.\n\n## When to use / not use\n\n- Use: a renewal/auto-renewal date is approaching; deciding whether to keep, renegotiate, or exit a contract; computing the notice window and the last date to act; planning a clean exit with wind-down and transition.\n- Hand off: the full issue-spotting risk review of the contract → `contracts/contract-review`; choosing/drafting the instrument to transfer or vary → `contracts/amendment-assignment-novation`; preparing the renegotiation asks and leverage → `contracts/negotiation-prep`; extracting the surviving post-termination obligations → `contracts/obligation-extraction`; drafting the actual termination/non-renewal notice letter → `disputes/legal-notice-drafter`.\n\n## Inputs to collect first\n\n1. The **term, auto-renewal and notice clauses** — initial term, renewal period, notice period and the exact form/recipient of notice.\n2. Today's date and the next renewal date, to compute the window.\n3. The **termination rights** — for cause, for convenience (and any fee/lock-in), for change of law/insolvency — and any minimum commitment.\n4. The commercial picture: is the relationship working, what's the dependency/switching cost, is a replacement lined up.\n5. The **post-termination** obligations: transition/exit assistance, data return/deletion, run-off, survival clauses.\n\n## Method\n\n1. **Compute the notice window first.** Work back from the renewal date by the notice period to the **drop-dead date** — the last day to serve non-renewal/termination. State it explicitly and prominently; a missed window is the single most common and expensive failure.\n2. **Establish what happens on silence.** Does the contract **auto-renew** (and for how long, on what terms, with what price escalator) or expire? Letting an unwanted contract roll locks in another term — know the default before deciding.\n3. **Map the exit routes.** Termination **for convenience** (notice + any fee/lock-in), **for cause** (breach + cure mechanics), and special rights (change of law, insolvency, change of control). Pick the cleanest route for the goal.\n4. **Decide renew / renegotiate / exit.** Weigh relationship performance, price trajectory, dependency/switching cost, and alternatives. A renewal date is leverage — even a \"renew\" often warrants a renegotiation ask → `contracts/negotiation-prep`.\n5. **Cost the exit.** Early-termination fees, remaining minimum commitments, unamortised charges, and the cost/time to stand up a replacement — an \"exit\" that triggers a large fee may not be worth it.\n6. **Plan the wind-down.** Transition/exit-assistance obligations, data return/deletion, IP and licence tail, run-off insurance, and the survival clauses that outlive termination — so the exit doesn't strand the business.\n7. **Serve notice correctly.** Use the contract's notice clause (recipient, method, deemed-receipt) and keep proof; an informal or mis-served notice can be ineffective → `disputes/legal-notice-drafter`.\n8. **Set the action calendar.** Drop-dead date, internal decision date (with buffer), and the notice-service date — with owners.\n9. **Score against the Checks table** and set a recommendation: **RENEW / RENEGOTIATE / EXIT**, with the drop-dead date and the route.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Notice window not computed / drop-dead date missing | Drop-dead date stated prominently | S1 | Compute it now; diarise with buffer |\n| Auto-renewal default unknown | Renew-on-silence behaviour confirmed | S1 | Read the term/renewal clause |\n| Wrong/ineffective termination route chosen | For-cause vs convenience vs special right matched | S2 | Select the route that achieves the goal |\n| Early-termination fee / lock-in not costed | Exit cost + remaining commitment quantified | S2 | Price the exit before deciding |\n| Post-termination/transition obligations ignored | Wind-down, data, IP, run-off mapped | S2 | Build the exit plan |\n| Notice mis-served (recipient/method/timing) | Contract's notice clause followed + proof kept | S1 | Serve per the clause → notice drafter |\n| Renewal treated as admin, not leverage | Renegotiation ask considered | S3 | Prepare the ask → negotiation-prep |\n| Survival clauses overlooked | Clauses surviving termination identified | S3 | List what survives |\n| No action calendar / owners | Decision + notice dates assigned | S2 | Set the calendar with owners |\n\n## Output\n\nLead with `Recommendation: RENEW | RENEGOTIATE | EXIT — <contract> — act by <drop-dead date>`. Then the output contract. Add:\n\n- **Deadline math**: renewal date · notice period · **drop-dead date** · auto-renew-on-silence behaviour.\n- **Exit route**: the termination right relied on + its mechanics (cure, fee, lock-in).\n- **Exit cost**: fees, remaining commitment, replacement cost/time.\n- **Wind-down**: transition, data, IP, run-off, survival.\n- **Action calendar**: decision / notice-service dates with owners.\n- One JSON finding per issue with `category: \"renewal-termination\"`.\n\n## Edge cases & pitfalls\n\n- **Evergreen auto-renewal**: a short notice window on an evergreen contract means silence renews it for another full term — the drop-dead date is everything.\n- **\"For convenience\" isn't free**: convenience termination can carry a fee, a lock-in, or a minimum-commitment payout — cost it before pulling the trigger.\n- **Exit that strands the business**: terminating without securing transition assistance / data return leaves the business unable to switch — plan the wind-down first.\n- **Mis-served notice**: a notice to the wrong address or by the wrong method can be void, missing the window even though the client \"sent it\".\n- **Cause without cure**: terminating for breach without following the cure-period mechanics can convert the exit into your own repudiation.\n\n## References\n\n- Volatile facts: generally none; cite `[verify current]` only where a statutory termination-notice or consumer auto-renewal rule is load-bearing.\n- The contract's term/renewal/notice/termination/survival clauses and governing law; general contract law on notice, repudiation, and post-termination obligations.",
+   "references": {},
+   "description": "Decides renew / renegotiate / exit ahead of a contract's notice deadline, and sets out the exit mechanics: the auto-renewal and notice-window math, termination rights (for cause / convenience / change of law), the consequences of letting it roll, wind-down and transition obligations, and the drop-dead date to act by. Use before a renewal or notice deadline, or when considering exit. Not for the full risk review of the contract → contracts/contract-review; not for choosing an amendment vs novation instrument → contracts/amendment-assignment-novation.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "contracts/amendment-assignment-novation",
@@ -2895,22 +2997,124 @@
    "module": "corporate",
    "name": "fdi-fema-assessment",
    "title": "FDI & FEMA assessment",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "IN"
    ],
-   "summary": "Route, sectoral caps, Press Note 3 and reporting for inbound investment."
+   "summary": "Route, sectoral caps, Press Note 3 and reporting for inbound investment.",
+   "meta": {
+    "name": "corporate-fdi-fema-assessment",
+    "description": "Assesses inbound foreign investment into an Indian entity under FEMA and the FDI policy: automatic vs government route, sectoral caps and conditions, the Press Note 3 land-border rule, pricing guidelines, and the FC-GPR / FLA / downstream reporting that follows. Use to check whether a foreign investment is permitted and what filings it triggers. Not for M&A diligence at large → corporate/ma-due-diligence; not for listed-company disclosure → corporate/listed-company-disclosure.",
+    "module": "corporate",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "IN"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of route-check (permitted route + caps), filing-check (what reports are due and when) or structure-review (assess a proposed investment structure)."
+     },
+     {
+      "name": "investment",
+      "required": false,
+      "description": "The investor (country of residence/beneficial ownership), the Indian investee entity, the instrument (equity/CCPS/CCD), the amount and the stake, and the sector/business activity."
+     },
+     {
+      "name": "context",
+      "required": false,
+      "description": "Whether any investor is from or beneficially owned in a land-bordering country, whether this is a fresh infusion / secondary transfer / downstream investment, and the pricing basis."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "corporate/ma-due-diligence",
+     "corporate/listed-company-disclosure",
+     "corporate/entity-compliance-calendar",
+     "research/india-legal-research",
+     "regulatory/competition-merger-control"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# FDI & FEMA Assessment\n\nTakes a proposed foreign investment into an Indian entity and returns whether it is permitted, by which route, under what sectoral cap and conditions, and the FEMA reporting it triggers. The deliverable is a route + conditions + filings determination with the traps flagged, not a general \"FDI is allowed in India\".\n\n## When to use / not use\n\n- Use: checking whether an inbound investment is under the automatic or government route; confirming the sectoral cap and any entry conditions; screening for the Press Note 3 land-border approval requirement; listing the FEMA filings and their deadlines; reviewing a proposed instrument/pricing for FEMA compliance.\n- Hand off: the wider acquisition diligence (title, contracts, litigation) → `corporate/ma-due-diligence`; a SEBI-listed target's disclosure obligations → `corporate/listed-company-disclosure`; the recurring ROC/FEMA compliance calendar → `corporate/entity-compliance-calendar`; finding the current policy/master-direction text → `research/india-legal-research`; a merger-control threshold check → `regulatory/competition-merger-control`.\n\n## Inputs to collect first\n\n1. The investor's country of residence **and** beneficial ownership (the land-border test looks through to beneficial ownership).\n2. The Indian investee entity and its exact business activity / sector (caps and conditions are sector-specific).\n3. The instrument — equity, compulsorily convertible preference shares/debentures (FDI-eligible) vs optionally/non-convertible (treated as debt/ECB).\n4. The amount, resulting stake, and whether it is a fresh issue, a secondary transfer from a resident, or a downstream investment by an Indian entity.\n5. The pricing basis (valuation) and the entry date.\n\n## Method\n\n1. **Confirm the instrument is FDI-eligible.** Equity and compulsorily/mandatorily convertible instruments are FDI; optionally-convertible or redeemable instruments are generally debt (ECB rules), not FDI — misclassifying the instrument misroutes the whole analysis.\n2. **Apply the Press Note 3 land-border rule first.** An investment where the investor is **of, or beneficially owned in,** a country sharing a land border with India requires **prior government approval regardless of sector or amount** `[verify current]`. Look through to beneficial ownership; this is the most common reason an otherwise-automatic deal needs approval.\n3. **Find the sector and its cap/route.** Determine the applicable sectoral cap (up to 100% automatic in many sectors) and whether any portion needs government approval, plus entry conditions (minimum capitalisation, lock-in, local sourcing, licensing). Some sectors are prohibited (e.g. lottery, chit funds, certain real-estate business) `[verify current]`.\n4. **Check prohibited / conditional activities.** Confirm the business activity is not a prohibited sector and that any conditions (e.g. brownfield pharma, defence, digital media, insurance caps) are satisfiable.\n5. **Pricing guidelines.** A fresh issue to or transfer from a non-resident must respect FEMA pricing — issue/transfer price not less/more favourable to the non-resident than a fair value by an accepted valuation methodology; keep the valuation certificate.\n6. **Map the reporting.** A fresh issue files **FC-GPR** (via the RBI FIRMS portal, typically within 30 days of allotment); a resident↔non-resident transfer files **FC-TRS**; downstream investment files **DI**; and the entity files the annual **FLA** return. Late filing attracts Late Submission Fee / compounding `[verify current]`.\n7. **Downstream investment.** If the investee is itself foreign-owned-and-controlled, its onward investment into another Indian company is **indirect FDI** and must itself comply with route/caps and DI reporting.\n8. **Score against the Checks table** and set a decision: **PERMITTED (automatic) / PERMITTED WITH APPROVAL (government route) / NOT PERMITTED / CONDITIONS TO SATISFY**, and list the filings due.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Land-border (PN3) approval missed | Beneficial ownership traced; approval obtained where a border country is involved | S1 | Route via government approval before investing `[verify current]` |\n| Instrument not FDI-eligible | Equity / CCPS / CCD (compulsorily convertible) used | S1 | Re-paper as compulsorily convertible, or treat as ECB |\n| Sector cap / route misidentified | Correct cap + automatic/approval split confirmed | S1 | Re-route; get approval for the capped-above portion |\n| Prohibited sector | Activity confirmed outside the prohibited list | S1 | Stop; the investment is not permissible |\n| Entry conditions unmet (min cap, lock-in, sourcing) | Conditions identified and satisfiable | S2 | Build conditions into the deal terms |\n| Pricing below/above FEMA floor/ceiling | Valuation by accepted method; certificate held | S2 | Reprice to the FEMA-compliant value |\n| FC-GPR / FC-TRS / DI not filed in time | Filing mapped with its deadline on the FIRMS portal | S2 | File now; budget LSF/compounding `[verify current]` |\n| Annual FLA return skipped | FLA filed for every year with foreign holding | S3 | File the FLA return |\n| Indirect/downstream FDI not analysed | Downstream route/caps + DI reporting checked | S2 | Run the downstream analysis |\n\n## Output\n\nLead with `Decision: PERMITTED (AUTOMATIC) | PERMITTED WITH GOVERNMENT APPROVAL | CONDITIONS TO SATISFY | NOT PERMITTED — <investor→investee> — <key reason>`. Then the output contract. Add:\n\n- **Route determination**: sector · cap · automatic/approval · PN3 land-border result.\n- **Conditions**: entry conditions / sectoral conditions to satisfy.\n- **Pricing**: basis and whether it meets the FEMA floor/ceiling.\n- **Filings due**: FC-GPR / FC-TRS / DI / FLA with deadlines.\n- One JSON finding per issue with `category: \"fdi-fema\"`.\n\n## Edge cases & pitfalls\n\n- **Beneficial-ownership blindness**: an investor incorporated in a neutral country but beneficially owned in a land-border country still triggers PN3 — trace ownership, don't stop at incorporation.\n- **Optionality kills FDI treatment**: an optionally-convertible or assured-return instrument is debt under FEMA, not FDI — the \"equity\" deal becomes an ECB with its own rules.\n- **Downstream = indirect FDI**: a foreign-owned Indian holdco investing onward carries the FDI conditions with it; treating it as a domestic investment is a common error.\n- **Reporting lapses compound**: FC-GPR/FC-TRS delays accrue Late Submission Fee and can require RBI compounding — diarise the 30-day windows.\n- **Sector conditions beyond the cap**: even at 100% automatic, conditions (minimum capitalisation, lock-in, local sourcing) can bite — the cap is not the whole test.\n\n## References\n\n- Volatile facts: `IN-CCI-01` where a competition-threshold check runs alongside. FDI sectoral caps, the Press Note 3 land-border rule, prohibited sectors, pricing guidelines and reporting deadlines are all volatile — cite `[verify current]` wherever a cap, route, or deadline is load-bearing.\n- The consolidated FDI Policy, FEMA (Non-debt Instruments) Rules, RBI Master Directions on FDI/reporting, and the FIRMS portal (FC-GPR / FC-TRS / FLA).",
+   "references": {},
+   "description": "Assesses inbound foreign investment into an Indian entity under FEMA and the FDI policy: automatic vs government route, sectoral caps and conditions, the Press Note 3 land-border rule, pricing guidelines, and the FC-GPR / FLA / downstream reporting that follows. Use to check whether a foreign investment is permitted and what filings it triggers. Not for M&A diligence at large → corporate/ma-due-diligence; not for listed-company disclosure → corporate/listed-company-disclosure.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "corporate/listed-company-disclosure",
    "module": "corporate",
    "name": "listed-company-disclosure",
    "title": "Listed company disclosure",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "IN"
    ],
-   "summary": "SEBI LODR materiality, disclosure timelines and insider-trading (PIT) controls."
+   "summary": "SEBI LODR materiality, disclosure timelines and insider-trading (PIT) controls.",
+   "meta": {
+    "name": "corporate-listed-company-disclosure",
+    "description": "Assesses an Indian listed company's disclosure obligations: SEBI LODR materiality (quantitative + qualitative), the stock-exchange disclosure timelines for a material event, and the insider-trading (PIT) controls — UPSI handling, trading windows, structured digital database and the code of conduct. Use to decide if an event is disclosable, by when, and whether it is UPSI. Not for FDI/FEMA routing → corporate/fdi-fema-assessment; not for board minutes/resolutions → corporate/board-minutes-resolutions.",
+    "module": "corporate",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "IN"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of materiality-check (is this a disclosable material event + by when), upsi-check (is this UPSI and what controls apply) or policy-review (assess the materiality / insider-trading policy)."
+     },
+     {
+      "name": "event",
+      "required": false,
+      "description": "The event or information (deal, result, litigation, rating change, agreement, board decision), its financial size, and when it occurred/was decided."
+     },
+     {
+      "name": "company",
+      "required": false,
+      "description": "The listed entity, its materiality policy and thresholds, the relevant financials (for the quantitative test), and whether a related trading window is open."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "corporate/fdi-fema-assessment",
+     "corporate/board-minutes-resolutions",
+     "corporate/corporate-governance-review",
+     "corporate/entity-compliance-calendar",
+     "research/india-legal-research"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Listed Company Disclosure (SEBI LODR + PIT)\n\nTakes a corporate event at an Indian listed company and returns whether it must be disclosed, by when, and whether it is unpublished price-sensitive information (UPSI) that locks down trading. The deliverable is a materiality + timeline + UPSI determination with the controls flagged, not a general summary of SEBI rules.\n\n## When to use / not use\n\n- Use: deciding whether an event is a **material event** requiring disclosure under LODR Reg. 30; computing the disclosure timeline; assessing whether information is **UPSI** under the PIT Regulations and what trading/communication controls follow; reviewing the company's materiality policy or insider-trading code.\n- Hand off: inbound foreign investment routing/reporting → `corporate/fdi-fema-assessment`; the board paper/minutes/resolution for the decision → `corporate/board-minutes-resolutions`; the broader governance health check → `corporate/corporate-governance-review`; the recurring filing calendar → `corporate/entity-compliance-calendar`; finding the current regulation/circular text → `research/india-legal-research`.\n\n## Inputs to collect first\n\n1. The exact event/information, when it was **decided/occurred**, and who knows it.\n2. The company's **materiality policy** and the quantitative thresholds it adopted.\n3. The financials needed for the quantitative test (turnover, net worth, profit) from the last audited statements.\n4. Whether a **trading window** is currently closed for the relevant persons, and whether the information has been made public.\n\n## Method\n\n1. **Run the materiality test — both limbs.** LODR Reg. 30 deems certain events material *per se* (Para A of the Schedule) and others material **if** they cross the company's quantitative threshold (Para B) **or** a qualitative test (would it influence an investment decision / the price). Apply both the deemed list and the thresholds `[verify current]`.\n2. **Fix the disclosure clock.** A material event must be disclosed to the stock exchanges within the prescribed window — broadly **30 minutes** for board-meeting outcomes, **12 hours** for events emanating from within the company, and **24 hours** for those from outside — measured from the trigger; confirm the current timelines `[verify current]`.\n3. **Draft to the standard.** Disclosure must be accurate, complete, and not misleading; where facts are still developing, disclose what is known and update — selective or partial disclosure breaches the regime.\n4. **Test for UPSI.** Separately ask whether the information is **unpublished** and **price-sensitive** under the PIT Regulations (financial results, dividends, M&A, capital changes, key management changes, etc.). Materiality under LODR and UPSI under PIT overlap but are **not identical** — decide each.\n5. **Apply the PIT controls if UPSI.** Close/keep closed the **trading window** for designated persons and their relatives; log the UPSI and its recipients in the **structured digital database (SDD)** with time-stamping and no deletion; share on a strict **need-to-know** basis under a legitimate purpose; follow the code of conduct.\n6. **Watch the leak/rumour duty.** Confirmed market rumours affecting price may require verification/disclosure for top-ranked companies within the prescribed time `[verify current]`; don't let \"no comment\" become a selective-disclosure problem.\n7. **Sequence disclosure and trading.** Public disclosure generally precedes reopening the window; pre-clearance and the cooling-off/contra-trade rules apply to designated persons' trades.\n8. **Score against the Checks table** and set a determination: **DISCLOSE (by <time>) / NOT MATERIAL** and **UPSI / NOT UPSI**, with the controls to apply.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Materiality mis-judged (both limbs not applied) | Deemed list + quantitative + qualitative tested | S1 | Re-run both limbs `[verify current]` |\n| Disclosure timeline missed/miscomputed | Correct 30-min / 12-h / 24-h window from the trigger | S1 | Disclose now; the clock runs from the event `[verify current]` |\n| Partial / selective / misleading disclosure | Accurate, complete, updated as facts develop | S1 | Correct/complete the disclosure |\n| UPSI not separately assessed | PIT price-sensitivity tested independently of LODR | S1 | Run the UPSI test |\n| Trading window not closed for UPSI | Window shut for designated persons + relatives | S1 | Close the window immediately |\n| SDD not maintained / not time-stamped | UPSI + recipients logged, immutable, time-stamped | S1 | Log it in the structured digital database |\n| Need-to-know breached | Legitimate-purpose + minimal sharing | S2 | Restrict access; record the purpose |\n| Market-rumour duty ignored | Verification/response per the rumour framework | S2 | Assess the rumour-disclosure obligation `[verify current]` |\n| Pre-clearance / contra-trade rules skipped | Designated-person trade controls applied | S2 | Apply pre-clearance + cooling-off |\n\n## Output\n\nLead with `Determination: DISCLOSE by <time/date> | NOT MATERIAL — and — UPSI | NOT UPSI — <event>`. Then the output contract. Add:\n\n- **Materiality**: deemed / quantitative / qualitative result, with the threshold applied.\n- **Timeline**: the trigger time and the disclosure deadline.\n- **UPSI & controls**: UPSI status, trading-window action, SDD entry, need-to-know.\n- **Draft disclosure note** (where asked).\n- One JSON finding per issue with `category: \"listed-disclosure\"`.\n\n## Edge cases & pitfalls\n\n- **LODR-material but not UPSI (and vice versa)**: the two tests overlap but aren't the same — run both; an event can be disclosable yet not UPSI, or UPSI before it's a LODR event.\n- **Clock starts at the event, not the press release**: the 30-min/12-h/24-h windows run from the board decision/occurrence; drafting delay eats the window.\n- **Window left open on UPSI**: letting designated persons trade while UPSI exists is the cardinal PIT breach — shut the window the moment UPSI arises.\n- **SDD as an afterthought**: the structured digital database must be contemporaneous, immutable and time-stamped — reconstructing it later defeats its evidentiary purpose.\n- **Developing-situation silence**: waiting for certainty can cross the deadline; disclose what's known and update.\n\n## References\n\n- Volatile facts: `IN-STMP-SEC-01` where securities-transfer stamp duty is in play; `IN-SECT-01` for SEBI cyber-incident reporting overlaps. SEBI LODR materiality thresholds, disclosure timelines, and the PIT/SDD and market-rumour frameworks are volatile — cite `[verify current]` on any load-bearing threshold or window.\n- SEBI (LODR) Regulations Reg. 30 + Schedule III, SEBI (Prohibition of Insider Trading) Regulations, and the relevant SEBI circulars/FAQs.",
+   "references": {},
+   "description": "Assesses an Indian listed company's disclosure obligations: SEBI LODR materiality (quantitative + qualitative), the stock-exchange disclosure timelines for a material event, and the insider-trading (PIT) controls — UPSI handling, trading windows, structured digital database and the code of conduct. Use to decide if an event is disclosable, by when, and whether it is UPSI. Not for FDI/FEMA routing → corporate/fdi-fema-assessment; not for board minutes/resolutions → corporate/board-minutes-resolutions.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "corporate/shareholder-agreement",
@@ -3453,11 +3657,63 @@
    "module": "disputes",
    "name": "arbitration-strategy",
    "title": "Arbitration strategy",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Tribunal selection, interim relief and enforcement planning for arbitration."
+   "summary": "Tribunal selection, interim relief and enforcement planning for arbitration.",
+   "meta": {
+    "name": "disputes-arbitration-strategy",
+    "description": "Plans arbitration strategy from the clause outward: seat and governing law, institutional vs ad hoc rules, tribunal constitution and arbitrator selection, interim/emergency relief, and — decided first — where an award will be enforced and whether it will be recognised there (New York Convention). Use to shape strategy before or at the start of an arbitration. Not for the pre-action demand → disputes/legal-notice-drafter; not for designing the clause in a contract → contracts/dispute-resolution-clause.",
+    "module": "disputes",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "IN"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of strategy (full plan), clause-read (interpret the arbitration agreement and its consequences) or enforcement-map (assess where/whether an award will be recognised)."
+     },
+     {
+      "name": "dispute",
+      "required": false,
+      "description": "The dispute, the parties and where each holds assets, the amount at stake, and whether proceedings/notice have started."
+     },
+     {
+      "name": "clause",
+      "required": false,
+      "description": "The arbitration agreement — seat, governing law, rules/institution, number of arbitrators, language — and the underlying contract's governing law."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "contracts/dispute-resolution-clause",
+     "disputes/legal-notice-drafter",
+     "disputes/early-case-assessment",
+     "disputes/deadline-calendar",
+     "disputes/document-disclosure"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Arbitration Strategy\n\nTakes an arbitration (or an about-to-start dispute under an arbitration clause) and returns a strategy built backwards from enforcement: where the award must bite, whether it will be recognised there, and the seat/rules/tribunal/relief choices that get there. The deliverable is an enforcement-anchored plan with the clause consequences and early-relief options mapped, not a generic \"go to arbitration\".\n\n## When to use / not use\n\n- Use: shaping strategy at the outset of an arbitration; reading an arbitration clause for its strategic consequences (seat, rules, tribunal, scope); deciding on interim/emergency relief; planning for recognition and enforcement of the eventual award.\n- Hand off: designing/negotiating an arbitration clause in a contract being drafted → `contracts/dispute-resolution-clause`; the pre-action demand/notice to arbitrate's precursor → `disputes/legal-notice-drafter`; the merits/quantum/settle-or-fight assessment → `disputes/early-case-assessment`; the limitation and procedural-deadline math → `disputes/deadline-calendar`; the document-production plan → `disputes/document-disclosure`.\n\n## Inputs to collect first\n\n1. The **arbitration agreement**: seat, governing law of the contract **and** of the arbitration agreement, rules/institution, number of arbitrators, language, scope.\n2. The dispute, the amount, and — critically — **where each party holds assets** (this decides where enforcement must work).\n3. Whether a notice to arbitrate / proceedings have started, and any limitation pressure.\n4. Any urgency requiring interim or emergency relief (asset dissipation, preservation).\n\n## Method\n\n1. **Start from enforcement, not the hearing.** Identify where the respondent's **assets** are and whether an award will be **recognised and enforced** there — most states are New York Convention parties, but confirm the enforcement forum and its grounds to refuse (Art. V) `[verify current]`. A win you can't enforce is worthless; this choice drives everything else.\n2. **Fix the seat and its consequences.** The **seat** determines the *lex arbitri* (the supervisory court, annulment/set-aside grounds, interim-relief powers) — distinct from the hearing venue and the contract's governing law. A poor seat exposes the award to set-aside; confirm the seat and what its courts can do.\n3. **Read the clause for scope and gaps.** What disputes it covers, whether it's binding, multi-tier (mediation/negotiation **conditions precedent** that can bar a premature claim), and any pathology (inconsistent seat/rules, non-existent institution) that needs curing.\n4. **Institutional vs ad hoc + rules.** Institutional administration (SIAC, ICC, LCIA, MCIA, etc.) vs ad hoc (e.g. UNCITRAL); pick for the dispute's size, need for a default-appointing authority, and emergency-arbitrator availability.\n5. **Tribunal constitution and arbitrator selection.** Sole vs three; the appointment mechanism; independence/impartiality and disclosure. In India, note the bar on **unilateral appointment** by an interested party (CORE v ECI, 2024) `[verify current]`. Build an arbitrator profile for the issues (sector, law, language).\n6. **Interim / emergency relief.** Where urgent, assess emergency-arbitrator relief under the rules and/or court-ordered interim measures at the seat or where assets sit (freezing/preservation); align the two routes.\n7. **Procedure and evidence.** Document production expectations (often IBA-Rules-style), witness/expert strategy, bifurcation of jurisdiction/merits/quantum, and the timetable → `disputes/document-disclosure`.\n8. **Jurisdiction and challenges.** Preserve jurisdiction objections (kompetenz-kompetenz), watch for a set-aside/anti-suit angle, and avoid steps that waive objections.\n9. **Score against the Checks table** and set the strategy with the enforcement forum, seat, and relief plan stated up front.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Enforcement forum / asset location not mapped | Where assets sit + recognition confirmed | S1 | Map enforcement before strategy `[verify current]` |\n| Award not enforceable at target (NYC/grounds) | Convention status + Art. V risks checked | S1 | Re-target enforcement; mitigate the grounds |\n| Seat/lex arbitri consequences ignored | Seat fixed; supervisory court + set-aside grounds known | S1 | Analyse the seat's regime |\n| Multi-tier condition precedent skipped | Mediation/negotiation steps satisfied before filing | S1 | Complete the pre-arbitration tier |\n| Pathological clause uncured | Clause defects identified + a workable route found | S2 | Resolve the pathology / apply default rules |\n| Unilateral/biased arbitrator appointment (India) | Neutral appointment mechanism used | S1 | Avoid unilateral appointment `[verify current]` |\n| Emergency/interim relief missed on urgency | EA + court interim options assessed | S2 | Seek preservation/freezing relief |\n| Jurisdiction objection waived by conduct | Objections preserved; no waiving steps | S2 | Reserve the objection explicitly |\n| Document-production/evidence plan absent | Production scope + witness/expert plan set | S3 | Build the evidence plan → document-disclosure |\n\n## Output\n\nLead with `Strategy: <proceed/respond/relief-first> — enforce in <forum>; seat <seat>; <key move>`. Then the output contract. Add:\n\n- **Enforcement map**: asset locations · recognition forum · NYC/Art. V risks.\n- **Seat & rules**: seat (lex arbitri) · institution/ad hoc · language.\n- **Tribunal**: number · appointment mechanism · arbitrator profile.\n- **Relief**: emergency-arbitrator / court interim measures plan.\n- **Procedure**: production, witnesses/experts, bifurcation, timetable.\n- One JSON finding per strategic risk with `category: \"arbitration\"`.\n\n## Edge cases & pitfalls\n\n- **Winning the unenforceable award**: choosing seat/strategy without first checking where assets are and whether the award is recognised there is the fundamental error — enforcement comes first.\n- **Seat ≠ venue ≠ governing law**: conflating the legal seat with the hearing venue or the contract's governing law leads to the wrong supervisory court and set-aside exposure.\n- **Skipping the multi-tier step**: filing before a mandatory mediation/negotiation condition precedent can get the claim stayed or dismissed.\n- **Unilateral appointment (India)**: an appointment by one interested party is vulnerable post-CORE v ECI — use a neutral mechanism.\n- **Waiving jurisdiction by participating**: taking merits steps without reserving a jurisdiction objection can waive it — reserve explicitly.\n\n## References\n\n- Volatile facts: `IN-ARB-01` (unilateral-appointment bar, CORE v ECI SPIC, 2024), `IN-COMM-01` (pre-institution mediation interactions). New York Convention status, seat-law set-aside grounds, and institutional emergency-arbitrator rules are volatile — cite `[verify current]` where load-bearing.\n- The arbitration agreement + underlying contract; the seat's arbitration statute and the New York Convention; the chosen institution's rules and the IBA Rules on evidence where adopted.",
+   "references": {},
+   "description": "Plans arbitration strategy from the clause outward: seat and governing law, institutional vs ad hoc rules, tribunal constitution and arbitrator selection, interim/emergency relief, and — decided first — where an award will be enforced and whether it will be recognised there (New York Convention). Use to shape strategy before or at the start of an arbitration. Not for the pre-action demand → disputes/legal-notice-drafter; not for designing the clause in a contract → contracts/dispute-resolution-clause.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "disputes/regulatory-investigation",
@@ -4180,11 +4436,62 @@
    "module": "matters",
    "name": "raid-log",
    "title": "RAID log",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Risks, assumptions, issues and decisions captured from correspondence."
+   "summary": "Risks, assumptions, issues and decisions captured from correspondence.",
+   "meta": {
+    "name": "matters-raid-log",
+    "description": "Builds and maintains a RAID log for a matter — Risks, Assumptions, Issues and Decisions — extracted from correspondence, meetings and documents, each with an owner, status, severity/likelihood and the action or date that moves it. Use to turn scattered email/meeting threads into a single tracked control surface for a matter, or to keep one current. Not for the full matter plan and critical path → matters/matter-plan; not for the end-of-matter retrospective → matters/lessons-learned.",
+    "module": "matters",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "self-serve",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of build (create a RAID log from source material), update (merge new correspondence into an existing log) or review (assess an existing log for gaps/stale items)."
+     },
+     {
+      "name": "sources",
+      "required": false,
+      "description": "The correspondence, meeting notes, status updates or documents to extract RAID items from, plus any existing RAID log to update."
+     },
+     {
+      "name": "matter",
+      "required": false,
+      "description": "The matter, its objective and key dates, and who the owners/stakeholders are so items can be assigned."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "matters/matter-plan",
+     "matters/lessons-learned",
+     "matters/legal-kpi-dashboard",
+     "disputes/early-case-assessment",
+     "outside-counsel/matter-budget"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# RAID Log\n\nTurns the stream of emails, calls and documents on a matter into one disciplined control surface: **R**isks (might happen), **A**ssumptions (taken as true, unverified), **I**ssues (happening now), **D**ecisions (made, with rationale) — each owned, dated and status-tracked. The deliverable is a current, de-duplicated RAID table that tells the team what to act on, not a transcript of the thread.\n\n## When to use / not use\n\n- Use: standing up a tracker for a live matter; distilling a long correspondence/meeting history into tracked items; keeping a RAID log current as new material arrives; auditing an existing log for stale or owner-less items.\n- Hand off: the full work plan, tasks and critical path → `matters/matter-plan`; the closed-matter retrospective → `matters/lessons-learned`; portfolio-level metrics/reporting → `matters/legal-kpi-dashboard`; the substantive merits/strategy of a dispute → `disputes/early-case-assessment`; the spend/forecast view → `outside-counsel/matter-budget`.\n\n## Inputs to collect first\n\n1. The source material (emails, notes, documents) and any existing RAID log to extend.\n2. The matter's objective and key dates — so risks/issues can be tied to what they threaten.\n3. The owners/stakeholders available to assign items to.\n\n## Method\n\n1. **Classify every item into exactly one bucket.**\n   - **Risk** — a *future* uncertain event that would have an impact (has a likelihood).\n   - **Assumption** — something taken as true but **not yet verified**; it converts to a risk or issue if wrong.\n   - **Issue** — something that *has happened or is live now* and needs action.\n   - **Decision** — a choice made, with who made it, when, and the rationale.\n   Mis-bucketing (a live problem logged as a \"risk\") is the classic RAID error — if it's happening, it's an Issue.\n2. **Extract from the source, don't invent.** Pull items from what the correspondence actually says; attribute each to its source (date/sender) so it's traceable.\n3. **Give each item the mandatory fields.** ID, description, owner, status (open/in-progress/closed), date raised, and the next action + due date. An item with no owner and no next step is noise.\n4. **Score risks and issues.** Risks get **likelihood × impact** (use the S1–S4 impact scale); issues get a severity. This drives the order of attention.\n5. **State the mitigation / action.** For each risk, the mitigation or contingency; for each issue, the resolution action and owner; for each assumption, how/when it will be verified.\n6. **Record decisions with rationale.** Capture the decision, the decider, the date, and *why* — a decision log without rationale can't be defended or revisited sensibly later.\n7. **De-duplicate and merge on update.** When new correspondence repeats an item, update the existing row (status/next action) rather than adding a duplicate; close items that are resolved with a closing note.\n8. **Sweep for staleness.** Flag open items with no movement past their due date, owner-less items, and assumptions that are now overdue for verification.\n9. **Score against the Checks table** and present the log ordered by severity/likelihood with the top actions surfaced.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Item mis-bucketed (live problem as a \"risk\") | R/A/I/D definitions applied correctly | S2 | Re-classify; a live problem is an Issue |\n| Item with no owner | Every open item has a named owner | S2 | Assign an owner |\n| No next action / due date | Each open item has an action + date | S2 | Add the action and date |\n| Risk unscored | Likelihood × impact assigned | S3 | Score it on the S1–S4 scale |\n| Assumption never scheduled for verification | Verification step + date set | S3 | Add how/when it's checked |\n| Decision logged without rationale/decider | Who · when · why captured | S2 | Record the rationale |\n| Duplicates across updates | Items merged, not re-added | S3 | De-dupe into the existing row |\n| Stale open items unflagged | Overdue/no-movement items surfaced | S3 | Flag and chase or close |\n| Items invented, not sourced | Each item traces to its source | S2 | Remove or source the item |\n\n## Output\n\nLead with `RAID: <n open issues / n open risks / n unverified assumptions> — top action: <the single most urgent item>`. Then the output contract. Add:\n\n- **RAID table**: ID · type (R/A/I/D) · description · owner · status · severity/likelihood · next action · due date · source.\n- **Top of the pile**: the highest-severity open issues and risks.\n- **Decisions log**: decision · decider · date · rationale.\n- **Housekeeping**: stale / owner-less / overdue-assumption flags.\n- One JSON finding per open high-severity item with `category: \"raid\"`.\n\n## Edge cases & pitfalls\n\n- **Risk vs issue drift**: a risk that has materialised must be moved to Issues and actioned — leaving it as a \"risk\" hides a live problem.\n- **Orphan items**: entries with no owner or next step accumulate and the log dies; enforce owner + action on every open item.\n- **Silent assumptions**: the most dangerous items are assumptions nobody flagged as unverified — surface and schedule them.\n- **Duplicate sprawl**: re-extracting the same thread on each update without merging turns the log into a transcript; always reconcile to the existing rows.\n- **Un-sourced items**: a RAID entry no one can trace to a source invites dispute — keep the provenance.\n\n## References\n\n- Volatile facts: generally none; cite `[verify current]` only where a logged risk depends on a dated legal position.\n- Standard project/matter-management RAID practice; the matter's own correspondence and the S1–S4 severity scale for impact scoring.",
+   "references": {},
+   "description": "Builds and maintains a RAID log for a matter — Risks, Assumptions, Issues and Decisions — extracted from correspondence, meetings and documents, each with an owner, status, severity/likelihood and the action or date that moves it. Use to turn scattered email/meeting threads into a single tracked control surface for a matter, or to keep one current. Not for the full matter plan and critical path → matters/matter-plan; not for the end-of-matter retrospective → matters/lessons-learned.",
+   "risk_tier": "self-serve",
+   "version": "1.0.0"
   },
   {
    "id": "matters/stakeholder-comms",
@@ -4426,11 +4733,62 @@
    "module": "research",
    "name": "statute-analysis",
    "title": "Statute & regulation analysis",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Structured reading of a provision: scope, definitions, conditions, exceptions, consequences."
+   "summary": "Structured reading of a provision: scope, definitions, conditions, exceptions, consequences.",
+   "meta": {
+    "name": "research-statute-analysis",
+    "description": "A structured reading of a single statutory or regulatory provision: its scope and trigger, the defined terms, the conditions and thresholds, the exceptions and carve-outs, and the legal consequence or penalty — plus how it interacts with related provisions and whether it is actually in force. Use to break down what a specific section requires before advising on it. Not for the whole research workflow across sources → research/india-legal-research; not for comparing jurisdictions → research/multi-jurisdiction-survey.",
+    "module": "research",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "provision",
+      "required": true,
+      "description": "The exact provision to analyse (Act + section/rule number, ideally the verbatim text) and its jurisdiction."
+     },
+     {
+      "name": "question",
+      "required": false,
+      "description": "The concrete question the analysis must answer (does X trigger this?, what must we do?, is there an exception?) so the reading stays targeted."
+     },
+     {
+      "name": "context",
+      "required": false,
+      "description": "The facts to apply the provision to, the date (for in-force/amended text), and any official guidance or case-law gloss already held."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "research/india-legal-research",
+     "research/multi-jurisdiction-survey",
+     "research/source-locked-answering",
+     "regulatory/ai-governance",
+     "contracts/obligation-extraction"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Statute & Regulation Analysis\n\nTakes one provision and dissects it into its operative parts — scope, definitions, conditions, exceptions, consequence — so advice rests on what the text actually requires rather than a paraphrase. The deliverable is a structured breakdown with the application to the facts and the interaction points flagged, not a restatement of the section.\n\n## When to use / not use\n\n- Use: understanding exactly what a specific section/rule requires before advising; mapping a provision's elements onto a set of facts; finding the exception or threshold that decides the question; extracting the compliance obligation a provision imposes.\n- Hand off: the end-to-end research workflow (finding the statute, the case law, good-law checks) → `research/india-legal-research`; comparing the provision across countries → `research/multi-jurisdiction-survey`; answering strictly from supplied text → `research/source-locked-answering`; turning the provision's duties into trackable obligations → `contracts/obligation-extraction`; a regulatory-classification question (e.g. EU AI Act) → `regulatory/ai-governance`.\n\n## Inputs to collect first\n\n1. The **verbatim text** of the provision (Act + section/rule number) — analysis of a paraphrase is worthless.\n2. The jurisdiction and the **date** (to confirm the amended, in-force version).\n3. The concrete question and the facts to apply it to.\n4. Any official definitions clause, guidance, or case-law gloss that controls meaning.\n\n## Method\n\n1. **Confirm the text and that it is in force.** Get the current amended wording and verify the provision (and any amending Act) is actually commenced on the relevant date `[verify current]`.\n2. **Identify the scope / trigger.** Who and what the provision applies to — the gateway condition that must be met before anything else bites.\n3. **Pin the defined terms.** Read every capitalised/defined term against the definitions clause; a provision's reach is usually decided by a definition elsewhere, not the operative sentence.\n4. **Separate conditions from consequences.** List the **cumulative vs alternative** conditions (watch \"and\" vs \"or\"), the thresholds/time limits, and then the legal consequence or penalty that follows if they are met.\n5. **Find the exceptions and carve-outs.** Provisos, exemptions, de minimis thresholds, and \"notwithstanding/subject to\" cross-references often decide the outcome — read them before concluding.\n6. **Resolve the modal verbs.** Distinguish **shall/must** (mandatory), **may** (discretionary), and **deemed** provisions; mis-reading a \"may\" as a \"must\" is a frequent error.\n7. **Map interactions.** Note cross-references, overriding clauses (\"notwithstanding anything…\"), and related provisions that modify or are modified by this one; a section rarely stands alone.\n8. **Apply to the facts.** Walk the facts through scope → conditions → exceptions → consequence, stating where the answer turns and where a fact is missing.\n9. **Flag ambiguity and authority.** Where the words are unclear, note the competing readings, any binding interpretation, and the preferred view with reasons.\n10. **Score against the Checks table** and state the conclusion with the decisive element identified.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Analysed text not current / not in force | Amended, commenced version confirmed for the date | S1 | Re-pull the in-force text `[verify current]` |\n| Defined term read in its ordinary sense | Every defined term checked against the definitions | S1 | Apply the statutory definition |\n| \"and\" vs \"or\" condition logic wrong | Cumulative vs alternative conditions mapped | S1 | Re-parse the conjunctions |\n| Exception / proviso overlooked | All provisos, carve-outs, de minimis checked | S1 | Read the exceptions before concluding |\n| Mandatory vs discretionary confused | shall/must vs may distinguished | S2 | Correct the modal reading |\n| Overriding / cross-reference missed | \"Notwithstanding/subject to\" links followed | S2 | Trace the interaction |\n| Threshold / time limit misstated | Exact numbers and periods quoted | S2 | Quote the figure from the text |\n| Facts not applied to the elements | Each element tested against the facts | S2 | Walk the facts element by element |\n| Ambiguity resolved without flagging | Competing readings + preferred view stated | S3 | Surface the ambiguity |\n\n## Output\n\nLead with `Conclusion: <does/does not apply / requires X> — <the decisive element>`. Then the output contract. Add:\n\n- **Scope / trigger**: who and what the provision catches.\n- **Elements**: conditions (cumulative/alternative) · thresholds/time limits · exceptions.\n- **Consequence**: the duty, right, or penalty that follows.\n- **Application**: the facts walked through to the result; missing facts noted.\n- **Interactions & ambiguity**: cross-references, overrides, and any unresolved reading.\n- One JSON finding per material element or uncertainty with `category: \"statute-analysis\"`.\n\n## Edge cases & pitfalls\n\n- **The definition decides it**: the operative words may be broad, but a narrow defined term (or a carve-out in the definitions) controls the real scope.\n- **Proviso swallows the rule**: a long section with a short proviso often turns on the proviso — read to the end.\n- **Unnotified amendment**: the latest text online may not yet be in force; apply the version commenced on the relevant date.\n- **\"May\" that is really \"must\"**: context or a duty elsewhere can make a discretionary-looking power mandatory — check the structure.\n- **Isolated reading**: a \"notwithstanding\" clause elsewhere can override the provision entirely; never analyse a section in a vacuum.\n\n## References\n\n- Volatile facts: cite `[verify current]` wherever a threshold, time limit, or in-force date in the provision is load-bearing; use the registered `IN-*` / `EU-*` / `US-*` IDs where one covers the provision.\n- The verbatim provision + its definitions clause, amending Acts and commencement notifications, official explanatory notes/guidance, and any binding interpretation.",
+   "references": {},
+   "description": "A structured reading of a single statutory or regulatory provision: its scope and trigger, the defined terms, the conditions and thresholds, the exceptions and carve-outs, and the legal consequence or penalty — plus how it interacts with related provisions and whether it is actually in force. Use to break down what a specific section requires before advising on it. Not for the whole research workflow across sources → research/india-legal-research; not for comparing jurisdictions → research/multi-jurisdiction-survey.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "research/multi-jurisdiction-survey",
@@ -4510,11 +4868,62 @@
    "module": "research",
    "name": "india-legal-research",
    "title": "Indian legal research",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "IN"
    ],
-   "summary": "Research workflow for Indian statutes, rules, notifications and SC/HC judgments."
+   "summary": "Research workflow for Indian statutes, rules, notifications and SC/HC judgments.",
+   "meta": {
+    "name": "research-india-legal-research",
+    "description": "A disciplined workflow for researching an Indian-law question: find the governing statute and the current amended text, the rules/notifications/circulars under it, and the binding Supreme Court / High Court position — distinguishing binding ratio from obiter, checking a judgment is still good law, and flagging where a provision is recently changed or unnotified. Use for any India-law research question. Not for structured reading of a single provision → research/statute-analysis; not for a multi-country comparison → research/multi-jurisdiction-survey.",
+    "module": "research",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "IN"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "question",
+      "required": true,
+      "description": "The legal question, the facts that make it concrete, and the area of law (so the right statute/regulator is found)."
+     },
+     {
+      "name": "jurisdiction_detail",
+      "required": false,
+      "description": "Whether a specific state's law applies, which forum the issue would be litigated in, and the date/period the facts arose (law may have changed)."
+     },
+     {
+      "name": "sources",
+      "required": false,
+      "description": "Any statute text, judgments, notifications or commentary already to hand that the answer must be built from or reconciled with."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "research/statute-analysis",
+     "research/multi-jurisdiction-survey",
+     "research/source-locked-answering",
+     "corporate/fdi-fema-assessment",
+     "disputes/arbitration-strategy"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Indian Legal Research\n\nTakes an India-law question and returns a sourced answer built in the right order: the governing statute as currently amended, the delegated rules/notifications/circulars, and the binding case-law position — with each proposition cited and each volatile or recently-changed point flagged. The deliverable is a defensible research memo with a confidence level, not a confident-sounding paragraph.\n\n## When to use / not use\n\n- Use: answering any question of Indian law where the current statutory text, subordinate legislation, or the binding judicial position matters; building the authority base for an opinion; checking whether a known rule has changed.\n- Hand off: a close structured reading of one provision's elements → `research/statute-analysis`; comparing India against other jurisdictions → `research/multi-jurisdiction-survey`; answering strictly from a fixed set of supplied documents with no outside authority → `research/source-locked-answering`; an FDI/FEMA-specific question → `corporate/fdi-fema-assessment`; an arbitration-law question feeding strategy → `disputes/arbitration-strategy`.\n\n## Inputs to collect first\n\n1. The precise question and the facts that make it concrete (the facts drive which provision and which precedent apply).\n2. Whether **state** law applies (many subjects are State or Concurrent List) and the likely forum.\n3. The **date** the facts arose — Indian statutes change often and recent Acts may be enacted but **not yet notified** into force.\n4. Any sources already held that the memo must reconcile with.\n\n## Method\n\n1. **Find the governing statute — current amended version.** Identify the primary Act and confirm you have the text **as amended** and **as in force on the relevant date**; a recent amendment may be passed but not notified, leaving the old provision operative `[verify current]`.\n2. **Go down the hierarchy.** Statute → Rules → Regulations → Notifications/Circulars → clarifications. Much operative Indian law lives in delegated legislation and regulator circulars (RBI/SEBI/MeitY/CBDT), not the bare Act.\n3. **Check Centre vs State and the right regulator.** Confirm legislative competence (Union/State/Concurrent List) and the correct regulator; a State amendment or a sector regulator's circular can displace the general rule.\n4. **Find the binding judicial position.** Supreme Court binds all; a High Court binds within its territory. Distinguish the **ratio** (binding) from **obiter**, note the bench strength (a larger bench overrules a smaller), and prefer the latest authoritative statement.\n5. **Confirm each judgment is still good law.** Check it has not been overruled, distinguished into irrelevance, or superseded by statute — citing a reversed judgment is the classic research failure.\n6. **Reconcile conflicts.** Where High Courts differ or a provision is ambiguous, say so, give the better view with reasons, and flag the uncertainty rather than papering over it.\n7. **Separate settled law from open questions.** Mark what is clearly established, what is arguable, and what has no authority — and give a confidence level per proposition.\n8. **Cite everything.** Every proposition carries its authority (Act + section, rule/notification number + date, case citation). An uncited assertion is a liability → where the brief forbids outside authority use `research/source-locked-answering`.\n9. **Score against the Checks table** and set an answer with a **CONFIDENCE: HIGH / MEDIUM / LOW** label and the open points.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Old / superseded statutory text used | Current amended, in-force text confirmed for the date | S1 | Re-pull the in-force version `[verify current]` |\n| Recent Act cited as in force but unnotified | Commencement/notification status verified | S1 | Check the notification; apply the law actually in force |\n| Delegated legislation / circular missed | Rules + notifications + regulator circulars checked | S2 | Search the subordinate layer |\n| State vs Central law confused | Competence + applicable State law confirmed | S2 | Apply the correct level/State |\n| Ratio vs obiter not distinguished | Binding ratio separated from obiter | S2 | Re-read for the holding |\n| Judgment overruled / no longer good law | Subsequent history checked | S1 | Replace with current authority |\n| Conflicting High Court views unflagged | Split noted; better view reasoned | S2 | State the conflict and the preferred view |\n| Assertions uncited | Every proposition carries its authority | S2 | Add citations or mark as unsupported |\n| Confidence overstated on an open point | Confidence labelled per proposition | S3 | Downgrade to MEDIUM/LOW with the gap |\n\n## Output\n\nLead with `Answer: <short answer> — CONFIDENCE: HIGH | MEDIUM | LOW`. Then the output contract. Add:\n\n- **Governing law**: the Act (as amended, in-force date) + the key provision(s).\n- **Subordinate law**: rules / notifications / circulars relied on, with numbers and dates.\n- **Case law**: binding authorities with citations, ratio stated, good-law check noted.\n- **Open questions / risks**: conflicts, unnotified provisions, thin authority.\n- One JSON finding per material uncertainty with `category: \"india-research\"`.\n\n## Edge cases & pitfalls\n\n- **Enacted ≠ in force**: a headline Indian Act can sit unnotified for months or years; apply the law actually commenced on the relevant date.\n- **The answer is in a circular**: for RBI/SEBI/tax questions the operative rule is often a notification or master circular, not the parent Act — don't stop at the statute.\n- **Overruled-but-still-cited**: an old chestnut may have been overruled by a Constitution Bench; always check subsequent history.\n- **State-list surprises**: stamp duty, land, and many commercial subjects vary by State — a pan-India assertion is often wrong.\n- **Headnote ≠ ratio**: relying on a reporter's headnote instead of reading the holding misstates the law.\n\n## References\n\n- Volatile facts: `IN-TAX-01`, `IN-LAB-01`, `IN-DPDP-01`, `IN-ARB-01`, `IN-COMM-01`, `IN-AI-01` and the other `IN-*` entries — recently-changed Indian law is exactly where this skill's \"in-force on the date\" check bites; cite `[verify current]` on any volatile point.\n- Primary sources: India Code (bare Acts), the e-Gazette (notifications), regulator sites (rbi.org.in, sebi.gov.in, meity.gov.in, incometaxindia.gov.in), and SC/HC judgment portals.",
+   "references": {},
+   "description": "A disciplined workflow for researching an Indian-law question: find the governing statute and the current amended text, the rules/notifications/circulars under it, and the binding Supreme Court / High Court position — distinguishing binding ratio from obiter, checking a judgment is still good law, and flagging where a provision is recently changed or unnotified. Use for any India-law research question. Not for structured reading of a single provision → research/statute-analysis; not for a multi-country comparison → research/multi-jurisdiction-survey.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "drafting/plain-language-explainer",

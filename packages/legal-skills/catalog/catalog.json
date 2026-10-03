@@ -118,7 +118,7 @@
       "module": "intake",
       "name": "conflict-check-prep",
       "title": "Conflict check preparation",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -250,7 +250,7 @@
       "module": "contracts",
       "name": "renewal-termination-advisor",
       "title": "Renewal & termination advisor",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -646,7 +646,7 @@
       "module": "corporate",
       "name": "fdi-fema-assessment",
       "title": "FDI & FEMA assessment",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "IN"
       ],
@@ -657,7 +657,7 @@
       "module": "corporate",
       "name": "listed-company-disclosure",
       "title": "Listed company disclosure",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "IN"
       ],
@@ -780,7 +780,7 @@
       "module": "disputes",
       "name": "arbitration-strategy",
       "title": "Arbitration strategy",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1022,7 +1022,7 @@
       "module": "matters",
       "name": "raid-log",
       "title": "RAID log",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1088,7 +1088,7 @@
       "module": "research",
       "name": "statute-analysis",
       "title": "Statute & regulation analysis",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1121,7 +1121,7 @@
       "module": "research",
       "name": "india-legal-research",
       "title": "Indian legal research",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "IN"
       ],
