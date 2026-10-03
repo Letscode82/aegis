@@ -7,8 +7,8 @@ import { loadRegistry, loadRegistryFromData, route, buildSystemPrompt, listSkill
 
 const reg = loadRegistry();
 
-test("registry has 92 built skills across modules", () => {
-  assert.equal(listSkills(reg).length, 92);
+test("registry has 100 built skills across modules", () => {
+  assert.equal(listSkills(reg).length, 100);
   assert.ok(listSkills(reg, { status: null }).length > 100);
 });
 
@@ -16,7 +16,7 @@ test("loadRegistryFromData indexes an imported object identically to loadRegistr
   // Simulates a bundler `import reg from "@aegis/legal-skills/registry.json"`.
   const raw = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), "..", "..", "dist", "registry.json"), "utf8"));
   const reg2 = loadRegistryFromData(raw);
-  assert.equal(listSkills(reg2).length, 92);
+  assert.equal(listSkills(reg2).length, 100);
   const [best] = route(reg2, "can I sign this NDA from a vendor");
   assert.equal(best.id, "contracts/nda-triage");
   // buildSystemPrompt works off the object-loaded registry too.
@@ -59,7 +59,7 @@ test("system prompt includes standards before the skill", () => {
 });
 
 test("planned skills cannot be loaded", () => {
-  assert.throws(() => buildSystemPrompt(reg, ["contracts/clause-drafter"]), /planned/);
+  assert.throws(() => buildSystemPrompt(reg, ["platform/skill-authoring"]), /planned/);
 });
 
 test("wrapDocuments escapes names", () => {

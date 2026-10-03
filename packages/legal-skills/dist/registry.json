@@ -955,11 +955,62 @@
    "module": "contracts",
    "name": "clause-drafter",
    "title": "Clause drafter from library",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Draft or adapt clauses from the approved clause library with variant selection and rationale."
+   "summary": "Draft or adapt clauses from the approved clause library with variant selection and rationale.",
+   "meta": {
+    "name": "contracts-clause-drafter",
+    "description": "Drafts or adapts a single clause from an approved clause library: pick the right variant for the position and leverage, adapt it to this deal's defined terms and facts, keep it internally consistent, and give the rationale and fallback. Use to produce one clause (indemnity, liability cap, termination, confidentiality, etc.) to house standard. Not for turning a whole review into a markup → contracts/redline-generator; not for building a new template from scratch → contracts/contract-template-builder.",
+    "module": "contracts",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "clause",
+      "required": true,
+      "description": "Which clause is needed (indemnity, limitation of liability, termination, confidentiality, IP, data protection, etc.) and the position wanted."
+     },
+     {
+      "name": "library",
+      "required": false,
+      "description": "The approved clause library / precedents to draw the variant from, including any house fallbacks."
+     },
+     {
+      "name": "deal",
+      "required": false,
+      "description": "The contract's defined terms, governing law, the parties and leverage, and the specific facts the clause must fit."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "contracts/redline-generator",
+     "contracts/contract-template-builder",
+     "contracts/contract-review",
+     "contracts/obligation-extraction",
+     "contracts/negotiation-prep"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Clause Drafter from Library\n\nTakes a clause need and an approved library and returns the right variant, adapted to this deal and internally consistent, with the rationale and fallback. The deliverable is a drop-in clause that matches house standard and the contract's own terms, not an invented-from-scratch paragraph.\n\n## When to use / not use\n\n- Use: drafting or adapting one clause to house standard; selecting the right library variant for the position/leverage; conforming a precedent clause to this contract's defined terms and governing law.\n- Hand off: converting a full review's findings into a multi-point markup → `contracts/redline-generator`; building a whole new standard template + playbook → `contracts/contract-template-builder`; the risk review that decides *which* positions to take → `contracts/contract-review`; extracting obligations the clause creates → `contracts/obligation-extraction`; preparing the negotiation around the clause → `contracts/negotiation-prep`.\n\n## Inputs to collect first\n\n1. **Which clause** and the **position** wanted (protective vs balanced vs aggressive).\n2. The **approved library / precedents** and any house **fallbacks** for that clause.\n3. The contract's **defined terms, governing law, parties and leverage**, and the specific facts the clause must fit.\n\n## Method\n\n1. **Draw from the library, don't invent.** Start from the approved variant that matches the clause and position; a bespoke clause written from scratch drifts from house standard and loses the vetting the library carries. If no variant fits, say so and flag for the template owner rather than improvising silently.\n2. **Pick the variant by position and leverage.** Choose protective / balanced / aggressive to match the deal and side; note the house **fallback** so the negotiator has a controlled climb-down → `contracts/negotiation-prep`.\n3. **Adapt to this contract's defined terms.** Replace placeholders with the contract's actual defined terms (don't introduce a synonym for a term already defined), align numbering/style, and fit the clause to the specific facts (parties, amounts, periods).\n4. **Keep it internally consistent.** Check the clause against related clauses (a liability cap must line up with the indemnity and insurance; a termination right with the term and notice provisions) and flag any conforming edits needed elsewhere.\n5. **Respect governing law.** Confirm the variant is appropriate for the governing law (e.g. penalty vs liquidated-damages treatment, limitation-of-liability enforceability, mandatory consumer terms) and flag where a jurisdiction-specific version is required `[verify current]`.\n6. **Give the rationale and the ask.** A one-line why for the clause (risk allocation, market standard) pitched for the counterparty, plus the fallback — so it's usable in negotiation, not just dropped in.\n7. **Flag decisions, don't bury them.** Where the clause encodes a commercial choice (cap amount, term length, carve-outs), surface it as a decision for the business rather than defaulting silently.\n8. **Score against the Checks table** and output the clause + variant choice + fallback + rationale.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Clause invented instead of from library | Approved variant used; gaps flagged to owner | S2 | Use the library / flag the gap |\n| Wrong variant for position/leverage | Variant matched to side + deal | S2 | Re-select the variant |\n| Defined terms not conformed | Contract's own defined terms used | S1 | Replace placeholders; avoid synonyms |\n| Internal inconsistency with related clauses | Cap/indemnity/insurance/termination aligned | S2 | Add conforming edits |\n| Governing-law fit not checked | Variant appropriate for the law | S2 | Use the jurisdiction-specific version `[verify current]` |\n| No fallback provided | House fallback stated | S2 | Add the climb-down |\n| Rationale/ask missing | One-line counterparty-facing why | S3 | Add the rationale |\n| Commercial choice defaulted silently | Decision surfaced for the business | S2 | Surface the decision |\n\n## Output\n\nLead with `Clause: <name> — variant: <protective/balanced/aggressive> — <deal>`. Then the output contract. Add:\n\n- **The clause**: operative text, conformed to the contract's defined terms/style.\n- **Variant & fallback**: which variant and the house fallback position.\n- **Consistency note**: any conforming edits needed in related clauses.\n- **Rationale & decisions**: the one-line why + any commercial choice to confirm.\n- One JSON finding per consistency/decision issue with `category: \"clause-draft\"`.\n\n## Edge cases & pitfalls\n\n- **Inventing off-library**: a from-scratch clause loses the library's vetting and drifts from house standard — draw from the approved variant, and flag a genuine gap to the template owner.\n- **Synonym for a defined term**: introducing \"the Information\" when the contract defines \"Confidential Information\" creates ambiguity — reuse the defined term.\n- **Cap/indemnity mismatch**: a liability cap that doesn't line up with the indemnity or insurance leaves a gap or an inconsistency — check related clauses.\n- **Wrong-law variant**: a penalty-style liquidated-damages clause or an over-broad liability exclusion may be unenforceable under the governing law — use the right version.\n- **Silent commercial default**: baking in a cap amount or term length that's really the business's call hides a decision — surface it.\n\n## References\n\n- Volatile facts: cite `[verify current]` where a clause's enforceability (penalties, liability exclusions, consumer terms) turns on the governing law.\n- The approved clause library / house precedents; the contract's defined terms and governing law; standard risk-allocation drafting.",
+   "references": {},
+   "description": "Drafts or adapts a single clause from an approved clause library: pick the right variant for the position and leverage, adapt it to this deal's defined terms and facts, keep it internally consistent, and give the rationale and fallback. Use to produce one clause (indemnity, liability cap, termination, confidentiality, etc.) to house standard. Not for turning a whole review into a markup → contracts/redline-generator; not for building a new template from scratch → contracts/contract-template-builder.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "contracts/saas-and-cloud-review",
@@ -1279,33 +1330,189 @@
    "module": "contracts",
    "name": "terms-of-service-audit",
    "title": "Online terms & consumer-terms audit",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Audit customer-facing terms for unfair terms, consumer-law and platform-rule issues."
+   "summary": "Audit customer-facing terms for unfair terms, consumer-law and platform-rule issues.",
+   "meta": {
+    "name": "contracts-terms-of-service-audit",
+    "description": "Audits customer-facing online terms (ToS/EULA) and the related notices for enforceability and consumer-law compliance: formation/assent (clickwrap vs browsewrap), unfair-terms and one-sided clauses, mandatory consumer rights (cancellation, refunds, auto-renewal disclosure, liability limits that don't bind consumers), platform/app- store rules, and required linked policies (privacy, cookies). Use to review or draft B2C/B2B terms. Not for a negotiated bilateral contract review → contracts/contract-review; not for the privacy notice itself → privacy/privacy-notice-drafter.",
+    "module": "contracts",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "IN",
+     "EU"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of audit (review existing terms), draft (produce terms for a product) or assent-check (assess whether the terms are validly formed/binding)."
+     },
+     {
+      "name": "product",
+      "required": false,
+      "description": "The product/service, the customer type (consumer vs business), the jurisdictions of the users, and how the terms are presented (checkbox, sign-up, footer link)."
+     },
+     {
+      "name": "terms",
+      "required": false,
+      "description": "The current ToS/EULA and linked policies, and any platform/app-store or payment-rail rules that apply."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "contracts/contract-review",
+     "privacy/privacy-notice-drafter",
+     "privacy/cookie-and-tracking",
+     "contracts/saas-and-cloud-review",
+     "regulatory/accessibility-compliance"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Online Terms & Consumer-Terms Audit\n\nTakes a product's customer-facing terms and returns whether they are validly formed, enforceable, and consumer-law compliant — and where a one-sided or non-compliant clause will be struck down or draw a regulator. The deliverable is an enforceability + compliance audit (or drafted terms) with the unfair-terms and assent risks flagged, not a generic \"add a ToS\".\n\n## When to use / not use\n\n- Use: auditing or drafting consumer-facing ToS/EULA and sign-up flows; checking the terms are validly formed and binding; screening for unfair/one-sided clauses and mandatory consumer rights; confirming required linked policies and platform/app-store rules.\n- Hand off: a negotiated, bilateral commercial contract → `contracts/contract-review`; the privacy notice content itself → `privacy/privacy-notice-drafter`; the cookie banner/tracking consent → `privacy/cookie-and-tracking`; a B2B SaaS/cloud agreement's substance → `contracts/saas-and-cloud-review`; the product's accessibility obligations → `regulatory/accessibility-compliance`.\n\n## Inputs to collect first\n\n1. The **product/service** and whether users are **consumers or businesses** (consumer-protection law changes everything).\n2. The **jurisdictions** of the users (EU/UK consumer law, India, US state law differ).\n3. **How the terms are presented** — checkbox/clickwrap, sign-up gate, or a footer \"browsewrap\" link.\n4. The current **terms + linked policies** and any **platform/app-store/payment** rules.\n\n## Method\n\n1. **Test formation/assent first — unenforceable terms don't matter how good they are.** **Clickwrap** (affirmative \"I agree\" to presented terms) is generally binding; **browsewrap** (terms behind a footer link, no action) is often **not** — and unusual/onerous terms need particular prominence. Check the terms are actually presented and assented to, with a record of version and acceptance `[verify current]`.\n2. **Apply consumer-protection mandatory rules.** For consumers, many protections are **non-waivable**: a clause can't exclude liability for death/personal injury or defeat statutory warranties/cancellation/refund rights; **unfair terms** (significant imbalance contrary to good faith) are void. Don't rely on exclusions that won't bind consumers.\n3. **Screen the one-sided clauses.** Over-broad liability exclusions/caps, unilateral variation rights, auto-renewal without clear disclosure, unreasonable penalties/fees, forced-arbitration/class-waivers (jurisdiction-dependent), and one-sided IP/content grabs — flag each for enforceability and fairness.\n4. **Check mandatory disclosures.** Auto-renewal and cancellation terms disclosed clearly (several jurisdictions mandate this), pricing/taxes, cooling-off/withdrawal for distance sales, and the trader's identity/contact.\n5. **Confirm the linked-policy stack.** Privacy notice → `privacy/privacy-notice-drafter`, cookie/tracking consent → `privacy/cookie-and-tracking`, acceptable-use, and any community/content rules — present, current, and consistent with the ToS.\n6. **Respect platform and payment rules.** App-store (Apple/Google) and payment-rail rules impose terms (refunds, billing, account deletion) that override or supplement your ToS for those channels `[verify current]`.\n7. **Jurisdiction and governing-law reality.** A governing-law/forum clause can't strip consumers of their home-country mandatory protections or local forum rights in many regimes — don't over-claim.\n8. **Draft/fix for plain language and prominence.** Consumer terms must be intelligible; bury-the-onerous-term drafting is both unfair and poor assent → `regulatory/accessibility-compliance` for readability.\n9. **Score against the Checks table** and set a verdict: **ENFORCEABLE & COMPLIANT / FIXES NEEDED / NOT ENFORCEABLE (redraft)**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Assent weak (browsewrap / no record) | Clickwrap + version + acceptance record | S1 | Move to affirmative assent `[verify current]` |\n| Clause excludes non-waivable consumer rights | No exclusion of liability/warranty the law protects | S1 | Remove/limit the exclusion |\n| Unfair / one-sided term (imbalance) | Balanced, good-faith terms | S1 | Re-draft the unfair term |\n| Auto-renewal / cancellation not clearly disclosed | Clear disclosure + easy cancellation | S2 | Add the disclosure |\n| Mandatory consumer disclosures missing | Cooling-off / pricing / identity present | S2 | Add the disclosures |\n| Linked policies missing/inconsistent | Privacy/cookie/AUP present + consistent | S2 | Complete and reconcile the stack |\n| Platform/app-store rules not honoured | Channel-specific terms applied | S2 | Conform to the platform rules `[verify current]` |\n| Governing-law clause over-claims vs consumers | Mandatory local protections preserved | S2 | Narrow the clause |\n| Onerous terms buried / unintelligible | Plain, prominent presentation | S3 | Rewrite for clarity/prominence |\n\n## Output\n\nLead with `Verdict: ENFORCEABLE & COMPLIANT | FIXES NEEDED | NOT ENFORCEABLE — <product> — <top risk>`. Then the output contract. Add:\n\n- **Assent**: how terms are formed and whether that binds.\n- **Consumer compliance**: non-waivable-rights and unfair-terms findings.\n- **One-sided clauses**: the flagged terms with the fix.\n- **Disclosures & linked policies**: auto-renewal/cancellation + policy stack status.\n- **Platform/jurisdiction**: channel and governing-law findings.\n- One JSON finding per issue with `category: \"tos-audit\"`.\n\n## Edge cases & pitfalls\n\n- **Browsewrap illusion**: terms behind a footer link that the user never actively accepts are often unenforceable — especially the onerous bits; use clickwrap with a record.\n- **Exclusions that don't bind consumers**: a liability waiver or warranty disclaimer that consumer law voids gives false comfort — and parading it can itself breach unfair-terms rules.\n- **Auto-renewal traps**: hidden auto-renewal and hard-to-cancel flows are a growing regulatory target — disclose clearly and make cancellation easy.\n- **Governing-law over-reach**: you can't contract a consumer out of their home mandatory protections or local forum in many regimes — don't claim you have.\n- **Platform override**: app-store and payment rules can supersede your ToS on refunds/billing for those channels — reconcile, don't ignore.\n\n## References\n\n- Volatile facts: cite `[verify current]` where a consumer-law unfair-terms rule, auto-renewal disclosure law, or platform/app-store rule is load-bearing; `EU-DATA-01` for unfair B2B data terms where relevant.\n- The applicable consumer-protection and unfair-contract-terms law (EU UCTD/CRD, UK CRA, India Consumer Protection Act, US state law); platform/app-store and payment-network rules; the linked privacy/cookie policies.",
+   "references": {},
+   "description": "Audits customer-facing online terms (ToS/EULA) and the related notices for enforceability and consumer-law compliance: formation/assent (clickwrap vs browsewrap), unfair-terms and one-sided clauses, mandatory consumer rights (cancellation, refunds, auto-renewal disclosure, liability limits that don't bind consumers), platform/app- store rules, and required linked policies (privacy, cookies). Use to review or draft B2C/B2B terms. Not for a negotiated bilateral contract review → contracts/contract-review; not for the privacy notice itself → privacy/privacy-notice-drafter.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "contracts/sustainability-clauses",
    "module": "contracts",
    "name": "sustainability-clauses",
    "title": "Sustainability & ESG clauses",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Add proportionate climate, human-rights and supply-chain clauses to commercial contracts."
+   "summary": "Add proportionate climate, human-rights and supply-chain clauses to commercial contracts.",
+   "meta": {
+    "name": "contracts-sustainability-clauses",
+    "description": "Adds proportionate climate, human-rights and supply-chain clauses to a commercial contract: supplier code compliance, modern-slavery/forced-labour and human-rights-due-diligence (CSDDD/import-ban) obligations, ESG data and audit/flow-down rights, emissions/environmental commitments, and the remedy ladder (cure, suspension, termination) — scoped to real risk and leverage, not greenwashing boilerplate. Use to draft or review ESG contract terms. Not for the corporate ESG report → regulatory/esg-reporting; not for a full contract review → contracts/contract-review.",
+    "module": "contracts",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "EU"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of draft (produce the clauses), review (assess existing ESG clauses for teeth/proportionality) or scope (decide which obligations this relationship actually needs)."
+     },
+     {
+      "name": "relationship",
+      "required": false,
+      "description": "The contract type and the counterparty's role in the value chain (supplier, distributor, manufacturer), the sector/geography risk, and the client's own regulatory exposure (CSDDD/CSRD/import bans)."
+     },
+     {
+      "name": "priorities",
+      "required": false,
+      "description": "The ESG commitments that matter most (human rights/forced labour, emissions, supply-chain transparency) and the client's policies/code to flow down."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "regulatory/esg-reporting",
+     "contracts/contract-review",
+     "contracts/obligation-extraction",
+     "regulatory/operational-resilience",
+     "contracts/saas-and-cloud-review"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Sustainability & ESG Clauses\n\nTakes a commercial relationship and returns ESG clauses with real teeth and real proportion: the human-rights/supply-chain/climate obligations the relationship actually needs, flow-down and audit rights, and a remedy ladder — matched to risk and leverage, not greenwashing boilerplate that can't be enforced or that over-reaches a small supplier. The deliverable is drafted/reviewed ESG terms with the enforceability and proportionality traps flagged.\n\n## When to use / not use\n\n- Use: adding climate/human-rights/supply-chain clauses to a supply, manufacturing, distribution, or services contract; reviewing existing ESG clauses for teeth and proportionality; scoping which obligations a given relationship needs (and which are overkill).\n- Hand off: preparing the company's own ESG/sustainability **report/disclosure** (BRSR/CSRD/ISSB) → `regulatory/esg-reporting`; the full commercial risk review of the contract → `contracts/contract-review`; extracting the ongoing ESG obligations to track → `contracts/obligation-extraction`; third-party/supply-chain operational-resilience obligations → `regulatory/operational-resilience`.\n\n## Inputs to collect first\n\n1. The **contract type** and the counterparty's **role in the value chain** (direct supplier, sub-tier, distributor).\n2. The **sector/geography risk** (high-risk goods/regions for forced labour, environmental harm).\n3. The **client's own regulatory exposure** — CSDDD due-diligence duties, CSRD/ISSB reporting, import bans on forced-labour goods — that must flow down.\n4. The **policies/supplier code** to incorporate and the **leverage** over this counterparty.\n\n## Method\n\n1. **Scope to real risk and the client's duties — not everything.** Pick the obligations the relationship actually needs given the counterparty's role, sector and geography, and what the client's own law (CSDDD human-rights/environmental due diligence, forced-labour import bans, CSRD value-chain reporting) requires it to flow down `[verify current]`. Don't bolt a full ESG annex onto a low-risk, low-value supply.\n2. **Incorporate the supplier code and standards.** Flow down the client's supplier code of conduct and relevant standards (ILO core labour standards, applicable environmental standards) as binding obligations, not aspirations.\n3. **Human rights / modern slavery / forced labour.** Require compliance, prohibit forced/child labour across the chain, and obtain the representations, sub-tier flow-down, and the information rights needed for the client's own due-diligence and import-ban screening.\n4. **Supply-chain transparency and data.** The ESG data the counterparty must provide (emissions/Scope 3 data, provenance, certifications), in what form and cadence — so the client can meet its reporting duties → `regulatory/esg-reporting`.\n5. **Climate/environmental commitments — make them measurable.** Tie any emissions/environmental commitment to a defined metric, baseline and date; a vague \"will endeavour to be sustainable\" is unenforceable greenwashing. Avoid representations the client itself can't substantiate (greenwashing liability runs both ways).\n6. **Audit and verification rights.** Right to audit/inspect (directly or via third party), to require corrective-action plans, and to get evidence — the enforcement backbone; obligations with no verification are decorative.\n7. **Build a proportionate remedy ladder.** Notify → corrective-action plan with a deadline → suspension → termination for persistent/serious breach, with termination reserved for serious or uncured issues. A hair-trigger termination right on any ESG slip is neither usable nor fair to a supplier you depend on.\n8. **Keep it proportionate and workable.** Match the burden to the counterparty's size and risk; an SME supplier handed a mega-corp ESG annex either refuses or signs-and-ignores — neither helps.\n9. **Score against the Checks table** and set a verdict: **FIT & ENFORCEABLE / FIXES NEEDED / GREENWASH/OVER-REACH (redraft)**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Not scoped to risk / client's legal duties | Obligations matched to role, risk, and flow-down duties | S2 | Re-scope to what's needed `[verify current]` |\n| Human-rights/forced-labour flow-down missing | Compliance + sub-tier flow-down + info rights | S1 | Add the HR/forced-labour terms |\n| ESG data obligations absent | Required data, form and cadence specified | S2 | Add the data clause → esg-reporting |\n| Commitments vague / greenwashing | Metric + baseline + date; substantiable | S1 | Make commitments measurable |\n| No audit/verification right | Audit + corrective-action + evidence rights | S1 | Add the verification backbone |\n| No proportionate remedy ladder | Cure → suspend → terminate for serious/uncured | S2 | Build the remedy ladder |\n| Hair-trigger termination on any slip | Termination reserved for serious/uncured breach | S2 | Calibrate the remedy |\n| Disproportionate burden on a small supplier | Burden scaled to size/risk | S3 | Right-size the obligations |\n\n## Output\n\nLead with `Verdict: FIT & ENFORCEABLE | FIXES NEEDED | GREENWASH/OVER-REACH — <relationship> — <key issue>`. Then the output contract. Add:\n\n- **Scope**: the obligations this relationship needs and the client duties they serve.\n- **Core clauses**: supplier code · human rights/forced labour · ESG data · climate (measurable).\n- **Enforcement**: audit/verification rights + the remedy ladder.\n- **Proportionality note**: how the burden is matched to the counterparty.\n- **Draft/redline** of the clauses. One JSON finding per issue with `category: \"esg-clause\"`.\n\n## Edge cases & pitfalls\n\n- **Greenwashing boilerplate**: aspirational \"we/they will be sustainable\" clauses with no metric or audit are unenforceable and can themselves create greenwashing/misrepresentation liability — make them measurable and substantiable.\n- **No teeth**: ESG obligations with no audit right or remedy ladder are decorative — the counterparty has no reason to comply.\n- **Over-reach on SMEs**: handing a small supplier a Fortune-500 ESG annex gets a refusal or a sign-and-ignore — proportion to size and risk.\n- **Missing flow-down**: if the client's own CSDDD/import-ban duties require sub-tier information and the contract doesn't secure it, the client can't meet its own law — flow the duty down.\n- **Hair-trigger termination**: a right to terminate on any ESG slip is unusable against a critical supplier — reserve termination for serious or uncured breaches.\n\n## References\n\n- Volatile facts: `EU-CRA-01` where product-cyber obligations overlap; cite `[verify current]` for CSDDD/CSRD scope and timelines and forced-labour import-ban rules — all fast-moving.\n- The client's supplier code and ESG policies; the applicable due-diligence/reporting regimes (EU CSDDD, CSRD/ESRS, forced-labour import bans, India BRSR); ILO core labour standards.",
+   "references": {},
+   "description": "Adds proportionate climate, human-rights and supply-chain clauses to a commercial contract: supplier code compliance, modern-slavery/forced-labour and human-rights-due-diligence (CSDDD/import-ban) obligations, ESG data and audit/flow-down rights, emissions/environmental commitments, and the remedy ladder (cure, suspension, termination) — scoped to real risk and leverage, not greenwashing boilerplate. Use to draft or review ESG contract terms. Not for the corporate ESG report → regulatory/esg-reporting; not for a full contract review → contracts/contract-review.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "contracts/contract-template-builder",
    "module": "contracts",
    "name": "contract-template-builder",
    "title": "Contract template builder",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Build a new standard template with guidance notes and a negotiation playbook."
+   "summary": "Build a new standard template with guidance notes and a negotiation playbook.",
+   "meta": {
+    "name": "contracts-contract-template-builder",
+    "description": "Builds a new standard contract template with its guidance notes and negotiation playbook: the clause architecture and defined terms, drafting/optional-variant notes, the fallback positions and walk-aways per key clause, and the governance (version, owner, review cadence) so it stays house standard. Use to create or overhaul a reusable template. Not for drafting one clause → contracts/clause-drafter; not for reviewing a specific third-party contract → contracts/contract-review.",
+    "module": "contracts",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "template",
+      "required": true,
+      "description": "The contract type to templatise (NDA, MSA, SOW, DPA, supply, SaaS, employment, etc.) and the side it is written for."
+     },
+     {
+      "name": "context",
+      "required": false,
+      "description": "The typical deals it will cover, the house positions/risk appetite, the governing law(s), and any existing precedents to consolidate."
+     },
+     {
+      "name": "scope",
+      "required": false,
+      "description": "Whether a full template + playbook is needed or just the clause architecture, and who will own/maintain it."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "contracts/clause-drafter",
+     "contracts/contract-review",
+     "contracts/redline-generator",
+     "contracts/negotiation-prep",
+     "contracts/obligation-extraction"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Contract Template Builder\n\nTakes a contract type and returns a reusable standard template with the guidance and negotiation playbook that make it usable by non-experts and consistent across deals: clause architecture, drafting notes, optional variants, fallbacks per key clause, and the governance to keep it current. The deliverable is a template + playbook, not a one-off agreement.\n\n## When to use / not use\n\n- Use: creating a new standard template or overhauling an old one; consolidating scattered precedents into one house standard; building the guidance notes and negotiation playbook that ship with a template.\n- Hand off: drafting or adapting a single clause → `contracts/clause-drafter`; reviewing a specific inbound third-party contract → `contracts/contract-review`; producing a markup of a specific deal → `contracts/redline-generator`; preparing for a specific negotiation → `contracts/negotiation-prep`; extracting obligations from a signed instance → `contracts/obligation-extraction`.\n\n## Inputs to collect first\n\n1. The **contract type** and the **side** it's written for (buyer/seller, discloser/recipient).\n2. The **typical deals** it covers and the **house positions / risk appetite**.\n3. The **governing law(s)** and jurisdictions it must serve.\n4. Any **existing precedents** to consolidate and who will **own/maintain** it.\n\n## Method\n\n1. **Fix the clause architecture.** Lay out the full clause set for the type (parties, definitions, scope, commercials, the risk-allocation core — liability, indemnity, IP, confidentiality, data protection — term/termination, boilerplate), in a logical order with consistent numbering and a single defined-terms section.\n2. **Draft each clause to the house position with variants.** Write the standard (preferred) version and mark **optional/alternative variants** (e.g. mutual vs one-way, with/without a liability cap carve-out) so the drafter selects rather than rewrites → `contracts/clause-drafter`.\n3. **Write guidance notes inline.** For each non-trivial clause, a short note: what it does, when to use which variant, what to fill in, and what *not* to change without legal sign-off. The notes are what let a non-lawyer use the template safely.\n4. **Build the negotiation playbook.** Per key clause: the **ideal / acceptable / walk-away** positions and the one-line rationale, so negotiators concede in a controlled way → `contracts/negotiation-prep`. Mark which clauses are **non-negotiable** (legal/compliance red lines) vs tradeable.\n5. **Mark approval gates.** Flag the clauses/changes that require legal or business sign-off (deviations beyond the fallback, unusual indemnities, data terms) so the template self-polices.\n6. **Ensure internal consistency.** Defined terms used consistently, cross-references correct, cap/indemnity/insurance aligned, and no orphaned placeholders — a template's inconsistencies propagate into every deal that uses it.\n7. **Check governing-law fit and modularity.** Flag jurisdiction-specific variants (mandatory terms, enforceability of caps/penalties, consumer rules) and keep them modular so the template localises cleanly `[verify current]`.\n8. **Add governance.** Version number, owner, effective date, change log, and a **review cadence** (and a trigger to review on relevant law changes) — a template with no owner rots.\n9. **Score against the Checks table** and output the template + guidance notes + playbook + governance block.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Clause architecture incomplete | Full standard clause set + logical order | S1 | Add the missing clauses |\n| No optional variants (forces rewriting) | Standard + marked alternative variants | S2 | Add selectable variants |\n| Guidance notes missing | Inline note per non-trivial clause | S1 | Write the drafting notes |\n| No negotiation playbook / fallbacks | Ideal/acceptable/walk-away per key clause | S1 | Build the playbook |\n| Non-negotiables / approval gates unmarked | Red lines + sign-off triggers flagged | S2 | Mark the gates |\n| Internal inconsistency / orphan placeholders | Defined terms + cross-refs + cap/indemnity aligned | S1 | Reconcile the template |\n| No jurisdiction modularity | Law-specific variants flagged + modular | S2 | Modularise localisation `[verify current]` |\n| No governance (owner/version/review) | Version + owner + review cadence set | S2 | Add the governance block |\n\n## Output\n\nLead with `Template: <type> (<side>) — <n clauses>, playbook: ready`. Then the output contract. Add:\n\n- **Architecture**: the clause set and order, defined-terms section.\n- **Clauses + variants**: standard versions with marked alternatives.\n- **Guidance notes**: the inline drafting/use notes.\n- **Negotiation playbook**: ideal/acceptable/walk-away per key clause + non-negotiables.\n- **Governance**: version · owner · review cadence · jurisdiction variants.\n- One JSON finding per gap/inconsistency with `category: \"template-build\"`.\n\n## Edge cases & pitfalls\n\n- **Template without notes**: a bare template with no guidance gets misused by non-lawyers — the notes and approval gates are what make it safe to delegate.\n- **No playbook = every deal re-litigated**: without fallbacks and non-negotiables, each negotiator improvises and house positions drift — ship the playbook with the template.\n- **Propagated inconsistency**: an orphan placeholder or a cap/indemnity mismatch in the template repeats in every contract made from it — reconcile before release.\n- **Monolithic for all jurisdictions**: a single non-modular template forces either over-reach or non-compliance abroad — keep localisation modular.\n- **Unowned template**: no owner/version/review means it silently goes stale against the law — governance is part of the deliverable.\n\n## References\n\n- Volatile facts: cite `[verify current]` where a clause's enforceability or a mandatory term for the type/jurisdiction is load-bearing.\n- The house precedents and risk positions being consolidated; standard drafting architecture for the contract type; the governing law(s) it must serve.",
+   "references": {},
+   "description": "Builds a new standard contract template with its guidance notes and negotiation playbook: the clause architecture and defined terms, drafting/optional-variant notes, the fallback positions and walk-aways per key clause, and the governance (version, owner, review cadence) so it stays house standard. Use to create or overhaul a reusable template. Not for drafting one clause → contracts/clause-drafter; not for reviewing a specific third-party contract → contracts/contract-review.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "privacy/dpdpa-compliance",
@@ -4926,11 +5133,64 @@
    "module": "ip",
    "name": "infringement-takedown",
    "title": "Infringement & takedown",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Assess infringement and draft notices or responses (incl. IT Rules intermediaries)."
+   "summary": "Assess infringement and draft notices or responses (incl. IT Rules intermediaries).",
+   "meta": {
+    "name": "ip-infringement-takedown",
+    "description": "Assesses IP infringement (copyright, trademark, or other) and drafts the right response: a cease-and-desist or takedown notice (DMCA-style, India IT Rules intermediary notice, platform/registrar process), or a defence/counter- notice to a received claim — testing the rights, the actual infringement, defences, and the correct channel. Use to pursue or respond to infringement. Not for clearing a new mark before adoption → ip/trademark-clearance; not for the copyright subsistence/ownership question → ip/copyright-assessment.",
+    "module": "ip",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "IN",
+     "US"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of enforce (assess + draft a notice/takedown against an infringer) or defend (assess + respond to a claim/takedown received, incl. counter-notice)."
+     },
+     {
+      "name": "matter",
+      "required": false,
+      "description": "The IP right at stake and proof of ownership, the alleged infringing use (where it appears — website, marketplace, app store, social), and the jurisdictions involved."
+     },
+     {
+      "name": "channel",
+      "required": false,
+      "description": "Where enforcement/response runs — direct to the party, a platform/host/registrar takedown process, an intermediary under the IT Rules, or court."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "ip/trademark-clearance",
+     "ip/copyright-assessment",
+     "ip/ip-ownership-audit",
+     "disputes/legal-notice-drafter",
+     "disputes/early-case-assessment"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Infringement & Takedown\n\nTakes an infringement situation (yours to enforce, or a claim against you) and returns a grounded assessment and the right response: whether the right and the infringement actually stand, what defences apply, and the correct channel — a C&D, a platform/IT-Rules takedown, or a counter-notice. The deliverable is an assessment + drafted notice/response with the overreach and defence traps flagged, not a scary letter.\n\n## When to use / not use\n\n- Use: assessing whether a use infringes your IP and drafting a C&D or takedown; choosing the enforcement channel (direct, platform/host, registrar, IT-Rules intermediary, court); responding to a takedown or infringement claim against you (including a counter-notice).\n- Hand off: clearing a *new* mark before you adopt it → `ip/trademark-clearance`; the copyright subsistence/ownership/fair-use question behind the claim → `ip/copyright-assessment`; confirming you actually own the right (chain of title) → `ip/ip-ownership-audit`; a general pre-action demand not tied to IP infrastructure → `disputes/legal-notice-drafter`; the litigate-or-not merits/strategy → `disputes/early-case-assessment`.\n\n## Inputs to collect first\n\n1. The **IP right** at stake and **proof of ownership/registration** — you can't enforce what you can't show you own → `ip/ip-ownership-audit`.\n2. The **alleged infringing use**: exactly what, where it appears (website, marketplace, app store, social, domain), and since when.\n3. The **jurisdictions** involved and the **channel** available (direct, platform process, registrar, IT-Rules intermediary, court).\n4. For defend mode: the **claim/takedown received** and your possible defences.\n\n## Method\n\n1. **Confirm the right and ownership first.** Verify the right subsists, you own/are licensed to enforce it, and (for registered rights) it's live and in the relevant class/territory — overreaching on a weak or unowned right backfires and can expose you to a groundless-threats claim.\n2. **Test actual infringement, not vibes.** Apply the real test: copyright = copying + substantial similarity of protected expression → `ip/copyright-assessment`; trademark = likelihood of confusion (similar mark + related goods + channels) → `ip/trademark-clearance`. Identify precisely which element the alleged use infringes.\n3. **Screen the other side's defences before sending.** Fair use/fair dealing, independent creation, descriptive/nominative use, exhaustion/first-sale, parody, licence/consent, limitation — a notice that ignores an obvious defence invites a confident refusal and reputational blowback.\n4. **Avoid improper/overreaching threats.** Don't threaten relief you won't or can't pursue, or make **unjustified groundless threats** (actionable in some jurisdictions for patents/trademarks/designs); don't threaten criminal process for leverage. Calibrate the tone to the strength of the case.\n5. **Pick the right channel.** Direct **cease-and-desist**; a **platform/host takedown** (DMCA-style notice for US-hosted copyright; marketplace/app-store IP processes); a **domain** registrar/UDRP route; or, in India, a **notice to the intermediary under the IT Rules** (with the required particulars for actual-knowledge/takedown) `[verify current]`. Court/injunction where the harm or defiance warrants it.\n6. **Draft the notice with the mandatory particulars.** Identify the right, the work/mark, the infringing material and its exact location, the demand and deadline, and the good-faith/accuracy statements the channel requires (DMCA and IT-Rules notices have prescribed contents); include the service/host details.\n7. **Defend mode — assess and respond proportionately.** Test whether the claim actually stands and whether a **defence** applies; options range from comply/remove, to a reasoned rebuttal, to a **counter-notice** (DMCA) or challenge — weigh the restoration/put-back and litigation consequences before counter-noticing.\n8. **Preserve evidence and keep proof.** Capture the infringing use (dated screenshots/URLs), keep proof of sending/service, and log platform ticket numbers — the record matters if it escalates.\n9. **Score against the Checks table** and set a determination: **INFRINGEMENT STANDS → enforce via <channel>** / **WEAK — DON'T SEND** (enforce), or **CLAIM STANDS → comply** / **DEFENSIBLE → respond/counter-notice** (defend).\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Right/ownership not confirmed | Subsistence + ownership + live registration checked | S1 | Verify before enforcing → ip-ownership-audit |\n| Infringement asserted without the test | Copying/similarity or confusion element identified | S1 | Apply the real infringement test |\n| Other side's defence ignored | Fair use/exhaustion/licence/limitation screened | S1 | Screen defences before sending |\n| Groundless / improper threat | Only lawful, intended relief threatened | S1 | Remove the overreach |\n| Wrong channel for the harm/host | Direct/platform/registrar/IT-Rules/court matched | S2 | Re-route to the right channel `[verify current]` |\n| Notice missing mandatory particulars | DMCA/IT-Rules prescribed contents included | S2 | Complete the notice |\n| Evidence not preserved | Dated capture + proof of service kept | S2 | Capture and log the evidence |\n| (Defend) counter-notice sent without weighing consequences | Put-back + litigation exposure assessed | S2 | Weigh before counter-noticing |\n\n## Output\n\nLead with `Determination: INFRINGEMENT STANDS → enforce via <channel> | WEAK — DON'T SEND` (enforce) or `CLAIM STANDS → comply | DEFENSIBLE → <respond/counter-notice>` (defend). Then the output contract. Add:\n\n- **Right & infringement**: the right, ownership proof, and the element infringed.\n- **Defences**: the other side's likely defences and whether they hold.\n- **Channel & notice**: the chosen route and the notice/response (with mandatory particulars).\n- **Risk flags**: groundless-threat / overreach / counter-notice exposure.\n- One JSON finding per issue with `category: \"infringement\"`.\n\n## Edge cases & pitfalls\n\n- **Enforcing a weak/unowned right**: a C&D on a right you can't prove you own, or that's descriptive/expired, invites a confident refusal and a groundless-threats counter — confirm first.\n- **Ignoring an obvious defence**: sending a takedown into a clear fair-use/nominative-use situation (common with criticism, reviews, parody) backfires publicly and can be actionable.\n- **Overreaching threats**: threatening relief you won't pursue, or criminal process for leverage, damages credibility and can create liability.\n- **Wrong channel**: a C&D to a party ignoring you when a platform/IT-Rules takedown would remove the content fast wastes time — match channel to the host and harm.\n- **Counter-notice without thinking**: a DMCA counter-notice can trigger put-back *and* invite suit — weigh the consequence before firing it.\n\n## References\n\n- Volatile facts: `IN-AI-02` where synthetic-content takedown timelines apply; cite `[verify current]` on IT-Rules intermediary notice particulars/timelines and platform/UDRP processes — these change.\n- The governing IP statutes and the relevant notice regimes (US DMCA §512; India IT Rules 2021 intermediary process; marketplace/app-store/registrar IP processes; UDRP for domains); groundless-threats provisions where applicable.",
+   "references": {},
+   "description": "Assesses IP infringement (copyright, trademark, or other) and drafts the right response: a cease-and-desist or takedown notice (DMCA-style, India IT Rules intermediary notice, platform/registrar process), or a defence/counter- notice to a received claim — testing the rights, the actual infringement, defences, and the correct channel. Use to pursue or respond to infringement. Not for clearing a new mark before adoption → ip/trademark-clearance; not for the copyright subsistence/ownership question → ip/copyright-assessment.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "outside-counsel/invoice-review",
@@ -5650,11 +5910,62 @@
    "module": "matters",
    "name": "lessons-learned",
    "title": "Lessons learned",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Capture and reuse lessons across matters."
+   "summary": "Capture and reuse lessons across matters.",
+   "meta": {
+    "name": "matters-lessons-learned",
+    "description": "Runs a post-matter retrospective and turns it into reusable knowledge: what happened vs plan, what went well and badly and the root cause (not blame), and specific, owned, actionable improvements routed to where they'll be reused — a template fix, a playbook/checklist update, a risk to watch, a KB entry. Use to close out a matter or a phase with learning captured. Not for the live risk/issue tracker → matters/raid-log; not for department metrics → matters/legal-kpi-dashboard.",
+    "module": "matters",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "self-serve",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of retrospective (run the review for a matter/phase) or synthesize (roll several matters' lessons into themes + reusable artefacts)."
+     },
+     {
+      "name": "matter",
+      "required": false,
+      "description": "The matter(s), the original plan/estimate vs outcome, the RAID log and key decisions, and the people involved."
+     },
+     {
+      "name": "focus",
+      "required": false,
+      "description": "What the review should prioritise (cost/time overruns, a bad outcome, a process that worked well worth standardising)."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "matters/raid-log",
+     "matters/matter-plan",
+     "matters/legal-kpi-dashboard",
+     "contracts/contract-template-builder",
+     "matters/status-report"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Lessons Learned\n\nTakes a finished matter (or several) and turns the retrospective into knowledge that actually gets reused: what happened against plan, root causes without blame, and specific owned improvements routed to the artefact that will carry them forward. The deliverable is a short retro plus concrete, assigned changes — not a feelings round that changes nothing.\n\n## When to use / not use\n\n- Use: closing out a matter or a major phase with learning captured; running a retrospective after a bad outcome or a notable success; rolling several matters' lessons into themes and reusable artefacts.\n- Hand off: tracking live risks/issues/decisions during the matter → `matters/raid-log`; the original plan/estimate the retro compares against → `matters/matter-plan`; department-level metrics/trends → `matters/legal-kpi-dashboard`; turning a \"fix the template\" lesson into the actual template → `contracts/contract-template-builder`; the ongoing status narrative → `matters/status-report`.\n\n## Inputs to collect first\n\n1. The **matter(s)** and the **original plan/estimate** (scope, budget, timeline) to compare the outcome against.\n2. The **RAID log** and the **key decisions** taken → `matters/raid-log`.\n3. The **people involved** (for input, not blame).\n4. The **focus** — overruns, a bad result, or a success worth standardising.\n\n## Method\n\n1. **Compare outcome to plan.** Scope, cost, timeline, and result vs the original `matters/matter-plan` and estimate — the gaps are where the lessons live. Be specific and factual, not impressionistic.\n2. **Capture what went well *and* badly.** Retros that only hunt failures miss the practices worth standardising; capture both, with concrete examples.\n3. **Find the root cause, not the culprit.** For each notable gap, ask why to the underlying cause (process, information, resourcing, assumption) — keep it **blameless** so people contribute honestly; a blame exercise produces defensive silence and no learning.\n4. **Separate luck from skill.** A good outcome from a bad process (or vice versa) is the dangerous case — judge the process, so you don't standardise a practice that just got lucky.\n5. **Turn each lesson into a specific, owned action.** A lesson with no action is a diary entry. For each, write the concrete change, an **owner**, and a due date — and route it to where it'll be reused: a **template/clause fix** → `contracts/contract-template-builder`, a **checklist/playbook update**, a **risk to watch** on future matters, or a **KB entry**.\n6. **Make it findable and reusable.** Tag the lessons so the next similar matter actually surfaces them; a lesson filed where no one looks is lost. Feed recurring themes into the standard artefacts rather than leaving them as per-matter notes.\n7. **(Synthesize mode)** roll multiple matters' lessons into **themes**, spot the systemic patterns (the same overrun cause recurring), and propose the structural fix rather than N separate notes.\n8. **Keep it short and honest.** A tight retro people will read beats a long one they won't; don't sand off the uncomfortable finding — that's usually the valuable one.\n9. **Score against the Checks table** and output the retro + the assigned action list (or the synthesized themes + structural fixes).\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| No comparison to plan/estimate | Outcome measured against the original plan | S2 | Add the plan-vs-actual |\n| Only failures (or only wins) captured | Both good and bad practices captured | S2 | Capture the other side |\n| Stops at symptom, no root cause | Root cause (blameless) identified | S1 | Ask why to the cause |\n| Blame instead of process focus | Blameless framing; process not people | S1 | Reframe to the process |\n| Luck vs skill not separated | Process judged independent of outcome | S2 | Assess the process on its merits |\n| Lessons with no action/owner | Specific change + owner + date | S1 | Assign owned actions |\n| Actions not routed to a reuse artefact | Template/checklist/KB/risk updated | S2 | Route each action to where it's reused |\n| Lessons not tagged/findable | Tagged so future matters surface them | S2 | Make them findable |\n| (Synthesize) N notes, no theme | Systemic patterns + structural fix | S3 | Roll up into themes |\n\n## Output\n\nLead with `Retro: <matter> — <n lessons, n owned actions> — top fix: <the one that matters most>`. Then the output contract. Add:\n\n- **Plan vs actual**: scope/cost/timeline/result against the original.\n- **What worked / what didn't**: with concrete examples and root causes.\n- **Action list**: each lesson → specific change · owner · due date · reuse artefact.\n- **(Synthesize)** themes across matters + the structural fix.\n- One JSON finding per actionable lesson with `category: \"lessons-learned\"`.\n\n## Edge cases & pitfalls\n\n- **Blame round**: the moment a retro becomes about who to blame, honest input stops and the real cause stays hidden — keep it blameless.\n- **No owner, no reuse**: lessons with no owner, due date, or home artefact evaporate — the value is in the assigned, routed action.\n- **Standardising luck**: treating a good outcome as proof the process was good can entrench a risky practice — judge the process, not just the result.\n- **Only-failures retro**: ignoring what went well loses the practices worth making standard.\n- **Filed-and-forgotten**: a lesson stored where the next matter won't find it is lost — tag it and feed it into the standard artefacts.\n\n## References\n\n- Volatile facts: none; this is a knowledge-capture discipline.\n- Standard blameless-retrospective practice; the matter's own plan, RAID log, and decisions; the house templates/checklists/KB that lessons feed back into.",
+   "references": {},
+   "description": "Runs a post-matter retrospective and turns it into reusable knowledge: what happened vs plan, what went well and badly and the root cause (not blame), and specific, owned, actionable improvements routed to where they'll be reused — a template fix, a playbook/checklist update, a risk to watch, a KB entry. Use to close out a matter or a phase with learning captured. Not for the live risk/issue tracker → matters/raid-log; not for department metrics → matters/legal-kpi-dashboard.",
+   "risk_tier": "self-serve",
+   "version": "1.0.0"
   },
   {
    "id": "matters/legal-kpi-dashboard",
@@ -6256,11 +6567,62 @@
    "module": "drafting",
    "name": "legal-translation",
    "title": "Legal translation",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Translate legal documents preserving legal effect, with term notes."
+   "summary": "Translate legal documents preserving legal effect, with term notes.",
+   "meta": {
+    "name": "drafting-legal-translation",
+    "description": "Translates legal documents so the legal effect survives, not just the words: render meaning and legal function faithfully, keep untranslatable terms-of-art in the original with a note, preserve defined terms/numbering/structure, flag concepts with no equivalent in the target legal system, and state which language governs. Use to translate or review a translation of a contract, pleading, statute or notice. Not for plain-language rewriting in one language → drafting/plain-language-explainer; not for a multi-country legal comparison → research/multi-jurisdiction-survey.",
+    "module": "drafting",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of translate (produce the translation + term notes) or review (assess a supplied translation for fidelity of legal effect)."
+     },
+     {
+      "name": "document",
+      "required": false,
+      "description": "The source document, its type (contract, pleading, statute, notice, judgment), the source and target languages, and the target legal system."
+     },
+     {
+      "name": "purpose",
+      "required": false,
+      "description": "Whether the translation is for understanding, for execution/filing (binding), or certified; and which language will govern."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "drafting/plain-language-explainer",
+     "research/multi-jurisdiction-survey",
+     "contracts/contract-review",
+     "drafting/legal-design-review",
+     "research/statute-analysis"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Legal Translation\n\nTakes a legal document and renders it in the target language so its **legal effect** carries over — preserving function, defined terms and structure, flagging concepts with no equivalent, and stating which language governs. The deliverable is a legal-effect-faithful translation (or a review of one) with term notes and the no-equivalent traps flagged, not a literal word swap.\n\n## When to use / not use\n\n- Use: translating a contract, pleading, statute, judgment, or notice between languages; reviewing a supplied legal translation for fidelity of legal effect; producing term notes for a bilingual document.\n- Hand off: simplifying a document for a lay reader **in one language** → `drafting/plain-language-explainer`; comparing how different legal systems treat an issue → `research/multi-jurisdiction-survey`; the substantive risk review of the contract being translated → `contracts/contract-review`; improving a document's readability/layout → `drafting/legal-design-review`; close reading of a source statute → `research/statute-analysis`.\n\n## Inputs to collect first\n\n1. The **source document and type** (contract, pleading, statute, notice) — type drives how literal vs functional the translation must be.\n2. The **source and target languages** and the **target legal system**.\n3. The **purpose**: understanding only, execution/filing (binding), or **certified** translation — this sets the fidelity bar.\n4. **Which language governs** — critical where both versions will exist.\n\n## Method\n\n1. **Translate legal function, not words.** Render the legal *effect* each provision has, not a literal gloss; a word-for-word translation of a term of art often produces a clause that means something different (or nothing) in the target system. Fidelity is to meaning and function.\n2. **Keep untranslatable terms-of-art in the original + note.** Where a concept has **no equivalent** in the target legal system (e.g. common-law *consideration*, *trust*, *estoppel*; or a civil-law notion in a common-law target), keep the original term and add a translator's note explaining it, rather than forcing a misleading \"nearest word\".\n3. **Flag no-equivalent concepts explicitly.** Surface every place where the legal concepts don't map — these are where a translation silently changes rights. The note/flag is the point; hiding the gap behind a confident translation is the core danger.\n4. **Preserve defined terms, numbering and structure.** Keep the defined-terms scheme (translate the definition, keep the term's role), clause numbering, and cross-references intact so the document still operates as a legal instrument.\n5. **Match register and precision.** Keep the formality and precision of legal language (shall/must, mandatory vs permissive); don't soften or over-formalise. Preserve deliberate ambiguity where it's deliberate.\n6. **Handle numbers, dates, names, citations.** Dates/number formats, currency, party names and addresses, and legal citations converted/retained correctly; a mistranslated figure or date is a substantive error, not a style one.\n7. **State the governing-language position.** Where both versions exist, record which language **governs** in a conflict and whether the translation is for convenience or is itself binding; flag any discrepancy found between versions.\n8. **Respect certification/formality needs.** For filing/execution, note any requirement for a **certified/sworn** translation, notarisation, or apostille — a translation that's substantively fine can still be rejected for the wrong formality `[verify current]`.\n9. **(Review mode)** compare the translation against the source for legal-effect fidelity, missed no-equivalent flags, altered defined terms, and number/date errors.\n10. **Score against the Checks table** and output the translation + term notes + no-equivalent flags + governing-language note.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Literal translation distorts legal effect | Function/effect rendered, not word-for-word | S1 | Re-translate for meaning |\n| No-equivalent concept forced into a wrong word | Original kept + translator's note | S1 | Keep term; add the note |\n| No-equivalent gaps not flagged | Every mismatch surfaced | S1 | Flag the concept gaps |\n| Defined terms / numbering / cross-refs broken | Structure + defined-term scheme preserved | S1 | Restore the structure |\n| Register/precision lost (shall vs may) | Mandatory/permissive force preserved | S2 | Correct the modal/precision |\n| Numbers / dates / names / citations wrong | Converted/retained accurately | S1 | Fix the substantive data |\n| Governing language not stated | Which version governs recorded | S2 | Add the governing-language note |\n| Certification/formality requirement missed | Certified/sworn/apostille noted where needed | S2 | Flag the formality `[verify current]` |\n\n## Output\n\nLead with `Translation: <source→target> — <doc type> — fidelity: legal-effect preserved | issues flagged`. Then the output contract. Add:\n\n- **The translation** (or review findings), preserving structure and defined terms.\n- **Term notes**: untranslatable terms-of-art kept in original + explanation.\n- **No-equivalent flags**: concepts that don't map, and the risk each carries.\n- **Governing language & formality**: which version governs; certification needs.\n- One JSON finding per fidelity/no-equivalent/data issue with `category: \"legal-translation\"`.\n\n## Edge cases & pitfalls\n\n- **False-friend terms of art**: translating *consideration*, *trust*, *without prejudice*, or a civil-law concept with its \"nearest word\" can change the legal meaning entirely — keep the original and note it.\n- **Silent concept gaps**: the real danger is a confident translation that hides a concept the target system doesn't have — flag every no-equivalent, loudly.\n- **Broken defined terms/cross-refs**: translating a defined term inconsistently, or breaking numbering, stops the document operating as an instrument.\n- **Number/date/name slips**: a transposed figure, a misread date format, or a garbled party name is a substantive error with real consequences.\n- **Right translation, wrong formality**: a substantively perfect translation can still be rejected for filing without the required certification/sworn status.\n\n## References\n\n- Volatile facts: cite `[verify current]` where a certified/sworn-translation or apostille requirement for the forum is load-bearing.\n- Legal-translation practice (functional equivalence, terms of art, governing-language clauses); the source document's defined terms and structure; the target legal system's concepts.",
+   "references": {},
+   "description": "Translates legal documents so the legal effect survives, not just the words: render meaning and legal function faithfully, keep untranslatable terms-of-art in the original with a note, preserve defined terms/numbering/structure, flag concepts with no equivalent in the target legal system, and state which language governs. Use to translate or review a translation of a contract, pleading, statute or notice. Not for plain-language rewriting in one language → drafting/plain-language-explainer; not for a multi-country legal comparison → research/multi-jurisdiction-survey.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "drafting/policy-drafter",
@@ -6335,11 +6697,62 @@
    "module": "drafting",
    "name": "legal-design-review",
    "title": "Legal design review",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Score and improve a document's readability and usability."
+   "summary": "Score and improve a document's readability and usability.",
+   "meta": {
+    "name": "drafting-legal-design-review",
+    "description": "Scores and improves a legal document's readability and usability: structure and navigation (headings, order, summaries), language (plain, consistent, defined terms), visual layout (whitespace, tables, numbering), and usability for its actual reader and task — without changing legal effect. Use to make a contract, policy, notice or form easier to understand and act on. Not for simplifying content into a lay explainer → drafting/plain-language- explainer; not for persuasive advocacy structure → drafting/persuasive-writing.",
+    "module": "drafting",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "self-serve",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of review (score + recommend improvements) or redesign (produce an improved version preserving legal effect)."
+     },
+     {
+      "name": "document",
+      "required": false,
+      "description": "The document and its type (contract, policy, notice, consent form, disclosure), the audience, and the task the reader must perform with it."
+     },
+     {
+      "name": "constraints",
+      "required": false,
+      "description": "Any mandatory content/format the law requires, brand/style rules, and the channel (print, web, mobile)."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "drafting/plain-language-explainer",
+     "drafting/persuasive-writing",
+     "contracts/terms-of-service-audit",
+     "regulatory/accessibility-compliance",
+     "privacy/privacy-notice-drafter"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Legal Design Review\n\nTakes a legal document and returns a usability assessment and concrete improvements — structure, language, layout — so its actual reader can understand it and do what it asks, **without changing the legal effect**. The deliverable is a scored review (or a redesigned version) with specific fixes, not a vague \"make it clearer\".\n\n## When to use / not use\n\n- Use: making a contract, policy, notice, consent form, or disclosure easier to read and act on; scoring a document's usability; redesigning a dense legal document for its real audience and channel; checking a form actually gets completed correctly.\n- Hand off: rewriting content into a lay-reader explanation (changing what's said, not just how) → `drafting/plain-language-explainer`; structuring a persuasive brief/submission → `drafting/persuasive-writing`; the legal/consumer-law audit of online terms → `contracts/terms-of-service-audit`; accessibility/WCAG conformance for a digital product → `regulatory/accessibility-compliance`; the privacy-notice content itself → `privacy/privacy-notice-drafter`.\n\n## Inputs to collect first\n\n1. The **document and type**, the **audience** (lawyer, consumer, employee, counterparty), and the **task** the reader must perform (sign, decide, comply, complete).\n2. Any **mandatory content/format** the law requires (which can't be designed away).\n3. **Brand/style** rules and the **channel** (print, web, mobile).\n\n## Method\n\n1. **Anchor on the reader and the task.** Who reads this and what must they *do* with it? Usability is measured against that task — a consumer consent form and a bilateral MSA have different bars. Design for the actual reader, not the drafter.\n2. **Review structure and navigation.** Logical order (most-important/most-used first), meaningful **headings**, a summary or table of key terms where the document is long, and findable cross-referenced content — can the reader locate the clause that governs their question?\n3. **Review language.** Plain words over legalese where legal effect allows, short sentences, active voice, consistent terminology, and defined terms used (not drifted). Keep the precision the law needs — clarity is not dumbing down.\n4. **Review visual layout.** Whitespace, consistent numbering, tables for conditional/comparative content (fees, timelines, who-does-what), emphasis for critical terms, and no walls of dense text. Layout does real comprehension work.\n5. **Preserve legal effect — the hard constraint.** Every design change must leave the legal meaning intact; don't drop a clause, soften a mandatory term, or merge provisions in a way that changes rights. Flag anywhere a usability fix would touch substance so a lawyer signs it off.\n6. **Respect mandatory form.** Some content/format/prominence is legally required (consumer disclosures, prescribed wording, signature blocks) — design within it, and use prominence to satisfy \"clear and conspicuous\" rules rather than fight them `[verify current]`.\n7. **Design for the channel and accessibility.** Mobile/web rendering, reflow, and basic accessibility (headings, contrast, structure) so the document works where it's actually used → `regulatory/accessibility-compliance`.\n8. **Test against the task.** Where possible, sanity-check that a target reader could find the key term and complete the action; for forms, that the fields map to what the reader knows.\n9. **Score against the Checks table** and output a usability score + prioritised fixes (or the redesigned document with a note on anything needing legal sign-off).\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Not designed for the actual reader/task | Audience + task identified and targeted | S2 | Re-anchor on reader/task |\n| Poor structure / no navigation | Logical order + headings + summary/key-terms | S2 | Restructure + add navigation |\n| Legalese / inconsistent terms | Plain, consistent language; defined terms used | S2 | Simplify where effect allows |\n| Dense layout / no visual aids | Whitespace + tables + emphasis on critical terms | S2 | Improve the layout |\n| Design change alters legal effect | Meaning preserved; substance changes flagged | S1 | Flag for legal sign-off; don't change silently |\n| Mandatory form/prominence not respected | Required content/format/prominence kept | S1 | Design within the requirement `[verify current]` |\n| Breaks on mobile / inaccessible | Channel + basic accessibility handled | S2 | Fix rendering/accessibility |\n| Not tested against the task | Reader can find key term / complete action | S3 | Sanity-check the task |\n\n## Output\n\nLead with `Usability: <score/band> — <document> — top fix: <the highest-impact change>`. Then the output contract. Add:\n\n- **Reader & task**: who it's for and what they must do.\n- **Findings**: structure / language / layout issues, each with a concrete fix.\n- **Legal-effect note**: any fix that touches substance and needs sign-off.\n- **(Redesign mode)** the improved document.\n- One JSON finding per usability issue with `category: \"legal-design\"`.\n\n## Edge cases & pitfalls\n\n- **Clarity that changes the law**: the cardinal error — a \"simplification\" that drops a carve-out or softens a mandatory term alters rights; preserve legal effect and flag anything substantive for sign-off.\n- **Designing away mandatory content**: prescribed wording, disclosures, and prominence rules can't be tidied out — design *within* them, using layout to satisfy \"clear and conspicuous\".\n- **Dumbing down ≠ clarity**: stripping necessary precision to read nicely creates ambiguity — keep the precision the document needs.\n- **Pretty but unusable**: visual polish that doesn't help the reader find or do the thing misses the point — measure against the task.\n- **Desktop-only design**: a layout that collapses on mobile fails where many readers actually open it — design for the channel.\n\n## References\n\n- Volatile facts: cite `[verify current]` where a \"clear and conspicuous\"/prescribed-format legal requirement governs the document.\n- Legal-design and plain-language practice (information hierarchy, layering, visualisation); any mandatory-content/format rules for the document type; accessibility basics → `regulatory/accessibility-compliance`.",
+   "references": {},
+   "description": "Scores and improves a legal document's readability and usability: structure and navigation (headings, order, summaries), language (plain, consistent, defined terms), visual layout (whitespace, tables, numbering), and usability for its actual reader and task — without changing legal effect. Use to make a contract, policy, notice or form easier to understand and act on. Not for simplifying content into a lay explainer → drafting/plain-language- explainer; not for persuasive advocacy structure → drafting/persuasive-writing.",
+   "risk_tier": "self-serve",
+   "version": "1.0.0"
   },
   {
    "id": "drafting/template-response-library",

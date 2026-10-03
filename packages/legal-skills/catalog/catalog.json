@@ -206,7 +206,7 @@
       "module": "contracts",
       "name": "clause-drafter",
       "title": "Clause drafter from library",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -272,7 +272,7 @@
       "module": "contracts",
       "name": "terms-of-service-audit",
       "title": "Online terms & consumer-terms audit",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -283,7 +283,7 @@
       "module": "contracts",
       "name": "sustainability-clauses",
       "title": "Sustainability & ESG clauses",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -294,7 +294,7 @@
       "module": "contracts",
       "name": "contract-template-builder",
       "title": "Contract template builder",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -912,7 +912,7 @@
       "module": "ip",
       "name": "infringement-takedown",
       "title": "Infringement & takedown",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1044,7 +1044,7 @@
       "module": "matters",
       "name": "lessons-learned",
       "title": "Lessons learned",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1154,7 +1154,7 @@
       "module": "drafting",
       "name": "legal-translation",
       "title": "Legal translation",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1176,7 +1176,7 @@
       "module": "drafting",
       "name": "legal-design-review",
       "title": "Legal design review",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
