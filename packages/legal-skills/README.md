@@ -135,7 +135,7 @@ _Applicability, change monitoring, AI governance, trade, anti-corruption, sector
 | Digital accessibility | 🗺️ planned | global | WCAG, Section 508, EAA and RPwD Act obligations for digital products. |
 | [Product cybersecurity obligations](skills/regulatory/product-cyber-obligations/SKILL.md) | ✅ built | EU, US | Cyber Resilience Act and similar secure-by-design and vulnerability-handling duties. |
 
-### Corporate, Governance & Board — 7/8 built
+### Corporate, Governance & Board — 8/8 built
 
 _Board work, entity compliance, M&A and securities_
 
@@ -147,7 +147,7 @@ _Board work, entity compliance, M&A and securities_
 | [Entity compliance calendar](skills/corporate/entity-compliance-calendar/SKILL.md) | ✅ built | IN, global | Statutory filings and registers by entity: MCA, ROC, FEMA returns, and foreign equivalents. |
 | [FDI & FEMA assessment](skills/corporate/fdi-fema-assessment/SKILL.md) | ✅ built | IN | Route, sectoral caps, Press Note 3 and reporting for inbound investment. |
 | [Listed company disclosure](skills/corporate/listed-company-disclosure/SKILL.md) | ✅ built | IN | SEBI LODR materiality, disclosure timelines and insider-trading (PIT) controls. |
-| Shareholders' & founders' agreements | 🗺️ planned | global | Draft or review SHA/founders' terms: control, transfer, exit, vesting. |
+| [Shareholders' & founders' agreements](skills/corporate/shareholder-agreement/SKILL.md) | ✅ built | global | Draft or review SHA/founders' terms: control, transfer, exit, vesting. |
 | [Governance health check](skills/corporate/corporate-governance-review/SKILL.md) | ✅ built | global | Board composition, committee charters and delegation-of-authority review. |
 
 ### Litigation & Disputes — 10/10 built
@@ -167,7 +167,7 @@ _Early case assessment, holds, chronology, strategy and settlement_
 | [Arbitration strategy](skills/disputes/arbitration-strategy/SKILL.md) | ✅ built | global | Tribunal selection, interim relief and enforcement planning for arbitration. |
 | [Regulatory investigation response](skills/disputes/regulatory-investigation/SKILL.md) | ✅ built | global | Respond to regulator notices, dawn raids and information requests. |
 
-### Employment & People — 5/6 built
+### Employment & People — 6/6 built
 
 _Exits, investigations, restrictive covenants and workplace compliance_
 
@@ -176,35 +176,35 @@ _Exits, investigations, restrictive covenants and workplace compliance_
 | [Termination risk review](skills/employment/termination-risk/SKILL.md) | ✅ built | global | Assess a proposed exit for legal risk and process defects, and produce a compliant exit plan. |
 | [Workplace investigation](skills/employment/workplace-investigation/SKILL.md) | ✅ built | global | Plan and run a fair investigation; draft the findings report. |
 | [POSH compliance & inquiry](skills/employment/posh-compliance/SKILL.md) | ✅ built | IN | Internal Committee constitution, inquiry procedure and annual reporting under the POSH Act. |
-| Restrictive covenants | 🗺️ planned | global | Non-compete, non-solicit and confidentiality enforceability by jurisdiction. |
+| [Restrictive covenants](skills/employment/restrictive-covenants/SKILL.md) | ✅ built | global | Non-compete, non-solicit and confidentiality enforceability by jurisdiction. |
 | [Indian labour codes](skills/employment/india-labour-codes/SKILL.md) | ✅ built | IN | Wages, social security, IR and OSH code obligations and transition issues. |
 | [Employment policy drafter](skills/employment/employment-policy-drafter/SKILL.md) | ✅ built | global | Draft handbooks and policies aligned to local law and company practice. |
 
-### Intellectual Property — 3/5 built
+### Intellectual Property — 4/5 built
 
 _Clearance, open source, ownership and enforcement_
 
 | Skill | Status | Jurisdictions | What it does |
 |---|---|---|---|
 | [Open-source licence review](skills/ip/open-source-review/SKILL.md) | ✅ built | global | Classify dependencies by licence obligation and decide what can ship, under what conditions. |
-| Trademark clearance | 🗺️ planned | global | Knockout and full-search analysis for a proposed mark across target classes. |
+| [Trademark clearance](skills/ip/trademark-clearance/SKILL.md) | ✅ built | global | Knockout and full-search analysis for a proposed mark across target classes. |
 | [IP ownership & assignment audit](skills/ip/ip-ownership-audit/SKILL.md) | ✅ built | global | Confirm chain of title from employees, contractors and acquisitions. |
 | [Copyright & originality assessment](skills/ip/copyright-assessment/SKILL.md) | ✅ built | global | Protectability, ownership and permitted-use analysis, including AI-generated content. |
 | Infringement & takedown | 🗺️ planned | global | Assess infringement and draft notices or responses (incl. IT Rules intermediaries). |
 
-### Outside Counsel & Spend — 2/7 built
+### Outside Counsel & Spend — 7/7 built
 
 _Panels, engagement terms, invoices, budgets and performance_
 
 | Skill | Status | Jurisdictions | What it does |
 |---|---|---|---|
 | [Outside counsel invoice review](skills/outside-counsel/invoice-review/SKILL.md) | ✅ built | global | Review invoices against billing guidelines and budget; produce adjustments and a firm-ready dispute note. |
-| Engagement terms & billing guidelines | 🗺️ planned | global | Draft and maintain outside counsel guidelines and engagement letters. |
-| Panel design & RFP | 🗺️ planned | global | Structure a panel, run an RFP and score proposals. |
-| Alternative fee arrangements | 🗺️ planned | global | Design fixed, capped, phased or success fees matched to scope and risk. |
+| [Engagement terms & billing guidelines](skills/outside-counsel/billing-guidelines/SKILL.md) | ✅ built | global | Draft and maintain outside counsel guidelines and engagement letters. |
+| [Panel design & RFP](skills/outside-counsel/panel-rfp/SKILL.md) | ✅ built | global | Structure a panel, run an RFP and score proposals. |
+| [Alternative fee arrangements](skills/outside-counsel/fee-arrangements/SKILL.md) | ✅ built | global | Design fixed, capped, phased or success fees matched to scope and risk. |
 | [Matter budget & forecast](skills/outside-counsel/matter-budget/SKILL.md) | ✅ built | global | Build a phase budget and track burn against it. |
-| Firm performance scorecard | 🗺️ planned | global | Post-matter feedback and quarterly firm reviews. |
-| Local counsel coordination | 🗺️ planned | global | Instruct and coordinate counsel across multiple jurisdictions. |
+| [Firm performance scorecard](skills/outside-counsel/performance-scorecard/SKILL.md) | ✅ built | global | Post-matter feedback and quarterly firm reviews. |
+| [Local counsel coordination](skills/outside-counsel/local-counsel-management/SKILL.md) | ✅ built | global | Instruct and coordinate counsel across multiple jurisdictions. |
 
 ### Matter Management & Legal Ops — 5/6 built
 
