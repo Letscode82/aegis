@@ -35,3 +35,7 @@ export { detectPII, redactPII, redactMessagesBody, isPIIRedactionEnabled, PII_PA
 // (JEV-compatible, Apache-2.0). Degrades to the regex classifier when
 // `LAYA_URL` is unset or the service is unavailable.
 export { classifyIntakeLaya, isLayaConfigured } from "./laya.js";
+
+// Citation enforcement + grounding guardrails (C-13) — deterministically strip
+// hallucinated `[n]` citations from a grounded answer and flag ungrounded ones.
+export { enforceCitations } from "./grounding.js";

@@ -19,7 +19,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
 import { assertAndAudit } from "../../../lib/authz";
-import { callClaude } from "@aegis/ai";
+import { callClaude, enforceCitations } from "@aegis/ai";
 import { ensureServerClaudeTransport } from "@aegis/ai/server";
 import { semanticSearch } from "@aegis/search";
 import { prisma } from "@aegis/db";
@@ -196,8 +196,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       }
     }
 
-    recordSpan("one_legal.ask", Date.now() - t0, { grounded, sources: sources.length, degraded });
-    return res.status(200).json({ ok: true, answer, grounded, degraded, sources });
+    // C-13 — enforce the inline [n] citations against the sources we actually
+    // retrieved: strip any the model invented, and flag an answer that cites
+    // nothing. Only meaningful on the grounded, model-composed path (the
+    // degraded extractive fallback already cites real excerpts by construction).
+    let citations: { cited: number[]; dropped: number; warnings: string[] } | undefined;
+    if (grounded && !degraded) {
+      const checked = enforceCitations(answer, sources);
+      answer = checked.text;
+      citations = { cited: checked.citedIndices, dropped: checked.droppedCitations, warnings: checked.warnings };
+    }
+
+    recordSpan("one_legal.ask", Date.now() - t0, {
+      grounded,
+      sources: sources.length,
+      degraded,
+      citationsDropped: citations?.dropped ?? 0,
+      citationWarnings: citations?.warnings.join(",") || "",
+    });
+    return res.status(200).json({ ok: true, answer, grounded, degraded, sources, citations });
   } catch (err) {
     if (err instanceof AccessDeniedError) return res.status(403).json({ ok: false, error: err.decision.message });
     return res.status(400).json({ ok: false, error: String((err as Error).message || err) });
