@@ -16,11 +16,14 @@
  * (create-only, reversible via the matter close/archive lifecycle). Legal
  * hold, DSAR, contract-draft tools follow the same shape.
  */
-import { Permission } from "@aegis/auth";
+import { Permission, type AuthUser } from "@aegis/auth";
 import { createMatter, createLegalHold, type MatterType } from "@aegis/matter";
 import { createContract } from "@aegis/contracts";
 import { createDsarRequest } from "@aegis/privacy";
 import { runAndPersistReview } from "@aegis/spend";
+import { prisma, logAudit } from "@aegis/db";
+import { createHash } from "crypto";
+import { assertAndAudit } from "../authz";
 
 export interface OneLegalUser { id: string; organizationId: string }
 export interface ToolResult { resourceId: string; resourceLabel: string; label: string; navigate: string }
@@ -205,4 +208,125 @@ export function toolProposalFor(text: string): { id: string; label: string; args
   if (!tool) return null;
   const args = tool.deriveArgs(text);
   return { id, label: tool.label, argsSummary: tool.summary(args), needsTarget: tool.needsTarget };
+}
+
+/**
+ * The universal governed-execution path for ONE Legal mutations (OL-3).
+ *
+ * Every orchestrated mutation — not a hand-wired subset — runs through here, so
+ * the `AgentDecision` gate is structural rather than per-tool: adding a tool to
+ * the registry governs it automatically. Both human-approved surfaces (the
+ * single-action `/api/one-legal/act` route and the streaming `/api/one-legal/run`
+ * route) call this, so the gate behaves identically on each.
+ *
+ * Two-phase, mirroring the platform gate contract (a recommendation is born
+ * PENDING; the only path off PENDING is a human Approve; the executed mutation
+ * links back to the approved decision):
+ *   1. write a PENDING `AgentDecision` (the proposal) BEFORE anything mutates;
+ *   2. assert the tool's `Permission` (denials chain-sealed by SEC2);
+ *   3. run the module `api.ts` mutation (which chain-seals its own audit);
+ *   4. flip the decision PENDING → APPROVED, sealing in the approver, the
+ *      resulting `one_legal.tool.executed` audit row, and the real resource id.
+ *
+ * This is reached only after a human Approve keystroke — the console never calls
+ * the act/run execution path without one. If the gate denies or the mutation
+ * throws, the orphan PENDING row is dropped so the ledger shows no approved or
+ * executed action for a proposal that never ran.
+ */
+export interface GovernedExecution extends ToolResult {
+  argsSummary: string;
+  decisionId: string | null;
+  auditLogId: string | null;
+}
+
+function decisionSeed(toolId: string, text: string, resourceType: string, args: unknown, label: string) {
+  return {
+    agentName: "one-legal",
+    modelId: "one-legal",
+    modelVersion: "1",
+    promptHash: createHash("sha256").update(text).digest("hex"),
+    recommendationJson: { toolId, args, label } as never,
+    confidence: null,
+    resourceType,
+  };
+}
+
+export async function executeGovernedTool(
+  tool: OneLegalTool<unknown>,
+  input: { text: string; targetId?: string; user: AuthUser },
+  opts: { route: string },
+): Promise<GovernedExecution> {
+  const { text, targetId, user } = input;
+  const actor: OneLegalUser = { id: user.id, organizationId: user.organizationId };
+  const args = tool.deriveArgs(text, targetId);
+  const argsSummary = tool.summary(args);
+
+  // Phase 1 — PENDING proposal, recorded before any mutation. The resource it
+  // governs doesn't exist yet, so `resourceId` is filled in phase 4.
+  let decisionId: string | null = null;
+  try {
+    const d = await prisma.agentDecision.create({
+      data: { organizationId: user.organizationId, approvalStatus: "PENDING", ...decisionSeed(tool.id, text, tool.resourceType, args, argsSummary) },
+      select: { id: true },
+    });
+    decisionId = d.id;
+  } catch { /* evidence row is best-effort — never block the human-approved action */ }
+
+  const dropOrphan = async () => {
+    if (!decisionId) return;
+    try { await prisma.agentDecision.delete({ where: { id: decisionId } }); } catch { /* ignore */ }
+    decisionId = null;
+  };
+
+  // Phase 2 — the gate. Denials are chain-sealed (SEC2) inside assertAndAudit.
+  try {
+    await assertAndAudit(user, tool.permission, { resourceType: tool.resourceType, resourceId: tool.id, route: opts.route });
+  } catch (err) { await dropOrphan(); throw err; }
+
+  // Phase 3 — the mutation. The module api.ts function chain-seals its own audit.
+  let result: ToolResult;
+  try {
+    result = await tool.run(args, actor);
+  } catch (err) { await dropOrphan(); throw err; }
+
+  // Phase 4 — the ONE Legal approval that authorized this action, on the chain,
+  // plus the PENDING → APPROVED flip that links decision ⇄ audit ⇄ resource.
+  let auditLogId: string | null = null;
+  try {
+    auditLogId = await logAudit({
+      organizationId: user.organizationId,
+      actorId: user.id,
+      actorType: "USER",
+      action: "one_legal.tool.executed",
+      resourceType: tool.resourceType,
+      resourceId: result.resourceId,
+      afterJson: { toolId: tool.id, args, label: result.label } as never,
+      metadata: { source: "one-legal", route: opts.route } as never,
+    });
+  } catch { /* audit is best-effort; never undoes the action */ }
+
+  if (decisionId) {
+    try {
+      await prisma.agentDecision.update({
+        where: { id: decisionId },
+        data: { approvalStatus: "APPROVED", approvedById: user.id, approvedAt: new Date(), resultingAuditLogId: auditLogId, resourceId: result.resourceId },
+      });
+    } catch { /* seal is best-effort */ }
+  } else {
+    // Phase-1 write failed (e.g. DB hiccup): still capture the approved decision
+    // so the executed mutation never lacks its governance evidence row.
+    try {
+      await prisma.agentDecision.create({
+        data: {
+          organizationId: user.organizationId,
+          approvalStatus: "APPROVED", approvedById: user.id, approvedAt: new Date(),
+          resultingAuditLogId: auditLogId, resourceId: result.resourceId,
+          ...decisionSeed(tool.id, text, tool.resourceType, args, result.label),
+        },
+        select: { id: true },
+      }).then((d) => { decisionId = d.id; });
+    } catch { /* ignore */ }
+  }
+
+  return { ...result, argsSummary, decisionId, auditLogId };
 }

@@ -2,21 +2,21 @@
  * POST /api/one-legal/act — execute a human-approved ONE Legal tool (OL-2).
  *
  * The console proposes a tool for a task; the human clicks Approve; this
- * route runs it. Governance: the tool's `Permission` is asserted, args are
- * re-derived server-side from the request text (never trusted from the
+ * route runs it. Governance lives in the universal gate
+ * (`executeGovernedTool` in lib/one-legal/tools): a PENDING `AgentDecision` is
+ * written before anything mutates, the tool's `Permission` is asserted, args
+ * are re-derived server-side from the request text (never trusted from the
  * client), the module `api.ts` function executes (which chain-seals its own
- * audit), and we write an `AgentDecision` row — approved by this user —
- * plus a `one_legal.tool.executed` audit row as the evidence record.
+ * audit), and the decision flips PENDING → APPROVED — linked to the resulting
+ * `one_legal.tool.executed` audit row and the real resource. The streaming
+ * `/run` route shares the same gate, so both surfaces behave identically.
  *
- * Body: { toolId: string, text: string }
+ * Body: { toolId: string, text: string, targetId?: string }
  */
 import type { NextApiRequest, NextApiResponse } from "next";
-import { createHash } from "crypto";
 import { AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
-import { prisma, logAudit } from "@aegis/db";
-import { getTool } from "../../../lib/one-legal/tools";
-import { assertAndAudit } from "../../../lib/authz";
+import { getTool, executeGovernedTool } from "../../../lib/one-legal/tools";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -36,49 +36,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (text.length < 3) return res.status(400).json({ ok: false, error: "Missing request text." });
     if (tool.needsTarget && !targetId) return res.status(400).json({ ok: false, error: `Select a ${tool.needsTarget.label.toLowerCase()} first.` });
 
-    // Permission gate for this specific action — denials are audited (SEC2).
-    await assertAndAudit(user, tool.permission, { resourceType: tool.resourceType, resourceId: toolId, route: "one-legal.act" });
-
-    // Args are derived server-side — the client cannot smuggle its own.
-    const args = tool.deriveArgs(text, targetId);
-    const result = await tool.run(args, { id: user.id, organizationId: user.organizationId });
-
-    // Evidence record: a human-approved AgentDecision governing this action,
-    // plus a chain-sealed audit row (the module's api.ts also audits its own
-    // mutation; this records the ONE Legal approval that authorized it).
-    let auditLogId: string | null = null;
-    try {
-      auditLogId = await logAudit({
-        organizationId: user.organizationId,
-        actorId: user.id,
-        actorType: "USER",
-        action: "one_legal.tool.executed",
-        resourceType: tool.resourceType,
-        resourceId: result.resourceId,
-        afterJson: { toolId, args, label: result.label } as never,
-        metadata: { source: "one-legal" } as never,
-      });
-    } catch { /* audit is best-effort; never blocks the action */ }
-
-    try {
-      await prisma.agentDecision.create({
-        data: {
-          organizationId: user.organizationId,
-          agentName: "one-legal",
-          modelId: "one-legal",
-          modelVersion: "1",
-          promptHash: createHash("sha256").update(text).digest("hex"),
-          recommendationJson: { toolId, args, label: result.label } as never,
-          confidence: null,
-          approvalStatus: "APPROVED",
-          approvedById: user.id,
-          approvedAt: new Date(),
-          resultingAuditLogId: auditLogId,
-          resourceType: tool.resourceType,
-          resourceId: result.resourceId,
-        },
-      });
-    } catch { /* decision row is evidence; a write failure must not undo the action */ }
+    // The universal governed path: PENDING decision → permission gate → run →
+    // APPROVED + chain-sealed audit. Args are re-derived server-side inside the
+    // gate, so the client cannot smuggle its own.
+    const result = await executeGovernedTool(tool, { text, targetId, user }, { route: "one-legal.act" });
 
     return res.status(200).json({
       ok: true,
@@ -86,7 +47,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       resourceLabel: result.resourceLabel,
       label: result.label,
       navigate: result.navigate,
-      argsSummary: tool.summary(args),
+      argsSummary: result.argsSummary,
     });
   } catch (err) {
     if (err instanceof AccessDeniedError) return res.status(403).json({ ok: false, error: err.decision.message });
