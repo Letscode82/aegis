@@ -32,7 +32,7 @@ const nextConfig = {
     },
   },
   // Workspace packages ship as source (.js/.jsx/.ts). Let Next.js transpile them.
-  transpilePackages: ["@aegis/ui", "@aegis/ai", "@aegis/intake", "@aegis/db", "@aegis/auth", "@aegis/contracts"],
+  transpilePackages: ["@aegis/ui", "@aegis/ai", "@aegis/intake", "@aegis/db", "@aegis/auth", "@aegis/contracts", "@aegis/connectors"],
   eslint: {
     // We run ESLint via turbo; don't block production builds on lint.
     ignoreDuringBuilds: true,
@@ -42,6 +42,17 @@ const nextConfig = {
   // runtime from node_modules (and the dynamic import()'s try/catch degrades
   // to "keep the filename" if they're ever absent).
   webpack: (config, { webpack, isServer }) => {
+    // Workspace packages authored with NodeNext-style explicit `.js` import
+    // specifiers (e.g. @aegis/connectors: `from "./oauth.js"`) ship as `.ts`
+    // source. Next adds `.ts`/`.tsx` to resolve.extensions so EXTENSIONLESS
+    // workspace imports resolve, but a literal `./oauth.js` specifier does not
+    // map to `oauth.ts` without this alias. Map `.js` → try `.ts`/`.tsx` first,
+    // then fall through to a real `.js` (so shipped `.js` deps still resolve).
+    config.resolve.extensionAlias = {
+      ...(config.resolve.extensionAlias || {}),
+      ".js": [".ts", ".tsx", ".js"],
+      ".mjs": [".mts", ".mjs"],
+    };
     if (isServer) {
       config.externals = config.externals || [];
       config.externals.push({ "pdf-parse": "commonjs pdf-parse", mammoth: "commonjs mammoth", xlsx: "commonjs xlsx", jszip: "commonjs jszip", "pst-extractor": "commonjs pst-extractor" });
