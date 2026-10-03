@@ -3179,24 +3179,128 @@
    "module": "corporate",
    "name": "board-minutes-resolutions",
    "title": "Minutes & resolutions drafter",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "IN",
     "global"
    ],
-   "summary": "Draft board/shareholder resolutions and minutes meeting Companies Act 2013 and SS-1/SS-2."
+   "summary": "Draft board/shareholder resolutions and minutes meeting Companies Act 2013 and SS-1/SS-2.",
+   "meta": {
+    "name": "corporate-board-minutes-resolutions",
+    "description": "Drafts or reviews board / shareholder resolutions and minutes to the required standard: correct meeting mechanics (notice, quorum, conflicted-director recusal), the operative resolution wording, the authority and approvals a decision needs, and India's Secretarial Standards SS-1/SS-2 and Companies Act formalities. Use to paper a board or members' decision defensibly. Not for the broader governance health check → corporate/corporate-governance-review; not for the recurring filing calendar → corporate/entity-compliance-calendar.",
+    "module": "corporate",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "IN",
+     "global"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of draft (produce resolutions + minutes), review (assess a draft for validity/formalities) or authority-check (confirm what approvals a decision needs and who can pass it)."
+     },
+     {
+      "name": "decision",
+      "required": false,
+      "description": "The decision(s) to be recorded, the body (board / committee / shareholders), the meeting date and type, and any conflicted directors."
+     },
+     {
+      "name": "company",
+      "required": false,
+      "description": "The entity type and governing law, its articles, the quorum/notice rules, and whether Secretarial Standards (SS-1/SS-2) apply."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "corporate/corporate-governance-review",
+     "corporate/entity-compliance-calendar",
+     "corporate/shareholder-agreement",
+     "corporate/listed-company-disclosure",
+     "corporate/fdi-fema-assessment"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Minutes & Resolutions Drafter\n\nTakes a corporate decision and returns the resolutions and minutes that record it defensibly: the right meeting mechanics, the operative wording, the approvals the matter actually needs, and the statutory formalities (in India, Companies Act 2013 + SS-1/SS-2). The deliverable is a valid, audit-proof record, not prose that merely narrates the meeting.\n\n## When to use / not use\n\n- Use: drafting board/committee/shareholder resolutions and the minutes; reviewing a draft for validity and formality defects; confirming what approvals a decision needs (board vs shareholders vs special resolution) and who can pass it; papering a circular/written resolution.\n- Hand off: the overall governance structure/charters/DoA review → `corporate/corporate-governance-review`; the statutory filing deadlines that follow the resolution → `corporate/entity-compliance-calendar`; shareholder-level rights behind the resolution → `corporate/shareholder-agreement`; a listed company's disclosure of the decision → `corporate/listed-company-disclosure`; FEMA/FDI approvals a resolution authorises → `corporate/fdi-fema-assessment`.\n\n## Inputs to collect first\n\n1. The **decision(s)** to record and the **body** passing them (board, committee, or members).\n2. The **meeting type and date** (physical/video/circular), and the **articles / governing law**.\n3. The **quorum, notice, and voting** requirements, and whether **Secretarial Standards SS-1 (board) / SS-2 (general meetings)** apply (Indian companies).\n4. Any **conflicted/interested directors** and the matters requiring special majorities or members' approval.\n\n## Method\n\n1. **Confirm the right approval level first.** Map each decision to what the law/articles require: an ordinary board resolution, a matter reserved to members, an **ordinary vs special resolution**, or board + shareholder + regulator approval. Recording a members-reserved matter as a mere board resolution is invalid.\n2. **Check meeting validity mechanics.** Proper **notice** (period, agenda, notes on items), **quorum** at the start and throughout, and the chair's authority. For circular/written resolutions, confirm they're permitted for that matter and passed by the required majority.\n3. **Handle conflicted directors.** An interested director must **disclose** the interest and (generally) **not vote or count in quorum** on that item; record the disclosure and recusal explicitly — a vote tainted by an undisclosed interest can void the resolution.\n4. **Draft the operative resolution precisely.** \"RESOLVED THAT…\" wording that is self-contained, states the action, the authority relied on, and any delegation/authorisation to named officers to execute — so a reader (bank, registrar, counterparty) can act on it alone.\n5. **Minute to the standard, not verbatim.** Record attendance, quorum, the chair, declarations of interest, the decisions and dissents, and the key points of consideration — enough to show the decision was properly taken, without a transcript. In India, follow **SS-1/SS-2** on content, numbering, and signing/dating `[verify current]`.\n6. **Capture authorisations and next steps.** Signatory authority, filings to be made, and who is to do what by when → `corporate/entity-compliance-calendar`.\n7. **Finalise and maintain.** Draft minutes circulated and confirmed, signed and dated within the prescribed time, entered in the minute book, and the resolution filed where a form is required.\n8. **Score against the Checks table** and set a verdict: **VALID / VALID WITH FIXES / INVALID (re-do)**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Wrong approval level (board vs members / special) | Each decision mapped to the required resolution | S1 | Re-route to the correct approval |\n| Notice / agenda defective | Proper notice + item notes given | S2 | Re-issue notice or ratify properly |\n| Quorum absent / lost mid-meeting | Quorum present throughout | S1 | Re-convene; the decision is otherwise void |\n| Interested director voted / counted | Disclosure + recusal recorded | S1 | Re-take the vote without the conflict |\n| Resolution wording not self-contained | Operative \"RESOLVED THAT\" + authority + delegation | S2 | Redraft the operative text |\n| Minutes narrate instead of record decisions | Decisions, dissents, declarations captured | S2 | Rewrite to the record standard |\n| SS-1/SS-2 formalities missed (India) | Content/numbering/signing per the Standards | S2 | Conform to the Standards `[verify current]` |\n| Circular resolution used where impermissible | Matter eligible for written resolution | S2 | Convene a meeting instead |\n| Signing/dating/minute-book upkeep missed | Signed, dated, entered within the time limit | S3 | Complete the formalities |\n\n## Output\n\nLead with `Verdict: VALID | VALID WITH FIXES | INVALID — <decision> — <key reason>`. Then the output contract. Add:\n\n- **Approval map**: each decision → required resolution level + any members'/regulator approval.\n- **Validity**: notice · quorum · conflict handling · voting.\n- **Resolutions**: the operative \"RESOLVED THAT\" wording + authorisations.\n- **Minutes**: the record skeleton to the applicable standard.\n- One JSON finding per defect with `category: \"minutes-resolutions\"`.\n\n## Edge cases & pitfalls\n\n- **Board-resolving a members' matter**: decisions reserved to shareholders (or needing a special resolution) can't be passed by the board alone — the record is invalid even if minuted perfectly.\n- **Quorum lost mid-meeting**: a quorum present at the start but lost before the vote can void later resolutions — minute quorum throughout.\n- **Silent conflict**: an interested director voting without disclosure taints the resolution — record disclosure and recusal every time.\n- **Narrative minutes**: long \"he said / she said\" minutes that don't clearly state the decision fail an audit and a court — record decisions, not discussion.\n- **Non-self-contained resolution**: a bank or registrar must act on the resolution alone; vague wording that references \"as discussed\" is unusable.\n\n## References\n\n- Volatile facts: cite `[verify current]` where an SS-1/SS-2 requirement, a special-resolution threshold, or a filing deadline under the Companies Act is load-bearing.\n- Companies Act 2013 (board/members' powers, interested-director rules) and ICSI Secretarial Standards SS-1/SS-2 for Indian companies; the company's own articles; equivalent corporate-law formalities for other jurisdictions.",
+   "references": {},
+   "description": "Drafts or reviews board / shareholder resolutions and minutes to the required standard: correct meeting mechanics (notice, quorum, conflicted-director recusal), the operative resolution wording, the authority and approvals a decision needs, and India's Secretarial Standards SS-1/SS-2 and Companies Act formalities. Use to paper a board or members' decision defensibly. Not for the broader governance health check → corporate/corporate-governance-review; not for the recurring filing calendar → corporate/entity-compliance-calendar.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "corporate/entity-compliance-calendar",
    "module": "corporate",
    "name": "entity-compliance-calendar",
    "title": "Entity compliance calendar",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "IN",
     "global"
    ],
-   "summary": "Statutory filings and registers by entity: MCA, ROC, FEMA returns, and foreign equivalents."
+   "summary": "Statutory filings and registers by entity: MCA, ROC, FEMA returns, and foreign equivalents.",
+   "meta": {
+    "name": "corporate-entity-compliance-calendar",
+    "description": "Builds a statutory compliance calendar for a company: the periodic filings, registers, meetings and returns each entity must make (in India MCA/ROC annual filings, board/AGM cadence, FEMA returns, registers; foreign equivalents), with owners, due dates and the consequence of a miss. Use to stand up or audit an entity's recurring-compliance obligations. Not for a one-off resolution/minute → corporate/board-minutes-resolutions; not for the FDI route/ reporting of a specific investment → corporate/fdi-fema-assessment.",
+    "module": "corporate",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "IN",
+     "global"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of build (produce the calendar for an entity), audit (check current compliance against what's due) or gap-fix (plan remediation of missed/overdue items)."
+     },
+     {
+      "name": "entity",
+      "required": false,
+      "description": "The entity type (private/public/LLP/listed/regulated), jurisdiction(s) of incorporation, financial-year end, and whether it has foreign investment or is listed."
+     },
+     {
+      "name": "context",
+      "required": false,
+      "description": "Known filings already made, any overdue items, and who owns compliance (company secretary / finance / external)."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "corporate/board-minutes-resolutions",
+     "corporate/fdi-fema-assessment",
+     "corporate/corporate-governance-review",
+     "corporate/listed-company-disclosure",
+     "matters/legal-kpi-dashboard"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Entity Compliance Calendar\n\nTakes an entity and returns the full recurring-compliance picture: every periodic filing, register, meeting and return it must make, each with an owner, a due date, and the penalty for a miss. The deliverable is a maintainable calendar (or an audit against one), not a generic list of \"annual filings\".\n\n## When to use / not use\n\n- Use: standing up the compliance calendar for a company/LLP; auditing whether an entity is current on its statutory obligations; planning remediation for overdue filings; onboarding a new entity or jurisdiction.\n- Hand off: drafting a specific resolution/minute the calendar calls for → `corporate/board-minutes-resolutions`; the route/caps/reporting of a specific foreign investment → `corporate/fdi-fema-assessment`; the governance-structure health check → `corporate/corporate-governance-review`; listed-company event disclosure (distinct from periodic filings) → `corporate/listed-company-disclosure`; rolling compliance metrics into a department dashboard → `matters/legal-kpi-dashboard`.\n\n## Inputs to collect first\n\n1. The **entity type and jurisdiction(s)** — a private company, public company, LLP, listed, or regulated entity each carry different obligations.\n2. The **financial-year end** and incorporation date (they drive AGM and annual-filing deadlines).\n3. Whether the entity has **foreign investment / overseas holdings** (FEMA returns) or is **listed/regulated** (additional periodic filings).\n4. What's already filed and any known overdue items; who owns compliance.\n\n## Method\n\n1. **Classify the entity and pull the applicable obligation set.** The right list depends on type/status — don't apply a public-company checklist to a small private company or miss LLP-specific filings `[verify current]`.\n2. **Map the periodic statutory filings.** In India: annual return (**MGT-7/7A**), financial statements (**AOC-4**), director KYC (**DIR-3 KYC**), **DPT-3**, auditor appointment (**ADT-1**), and event-based forms — each with its trigger and due date; for foreign jurisdictions, the local annual-return/accounts equivalents.\n3. **Map the meeting and register cadence.** Minimum **board meetings** per year (and the max gap between them), the **AGM** deadline, and the statutory **registers/minute books** that must be maintained → `corporate/board-minutes-resolutions`.\n4. **Add FEMA / foreign-investment returns where relevant.** Annual **FLA** return, **FC-GPR/FC-TRS** on investment events, and any ODI/overseas-holding returns → `corporate/fdi-fema-assessment`.\n5. **Add listed/regulated periodic obligations.** Periodic financial results, governance reports, and any sector-regulator returns (distinct from event-based disclosure) `[verify current]`.\n6. **Assign owner, due date and lead-time per item.** Each obligation gets a responsible owner, the statutory due date, and an internal prep deadline with buffer — a calendar without owners doesn't get actioned.\n7. **State the consequence of a miss.** Late fees, additional-fee multipliers, director disqualification risk, or strike-off exposure — so priorities are clear and overdue items get escalated.\n8. **Audit mode:** reconcile what's due against what's filed; flag overdue items by severity and build the remediation (file now, pay additional fees, condonation/compounding where needed).\n9. **Score against the Checks table** and output the calendar (or audit) with overdue/high-risk items at the top.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Wrong obligation set for the entity type | Calendar matched to type/status/jurisdiction | S1 | Re-baseline to the entity `[verify current]` |\n| Core annual filing missed (MGT-7 / AOC-4 etc.) | All periodic statutory filings mapped + due dates | S1 | File now; budget additional fees |\n| Board-meeting / AGM cadence not tracked | Minimum cadence + max-gap + AGM deadline set | S2 | Add the meeting calendar |\n| Statutory registers/minute books not maintained | Required registers listed + upkeep owner | S2 | Stand up the registers |\n| FEMA / FLA returns omitted where FDI exists | FLA + event returns included | S2 | Add the FEMA returns → fdi-fema-assessment |\n| Listed/regulated periodic filings missed | Sector/listing periodic obligations added | S2 | Add the regulated filings `[verify current]` |\n| Items without an owner or due date | Owner + due date + lead-time per item | S2 | Assign owners and dates |\n| Consequence of a miss not stated | Penalty/disqualification/strike-off noted | S3 | Add the consequence column |\n| (Audit) overdue items not escalated | Overdue flagged + remediation planned | S1 | Escalate and remediate |\n\n## Output\n\nLead with `Compliance: CURRENT | GAPS TO FIX | OVERDUE ITEMS — <entity> — <top risk>`. Then the output contract. Add:\n\n- **Calendar table**: obligation · basis/form · frequency · due date · owner · lead-time · consequence of miss.\n- **Meetings & registers**: board/AGM cadence + registers to maintain.\n- **FEMA / listed / regulated**: the extra periodic returns where applicable.\n- **(Audit) overdue items**: with severity and remediation.\n- One JSON finding per overdue/high-risk item with `category: \"compliance-calendar\"`.\n\n## Edge cases & pitfalls\n\n- **Wrong checklist**: applying a one-size list misses LLP-, listed-, or regulated-specific items, or over-burdens a small private company — set entity type first.\n- **Event-based vs periodic**: a calendar that only lists annual filings misses event-triggered forms (charge creation, director change, allotment) — map both.\n- **Owner-less calendar**: obligations with no named owner slip; the due date alone doesn't file the form.\n- **Strike-off / disqualification creep**: repeated missed annual filings can lead to director disqualification or company strike-off — overdue core filings are high-severity, not admin.\n- **FEMA blind spot**: an entity with foreign investment that never files the FLA return accrues a silent, compounding exposure — include it whenever there's foreign holding.\n\n## References\n\n- Volatile facts: Indian filing forms, fees and deadlines are volatile — cite `[verify current]` on any load-bearing due date or form; use `IN-*` registered IDs where one applies.\n- The governing company law and registry rules (Companies Act 2013 + MCA rules / LLP Act in India; local companies registries abroad); FEMA reporting rules; and listing/regulatory periodic-filing requirements.",
+   "references": {},
+   "description": "Builds a statutory compliance calendar for a company: the periodic filings, registers, meetings and returns each entity must make (in India MCA/ROC annual filings, board/AGM cadence, FEMA returns, registers; foreign equivalents), with owners, due dates and the consequence of a miss. Use to stand up or audit an entity's recurring-compliance obligations. Not for a one-off resolution/minute → corporate/board-minutes-resolutions; not for the FDI route/ reporting of a specific investment → corporate/fdi-fema-assessment.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "corporate/fdi-fema-assessment",
@@ -4322,22 +4426,125 @@
    "module": "employment",
    "name": "india-labour-codes",
    "title": "Indian labour codes",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "IN"
    ],
-   "summary": "Wages, social security, IR and OSH code obligations and transition issues."
+   "summary": "Wages, social security, IR and OSH code obligations and transition issues.",
+   "meta": {
+    "name": "employment-india-labour-codes",
+    "description": "Assesses obligations under India's four Labour Codes (Wages; Social Security; Industrial Relations; Occupational Safety, Health & Working Conditions) and the transition from the legacy Acts: the unified wage definition and its knock-on to PF/gratuity/bonus, thresholds (standing orders, works committee, chapter-X), social-security coverage incl. gig/platform workers, and state-rule variation. Use for a labour-code compliance or impact check. Not for POSH inquiries → employment/posh-compliance; not for drafting a handbook → employment/employment-policy-drafter.",
+    "module": "employment",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "IN"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of impact-check (how the codes change this employer's obligations/costs), compliance-audit (gaps against the codes) or question (a specific code obligation)."
+     },
+     {
+      "name": "employer",
+      "required": false,
+      "description": "Headcount and states of operation, worker categories (workers/employees/contract/gig-platform), current wage structure (basic vs allowances), and whether standing orders/unions apply."
+     },
+     {
+      "name": "context",
+      "required": false,
+      "description": "The specific concern — wage-definition impact, PF/gratuity cost, standing-orders/retrenchment thresholds, social-security coverage, or OSH/registration duties."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "employment/employment-policy-drafter",
+     "employment/posh-compliance",
+     "employment/restrictive-covenants",
+     "corporate/entity-compliance-calendar",
+     "research/india-legal-research"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Indian Labour Codes\n\nTakes an Indian employer and returns how the four Labour Codes change its obligations and costs: the unified wage definition and its flow-through to PF/gratuity/bonus, the headcount thresholds that trigger duties, social-security coverage (including gig/platform workers), and where state rules vary. The deliverable is a code-impact or compliance assessment with the cost and threshold drivers flagged, not a summary of the codes.\n\n## When to use / not use\n\n- Use: assessing how the Labour Codes change an employer's wage, PF/gratuity, standing-orders, retrenchment, or social-security obligations; a compliance audit against the codes; answering a specific code obligation; costing the wage-definition impact.\n- Hand off: a POSH Internal-Committee/inquiry matter → `employment/posh-compliance`; drafting the handbook/policies that implement the codes → `employment/employment-policy-drafter`; non-compete/garden-leave enforceability → `employment/restrictive-covenants`; the registration/return filing calendar → `corporate/entity-compliance-calendar`; finding the current in-force rule text → `research/india-legal-research`.\n\n## Inputs to collect first\n\n1. **Headcount and states** of operation — thresholds and the applicable **state rules** both turn on these.\n2. **Worker categories** — \"worker\" vs \"employee\", contract labour, and **gig/platform** workers (newly in scope for social security).\n3. The current **wage structure** (basic vs allowances split) — the single biggest cost driver under the new definition.\n4. Whether **standing orders**, unions, or **works committees** currently apply, and the specific concern.\n\n## Method\n\n1. **Confirm in-force status for the date.** The four codes (Wages; Social Security; Industrial Relations; OSH) are in force from **21 Nov 2025**, but **central and state rules** are still being finalised in places — apply the law/rules actually commenced for the state and date `[verify current]`.\n2. **Apply the unified \"wages\" definition first.** The codes impose a common wage definition where **excluded allowances are capped (broadly at 50%)**, so a basic-heavy recomputation raises **PF, gratuity, and bonus** bases. This is the dominant cost impact — model it before anything else.\n3. **Map the thresholds that trigger duties.** Standing orders and Chapter-X (lay-off/retrenchment/closure permission) obligations turn on worker-count thresholds (e.g. the IR Code's 300-worker line for standing orders/permission, subject to state variation); the supervisor wage ceiling defines \"worker\" `[verify current]`.\n4. **Check social-security coverage, including gig/platform.** PF/ESI coverage, the **gratuity** rule (5 years, or **1 year pro rata for fixed-term** employees), and the new **gig/platform-worker** social-security contributions and registration are a distinct, newly-widened obligation.\n5. **Industrial-relations mechanics.** Works committee, grievance redressal, standing orders certification, notice/compensation for retrenchment, the **re-skilling fund**, and strike/notice provisions.\n6. **OSH & registration.** Single registration/licence, worker welfare and working-hours/overtime rules, and the returns under the OSH Code.\n7. **Flag state-rule divergence.** Thresholds, rates, and procedural rules vary by state and some states haven't notified rules — a pan-India assumption is often wrong; identify per-state gaps.\n8. **Cost and remediate.** Quantify the wage-definition cost impact and list the compliance gaps (registration, policy, contract, payroll) with owners → `employment/employment-policy-drafter`, `corporate/entity-compliance-calendar`.\n9. **Score against the Checks table** and set a determination: **COMPLIANT / GAPS TO FIX / MATERIAL IMPACT** with the cost drivers called out.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Wage definition / 50%-cap impact not modelled | Basic vs allowances recomputed; PF/gratuity/bonus base checked | S1 | Model the wage recomputation `[verify current]` |\n| In-force / state-rule status assumed | Commenced code + notified state rules confirmed | S1 | Apply the law actually in force for the state |\n| Thresholds (standing orders / Chapter-X) misapplied | Worker-count thresholds + state variation checked | S2 | Re-test the thresholds `[verify current]` |\n| Gig/platform social security missed | New coverage + registration assessed | S2 | Add the gig-worker obligations |\n| Gratuity fixed-term pro-rata overlooked | 5-yr or 1-yr-pro-rata (fixed-term) applied | S2 | Apply the correct gratuity rule |\n| IR mechanics (grievance/retrenchment/re-skilling) gaps | Works committee + notice/compensation + fund set | S2 | Close the IR gaps |\n| OSH registration/returns missed | Single registration + welfare/hours rules met | S2 | Register and file |\n| State divergence ignored | Per-state thresholds/rates/rules checked | S2 | Map state-by-state |\n| Payroll/contract/policy not updated | Contracts + payroll + handbook aligned | S3 | Remediate downstream docs |\n\n## Output\n\nLead with `Labour codes: COMPLIANT | GAPS TO FIX | MATERIAL IMPACT — <employer> — <top driver>`. Then the output contract. Add:\n\n- **Wage-definition impact**: the recomputation and the PF/gratuity/bonus cost effect.\n- **Thresholds**: which duties are triggered at this headcount, per state.\n- **Social security**: PF/ESI/gratuity + gig/platform coverage.\n- **IR / OSH**: mechanics and registration obligations.\n- **State divergence**: per-state gaps.\n- One JSON finding per gap/impact with `category: \"india-labour-codes\"`.\n\n## Edge cases & pitfalls\n\n- **Allowance-heavy pay structures**: the capped-exclusion wage definition can sharply raise PF/gratuity costs for employers who pushed pay into allowances — this is usually the headline impact.\n- **Rules not notified**: the codes are in force but a given state's rules may not be — applying un-notified rules (or ignoring notified ones) both mislead; check the state.\n- **Gig/platform blind spot**: platform employers newly owe social-security contributions and registration — easy to miss because the legacy Acts never covered them.\n- **Threshold-by-state**: the 300-worker standing-orders/permission line and others vary by state — a single national number is often wrong.\n- **Fixed-term gratuity**: the 1-year pro-rata gratuity for fixed-term employees changes the cost of fixed-term hiring — don't apply the old 5-year rule blindly.\n\n## References\n\n- Volatile facts: `IN-LAB-01` (four codes in force 21 Nov 2025; rules being finalised), `IN-LAB-02` (IR-Code thresholds + re-skilling fund), `IN-GRAT-01` (gratuity under the Social Security Code). Cite `[verify current]` on any load-bearing threshold, rate, or state-rule status.\n- The Code on Wages 2019, Code on Social Security 2020, Industrial Relations Code 2020, and OSH&WC Code 2020, plus the central and applicable state rules.",
+   "references": {},
+   "description": "Assesses obligations under India's four Labour Codes (Wages; Social Security; Industrial Relations; Occupational Safety, Health & Working Conditions) and the transition from the legacy Acts: the unified wage definition and its knock-on to PF/gratuity/bonus, thresholds (standing orders, works committee, chapter-X), social-security coverage incl. gig/platform workers, and state-rule variation. Use for a labour-code compliance or impact check. Not for POSH inquiries → employment/posh-compliance; not for drafting a handbook → employment/employment-policy-drafter.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "employment/employment-policy-drafter",
    "module": "employment",
    "name": "employment-policy-drafter",
    "title": "Employment policy drafter",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Draft handbooks and policies aligned to local law and company practice."
+   "summary": "Draft handbooks and policies aligned to local law and company practice.",
+   "meta": {
+    "name": "employment-employment-policy-drafter",
+    "description": "Drafts or reviews employee handbooks and HR policies aligned to local law and company practice: the mandatory policies for the jurisdiction, lawful and enforceable terms, consistency across the policy stack, the contractual-vs- discretionary status of each policy, and a sensible review/acknowledgement mechanism. Use to build or refresh a handbook or a single policy. Not for a statutory labour-code obligation analysis → employment/india-labour-codes; not for POSH-specific set-up → employment/posh-compliance.",
+    "module": "employment",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "IN"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of draft (produce a policy/handbook), review (assess an existing one for legality/consistency) or gap-check (identify the mandatory/expected policies missing for the jurisdiction)."
+     },
+     {
+      "name": "policy",
+      "required": false,
+      "description": "The policy or handbook in scope (leave, disciplinary, remote work, code of conduct, etc.) and any existing draft or current version."
+     },
+     {
+      "name": "context",
+      "required": false,
+      "description": "The jurisdiction(s) and workforce profile, whether terms should be contractual or discretionary, company culture/practice, and any union/works-council involvement."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "employment/india-labour-codes",
+     "employment/posh-compliance",
+     "employment/restrictive-covenants",
+     "drafting/policy-drafter",
+     "regulatory/whistleblower-programme"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Employment Policy Drafter\n\nTakes a handbook or policy need and returns lawful, consistent, enforceable policies aligned to both local law and how the company actually operates: the mandatory set for the jurisdiction, terms that comply, the contractual-vs-discretionary status made explicit, and a workable acknowledgement/review loop. The deliverable is a usable policy set with the legal and consistency risks flagged, not generic HR boilerplate.\n\n## When to use / not use\n\n- Use: building an employee handbook or a single policy; reviewing an existing one for legality and internal consistency; checking which policies are mandatory or expected for a jurisdiction; refreshing a stack after a law change.\n- Hand off: the statutory analysis of labour-code obligations the policies implement → `employment/india-labour-codes`; the POSH Internal-Committee/inquiry set-up (a statutory regime of its own) → `employment/posh-compliance`; non-compete/garden-leave enforceability → `employment/restrictive-covenants`; the general (non-employment) policy-drafting craft → `drafting/policy-drafter`; the whistleblowing channel specifically → `regulatory/whistleblower-programme`.\n\n## Inputs to collect first\n\n1. The **jurisdiction(s)** and the **workforce profile** (employees vs contractors, locations, remote/hybrid).\n2. Whether each policy is intended to be **contractual** (binding, hard to change) or **discretionary/guidance** (flexible) — this status drives the drafting.\n3. The **company's actual practice** and culture — a policy that contradicts practice is worse than none.\n4. Any **union/works-council** consultation requirement and the existing policy stack.\n\n## Method\n\n1. **Scope the mandatory and expected set for the jurisdiction.** Identify which policies are legally required (e.g. POSH policy, equal-opportunity, specific statutory notices) vs best-practice/expected; don't ship a handbook missing a mandatory policy, and don't copy another country's mandatory list `[verify current]`.\n2. **Fix the contractual vs discretionary status of each policy — explicitly.** State clearly whether a policy forms part of the contract or is discretionary guidance the employer can vary; silent contractual status locks the employer into terms it can't easily change, while discretionary wording preserves flexibility. Get this right per policy.\n3. **Draft terms that are lawful.** Each policy must comply with local statutory floors (leave, working time, notice, minimum wage, anti-discrimination, data protection of employee data) — a policy can't contract below the statutory minimum.\n4. **Keep the stack internally consistent.** Definitions, leave interactions, disciplinary ladders, and cross-references must line up across policies; contradictions between the handbook and the contract (or between two policies) are a frequent and exploitable defect.\n5. **Make discretion defensible.** Where a policy confers discretion (bonus, discipline, performance), draft it to be exercised reasonably/non-discriminatorily and reserve variation rights properly — unfettered or arbitrary discretion is challengeable.\n6. **Reflect real practice.** Align the drafted policy with what the company actually does; a strict written policy routinely ignored creates evidence against the employer and inconsistent-treatment claims.\n7. **Add the operational scaffolding.** Effective date, version, owner, review cadence, the **acknowledgement** mechanism (so employees are bound/on notice), and the change/consultation process (including union/works-council where required).\n8. **Flag sensitive policies for specialist routing.** POSH, whistleblowing, restrictive covenants, and data-protection policies have their own regimes → route rather than improvise.\n9. **Score against the Checks table** and set a verdict: **COMPLIANT & CONSISTENT / FIXES NEEDED / NON-COMPLIANT**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Mandatory policy missing for the jurisdiction | Required set identified and present | S1 | Add the mandatory policy `[verify current]` |\n| Contractual vs discretionary status unstated | Each policy's status explicit | S1 | Label status; reserve variation rights |\n| Term below a statutory floor | Policies meet local minimums | S1 | Raise to the statutory floor |\n| Internal inconsistency (handbook vs contract/policy) | Definitions + ladders + cross-refs aligned | S2 | Reconcile the stack |\n| Discretion drafted as unfettered/arbitrary | Reasonable, non-discriminatory exercise | S2 | Re-draft the discretion |\n| Policy contradicts actual practice | Written policy matches what's done | S2 | Align policy or practice |\n| No acknowledgement / notice mechanism | Acknowledgement + effective date + version | S2 | Add the sign-off loop |\n| Union/works-council consultation skipped | Required consultation completed | S2 | Consult before adopting |\n| Specialist policy improvised | POSH/whistleblowing/covenants routed | S2 | Route to the specialist skill |\n\n## Output\n\nLead with `Verdict: COMPLIANT & CONSISTENT | FIXES NEEDED | NON-COMPLIANT — <policy/handbook> — <key issue>`. Then the output contract. Add:\n\n- **Coverage**: mandatory/expected policies present vs missing for the jurisdiction.\n- **Status map**: each policy's contractual-vs-discretionary status.\n- **Legality & consistency**: statutory-floor and cross-policy findings.\n- **Operational**: acknowledgement, version, review cadence, consultation.\n- **Draft / redline** of the policy. One JSON finding per issue with `category: \"employment-policy\"`.\n\n## Edge cases & pitfalls\n\n- **Accidental contractual status**: a handbook silent on status can be read as contractual, trapping the employer in terms it can't vary — state discretionary status deliberately.\n- **Below-the-floor terms**: a policy can't undercut statutory minimums (leave, notice, wage) — copying a laxer jurisdiction's terms is a live risk.\n- **Policy vs practice gap**: a strict written rule the company doesn't enforce becomes evidence of inconsistent treatment — align the two.\n- **Copy-paste across borders**: another country's mandatory list and lawful terms don't transfer — localise the set.\n- **Unfettered discretion**: bonus/discipline clauses drafted as absolute discretion are challengeable — build in reasonableness and non-discrimination.\n\n## References\n\n- Volatile facts: `IN-LAB-01` where labour-code obligations shape the policy; cite `[verify current]` where a mandatory-policy requirement or statutory floor is load-bearing.\n- Local employment statutes (working time, leave, notice, anti-discrimination, employee data protection); the mandatory-policy list per jurisdiction; the company's contracts and actual practice.",
+   "references": {},
+   "description": "Drafts or reviews employee handbooks and HR policies aligned to local law and company practice: the mandatory policies for the jurisdiction, lawful and enforceable terms, consistency across the policy stack, the contractual-vs- discretionary status of each policy, and a sensible review/acknowledgement mechanism. Use to build or refresh a handbook or a single policy. Not for a statutory labour-code obligation analysis → employment/india-labour-codes; not for POSH-specific set-up → employment/posh-compliance.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "ip/open-source-review",
@@ -4433,22 +4640,128 @@
    "module": "ip",
    "name": "ip-ownership-audit",
    "title": "IP ownership & assignment audit",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Confirm chain of title from employees, contractors and acquisitions."
+   "summary": "Confirm chain of title from employees, contractors and acquisitions.",
+   "meta": {
+    "name": "ip-ip-ownership-audit",
+    "description": "Confirms the chain of title to IP: that rights created by employees, contractors, founders and acquisitions have actually vested in or been assigned to the company — present assignments vs agreements-to-assign, contractor gaps, pre-incorporation and founder IP, open-source/third-party encumbrances, and the registrations/recordals that perfect title. Use for a title audit (diligence, financing, pre-deal) or to fix a gap. Not for whether a single work is protectable → ip/copyright-assessment; not for open-source code compliance → ip/open-source-review.",
+    "module": "ip",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "IN",
+     "US"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of audit (assess chain of title across the IP), gap-fix (remediate specific title defects) or deal-readiness (confirm title for a financing/M&A/licensing deal)."
+     },
+     {
+      "name": "ip",
+      "required": false,
+      "description": "The IP in scope (code, patents, trademarks, designs, content, data) and how it arose — employees, contractors, founders, acquisitions, collaborations."
+     },
+     {
+      "name": "documents",
+      "required": false,
+      "description": "Employment/IP-assignment agreements, contractor SOWs, founder assignments, acquisition/transfer docs, and any registration/recordal records."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "ip/copyright-assessment",
+     "ip/open-source-review",
+     "ip/trademark-clearance",
+     "corporate/ma-due-diligence",
+     "contracts/amendment-assignment-novation"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# IP Ownership & Assignment Audit\n\nTakes a company's IP and confirms it actually owns what it thinks it owns: that every creator's rights have vested or been assigned, that contractor and founder gaps are closed, and that title is perfected by the right registrations/recordals. The deliverable is a chain-of-title assessment with the specific gaps and fixes, not a general \"IP looks fine\".\n\n## When to use / not use\n\n- Use: an IP title audit for diligence, financing, or a pre-deal check; confirming employee/contractor/founder IP has vested; finding and fixing assignment gaps; verifying registrations and recordals perfect title.\n- Hand off: whether a particular work is protectable at all → `ip/copyright-assessment`; open-source-licence obligations/encumbrances in code → `ip/open-source-review`; trademark availability/clearance → `ip/trademark-clearance`; the broader acquisition diligence around the IP → `corporate/ma-due-diligence`; drafting the assignment/novation instrument to fix a gap → `contracts/amendment-assignment-novation`.\n\n## Inputs to collect first\n\n1. The **IP in scope** by type (code, patents, trademarks, designs, copyright works, data) and the key assets.\n2. **How each arose** — employees, contractors/agencies, founders, acquisitions, collaborations, grants.\n3. The **documents**: employment/IP-assignment agreements, contractor SOWs, founder assignments, acquisition/transfer deeds, and registration/recordal records.\n4. The **purpose** (routine audit vs a specific deal) and the governing law(s).\n\n## Method\n\n1. **Map every source of IP to a title basis.** For each material asset, identify who created it and the document that vests/assigns it to the company. The audit is a reconciliation: creator → assignment → company → registration.\n2. **Employees: present assignment vs statutory default.** Confirm employment agreements contain a **present assignment** (\"hereby assigns\") of IP created in the course of employment, not a mere agreement to assign later; check the jurisdiction's default (some vest employee works in the employer, some don't) and any employee-invention compensation rules `[verify current]`.\n3. **Contractors/agencies — the classic gap.** Work by contractors, agencies, and freelancers generally stays with **them** absent a **written assignment**; a \"work for hire\" label doesn't transfer title in many jurisdictions. Flag every contractor-created asset without a present assignment — this is the most common and dangerous defect.\n4. **Founders and pre-incorporation IP.** Check founder and pre-incorporation IP (built before the company existed, or on the side) was assigned **in** to the company — unassigned founder IP is a standard financing blocker.\n5. **Acquisitions and collaborations.** Verify acquired IP came with a valid chain of assignments (not just a bill of sale), and that joint-development/collaboration IP ownership and licence-back terms are clear.\n6. **Agreement-to-assign vs present assignment.** Distinguish a binding present assignment from a mere promise to assign (which may need a further act, can fail on insolvency, or be unenforceable) — convert agreements-to-assign into executed assignments.\n7. **Perfect title with registrations/recordals.** Confirm registered rights (patents, trademarks, designs) are recorded in the **company's** name and that assignments are **recorded** with the registry where required to be enforceable against third parties; watch stamping where applicable (India) `[verify current]`.\n8. **Screen for encumbrances.** Security interests/liens, exclusive licences out, open-source obligations, and third-party/background IP that limit clean ownership → `ip/open-source-review`.\n9. **Score against the Checks table** and set a determination: **CLEAN TITLE / GAPS TO FIX / TITLE DEFECTIVE**, with each gap's fix.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Contractor IP without a written assignment | Present assignment from every contractor | S1 | Obtain assignments; close the gap |\n| Employee agreement lacks a present assignment | \"Hereby assigns\" clause + statutory default checked | S1 | Add/execute present assignments `[verify current]` |\n| Founder / pre-incorporation IP not assigned in | Founder IP assigned to the company | S1 | Execute founder assignments |\n| Agreement-to-assign treated as transfer | Present assignment, not a promise | S2 | Convert to an executed assignment |\n| Acquired IP chain of title broken | Full assignment chain verified | S1 | Trace/repair the chain |\n| Registrations not in the company's name | Registered rights + recordals in company name | S2 | Record the assignments `[verify current]` |\n| Assignment not recorded/stamped where required | Registry recordal + stamping complete | S2 | File the recordal; stamp |\n| Encumbrances (liens, exclusive licences, OSS) missed | Security/licences/OSS screened | S2 | Flag and quantify the encumbrance |\n| Joint/collaboration IP ownership unclear | Ownership + licence-back terms confirmed | S2 | Clarify the collaboration terms |\n\n## Output\n\nLead with `Title: CLEAN | GAPS TO FIX | DEFECTIVE — <IP/entity> — <top defect>`. Then the output contract. Add:\n\n- **Chain-of-title map**: asset · creator/source · assignment basis · registration status.\n- **Gaps**: contractor/employee/founder/acquisition defects, each with the fix.\n- **Perfection**: registrations/recordals/stamping outstanding.\n- **Encumbrances**: liens, exclusive licences, OSS, background IP.\n- One JSON finding per gap with `category: \"ip-ownership\"`.\n\n## Edge cases & pitfalls\n\n- **Contractor \"work for hire\" myth**: the label does not transfer copyright in many jurisdictions — without a written assignment, the contractor owns the deliverable the company paid for.\n- **Agreement-to-assign ≠ assignment**: a promise to assign can fail to pass legal title (and fail on insolvency) — only an executed present assignment is safe.\n- **Unassigned founder IP**: IP founders built before or outside the company is a recurring financing/M&A blocker — assign it in early.\n- **Registry name mismatch**: patents/trademarks registered in a founder's or old entity's name, or assignments never recorded, leave title unenforceable against third parties.\n- **Hidden encumbrances**: an exclusive licence-out or a copyleft obligation can hollow out \"ownership\" the balance sheet assumes — screen for them.\n\n## References\n\n- Volatile facts: cite `[verify current]` where an employee-invention default, recordal requirement, or stamping rule is load-bearing; `IN-STAMP-01` where Indian stamping applies to an assignment.\n- The governing IP statutes on employee/contractor ownership and assignment formalities; registry recordal rules (patents/trademarks/designs); and the company's assignment and acquisition documents.",
+   "references": {},
+   "description": "Confirms the chain of title to IP: that rights created by employees, contractors, founders and acquisitions have actually vested in or been assigned to the company — present assignments vs agreements-to-assign, contractor gaps, pre-incorporation and founder IP, open-source/third-party encumbrances, and the registrations/recordals that perfect title. Use for a title audit (diligence, financing, pre-deal) or to fix a gap. Not for whether a single work is protectable → ip/copyright-assessment; not for open-source code compliance → ip/open-source-review.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "ip/copyright-assessment",
    "module": "ip",
    "name": "copyright-assessment",
    "title": "Copyright & originality assessment",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Protectability, ownership and permitted-use analysis, including AI-generated content."
+   "summary": "Protectability, ownership and permitted-use analysis, including AI-generated content.",
+   "meta": {
+    "name": "ip-copyright-assessment",
+    "description": "Assesses a work for copyright: whether it is protectable (originality, idea/expression, fixation), who owns it (author vs employer vs commissioner, and the hard question of AI-generated content), and whether a proposed use is permitted (licence, fair use / fair dealing, exceptions). Use to check protectability, ownership or a use/clearance question. Not for confirming chain of title across a portfolio → ip/ip-ownership-audit; not for open-source licence compliance in code → ip/open-source-review.",
+    "module": "ip",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global",
+     "IN",
+     "US"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of protectability (is there copyright and in what), ownership (who owns it) or use-check (is a proposed use permitted / is this infringement)."
+     },
+     {
+      "name": "work",
+      "required": false,
+      "description": "The work(s) in question — type (text, code, image, music, design, data), how created (human / commissioned / employee / AI-assisted or AI-generated), and when/where."
+     },
+     {
+      "name": "use",
+      "required": false,
+      "description": "For use-check — the intended use, any licence/permission held, and whether it is commercial, transformative, or a quotation/excerpt."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "ip/ip-ownership-audit",
+     "ip/open-source-review",
+     "ip/infringement-takedown",
+     "contracts/contract-review",
+     "regulatory/ai-governance"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Copyright & Originality Assessment\n\nTakes a work (or a proposed use) and returns whether copyright subsists, who owns it, and whether the use is permitted — with the AI-generated-content and ownership traps handled, not hand-waved. The deliverable is a protectability/ownership/use determination with the risks flagged, not a general copyright explainer.\n\n## When to use / not use\n\n- Use: deciding whether a work is protectable and what exactly is protected; working out ownership (employee/commissioner/AI); assessing whether a proposed use needs a licence or falls within fair use / fair dealing / an exception; a first-pass infringement read.\n- Hand off: confirming a clean chain of title across acquired/contributed IP at portfolio scale → `ip/ip-ownership-audit`; open-source-licence obligations in a codebase → `ip/open-source-review`; actually pursuing or responding to infringement/takedown → `ip/infringement-takedown`; the IP-assignment terms in a contract → `contracts/contract-review`; the AI Act/regulatory classification of an AI system → `regulatory/ai-governance`.\n\n## Inputs to collect first\n\n1. The **work type** (text, code, image, music, film, design, compilation/data) and **how it was created** — human, employee, commissioned, or **AI-assisted/AI-generated**.\n2. **When and where** created/published (term and applicable law turn on this).\n3. For a use-check: the **intended use**, any **licence/permission** held, and whether it's commercial/transformative/an excerpt.\n\n## Method\n\n1. **Protectability — is there copyright, and in what?** Test **originality** (the author's own intellectual creation / skill and judgement), the **idea–expression** divide (ideas, facts, methods aren't protected — only their expression), and **fixation** where required. Identify precisely *what* is protected (the expression, not the underlying concept).\n2. **Handle AI-generated content deliberately.** Works with **no human authorship** are, in several jurisdictions (notably the US), **not protectable**; AI-*assisted* works may be protected in the human-authored parts. Flag that ownership/registrability of AI output is unsettled and jurisdiction-specific `[verify current]` — don't assert protection that may not exist.\n3. **Ownership — trace it to a person/entity.** Default is the **author**; but **employee** works made in the course of employment usually vest in the **employer**, while **commissioned/contractor** works often stay with the **author absent a written assignment** — the commissioner frequently gets a licence, not ownership. This gap is the most common ownership error `[verify current]`.\n4. **Check moral rights and joint authorship.** Moral rights (attribution, integrity) may persist with the author even after assignment; joint works need all owners' consent to license — surface both.\n5. **Use-check — licence first.** Is the use covered by a licence/permission (scope, territory, term, sublicensing)? If yes, confirm it reaches this use; if no, move to exceptions.\n6. **Assess fair use / fair dealing / exceptions carefully.** These are **jurisdiction-specific and narrow**: US fair use (four-factor, incl. transformativeness and market effect) differs from UK/India **fair dealing** (closed list of purposes) and EU exceptions. Don't assume a US fair-use conclusion travels `[verify current]`.\n7. **Flag the infringement test for a use-check.** Access + substantial similarity of protected expression; de minimis and independent creation defences; and database/sui generis rights where relevant.\n8. **Score against the Checks table** and set a determination: **PROTECTED / NOT (or thinly) PROTECTED**, **OWNER = X**, and **USE PERMITTED / NEEDS LICENCE / INFRINGING**.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Protectability assumed without the originality/idea-expression test | Originality + idea/expression + fixation applied | S1 | Run the subsistence test |\n| AI-generated work asserted as protected | Human-authorship question flagged per jurisdiction | S1 | Don't assert protection; mark unsettled `[verify current]` |\n| Ownership defaulted to the commissioner | Author/employee/commissioner rule applied; written assignment checked | S1 | Trace ownership; get an assignment if needed |\n| Moral rights / joint authorship ignored | Moral rights + all-owner consent considered | S2 | Flag the retained rights |\n| Use assumed licensed without scope check | Licence scope (use/territory/term) confirmed | S2 | Verify the licence reaches the use |\n| Fair use assumed to travel across jurisdictions | Local exception analysed on its own terms | S1 | Re-analyse under the governing law `[verify current]` |\n| Idea protected instead of expression | Only expression treated as protected | S2 | Narrow to protected expression |\n| Infringement called without the similarity test | Access + substantial similarity assessed | S2 | Apply the infringement test |\n\n## Output\n\nLead with `Determination: PROTECTED | THINLY/NOT PROTECTED — owner: <X> — use: PERMITTED | NEEDS LICENCE | INFRINGING — <work>`. Then the output contract. Add:\n\n- **Protectability**: what is protected (expression), originality/fixation result, AI-authorship flag.\n- **Ownership**: the owner and the basis (author/employee/assignment), moral/joint-rights notes.\n- **Use**: licence scope or the exception analysed under the governing law.\n- One JSON finding per issue with `category: \"copyright\"`.\n\n## Edge cases & pitfalls\n\n- **AI output protection**: assuming an AI-generated image/text is owned and protectable can be wrong — human authorship is required in several jurisdictions and the law is unsettled; flag it.\n- **Commissioner ≠ owner**: paying for a work (logo, photos, code) does **not** automatically transfer copyright absent a written assignment — the contractor often keeps it.\n- **Fair use tourism**: a US transformative-fair-use conclusion does not carry to the UK/India's closed-list fair dealing or EU exceptions — analyse locally.\n- **Idea vs expression**: protecting the idea/method rather than its expression over-claims copyright and under-protects — be precise about what's covered.\n- **Moral rights survive assignment**: an assignment can leave attribution/integrity rights with the author — don't promise the buyer unfettered rights.\n\n## References\n\n- Volatile facts: cite `[verify current]` on AI-authorship/registrability positions and on jurisdiction-specific fair-use/fair-dealing scope — both are fast-moving.\n- The governing copyright statute (e.g. Indian Copyright Act 1957; US Copyright Act / Copyright Office guidance on AI; UK CDPA; EU directives) and the leading originality/fair-use case law.",
+   "references": {},
+   "description": "Assesses a work for copyright: whether it is protectable (originality, idea/expression, fixation), who owns it (author vs employer vs commissioner, and the hard question of AI-generated content), and whether a proposed use is permitted (licence, fair use / fair dealing, exceptions). Use to check protectability, ownership or a use/clearance question. Not for confirming chain of title across a portfolio → ip/ip-ownership-audit; not for open-source licence compliance in code → ip/open-source-review.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "ip/infringement-takedown",
@@ -4935,11 +5248,62 @@
    "module": "matters",
    "name": "legal-kpi-dashboard",
    "title": "Legal KPI pack",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Define and compute legal department KPIs from AEGIS data."
+   "summary": "Define and compute legal department KPIs from AEGIS data.",
+   "meta": {
+    "name": "matters-legal-kpi-dashboard",
+    "description": "Defines and computes legal-department KPIs from matter, spend and intake data: the metrics that answer a real management question (cycle time, matter load, spend vs budget, outside-counsel mix, SLA/throughput), each with an explicit definition, denominator and caveat, so the numbers are honest and comparable. Use to design a KPI pack or compute/sanity-check reported metrics. Not for a single matter's status → matters/status-report; not for the spend detail itself → outside-counsel/matter-budget.",
+    "module": "matters",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "self-serve",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of design (choose + define the KPI set for a question), compute (calculate metrics from supplied data) or review (sanity-check a reported dashboard for definition/denominator flaws)."
+     },
+     {
+      "name": "question",
+      "required": false,
+      "description": "The management question the dashboard must answer (where is time going?, are we on budget?, is the team overloaded?) and the audience (GC, CFO, board)."
+     },
+     {
+      "name": "data",
+      "required": false,
+      "description": "The available data — matters (type/status/dates), spend/invoices/budgets, intake tickets/SLAs, headcount — and its known gaps."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "matters/status-report",
+     "outside-counsel/matter-budget",
+     "matters/raid-log",
+     "matters/lessons-learned",
+     "outside-counsel/performance-scorecard"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Legal KPI Pack\n\nTakes a management question and the department's data and returns a KPI set that answers it honestly: each metric defined precisely, with its denominator, period, and caveats, so the numbers mean what they appear to mean. The deliverable is a defined, computable KPI pack (or a sanity-check of one), not a pile of vanity charts.\n\n## When to use / not use\n\n- Use: designing a legal-department KPI/dashboard for a GC, CFO, or board; computing metrics from matter/spend/intake data; sanity-checking a reported dashboard whose numbers look off or flattering.\n- Hand off: narrating a single matter's progress → `matters/status-report`; the detailed spend/budget analysis behind a cost KPI → `outside-counsel/matter-budget`; tracking risks/issues on a matter → `matters/raid-log`; the post-matter retrospective → `matters/lessons-learned`; scoring an individual firm's performance → `outside-counsel/performance-scorecard`.\n\n## Inputs to collect first\n\n1. The **management question** the pack must answer, and the **audience** (the right KPIs for a board differ from an ops team).\n2. The **available data** and its **known gaps** (missing close dates, un-tagged matters, partial spend) — gaps determine which metrics are honest.\n3. The **period and comparison** basis (month/quarter, YoY, vs budget/target).\n4. Any existing dashboard to review.\n\n## Method\n\n1. **Start from the question, pick metrics that answer it.** Each KPI must map to a decision the audience will make; a metric that changes no decision is noise. Resist \"because we can measure it\".\n2. **Define every KPI precisely — this is the core work.** State the exact numerator, **denominator**, inclusion/exclusion rules, the period, and the data source. \"Cycle time\" is meaningless until you fix *which* start and end events and *which* matters count.\n3. **Guard the denominators and empty/partial cases.** Decide how open/ongoing matters, cancelled items, and zero-denominator cases are handled; an average that silently drops in-flight matters or divides by zero misleads — exclude explicitly and show the count.\n4. **Choose honest aggregates.** Prefer **medians/percentiles** over means for skewed data (cycle time, cost per matter); show distribution, not just a single number, where the average hides the story.\n5. **Make metrics comparable across periods.** Hold definitions stable; if a definition changes, flag the break so a trend isn't an artefact of re-definition. Normalise for load/headcount where comparing teams.\n6. **Carry the caveats with the number.** Each KPI states its data-quality caveat and sample size; a confident figure on thin/partial data gets a visible health flag, not a footnote nobody reads.\n7. **Compute reproducibly.** The calculation should be re-runnable from the stated source and rules; show the inputs so a reader can trust (or challenge) the figure.\n8. **Avoid perverse incentives.** Flag KPIs that would drive bad behaviour if targeted (e.g. closing matters fast at the cost of quality) and pair them with a balancing metric.\n9. **(Review mode)** audit a reported dashboard for undefined terms, denominator tricks, mean-vs-median distortion, redefinition breaks, and uncaveated thin data.\n10. **Score against the Checks table** and output the defined pack (or the review) with each KPI's definition and health flag.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| KPI doesn't map to a decision | Each metric tied to a management question | S2 | Cut or re-choose the metric |\n| Metric undefined (numerator/denominator/period) | Precise definition stated | S1 | Define it fully before reporting |\n| Denominator / empty-case handling hidden | Inclusions/exclusions + counts explicit | S1 | State the denominator and exclusions |\n| Mean used on skewed data | Median/percentile + distribution shown | S2 | Switch to median; show spread |\n| Definition changed, trend not flagged | Stable definitions; breaks flagged | S2 | Flag the re-definition |\n| Thin/partial data shown as confident | Data-quality caveat + sample size on the number | S1 | Add the health flag |\n| Not reproducible from source | Inputs + rules shown; re-runnable | S2 | Expose the calculation |\n| KPI drives a perverse incentive | Balancing metric paired | S3 | Add the counter-metric |\n| Teams compared without normalising | Normalised for load/headcount | S3 | Normalise the comparison |\n\n## Output\n\nLead with `KPI pack: <question> — <n> metrics — top read: <the headline the data supports>`. Then the output contract. Add:\n\n- **KPI definitions**: per metric — numerator · denominator · period · source · caveat.\n- **Computed values** (compute mode): value + sample size + health flag, medians where skewed.\n- **Caveats & breaks**: data-quality flags and any definition changes.\n- **(Review mode)** the definition/denominator/distortion findings.\n- One JSON finding per definitional or data-quality issue with `category: \"legal-kpi\"`.\n\n## Edge cases & pitfalls\n\n- **Undefined \"cycle time\"**: without fixed start/end events and a matter set, the number is unfalsifiable — define it before computing.\n- **Denominator games**: averages that silently drop open matters or cancelled items flatter the result — show the count and the exclusions.\n- **Mean on skew**: a mean cost-per-matter dominated by one mega-matter misrepresents the typical case — use the median and show the distribution.\n- **Silent re-definition**: a \"big improvement\" that's really a definition change is the classic dashboard lie — flag definition breaks.\n- **Vanity metrics**: counts that go up and look good but drive no decision crowd out the few that matter — tie every KPI to a decision.\n\n## References\n\n- Volatile facts: none; this is a data/definition discipline, not a legal-authority one.\n- Standard metric-definition and data-quality practice (explicit denominators, median vs mean, reproducibility); the department's own matter/spend/intake data and its documented gaps.",
+   "references": {},
+   "description": "Defines and computes legal-department KPIs from matter, spend and intake data: the metrics that answer a real management question (cycle time, matter load, spend vs budget, outside-counsel mix, SLA/throughput), each with an explicit definition, denominator and caveat, so the numbers are honest and comparable. Use to design a KPI pack or compute/sanity-check reported metrics. Not for a single matter's status → matters/status-report; not for the spend detail itself → outside-counsel/matter-budget.",
+   "risk_tier": "self-serve",
+   "version": "1.0.0"
   },
   {
    "id": "research/legal-research-memo",
@@ -5417,11 +5781,62 @@
    "module": "drafting",
    "name": "persuasive-writing",
    "title": "Persuasive legal writing",
-   "status": "planned",
+   "status": "built",
    "jurisdictions": [
     "global"
    ],
-   "summary": "Structure and edit briefs, submissions and advocacy letters."
+   "summary": "Structure and edit briefs, submissions and advocacy letters.",
+   "meta": {
+    "name": "drafting-persuasive-writing",
+    "description": "Structures and edits persuasive legal writing — briefs, submissions, advocacy letters — so the argument lands: a clear ask and theory up front, issue-ordering by strength, CRAC/IRAC-structured argument, accurate authority, the other side's best point met head-on, and tight, credible prose. Use to draft or sharpen an advocacy document. Not for plain-language explainers to a lay reader → drafting/plain-language-explainer; not for a neutral internal research memo → the applicable research skill.",
+    "module": "drafting",
+    "version": "1.0.0",
+    "jurisdictions": [
+     "global"
+    ],
+    "risk_tier": "review-required",
+    "inputs": [
+     {
+      "name": "mode",
+      "required": true,
+      "description": "One of draft (produce the document), edit (restructure/sharpen a draft) or structure (produce the argument outline/skeleton before drafting)."
+     },
+     {
+      "name": "document",
+      "required": false,
+      "description": "The brief/submission/letter in scope or its draft, the forum/audience (judge, tribunal, regulator, opponent), and any length/format limits."
+     },
+     {
+      "name": "case",
+      "required": false,
+      "description": "The outcome sought, the key facts, the strongest and weakest points, the governing authorities, and the other side's best argument."
+     }
+    ],
+    "outputs": [
+     "markdown",
+     "json"
+    ],
+    "depends_on": [
+     "_shared/STANDARDS.md",
+     "_shared/severity-scale.md",
+     "_shared/output-contract.md",
+     "_shared/volatile-facts.md"
+    ],
+    "related": [
+     "drafting/plain-language-explainer",
+     "disputes/legal-notice-drafter",
+     "disputes/early-case-assessment",
+     "research/statute-analysis",
+     "contracts/negotiation-prep"
+    ],
+    "last_reviewed": "2026-10-02",
+    "license": "Apache-2.0"
+   },
+   "body": "# Persuasive Legal Writing\n\nTakes an advocacy document (or the case behind it) and returns writing that persuades the actual decision-maker: a clear ask and theory, issues ordered by strength, each argument structured and backed by accurate authority, the opponent's best point confronted, and prose tightened for credibility. The deliverable is a structured, persuasive draft or edit — not a neutral memo and not florid rhetoric.\n\n## When to use / not use\n\n- Use: drafting or sharpening a brief, court/tribunal submission, regulator response, or advocacy letter; building the argument skeleton before writing; editing a draft that buries its point or over-claims.\n- Hand off: explaining something neutrally to a lay/business reader → `drafting/plain-language-explainer`; a pre-action demand/statutory notice specifically → `disputes/legal-notice-drafter`; the merits/strategy assessment that decides *what* to argue → `disputes/early-case-assessment`; the close reading of a provision you're arguing → `research/statute-analysis`; preparing negotiating arguments for a deal → `contracts/negotiation-prep`.\n\n## Inputs to collect first\n\n1. The **outcome sought** and the **decision-maker/audience** (judge, tribunal, regulator, opponent) — persuasion is audience-specific.\n2. The **key facts**, the **strongest and weakest** points, and the governing **authorities**.\n3. The **other side's best argument** — a persuasive document must anticipate it.\n4. Any **length/format rules** (word limits, mandatory structure) the forum imposes.\n\n## Method\n\n1. **Lead with the ask and the theory.** State up front what you want the decision-maker to do and the one-line theory of why they should — the \"so what\". Burying the ask on page six is the commonest persuasion failure.\n2. **Order issues by strength, not by the pleadings.** Put the winning argument first; lead with strength and let momentum carry the weaker points — don't march through issues in a dutiful, flat sequence.\n3. **Structure each argument (CRAC/IRAC).** Conclusion → Rule → Application → Conclusion: assert the point, state the authority/rule, apply it to *these* facts, and land it. The application to the facts — not the rule recital — is where persuasion happens.\n4. **Use authority accurately and candidly.** Cite real, on-point, still-good authority; quote precisely; and meet **adverse authority** you're bound to disclose rather than hoping it's missed — misciting or hiding bad law destroys credibility and can breach duties to the court.\n5. **Confront the other side's best point.** Address the strongest counter-argument head-on and defuse it; ignoring it signals you can't answer it. Reframe rather than merely contradict.\n6. **Make the facts tell the story.** A clear, chronological, accurate fact section framed (not distorted) toward your theory often does more work than the legal argument; never misstate a fact — it's fatal when caught.\n7. **Write for credibility, not heat.** Tight, concrete, active prose; no overstatement, adjectives-as-argument, or ad hominem — measured confidence persuades, bluster doesn't. Cut every sentence that doesn't advance the ask.\n8. **Respect the forum's form.** Honour word limits, required headings, and citation conventions; a well-structured document with signposting (headings, roadmap) is easier to rule in your favour.\n9. **Score against the Checks table** and set a verdict: **PERSUASIVE / NEEDS WORK / NOT READY**, with the top fixes.\n\n## Checks\n\n| Issue | Good position / test | Default severity | Fallback / action |\n|---|---|---|---|\n| Ask / theory not up front | Relief + one-line theory lead the document | S1 | Move the ask and theory to the top |\n| Issues ordered by pleadings, not strength | Strongest argument first | S2 | Re-order by strength |\n| Argument recites rules, doesn't apply them | CRAC — application to these facts | S1 | Add the fact-application step |\n| Authority misstated / not on point / stale | Accurate, on-point, good-law citations | S1 | Re-verify and correct citations |\n| Adverse authority hidden | Binding adverse authority met and distinguished | S1 | Disclose and distinguish it |\n| Opponent's best point ignored | Strongest counter confronted | S2 | Address and defuse it |\n| Facts overstated / distorted | Accurate facts, framed not falsified | S1 | Correct any misstatement |\n| Overheated / padded prose | Tight, concrete, measured | S3 | Cut and calm the prose |\n| Forum format/limits breached | Word limits + required structure met | S2 | Conform to the rules |\n\n## Output\n\nLead with `Verdict: PERSUASIVE | NEEDS WORK | NOT READY — <document> — <top fix>`. Then the output contract. Add:\n\n- **Ask & theory**: the relief sought and the one-line theory.\n- **Argument skeleton**: issues in strength order, each as a CRAC bullet with its authority.\n- **Counter-handling**: the opponent's best point and the response.\n- **Edit notes**: the specific structure/prose/citation fixes.\n- One JSON finding per issue with `category: \"persuasive-writing\"`.\n\n## Edge cases & pitfalls\n\n- **Buried ask**: a reader who finishes unsure what you want hasn't been persuaded — the ask and theory go first.\n- **Rule-dump without application**: reciting the law without applying it to these facts reads as a textbook, not an argument — the application is the persuasion.\n- **Hiding bad law**: a court that finds the adverse authority you ignored distrusts everything else you wrote (and you may owe a disclosure duty) — meet it openly.\n- **Fact spin**: one overstated or misquoted fact, once exposed, poisons the whole document — frame, never falsify.\n- **Volume-as-strength**: a 40-page everything-argument buries the two winning points — lead with strength and cut the rest.\n\n## References\n\n- Volatile facts: generally none; cite `[verify current]` only where an argued legal position rests on a dated authority.\n- Standard legal-writing craft (CRAC/IRAC, large-scale organisation, the duty of candour to the tribunal); the forum's format/citation rules; the case's own authorities and facts.",
+   "references": {},
+   "description": "Structures and edits persuasive legal writing — briefs, submissions, advocacy letters — so the argument lands: a clear ask and theory up front, issue-ordering by strength, CRAC/IRAC-structured argument, accurate authority, the other side's best point met head-on, and tight, credible prose. Use to draft or sharpen an advocacy document. Not for plain-language explainers to a lay reader → drafting/plain-language-explainer; not for a neutral internal research memo → the applicable research skill.",
+   "risk_tier": "review-required",
+   "version": "1.0.0"
   },
   {
    "id": "drafting/legal-translation",

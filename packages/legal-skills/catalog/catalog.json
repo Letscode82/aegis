@@ -622,7 +622,7 @@
       "module": "corporate",
       "name": "board-minutes-resolutions",
       "title": "Minutes & resolutions drafter",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "IN",
         "global"
@@ -634,7 +634,7 @@
       "module": "corporate",
       "name": "entity-compliance-calendar",
       "title": "Entity compliance calendar",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "IN",
         "global"
@@ -846,7 +846,7 @@
       "module": "employment",
       "name": "india-labour-codes",
       "title": "Indian labour codes",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "IN"
       ],
@@ -857,7 +857,7 @@
       "module": "employment",
       "name": "employment-policy-drafter",
       "title": "Employment policy drafter",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -890,7 +890,7 @@
       "module": "ip",
       "name": "ip-ownership-audit",
       "title": "IP ownership & assignment audit",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -901,7 +901,7 @@
       "module": "ip",
       "name": "copyright-assessment",
       "title": "Copyright & originality assessment",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1055,7 +1055,7 @@
       "module": "matters",
       "name": "legal-kpi-dashboard",
       "title": "Legal KPI pack",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],
@@ -1143,7 +1143,7 @@
       "module": "drafting",
       "name": "persuasive-writing",
       "title": "Persuasive legal writing",
-      "status": "planned",
+      "status": "built",
       "jurisdictions": [
         "global"
       ],

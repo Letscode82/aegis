@@ -135,7 +135,7 @@ _Applicability, change monitoring, AI governance, trade, anti-corruption, sector
 | Digital accessibility | 🗺️ planned | global | WCAG, Section 508, EAA and RPwD Act obligations for digital products. |
 | [Product cybersecurity obligations](skills/regulatory/product-cyber-obligations/SKILL.md) | ✅ built | EU, US | Cyber Resilience Act and similar secure-by-design and vulnerability-handling duties. |
 
-### Corporate, Governance & Board — 5/8 built
+### Corporate, Governance & Board — 7/8 built
 
 _Board work, entity compliance, M&A and securities_
 
@@ -143,8 +143,8 @@ _Board work, entity compliance, M&A and securities_
 |---|---|---|---|
 | [Board & committee pack](skills/corporate/board-pack/SKILL.md) | ✅ built | global | Assemble the legal section of a board pack: key matters, risk movements, decisions sought, and resolutions. |
 | [M&A legal due diligence](skills/corporate/ma-due-diligence/SKILL.md) | ✅ built | global | Run a scoped legal DD, from request list to red-flag report with deal-protection recommendations. |
-| Minutes & resolutions drafter | 🗺️ planned | IN, global | Draft board/shareholder resolutions and minutes meeting Companies Act 2013 and SS-1/SS-2. |
-| Entity compliance calendar | 🗺️ planned | IN, global | Statutory filings and registers by entity: MCA, ROC, FEMA returns, and foreign equivalents. |
+| [Minutes & resolutions drafter](skills/corporate/board-minutes-resolutions/SKILL.md) | ✅ built | IN, global | Draft board/shareholder resolutions and minutes meeting Companies Act 2013 and SS-1/SS-2. |
+| [Entity compliance calendar](skills/corporate/entity-compliance-calendar/SKILL.md) | ✅ built | IN, global | Statutory filings and registers by entity: MCA, ROC, FEMA returns, and foreign equivalents. |
 | [FDI & FEMA assessment](skills/corporate/fdi-fema-assessment/SKILL.md) | ✅ built | IN | Route, sectoral caps, Press Note 3 and reporting for inbound investment. |
 | [Listed company disclosure](skills/corporate/listed-company-disclosure/SKILL.md) | ✅ built | IN | SEBI LODR materiality, disclosure timelines and insider-trading (PIT) controls. |
 | Shareholders' & founders' agreements | 🗺️ planned | global | Draft or review SHA/founders' terms: control, transfer, exit, vesting. |
@@ -167,7 +167,7 @@ _Early case assessment, holds, chronology, strategy and settlement_
 | [Arbitration strategy](skills/disputes/arbitration-strategy/SKILL.md) | ✅ built | global | Tribunal selection, interim relief and enforcement planning for arbitration. |
 | [Regulatory investigation response](skills/disputes/regulatory-investigation/SKILL.md) | ✅ built | global | Respond to regulator notices, dawn raids and information requests. |
 
-### Employment & People — 3/6 built
+### Employment & People — 5/6 built
 
 _Exits, investigations, restrictive covenants and workplace compliance_
 
@@ -177,10 +177,10 @@ _Exits, investigations, restrictive covenants and workplace compliance_
 | [Workplace investigation](skills/employment/workplace-investigation/SKILL.md) | ✅ built | global | Plan and run a fair investigation; draft the findings report. |
 | [POSH compliance & inquiry](skills/employment/posh-compliance/SKILL.md) | ✅ built | IN | Internal Committee constitution, inquiry procedure and annual reporting under the POSH Act. |
 | Restrictive covenants | 🗺️ planned | global | Non-compete, non-solicit and confidentiality enforceability by jurisdiction. |
-| Indian labour codes | 🗺️ planned | IN | Wages, social security, IR and OSH code obligations and transition issues. |
-| Employment policy drafter | 🗺️ planned | global | Draft handbooks and policies aligned to local law and company practice. |
+| [Indian labour codes](skills/employment/india-labour-codes/SKILL.md) | ✅ built | IN | Wages, social security, IR and OSH code obligations and transition issues. |
+| [Employment policy drafter](skills/employment/employment-policy-drafter/SKILL.md) | ✅ built | global | Draft handbooks and policies aligned to local law and company practice. |
 
-### Intellectual Property — 1/5 built
+### Intellectual Property — 3/5 built
 
 _Clearance, open source, ownership and enforcement_
 
@@ -188,8 +188,8 @@ _Clearance, open source, ownership and enforcement_
 |---|---|---|---|
 | [Open-source licence review](skills/ip/open-source-review/SKILL.md) | ✅ built | global | Classify dependencies by licence obligation and decide what can ship, under what conditions. |
 | Trademark clearance | 🗺️ planned | global | Knockout and full-search analysis for a proposed mark across target classes. |
-| IP ownership & assignment audit | 🗺️ planned | global | Confirm chain of title from employees, contractors and acquisitions. |
-| Copyright & originality assessment | 🗺️ planned | global | Protectability, ownership and permitted-use analysis, including AI-generated content. |
+| [IP ownership & assignment audit](skills/ip/ip-ownership-audit/SKILL.md) | ✅ built | global | Confirm chain of title from employees, contractors and acquisitions. |
+| [Copyright & originality assessment](skills/ip/copyright-assessment/SKILL.md) | ✅ built | global | Protectability, ownership and permitted-use analysis, including AI-generated content. |
 | Infringement & takedown | 🗺️ planned | global | Assess infringement and draft notices or responses (incl. IT Rules intermediaries). |
 
 ### Outside Counsel & Spend — 2/7 built
@@ -206,7 +206,7 @@ _Panels, engagement terms, invoices, budgets and performance_
 | Firm performance scorecard | 🗺️ planned | global | Post-matter feedback and quarterly firm reviews. |
 | Local counsel coordination | 🗺️ planned | global | Instruct and coordinate counsel across multiple jurisdictions. |
 
-### Matter Management & Legal Ops — 4/6 built
+### Matter Management & Legal Ops — 5/6 built
 
 _Plans, RAID logs, reporting and continuous improvement_
 
@@ -217,7 +217,7 @@ _Plans, RAID logs, reporting and continuous improvement_
 | [RAID log](skills/matters/raid-log/SKILL.md) | ✅ built | global | Risks, assumptions, issues and decisions captured from correspondence. |
 | [Stakeholder communication plan](skills/matters/stakeholder-comms/SKILL.md) | ✅ built | global | Who needs what, when, and through which channel. |
 | Lessons learned | 🗺️ planned | global | Capture and reuse lessons across matters. |
-| Legal KPI pack | 🗺️ planned | global | Define and compute legal department KPIs from AEGIS data. |
+| [Legal KPI pack](skills/matters/legal-kpi-dashboard/SKILL.md) | ✅ built | global | Define and compute legal department KPIs from AEGIS data. |
 
 ### Research & Verification — 6/6 built
 
@@ -232,14 +232,14 @@ _Grounded research and the verification layer every other skill relies on_
 | [Source-locked answering](skills/research/source-locked-answering/SKILL.md) | ✅ built | global | Answer strictly from supplied documents with pinpoint support. |
 | [Indian legal research](skills/research/india-legal-research/SKILL.md) | ✅ built | IN | Research workflow for Indian statutes, rules, notifications and SC/HC judgments. |
 
-### Writing & Communication — 2/6 built
+### Writing & Communication — 3/6 built
 
 _Plain-language, persuasive, translated and policy writing_
 
 | Skill | Status | Jurisdictions | What it does |
 |---|---|---|---|
 | [Plain-language explainer](skills/drafting/plain-language-explainer/SKILL.md) | ✅ built | global | Translate legal analysis into a clear, accurate explanation for a business reader. |
-| Persuasive legal writing | 🗺️ planned | global | Structure and edit briefs, submissions and advocacy letters. |
+| [Persuasive legal writing](skills/drafting/persuasive-writing/SKILL.md) | ✅ built | global | Structure and edit briefs, submissions and advocacy letters. |
 | Legal translation | 🗺️ planned | global | Translate legal documents preserving legal effect, with term notes. |
 | [Corporate policy drafter](skills/drafting/policy-drafter/SKILL.md) | ✅ built | global | Draft internal policies with scope, roles, controls and review cycle. |
 | Legal design review | 🗺️ planned | global | Score and improve a document's readability and usability. |
