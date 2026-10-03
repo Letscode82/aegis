@@ -376,6 +376,25 @@ export {
   type ApplyTurnResult,
 } from "./src/internal/negotiation";
 
+// Negotiation intelligence (C-8) — deterministic playbook posture (accept /
+// counter-with-fallback / escalate) across every clause + a redline summary of
+// the latest revision. Reads the clause library + version diff; no AI, no new
+// persistence.
+export {
+  getNegotiationIntelligence,
+  classifyPlaybookStatus,
+  recommendationFor,
+  buildPosition,
+  summarizeRedlineChange,
+  redlineHeadline,
+  type NegotiationIntelligence,
+  type PlaybookPosition,
+  type PlaybookStatus,
+  type RedlineItem,
+  type NegotiationRedline,
+  type CurrentClause,
+} from "./src/internal/negotiation-intelligence";
+
 // Human-owned clause editing (Phase 6c) — add / edit / delete clauses by hand.
 export {
   addClauseManual,

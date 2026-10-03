@@ -7,6 +7,7 @@ import { ContractCommentsPanel } from "./contract-comments-panel.jsx";
 import { ReviewAssessmentPanel } from "./review-assessment-panel.jsx";
 import { ESignaturePanel } from "./esignature-panel.jsx";
 import { ContractGuidePanel } from "./contract-guide-panel.jsx";
+import { NegotiationIntelligencePanel } from "./negotiation-intelligence-panel.jsx";
 
 // ── Contract drill-in (CTR-1) ────────────────────────────────────────
 //
@@ -363,6 +364,9 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
 
             {/* Turn-based negotiation (CLM Phase 4b) */}
             <NegotiationPanel contractId={contractId} canManage={canManage} draftText={c.draftText} onApplied={load} />
+
+            {/* Negotiation intelligence — playbook posture + redline summary (C-8) */}
+            <NegotiationIntelligencePanel contractId={contractId} />
 
             {/* Version history + redline diff (CTR-5b) */}
             <VersionsPanel contractId={contractId} canManage={canManage} />
