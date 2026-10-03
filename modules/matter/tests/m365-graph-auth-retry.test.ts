@@ -29,6 +29,7 @@ vi.mock("@aegis/db", () => ({
     },
   },
   decryptSecret: (buf: Buffer) => buf.subarray(4).toString("utf8"),
+  decryptSecretEnvelope: async (buf: Buffer) => buf.subarray(4).toString("utf8"),
   secretFingerprint: () => "fp-x",
   logAudit: vi.fn(async () => undefined),
 }));

@@ -39,7 +39,7 @@
  * sunset path (KMS) is shared — see CLAUDE.md "Documented exceptions".
  */
 import { createHash } from "node:crypto";
-import { decryptSecret, prisma } from "@aegis/db";
+import { decryptSecretEnvelope, prisma } from "@aegis/db";
 import {
   M365DelegatedAuthExpiredError,
   M365DelegatedAuthRequiredError,
@@ -117,8 +117,9 @@ export interface PersistDelegatedTokensInput {
 export async function persistDelegatedTokens(
   input: PersistDelegatedTokensInput,
 ): Promise<void> {
-  const { encryptSecret } = await import("@aegis/db");
-  const encryptedRefresh = encryptSecret(input.refreshToken);
+  const { encryptSecretEnvelope } = await import("@aegis/db");
+  const encryptedRefresh = await encryptSecretEnvelope(input.refreshToken);
+  const encryptedClientSecret = await encryptSecretEnvelope(input.clientSecret);
   const now = new Date();
   // Upsert (not update) so env-var-only deployments — which never
   // create an OrganizationM365Credential row up front — get one
@@ -142,7 +143,7 @@ export async function persistDelegatedTokens(
       organizationId: input.organizationId,
       tenantId: input.tenantId,
       clientId: input.clientId,
-      encryptedClientSecret: encryptSecret(input.clientSecret),
+      encryptedClientSecret,
       isActive: true,
       delegatedRefreshToken: encryptedRefresh,
       delegatedAccountUpn: input.accountUpn,
@@ -350,7 +351,7 @@ export async function getFreshDelegatedAccessToken(
 
   let plaintextRefresh: string;
   try {
-    plaintextRefresh = decryptSecret(row.delegatedRefreshToken as Buffer);
+    plaintextRefresh = await decryptSecretEnvelope(row.delegatedRefreshToken as Buffer);
   } catch {
     throw new M365DelegatedAuthExpiredError(
       "Stored delegated refresh token could not be decrypted — re-authorize via /admin/m365.",
@@ -387,11 +388,12 @@ export async function getFreshDelegatedAccessToken(
     });
     // Persist rotated refresh token (Microsoft may rotate periodically).
     if (result.rotatedRefreshToken && result.rotatedRefreshToken !== plaintextRefresh) {
-      const { encryptSecret } = await import("@aegis/db");
+      const { encryptSecretEnvelope } = await import("@aegis/db");
+      const rotatedEncrypted = await encryptSecretEnvelope(result.rotatedRefreshToken);
       await prisma.organizationM365Credential.update({
         where: { organizationId },
         data: {
-          delegatedRefreshToken: encryptSecret(result.rotatedRefreshToken),
+          delegatedRefreshToken: rotatedEncrypted,
           delegatedTokenExpiresAt: result.expiresOn,
           delegatedLastRefreshedAt: new Date(),
           delegatedLastRefreshError: null,

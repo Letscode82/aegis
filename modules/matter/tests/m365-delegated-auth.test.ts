@@ -177,6 +177,9 @@ vi.mock("@aegis/db", () => {
     prisma: prismaMock,
     encryptSecret: (s: string) => Buffer.concat([VERSION_V1_PLAINTEXT, Buffer.from(s, "utf8")]),
     decryptSecret: (buf: Buffer) => buf.subarray(4).toString("utf8"),
+    encryptSecretEnvelope: async (s: string) =>
+      Buffer.concat([VERSION_V1_PLAINTEXT, Buffer.from(s, "utf8")]),
+    decryptSecretEnvelope: async (buf: Buffer) => buf.subarray(4).toString("utf8"),
     secretFingerprint: (s: string | null | undefined) =>
       s ? `fp-${s.slice(0, 4)}` : "empty",
     logAudit: vi.fn(async () => undefined),

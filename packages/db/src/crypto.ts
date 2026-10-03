@@ -12,24 +12,37 @@
  *     bytes after the prefix are UTF-8 of the secret. Still *readable*
  *     for backward compatibility, never *written* once a key is set.
  *
- *   v2 ("v2gc") — AES-256-GCM envelope encryption. Layout after the
- *     prefix: keyId(4) ‖ iv(12) ‖ authTag(16) ‖ ciphertext. The data
- *     key comes from `AEGIS_ENCRYPTION_KEY` (32 bytes, base64 or hex).
- *     This is the production format.
+ *   v2 ("v2gc") — single-key AES-256-GCM. Layout after the prefix:
+ *     keyId(4) ‖ iv(12) ‖ authTag(16) ‖ ciphertext. The AES key comes
+ *     directly from `AEGIS_ENCRYPTION_KEY` (32 bytes, base64 or hex).
+ *     Interim production format — the key still lives in an env var.
  *
- * Selection:
- *   - `AEGIS_ENCRYPTION_KEY` set  → encrypt writes v2 (production).
+ *   v3 ("v3km") — KMS envelope encryption (F-7, the real production
+ *     format). A fresh random data key encrypts the plaintext; the data
+ *     key is wrapped by a KMS-managed KEK and travels with the ciphertext.
+ *     See `kms.ts`. Written by the async `encryptSecretEnvelope`; read by
+ *     the async `decryptSecretEnvelope`.
+ *
+ * Selection (sync `encryptSecret`, v1/v2 only):
+ *   - `AEGIS_ENCRYPTION_KEY` set  → encrypt writes v2.
  *   - unset                       → encrypt writes v1 plaintext (dev),
  *     UNLESS `NODE_ENV=production`, where a missing key throws (fail-loud
  *     — never silently store plaintext secrets in production).
  *
- * decrypt reads either format, so a deployment can rotate from v1 → v2
- * with no migration: existing rows decrypt as v1, new writes are v2.
+ * Selection (async `encryptSecretEnvelope`):
+ *   - `AEGIS_KMS_PROVIDER` set    → encrypt writes v3 (envelope).
+ *   - unset                       → delegates to the sync v1/v2 path.
+ *
+ * decrypt reads every earlier format, so a deployment rotates v1 → v2 → v3
+ * with no migration: existing rows decrypt under their own version, new
+ * writes use whichever format the env selects.
  */
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
+import { getActiveKmsProvider, getKmsProvider } from "./kms";
 
 const VERSION_V1_PLAINTEXT = Buffer.from([0x76, 0x31, 0x70, 0x6c]); // "v1pl"
 const VERSION_V2_GCM = Buffer.from([0x76, 0x32, 0x67, 0x63]); // "v2gc"
+const VERSION_V3_KMS = Buffer.from([0x76, 0x33, 0x6b, 0x6d]); // "v3km"
 const IV_BYTES = 12;
 const TAG_BYTES = 16;
 const KEY_ID_BYTES = 4;
@@ -146,9 +159,133 @@ export function decryptSecret(stored: Buffer | Uint8Array): string {
     }
   }
 
+  if (prefix.equals(VERSION_V3_KMS)) {
+    throw new SecretDecryptError(
+      "secret is v3 (KMS envelope) — use the async decryptSecretEnvelope() instead.",
+    );
+  }
+
   throw new SecretDecryptError(
     `unknown version prefix 0x${prefix.toString("hex")} — refusing to decrypt`,
   );
+}
+
+// ────────────────────────────────────────────────────────────────────
+// v3 — KMS envelope encryption (F-7)
+// ────────────────────────────────────────────────────────────────────
+//
+// v3 layout after the 4-byte prefix:
+//   providerIdLen(1) ‖ providerId(utf8) ‖ wrappedLen(2 BE) ‖ wrappedDEK
+//     ‖ iv(12) ‖ authTag(16) ‖ ciphertext
+//
+// The DEK is a fresh random 32-byte key per secret; it encrypts the
+// plaintext with AES-256-GCM and is itself wrapped by the KMS-managed KEK.
+// The raw DEK is never stored.
+
+/**
+ * Encrypt a secret for at-rest storage using KMS envelope encryption when a
+ * provider is configured (`AEGIS_KMS_PROVIDER`), otherwise falling back to
+ * the synchronous v1/v2 path. This is a safe superset of `encryptSecret`:
+ * callers can always use it, and the storage format is chosen by env.
+ *
+ * Async because wrapping the data key is a KMS (network) operation.
+ */
+export async function encryptSecretEnvelope(plaintext: string): Promise<Buffer> {
+  const provider = getActiveKmsProvider();
+  if (!provider) {
+    // No KMS configured — preserve existing behaviour (v2 with a key, v1
+    // plaintext in dev, throw in production without a key).
+    return encryptSecret(plaintext);
+  }
+  const dek = randomBytes(32);
+  const iv = randomBytes(IV_BYTES);
+  const cipher = createCipheriv("aes-256-gcm", dek, iv);
+  const ciphertext = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+  const tag = cipher.getAuthTag();
+  const wrapped = await provider.wrapDataKey(dek);
+  const idBuf = Buffer.from(provider.id, "utf8");
+  if (idBuf.length === 0 || idBuf.length > 255) {
+    throw new SecretEncryptError(
+      `KMS provider id must be 1..255 bytes (got ${idBuf.length}).`,
+    );
+  }
+  if (wrapped.length > 0xffff) {
+    throw new SecretEncryptError("wrapped data key is too large to serialise (>64 KB).");
+  }
+  const wrappedLen = Buffer.alloc(2);
+  wrappedLen.writeUInt16BE(wrapped.length);
+  return Buffer.concat([
+    VERSION_V3_KMS,
+    Buffer.from([idBuf.length]),
+    idBuf,
+    wrappedLen,
+    wrapped,
+    iv,
+    tag,
+    ciphertext,
+  ]);
+}
+
+/**
+ * Decrypt a previously-stored secret of ANY format: v1 (legacy plaintext),
+ * v2 (local AES key), or v3 (KMS envelope). Use this anywhere a row might
+ * have been written under KMS; the synchronous `decryptSecret` handles only
+ * v1/v2 and throws a clear error if handed a v3 payload.
+ */
+export async function decryptSecretEnvelope(stored: Buffer | Uint8Array): Promise<string> {
+  const buf = Buffer.isBuffer(stored) ? stored : Buffer.from(stored);
+  if (buf.length < 4) {
+    throw new SecretDecryptError("missing version prefix");
+  }
+  if (!buf.subarray(0, 4).equals(VERSION_V3_KMS)) {
+    // v1 / v2 need no KMS round-trip.
+    return decryptSecret(buf);
+  }
+  let off = 4;
+  const idLen = buf.readUInt8(off);
+  off += 1;
+  if (buf.length < off + idLen + 2) {
+    throw new SecretDecryptError("v3 payload is truncated (provider id).");
+  }
+  const providerId = buf.subarray(off, off + idLen).toString("utf8");
+  off += idLen;
+  const wrappedLen = buf.readUInt16BE(off);
+  off += 2;
+  const wrappedEnd = off + wrappedLen;
+  const ctStart = wrappedEnd + IV_BYTES + TAG_BYTES;
+  if (buf.length < ctStart) {
+    throw new SecretDecryptError("v3 payload is truncated.");
+  }
+  const wrapped = buf.subarray(off, wrappedEnd);
+  const iv = buf.subarray(wrappedEnd, wrappedEnd + IV_BYTES);
+  const tag = buf.subarray(wrappedEnd + IV_BYTES, ctStart);
+  const ciphertext = buf.subarray(ctStart);
+
+  const provider = getKmsProvider(providerId);
+  if (!provider) {
+    throw new SecretDecryptError(
+      `no KMS provider '${providerId}' registered — cannot unwrap this secret.`,
+    );
+  }
+  let dek: Buffer;
+  try {
+    dek = await provider.unwrapDataKey(wrapped);
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : String(err);
+    throw new SecretDecryptError(`KMS unwrap failed: ${reason}`);
+  }
+  if (dek.length !== 32) {
+    throw new SecretDecryptError(
+      `KMS returned a ${dek.length}-byte data key (expected 32).`,
+    );
+  }
+  try {
+    const decipher = createDecipheriv("aes-256-gcm", dek, iv);
+    decipher.setAuthTag(tag);
+    return Buffer.concat([decipher.update(ciphertext), decipher.final()]).toString("utf8");
+  } catch {
+    throw new SecretDecryptError("authentication failed (tampered data or wrong data key).");
+  }
 }
 
 /**
