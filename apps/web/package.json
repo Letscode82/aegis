@@ -9,7 +9,7 @@
     "start": "next start",
     "lint": "next lint --dir src --dir pages",
     "typecheck": "tsc --noEmit",
-    "test": "echo 'no tests yet' && exit 0"
+    "test": "node --test lib/one-legal/skills-merge.test.mjs"
   },
   "dependencies": {
     "@aegis/admin": "workspace:*",

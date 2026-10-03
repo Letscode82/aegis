@@ -343,7 +343,7 @@ A clean-room, Apache-2.0 package of original AEGIS playbooks — shared standard
 | SK-4 | **Standards adoption** — converge the 11 oKF intake agents onto the S1–S4 severity scale + JSON output contract (one source of truth for output shape) | P1 | 🔴 (step 3) |
 | SK-5 | **Wire E1 one-click skills → `/skill-review`** — the rail/landing skill chips invoke the governed playbook endpoint | P2 | 🔴 (step 4) |
 | SK-6 | Build out the remaining 76 catalogued playbooks (`status: planned` → `built`) | P2 | 🔴 |
-| SK-7 | Admin-editable skills (`Skill` table + CRUD) behind the E1 shape (org-authored playbooks) | P3 | 🔴 (E1.x) |
+| SK-7 | Admin-editable skills (`Skill` table + CRUD) behind the E1 shape (org-authored playbooks) | P3 | 🟡 #488 (in review) |
 
 > Also shipped on the ONE Legal front door (context for the above): full-breadth E1 skill library — 55 one-click skills across 14 categories (✅ #480); this Cowork-for-Legal roadmap doc (✅ #475).
 
