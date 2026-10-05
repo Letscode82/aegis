@@ -223,6 +223,9 @@ export interface MyRequestDTO {
   descSnippet: string;
   /** Most recent chain-sealed audit action on this ticket, if any. */
   lastActivity: { action: string; at: string } | null;
+  /** CW-5 — an outstanding information request the reviewer needs the
+   *  requester to answer. Null when nothing is pending. */
+  openRfi: { id: string; question: string; askedByName: string; askedAt: string } | null;
 }
 
 /**
@@ -272,8 +275,24 @@ export async function getMyRequests(
     : [];
   const lastByTicket = new Map(latest.map((a) => [a.resourceId, a]));
 
+  // CW-5 — outstanding RFIs on these tickets, so the requester sees what
+  // legal is waiting on and can answer inline. One batched query.
+  const openRfis = ids.length
+    ? await prisma.intakeRfi.findMany({
+        where: { organizationId, ticketId: { in: ids }, status: "OPEN" },
+        orderBy: { createdAt: "desc" },
+        select: { id: true, ticketId: true, question: true, askedByName: true, createdAt: true },
+      })
+    : [];
+  // First (newest) open RFI per ticket.
+  const openRfiByTicket = new Map<string, (typeof openRfis)[number]>();
+  for (const r of openRfis) {
+    if (!openRfiByTicket.has(r.ticketId)) openRfiByTicket.set(r.ticketId, r);
+  }
+
   return rows.map((t) => {
     const last = lastByTicket.get(t.id);
+    const rfi = openRfiByTicket.get(t.id);
     return {
       id: t.id,
       type: t.type,
@@ -286,6 +305,9 @@ export async function getMyRequests(
       submittedAt: t.submittedAt.toISOString(),
       descSnippet: (t.description || "").slice(0, 120),
       lastActivity: last ? { action: last.action, at: last.timestamp.toISOString() } : null,
+      openRfi: rfi
+        ? { id: rfi.id, question: rfi.question, askedByName: rfi.askedByName, askedAt: rfi.createdAt.toISOString() }
+        : null,
     };
   });
 }
