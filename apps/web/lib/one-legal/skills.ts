@@ -80,6 +80,23 @@ export interface OneLegalSkill {
    * freehand routes as before.
    */
   reviewSkillId?: string;
+  /**
+   * OL-6 — classifies the skill's origin so the catalog can surface the
+   * platform's runnable primitives alongside the hand-authored E1 playbooks:
+   *   - "playbook" (default/omitted) — an E1 or org-authored playbook.
+   *   - "agent"  — one of the 11 oKF intake specialists (`agentId` links the
+   *     registry row); dispatched through the governed review/research pipeline.
+   *   - "ladder" — one of the 10 `GOVERNANCE_LIBRARY` governance ladders
+   *     (`ladderKey` is the definition key); selecting it starts a governed
+   *     workflow from the console via POST /api/one-legal/run-ladder.
+   * Purely descriptive — it adds no capability or gate; agents and ladders run
+   * through the same governed surfaces everything else does.
+   */
+  kind?: "playbook" | "agent" | "ladder";
+  /** When kind === "agent": the intake registry agent id (e.g. "nda-agent"). */
+  agentId?: string;
+  /** When kind === "ladder": the GOVERNANCE_LIBRARY definition key. */
+  ladderKey?: string;
 }
 
 /**
@@ -109,6 +126,8 @@ export const SKILL_CATEGORIES: string[] = [
   "Legal Research",
   "Drafting & Translation",
   "Cross-module · One Brain",
+  "Agent specialists",
+  "Governance ladders",
 ];
 
 export const SKILLS: OneLegalSkill[] = [
@@ -218,6 +237,38 @@ export const SKILLS: OneLegalSkill[] = [
   { id: "open-contracts", label: "Open contracts", desc: "Live count + list of open contracts.", icon: "◴", action: "route", prompt: "What contracts are open right now?", cats: [], category: "Cross-module · One Brain" },
   { id: "holds-overview", label: "Holds overview", desc: "Which matters have active legal holds.", icon: "⚖", action: "route", prompt: "Which matters have active legal holds?", cats: [], category: "Cross-module · One Brain" },
   { id: "intake-queue", label: "Intake queue", desc: "How many intake tickets are open, by status.", icon: "◷", action: "route", prompt: "How many intake tickets are open, by status?", cats: [], category: "Cross-module · One Brain" },
+
+  // ── Agent specialists (OL-6) ──────────────────────────────────────────────
+  // The 11 oKF intake specialists, one-click. Each runs through the governed
+  // review/research pipeline — it produces a recommendation and never mutates
+  // or bypasses the human approve keystroke. `agentId` links the registry row.
+  { id: "agent-nda", kind: "agent", agentId: "nda-agent", label: "NDA specialist", desc: "Review an NDA against our standard template; flag only the deviations.", icon: "◉", action: "prefill", run: "review", prompt: "Review this NDA against our standard mutual template and flag every deviation with severity: ", cats: ["NDA — Standard"], category: "Agent specialists" },
+  { id: "agent-contract-review", kind: "agent", agentId: "contract-review-agent", label: "Contract review specialist", desc: "Flag risks and playbook deviations in a third-party contract.", icon: "◐", action: "prefill", run: "review", prompt: "Review this third-party contract for risks and playbook deviations: ", cats: ["Vendor Contract"], category: "Agent specialists" },
+  { id: "agent-contract-specialist", kind: "agent", agentId: "contract-specialist-agent", label: "Contract-type specialist", desc: "Identify the contract type and apply the right playbook lens.", icon: "◈", action: "prefill", run: "review", prompt: "Identify this contract's type and review it against the matching playbook: ", cats: ["Vendor Contract"], category: "Agent specialists" },
+  { id: "agent-trademark", kind: "agent", agentId: "trademark-agent", label: "Trademark clearance specialist", desc: "Screen a mark for clearance risk.", icon: "◇", action: "prefill", run: "review", prompt: "Screen this trademark for clearance risk and summarize conflicts: ", cats: [], category: "Agent specialists" },
+  { id: "agent-litigation", kind: "agent", agentId: "litigation-agent", label: "Litigation intake specialist", desc: "Triage a new dispute and flag legal-hold triggers.", icon: "§", action: "prefill", run: "review", prompt: "Triage this new dispute, flag any legal-hold trigger, and recommend next steps: ", cats: [], category: "Agent specialists" },
+  { id: "agent-notice", kind: "agent", agentId: "notice-mgmt-agent", label: "Notice management specialist", desc: "Extract every deadline and claim from a legal notice, with sources.", icon: "⚑", action: "prefill", run: "review", prompt: "Extract every deadline and claim from this legal/statutory notice, citing each source: ", cats: [], category: "Agent specialists" },
+  { id: "agent-vendor", kind: "agent", agentId: "vendor-intake-agent", label: "Vendor screening specialist", desc: "Run sanctions / debarment screening on a vendor or counterparty.", icon: "⬡", action: "prefill", run: "review", prompt: "Screen this vendor / counterparty for sanctions and debarment risk: ", cats: [], category: "Agent specialists" },
+  { id: "agent-privacy", kind: "agent", agentId: "privacy-assessment-agent", label: "Privacy assessment specialist", desc: "Assess a data incident's severity and notification obligations.", icon: "◉", action: "prefill", run: "review", prompt: "Assess this data incident's severity and notification obligations: ", cats: ["Privacy — DPIA / GDPR"], category: "Agent specialists" },
+  { id: "agent-marketing", kind: "agent", agentId: "marketing-review-agent", label: "Marketing review specialist", desc: "Review marketing copy for legal and regulatory claims risk.", icon: "◭", action: "prefill", run: "review", prompt: "Review this marketing copy for legal and regulatory claims risk: ", cats: [], category: "Agent specialists" },
+  { id: "agent-faq", kind: "agent", agentId: "faq-agent", label: "Legal FAQ specialist", desc: "Answer a common legal question from our knowledge base.", icon: "◈", action: "research", prompt: "Answer this legal question from our knowledge base, citing our documents: ", cats: [], category: "Agent specialists" },
+  { id: "agent-policy-qa", kind: "agent", agentId: "policy-qa-agent", label: "Policy Q&A specialist", desc: "Answer a question against our internal policies.", icon: "◎", action: "research", prompt: "Answer this question against our internal policies, citing the relevant policy: ", cats: [], category: "Agent specialists" },
+
+  // ── Governance ladders (OL-6) ─────────────────────────────────────────────
+  // The 10 GOVERNANCE_LIBRARY ladders, startable from the console. Selecting
+  // one calls POST /api/one-legal/run-ladder, which starts a governed
+  // WorkflowInstance — AGENT steps queue a PENDING task for a human to approve
+  // and never auto-advance. `ladderKey` is the definition key.
+  { id: "ladder-nda_fasttrack", kind: "ladder", ladderKey: "nda_fasttrack", label: "NDA Fast-Track", desc: "Mutual/one-way NDAs: AI template review, then only deviations reach legal.", icon: "⚖", action: "route", prompt: "Start the NDA Fast-Track governance ladder.", cats: ["NDA — Standard"], category: "Governance ladders", featured: true },
+  { id: "ladder-clm_contract_approval", kind: "ladder", ladderKey: "clm_contract_approval", label: "Contract Approval Ladder", desc: "Commercial contracts: supply, distribution, licensing, services.", icon: "⚖", action: "route", prompt: "Start the Contract Approval governance ladder.", cats: ["Vendor Contract"], category: "Governance ladders" },
+  { id: "ladder-patent_litigation", kind: "ladder", ladderKey: "patent_litigation", label: "Patent / ANDA Litigation", desc: "Hatch-Waxman Para IV: hard 45-day statutory window with antitrust review.", icon: "⚖", action: "route", prompt: "Start the Patent / ANDA Litigation governance ladder.", cats: [], category: "Governance ladders" },
+  { id: "ladder-legal_notice", kind: "ladder", ladderKey: "legal_notice", label: "Legal Notice Response", desc: "Statutory/demand notices: AI deadline extraction, then counsel finalizes.", icon: "⚖", action: "route", prompt: "Start the Legal Notice Response governance ladder.", cats: [], category: "Governance ladders" },
+  { id: "ladder-regulatory_response", kind: "ladder", ladderKey: "regulatory_response", label: "Regulatory Action Response", desc: "483 / warning letters / pricing notices, cross-functional with Quality.", icon: "⚖", action: "route", prompt: "Start the Regulatory Action Response governance ladder.", cats: [], category: "Governance ladders" },
+  { id: "ladder-vendor_onboarding", kind: "ladder", ladderKey: "vendor_onboarding", label: "Vendor Due Diligence", desc: "Onboarding: AI sanctions/debarment screen, then compliance clears.", icon: "⚖", action: "route", prompt: "Start the Vendor / Counterparty Due Diligence governance ladder.", cats: [], category: "Governance ladders" },
+  { id: "ladder-compliance_investigation", kind: "ladder", ladderKey: "compliance_investigation", label: "Compliance Investigation", desc: "Whistleblower / UCPMP / anti-bribery, confidential with closure report.", icon: "⚖", action: "route", prompt: "Start the Compliance Investigation governance ladder.", cats: [], category: "Governance ladders" },
+  { id: "ladder-data_breach", kind: "ladder", ladderKey: "data_breach", label: "Data Privacy Incident", desc: "72-hour DPDP breach clock: the tightest SLAs in the library.", icon: "⚖", action: "route", prompt: "Start the Data Privacy Incident governance ladder.", cats: ["Privacy — DPIA / GDPR"], category: "Governance ladders" },
+  { id: "ladder-employment_matter", kind: "ladder", ladderKey: "employment_matter", label: "Employment / POSH Matter", desc: "Disciplinary, separation and POSH-committee matters with statutory timelines.", icon: "⚖", action: "route", prompt: "Start the Employment / POSH Matter governance ladder.", cats: [], category: "Governance ladders" },
+  { id: "ladder-board_approval", kind: "ladder", ladderKey: "board_approval", label: "Board / Secretarial Approval", desc: "POAs, authorised-signatory changes, disclosures and resolutions.", icon: "⚖", action: "route", prompt: "Start the Board / Secretarial Approval governance ladder.", cats: [], category: "Governance ladders" },
 ];
 
 // SK-5 — pin review/analysis skills to a built @aegis/legal-skills playbook.

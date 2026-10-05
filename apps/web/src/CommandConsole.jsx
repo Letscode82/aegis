@@ -830,6 +830,33 @@ function SkillSearchBox({ value, onChange }) {
   );
 }
 
+// OL-6 — confirmation card for a governance ladder started from the console.
+// The ladder is now a tracked governed WorkflowInstance; AGENT steps queue a
+// PENDING task for a human and never auto-advance.
+function LadderCard({ turn }) {
+  if (turn.ladderLoading) {
+    return (
+      <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: "14px 16px", fontSize: 13, color: C.t2, fontFamily: F }}>
+        <span style={{ color: C.em }}>⚖</span> Starting the {turn.label} ladder…
+      </div>
+    );
+  }
+  if (turn.error) {
+    return <div style={{ color: C.rd, fontFamily: M, fontSize: 12, background: C.rdG, border: `1px solid ${C.rd}44`, borderRadius: 8, padding: "9px 11px" }}>⚠ {turn.error}</div>;
+  }
+  const i = turn.instance || {};
+  return (
+    <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: "14px 16px", fontFamily: F }}>
+      <div style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>Governance ladder started</div>
+      <div style={{ fontSize: 14, fontWeight: 600, color: C.t1, marginBottom: 4 }}>⚖ {i.name || turn.label}</div>
+      <div style={{ fontSize: 12.5, color: C.t2, lineHeight: 1.55 }}>
+        The ladder is now a tracked, chain-sealed run{typeof i.currentStepOrder === "number" ? ` — currently at step ${i.currentStepOrder}` : ""}
+        {i.status ? ` (${String(i.status).toLowerCase().replace(/_/g, " ")})` : ""}. Each AI step queues a recommendation for a human to approve; nothing advances on its own. Track and advance it from the Workflows surface.
+      </div>
+    </div>
+  );
+}
+
 // Cowork-style right rail (à la Claude): Progress / Working folder / Context /
 // Skills, all derived from the live turns — no separate state.
 function WorkspaceRail({ turns, onOpenTicket, onNavigate, history, onRunSkill }) {
@@ -862,6 +889,9 @@ function WorkspaceRail({ turns, onOpenTicket, onNavigate, history, onRunSkill })
     if (last.kind === "skill-review") return [
       { label: last.reviewLoading ? "Matching a playbook" : "Matched a playbook", state: last.reviewLoading ? "active" : last.error ? "error" : "done" },
       { label: last.reviewLoading ? "Running the review" : last.error ? "Review" : "Reviewed", state: last.reviewLoading ? "pending" : last.error ? "error" : "done" },
+    ];
+    if (last.kind === "ladder") return [
+      { label: last.ladderLoading ? "Starting the governance ladder" : last.error ? "Start" : "Ladder started", state: last.ladderLoading ? "active" : last.error ? "error" : "done" },
     ];
     return (last.steps || []).map((s) => ({ label: s.label, state: s.state }));
   })();
@@ -1531,17 +1561,36 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     startTurn(t);
   }, [input, startArtifact, startResearch, runSkillReview, startTurn]);
 
+  // OL-6 — start a governance ladder (a GOVERNANCE_LIBRARY skill) from the
+  // console. POSTs to the governed /run-ladder route, which begins a tracked
+  // WorkflowInstance; AGENT steps queue a PENDING task and never auto-advance.
+  const runLadder = useCallback(async (skill) => {
+    if (!skill?.ladderKey) return;
+    const id = ++TURN_SEQ;
+    setTurns((ts) => [...ts, { id, kind: "ladder", request: skill.prompt || `Start the ${skill.label} ladder.`, ladderLoading: true, label: skill.label, instance: null, error: null }]);
+    try {
+      const resp = await fetch("/api/one-legal/run-ladder", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ladderKey: skill.ladderKey }) });
+      const d = await resp.json().catch(() => ({}));
+      if (d && d.ok && d.instance) patchTurn(id, { ladderLoading: false, instance: d.instance });
+      else patchTurn(id, { ladderLoading: false, error: (d && d.error) || "Could not start the ladder." });
+    } catch (e) {
+      patchTurn(id, { ladderLoading: false, error: friendlyAIError(e) });
+    }
+  }, [patchTurn]);
+
   // E1 — run a reusable skill (playbook). "prefill" arms the composer with the
   // prompt for the user to complete, then dispatches to the skill's own surface
   // on submit (see submitComposer); "research" / "route" dispatch immediately.
+  // OL-6: a "ladder"-kind skill starts a governed workflow instead.
   const runSkill = useCallback((skill) => {
     if (!skill) return;
+    if (skill.kind === "ladder") { runLadder(skill); return; }
     const p = skill.prompt || "";
     if (skill.action === "prefill") { pendingSkillRef.current = skill; setInput(p); setTimeout(() => inputRef.current?.focus(), 0); return; }
     pendingSkillRef.current = null;
     if (skill.action === "research") { startResearch(p); return; }
     startTurn(p); // "route" — intent router (ask / file / tool / compound)
-  }, [startResearch, startTurn]);
+  }, [startResearch, startTurn, runLadder]);
 
   // Auto-run a seeded request once when opened from the omnibox.
   useEffect(() => {
@@ -1782,6 +1831,8 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
                         <AnalyzeCard turn={t} onFollowUp={focusComposer} onFileInstead={fileRequest} onDeepReview={runSkillReview} />
                       ) : t.kind === "skill-review" ? (
                         <SkillReviewCard turn={t} onFollowUp={focusComposer} onFileInstead={fileRequest} />
+                      ) : t.kind === "ladder" ? (
+                        <LadderCard turn={t} />
                       ) : t.kind === "compound" ? (
                         <CompoundCard turn={t} onOpenTicket={goIntake} onOpenCockpit={() => goIntake(null)} onFollowUp={focusComposer} onApprove={(task, targetId) => approveTask(t.id, task, targetId)} onFileInstead={(task) => fileTaskAsTicket(t.id, task)} onOpenNav={goModule} />
                       ) : (
