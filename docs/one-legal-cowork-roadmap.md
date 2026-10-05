@@ -337,12 +337,12 @@ A clean-room, Apache-2.0 package of original AEGIS playbooks — shared standard
 
 | ID | Item | Priority | Status |
 |---|---|---|---|
-| SK-1 | Package: standards + runtime + registry (30 built / 106 catalogued skills) | P1 | ✅ #481 |
+| SK-1 | Package: standards + runtime + registry (106 built / 106 catalogued skills) | P1 | ✅ #481 |
 | SK-2 | `POST /api/one-legal/skill-review` — first live use (route → standards + playbook → governed `@aegis/ai`; gated + audited; degrade-safe) | P1 | ✅ #482 |
 | SK-3 | Console **"Deep skill review"** surface (landing + AnswerCard escalation + uploaded-document review; shows the matched playbook) | P1 | ✅ #483 |
 | SK-4 | **Standards adoption** — converge the 11 oKF intake agents onto the S1–S4 severity scale + JSON output contract (one source of truth for output shape) | P1 | ✅ — `@aegis/legal-skills/output-contract` is the executable scale; every agent rec carries a normalized `overall` (S1–S4/Info) + structured `findings`, persisted on `AgentRecommendation` |
 | SK-5 | **Wire E1 one-click skills → `/skill-review`** — review chips pinned to a built playbook run the governed endpoint (instruction as task, pasted text as data) instead of filing | P2 | ✅ #484 |
-| SK-6 | Build out the remaining catalogued playbooks (`status: planned` → `built`) | P2 | 🟡 in progress — **44/106 built**. Batch 1 (#487): whistleblower-programme, legitimate-interest-assessment, privacy-notice-drafter, cookie-and-tracking, matter-budget, matter-plan. Batch 2: gdpr-compliance, sanctions-screening, security-frameworks, saas-and-cloud-review, data-subject-requests, anti-bribery, deadline-calendar, policy-drafter (the planned playbooks most hand-off-referenced by built ones + behind the biggest E1 chip categories). 62 still planned. |
+| SK-6 | Build out the remaining catalogued playbooks (`status: planned` → `built`) | P2 | ✅ #510 — **all 106 catalogued playbooks built (106/106); 0 planned remaining**. Authored across ten batches (#487, #490, #492, #496, #499, #502, #505, #506, #508, #510). |
 | SK-7 | Admin-editable skills (`Skill` table + CRUD) behind the E1 shape (org-authored playbooks) | P3 | ✅ #489 |
 
 > Also shipped on the ONE Legal front door (context for the above): full-breadth E1 skill library — 79 one-click skills across 14 categories (✅ #480); this Cowork-for-Legal roadmap doc (✅ #475).
