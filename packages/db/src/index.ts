@@ -108,6 +108,7 @@ export {
   AgentRecommendationStatus,
   ConversationRole,
   IntakeRfiStatus,
+  ClientPortalTokenStatus,
   VendorType,
   InvoiceStatus,
   InvoiceLineStatus,

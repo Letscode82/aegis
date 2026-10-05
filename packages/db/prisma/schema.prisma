@@ -321,6 +321,7 @@ model Person {
   consentRecords       ConsentRecord[]
   intakeTicketParties  IntakeTicketParty[]
   contractReviewTokens ContractReviewToken[]
+  clientPortalTokens   ClientPortalToken[]
 
   @@index([organizationId, email])
   @@index([organizationId, externalRef])
@@ -2357,6 +2358,42 @@ model ContractReviewToken {
   person       Person       @relation(fields: [personId], references: [id], onDelete: Cascade)
 
   @@index([contractId])
+  @@index([personId])
+  @@index([organizationId, status])
+}
+
+/// C-10 — login-less client portal access token. A white-label self-service
+/// link that lets a business-user / client contact (a Person) see a scoped,
+/// read-only view of the matters they are a party to — status, tasks, and
+/// legal holds — without an authenticated AEGIS account. Same posture as
+/// DSARAccessToken / ContractReviewToken: only the SHA-256 hash is stored,
+/// the raw token lives once in the shared URL, and validity (status + expiry)
+/// plus scope (the person's MatterParty rows) are re-derived on every call.
+/// organizationId is a plain scalar (the localized pattern, same as the SSO /
+/// connector-credential tables) so the migration never touches Organization;
+/// the FK to Person cascades cleanup.
+enum ClientPortalTokenStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+model ClientPortalToken {
+  id             String                  @id @default(cuid())
+  organizationId String
+  personId       String // the client / business-user Person the link is for
+  tokenHash      String                  @unique // SHA-256 of the raw token
+  label          String? // optional human label, e.g. "Acme GC portal"
+  status         ClientPortalTokenStatus @default(ACTIVE)
+  expiresAt      DateTime
+  viewedAt       DateTime? // first view
+  lastViewedAt   DateTime? // most recent view
+  createdById    String? // internal User who issued the link
+  createdAt      DateTime                @default(now())
+  updatedAt      DateTime                @updatedAt
+
+  person Person @relation(fields: [personId], references: [id], onDelete: Cascade)
+
   @@index([personId])
   @@index([organizationId, status])
 }

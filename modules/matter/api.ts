@@ -1169,3 +1169,21 @@ export type {
   MatterArtifactDTO,
   MatterArtifactDetail,
 } from "./src/internal/workspace-assistant";
+
+// C-10 — login-less client portal. White-label self-service link for a
+// business-user / client contact to see their matters read-only. The public
+// resolve path is the gate (no session); minting / revoking are internal.
+export {
+  mintClientPortalTokenService,
+  resolveClientPortalService,
+  revokeClientPortalTokenService,
+  listClientPortalRecipientsService,
+  ClientPortalPersonNotFoundError,
+  ClientPortalTokenNotFoundError,
+} from "./src/internal/services/client-portal";
+export type {
+  MintedClientPortalToken,
+  ClientPortalView,
+  ClientPortalMatterView,
+  ClientPortalRecipient,
+} from "./src/internal/services/client-portal";
