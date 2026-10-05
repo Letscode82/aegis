@@ -9,6 +9,7 @@
     "./polyfill": "./src/storage/polyfill.js",
     "./server": "./src/storage/server.ts",
     "./ai-ops": "./src/ai-ops/summary.ts",
+    "./ai-ops/exec-summary": "./src/ai-ops/exec-summary.ts",
     "./assignees": "./src/assignees/server.ts",
     "./routing": "./src/routing/server.ts",
     "./teams": "./src/routing/teams.ts",
