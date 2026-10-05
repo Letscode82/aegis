@@ -319,6 +319,27 @@ function SourcesList({ sources, grounded, onOpenSource }) {
 
 // Answer card for a QUESTION turn (capability overview, streamed answer, or
 // the graceful fallback) — never files a ticket.
+// C-13 — surface the server-side citation-enforcement result in the console.
+// `enforceCitations` strips any hallucinated [n] before the text reaches here;
+// this banner tells the reader what it did: a "no-citations" answer isn't
+// traceable to a retrieved source, and "dropped-citations" means invented
+// references were removed. Renders nothing when the answer is clean.
+function CitationWarnings({ citations }) {
+  const warnings = (citations && citations.warnings) || [];
+  if (warnings.length === 0) return null;
+  const dropped = (citations && citations.dropped) || 0;
+  return (
+    <div style={{ marginTop: 10, display: "grid", gap: 4 }}>
+      {warnings.includes("no-citations") && (
+        <div style={{ color: C.am, fontFamily: M, fontSize: 11, lineHeight: 1.5 }}>⚠ This answer couldn&rsquo;t be traced to a retrieved source — treat it as unverified.</div>
+      )}
+      {warnings.includes("dropped-citations") && (
+        <div style={{ color: C.am, fontFamily: M, fontSize: 11, lineHeight: 1.5 }}>⚠ Removed {dropped} citation{dropped === 1 ? "" : "s"} that didn&rsquo;t match a retrieved authority.</div>
+      )}
+    </div>
+  );
+}
+
 function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource, onResearch, onResearchLaw, onDeepReview }) {
   if (turn.capability) {
     return (
@@ -361,6 +382,7 @@ function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource, onRes
       ) : (
         <>
           <div style={{ fontSize: 13.5, color: C.t1, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{turn.answer}</div>
+          <CitationWarnings citations={turn.citations} />
           {Array.isArray(turn.nav) && turn.nav.length > 0 && onOpenSource && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
               {turn.nav.map((n) => (
@@ -521,7 +543,6 @@ function LegalResearchCard({ turn, onFollowUp, onFileInstead }) {
       </div>
     );
   }
-  const warnings = (turn.citations && turn.citations.warnings) || [];
   const searched = Array.isArray(turn.providers) ? turn.providers : [];
   return (
     <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16 }}>
@@ -537,9 +558,7 @@ function LegalResearchCard({ turn, onFollowUp, onFileInstead }) {
             {turn.degraded && <span style={{ fontSize: 8.5, fontFamily: M, color: C.am, border: `1px solid ${C.am}`, borderRadius: 4, padding: "0 5px", letterSpacing: 0.5, textTransform: "uppercase" }}>AI offline</span>}
           </div>
           <div style={{ fontSize: 13.5, color: C.t1, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{turn.answer}</div>
-          {warnings.includes("dropped-citations") && (
-            <div style={{ marginTop: 10, color: C.am, fontFamily: M, fontSize: 11, lineHeight: 1.5 }}>⚠ Removed {turn.citations.dropped} citation{turn.citations.dropped === 1 ? "" : "s"} that didn&rsquo;t match a retrieved authority.</div>
-          )}
+          <CitationWarnings citations={turn.citations} />
           <AuthoritiesList sources={turn.sources} />
           {searched.length > 0 && (
             <div style={{ marginTop: 10, fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.4 }}>
@@ -1240,7 +1259,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       });
       const data = await resp.json().catch(() => ({}));
       if (data && data.ok && (data.answer || "").trim()) {
-        patchTurn(turnId, { answer: String(data.answer).trim(), sources: Array.isArray(data.sources) ? data.sources : [], grounded: !!data.grounded, nav: Array.isArray(data.nav) ? data.nav : [], answerLoading: false });
+        patchTurn(turnId, { answer: String(data.answer).trim(), sources: Array.isArray(data.sources) ? data.sources : [], grounded: !!data.grounded, citations: data.citations || null, nav: Array.isArray(data.nav) ? data.nav : [], answerLoading: false });
       } else if (data && data.error) {
         patchTurn(turnId, { answerLoading: false, answerError: data.error });
       } else {
