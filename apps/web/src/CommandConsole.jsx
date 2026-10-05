@@ -711,7 +711,19 @@ function ArtifactCard({ turn, onSave, onRegenerate, onFileInstead }) {
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10, alignItems: "center" }}>
         <button type="button" onClick={() => onSave(turn.id, title, content)} disabled={turn.saving || !content.trim()} style={{ ...primaryBtn, opacity: turn.saving || !content.trim() ? 0.5 : 1 }}>{turn.saving ? "Saving…" : saved ? "Save new version" : "Save to workspace"}</button>
         {saved && <span style={{ fontSize: 9.5, fontFamily: M, color: C.gn, border: `1px solid ${C.gn}`, borderRadius: 4, padding: "2px 7px", letterSpacing: 0.5, textTransform: "uppercase" }}>Saved ✓</span>}
-        <button type="button" onClick={() => onRegenerate(turn.id, turn.request)} style={chipBtn}>↻ Regenerate</button>
+        <button type="button" onClick={() => onRegenerate(turn.id, turn.request, turn.language || "English")} style={chipBtn}>↻ Regenerate</button>
+        {/* C-11 — regenerate the draft in another language (fixed allowlist, mirrors the /draft route). */}
+        <select
+          aria-label="Draft language"
+          value={turn.language || "English"}
+          onChange={(e) => onRegenerate(turn.id, turn.request, e.target.value)}
+          style={{ ...chipBtn, cursor: "pointer", paddingRight: 6 }}
+          title="Regenerate this draft in another language"
+        >
+          {["English", "Spanish", "French", "German", "Portuguese", "Italian", "Dutch", "Hindi", "Japanese", "Chinese (Simplified)", "Korean", "Arabic"].map((lng) => (
+            <option key={lng} value={lng}>🌐 {lng}</option>
+          ))}
+        </select>
         <button type="button" onClick={copy} style={chipBtn}>{copied ? "Copied ✓" : "Copy"}</button>
         <button type="button" onClick={downloadDocx} disabled={downloading || !content.trim()} style={{ ...chipBtn, opacity: downloading || !content.trim() ? 0.5 : 1 }}>{downloading ? "Preparing…" : "⬇ Word (.docx)"}</button>
         {onFileInstead && <button type="button" onClick={() => onFileInstead(`Review this draft: ${title}`)} style={chipBtn}>File as a request →</button>}
@@ -1432,13 +1444,13 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   // C1 — generate an editable draft into the artifact canvas. Not a formal
   // Contract (that stays the governed contracts.draft tool); this is the fast,
   // editable-draft surface.
-  const runArtifactDraft = useCallback(async (turnId, instruction) => {
-    patchTurn(turnId, { draftLoading: true, error: null });
+  const runArtifactDraft = useCallback(async (turnId, instruction, language) => {
+    patchTurn(turnId, { draftLoading: true, error: null, ...(language ? { language } : {}) });
     try {
-      const resp = await fetch("/api/one-legal/draft", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instruction }) });
+      const resp = await fetch("/api/one-legal/draft", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instruction, language }) });
       const d = await resp.json().catch(() => ({}));
       if (d && d.ok && (d.content || "").trim()) {
-        patchTurn(turnId, { draftLoading: false, title: d.title || "Draft", content: d.content, degraded: !!d.degraded, draftNonce: Date.now() });
+        patchTurn(turnId, { draftLoading: false, title: d.title || "Draft", content: d.content, degraded: !!d.degraded, language: d.language || language || "English", draftNonce: Date.now() });
       } else {
         patchTurn(turnId, { draftLoading: false, error: (d && d.error) || "Draft failed." });
       }
