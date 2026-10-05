@@ -92,6 +92,51 @@ describe("the whistleblower-policy bug is fixed", () => {
   });
 });
 
+describe("OL-6 — agents + ladders surfaced as runnable skills", () => {
+  // The 11 oKF intake specialists (modules/intake/src/agents registry ids).
+  const AGENT_IDS = [
+    "nda-agent", "faq-agent", "vendor-intake-agent", "contract-specialist-agent",
+    "contract-review-agent", "trademark-agent", "litigation-agent",
+    "notice-mgmt-agent", "privacy-assessment-agent", "marketing-review-agent",
+    "policy-qa-agent",
+  ];
+  // The 10 GOVERNANCE_LIBRARY ladder keys (packages/workflow/src/library.ts).
+  const LADDER_KEYS = [
+    "nda_fasttrack", "clm_contract_approval", "patent_litigation", "legal_notice",
+    "regulatory_response", "vendor_onboarding", "compliance_investigation",
+    "data_breach", "employment_matter", "board_approval",
+  ];
+
+  it("surfaces every one of the 11 agents as an agent-kind skill", () => {
+    const agentSkills = SKILLS.filter((s) => s.kind === "agent");
+    expect(agentSkills).toHaveLength(AGENT_IDS.length);
+    const seen = agentSkills.map((s) => s.agentId).sort();
+    expect(seen).toEqual([...AGENT_IDS].sort());
+    for (const s of agentSkills) {
+      expect(s.category, s.id).toBe("Agent specialists");
+      // Agents run through the governed review/research pipeline — never a
+      // direct mutation, never the intake router.
+      expect(["review", "research"], s.id).toContain(resolveSkillTarget(s));
+    }
+  });
+
+  it("surfaces every one of the 10 governance ladders as a ladder-kind skill", () => {
+    const ladderSkills = SKILLS.filter((s) => s.kind === "ladder");
+    expect(ladderSkills).toHaveLength(LADDER_KEYS.length);
+    const seen = ladderSkills.map((s) => s.ladderKey).sort();
+    expect(seen).toEqual([...LADDER_KEYS].sort());
+    for (const s of ladderSkills) {
+      expect(s.category, s.id).toBe("Governance ladders");
+      expect(s.ladderKey, s.id).toBeTruthy();
+    }
+  });
+
+  it("agent and ladder categories are registered in SKILL_CATEGORIES", () => {
+    expect(SKILL_CATEGORIES).toContain("Agent specialists");
+    expect(SKILL_CATEGORIES).toContain("Governance ladders");
+  });
+});
+
 describe("each skill's surface matches its intent", () => {
   // Document reviews / assessments run the governed playbook (read-only).
   it("review/assessment skills resolve to the playbook", () => {
