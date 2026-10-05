@@ -29,6 +29,9 @@ const ACTIVITY_LABEL = {
   "intake.ticket.stage_advanced": "Moved to the next stage",
   "intake.document.uploaded": "Document attached",
   "intake.ticket.party_added": "Details updated",
+  "intake.ticket.rfi_sent": "Legal asked you for more information",
+  "intake.ticket.rfi_answered": "You answered legal's question",
+  "intake.ticket.rfi_cancelled": "Information request withdrawn",
 };
 const humanizeActivity = (action) =>
   ACTIVITY_LABEL[action] || action.split(".").pop().replace(/_/g, " ").replace(/^\w/, (c) => c.toUpperCase());
@@ -40,6 +43,51 @@ const relTime = (iso) => {
   if (h < 48) return `${h}h ago`;
   return `${Math.round(h / 24)}d ago`;
 };
+
+// CW-5 — inline answer affordance for an outstanding RFI. The requester
+// reads legal's question and replies without leaving "My requests";
+// answering flips the RFI to ANSWERED and triage resumes.
+function RfiAnswerBlock({ ticketId, rfi, onAnswered }) {
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState(null);
+  const submit = async () => {
+    if (!text.trim()) { setErr("Enter your answer before submitting."); return; }
+    setBusy(true); setErr(null);
+    try {
+      const r = await fetch(`/api/intake/tickets/${encodeURIComponent(ticketId)}/rfi/${encodeURIComponent(rfi.id)}`, {
+        method: "POST", headers: { "content-type": "application/json" },
+        body: JSON.stringify({ action: "answer", answer: text.trim() }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || !d.ok) throw new Error(d.error || `Submit failed (HTTP ${r.status})`);
+      onAnswered?.();
+    } catch (e) { setErr(String(e.message || e)); setBusy(false); }
+  };
+  return (
+    <div style={{ marginTop: 9, padding: "10px 12px", background: C.amG, border: `1px solid ${C.am}55`, borderRadius: 5 }}>
+      <div style={{ fontSize: 9.5, fontFamily: M, color: C.am, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700, marginBottom: 4 }}>
+        ⤷ Legal needs more information
+      </div>
+      <div style={{ fontSize: 11.5, color: C.t1, fontFamily: F, lineHeight: 1.5, marginBottom: 2 }}>{rfi.question}</div>
+      <div style={{ fontSize: 9, fontFamily: M, color: C.t4, marginBottom: 8 }}>asked by {rfi.askedByName} · {relTime(rfi.askedAt)}</div>
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Type your answer…"
+        rows={3}
+        style={{ width: "100%", resize: "vertical", background: C.s1, border: `1px solid ${C.br}`, borderRadius: 4, color: C.t1, fontFamily: F, fontSize: 12, padding: "7px 9px", boxSizing: "border-box" }}
+      />
+      {err && <div style={{ fontSize: 10, color: C.rd, fontFamily: M, marginTop: 5 }}>{err}</div>}
+      <div style={{ marginTop: 7 }}>
+        <button type="button" onClick={busy ? undefined : submit} disabled={busy}
+          style={{ padding: "6px 14px", background: C.cy, color: C.bg, border: "none", borderRadius: 3, fontSize: 9.5, fontFamily: M, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
+          {busy ? "Sending…" : "Send answer"}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function MyRequestsTab({ onFileNew }) {
   const [requests, setRequests] = useState(null);
@@ -102,6 +150,7 @@ export function MyRequestsTab({ onFileNew }) {
               filed {relTime(r.submittedAt)}
               {r.lastActivity && <> · latest: <span style={{ color: C.t2 }}>{humanizeActivity(r.lastActivity.action)}</span> {relTime(r.lastActivity.at)}</>}
             </div>
+            {r.openRfi && <RfiAnswerBlock ticketId={r.id} rfi={r.openRfi} onAnswered={load} />}
           </div>
         ))
       )}

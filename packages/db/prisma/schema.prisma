@@ -67,6 +67,7 @@ model Organization {
   legalHolds              LegalHold[]
   intakeTickets           IntakeTicket[]
   intakeRoutingRules      IntakeRoutingRule[]
+  intakeRfis              IntakeRfi[]
   intakeTeams             IntakeTeam[]
   intakeEmailMailboxes    IntakeEmailMailbox[]
   intakeRequestTypes      IntakeRequestType[]
@@ -1487,6 +1488,7 @@ model IntakeTicket {
   tasks           IntakeTicketTask[]
   parties         IntakeTicketParty[]
   handoffs        IntakeTicketHandoff[]
+  rfis            IntakeRfi[]
 
   @@unique([organizationId, externalMessageId])
   @@index([organizationId, status])
@@ -1871,6 +1873,52 @@ model IntakeConversation {
   ticket IntakeTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
 
   @@index([ticketId, timestamp])
+}
+
+/// CW-5 — Cockpit RFI (Request For Information) round-trip. A triage
+/// reviewer who needs more from the requester sends an RFI; the requester
+/// answers from "My requests"; triage resumes with the answer attached.
+/// Event-shaped: one row per round-trip, its own OPEN → ANSWERED/CANCELLED
+/// lifecycle independent of IntakeTicket.status (a ticket showing an OPEN
+/// RFI is "awaiting requester" without overloading the status enum). Every
+/// transition is chain-sealed in AuditLog (intake.ticket.rfi_*).
+enum IntakeRfiStatus {
+  OPEN
+  ANSWERED
+  CANCELLED
+}
+
+model IntakeRfi {
+  id             String          @id @default(cuid())
+  organizationId String
+  ticketId       String
+  status         IntakeRfiStatus @default(OPEN)
+
+  /// The reviewer's clarifying question to the requester.
+  question String
+  /// Who asked (the triage reviewer). User id + denormalized name so the
+  /// requester-facing surface and the ledger render without a join.
+  askedById   String
+  askedByName String
+
+  /// The requester's answer, once provided.
+  answer       String?
+  answeredAt   DateTime?
+  /// Person id of the requester who answered (resolved server-side).
+  answeredById String?
+
+  /// Set when a reviewer cancels an outstanding RFI (superseded / no longer
+  /// needed) so the ticket resumes without a requester answer.
+  cancelledAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  ticket       IntakeTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId, status])
+  @@index([organizationId, status])
 }
 
 // ════════════════════════════════════════════════════════════════════

@@ -22,6 +22,7 @@ import { ViewAsSwitcher } from "./view-as-switcher";
 import { AgentsConsoleTab } from "./agents-console";
 import { TeamsTab } from "./teams-admin";
 import { HandoffDialog } from "./handoff-dialog";
+import { RfiComposeDialog } from "./rfi-dialog";
 import { WorkPanel } from "./work-panel";
 import { PartiesPanel } from "./parties-panel";
 import { LitigationSummaryCard } from "./litigation-view";
@@ -1073,6 +1074,7 @@ function CockpitTab({store,cockpit}){
   const[showBulkConfirm,setShowBulkConfirm]=useState(false);
   const[showReassign,setShowReassign]=useState(false);
   const[showHandoff,setShowHandoff]=useState(false);
+  const[showRfi,setShowRfi]=useState(false);
   const[search,setSearch]=useState("");
   const[showSearch,setShowSearch]=useState(false);
   const[toast,setToast]=useState(null);
@@ -1333,7 +1335,7 @@ function CockpitTab({store,cockpit}){
       else if(showSearch){ setShowSearch(false); setSearch(""); }
     },
     " ":bulkMode&&current?()=>toggleSelected(current.id):null,
-  },!showHandoff); // suspend shortcuts while the hand-off dialog is open
+  },!showHandoff&&!showRfi); // suspend shortcuts while the hand-off / RFI dialog is open
 
   const recAgent=current?.agentRecommendation?AGENTS_BY_ID[current.agentRecommendation.agentId]:null;
 
@@ -1341,6 +1343,7 @@ function CockpitTab({store,cockpit}){
     {showCheatsheet&&<ShortcutCheatsheet onClose={()=>setShowCheatsheet(false)}/>}
     {showReassign&&current&&<ReassignPicker ticket={current} onPick={pickAssignee} onCancel={()=>setShowReassign(false)}/>}
     {showHandoff&&current&&<HandoffDialog ticket={current} onClose={()=>setShowHandoff(false)} onDone={(msg,tone)=>showToast(msg,tone)}/>}
+    {showRfi&&current&&<RfiComposeDialog ticket={current} onClose={()=>setShowRfi(false)} onDone={(msg,tone)=>showToast(msg,tone)}/>}
     {showBulkConfirm&&<BulkConfirmCard selected={selected} tickets={visibleQueue} onConfirm={confirmBulkApprove} onCancel={()=>setShowBulkConfirm(false)}/>}
 
     {/* Cockpit header — status bar */}
@@ -1444,6 +1447,7 @@ function CockpitTab({store,cockpit}){
           <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
             <div onClick={reassign} style={{padding:"6px 10px",background:C.s2,border:`1px solid ${C.br}`,borderRadius:3,cursor:"pointer",fontSize:10,fontFamily:M,color:C.t2,letterSpacing:.8,display:"flex",alignItems:"center",gap:6}}><Kbd k="r"/> Reassign</div>
             <div onClick={()=>setShowHandoff(true)} title="Pass this ticket's baton — to a person, back to the agent, or to the queue" style={{padding:"6px 10px",background:C.s2,border:`1px solid ${C.br}`,borderRadius:3,cursor:"pointer",fontSize:10,fontFamily:M,color:C.t2,letterSpacing:.8,display:"flex",alignItems:"center",gap:6}}>⇄ Hand off</div>
+            <div onClick={()=>setShowRfi(true)} title="Ask the requester for more information — they answer from My Requests and triage resumes" style={{padding:"6px 10px",background:C.s2,border:`1px solid ${C.br}`,borderRadius:3,cursor:"pointer",fontSize:10,fontFamily:M,color:C.t2,letterSpacing:.8,display:"flex",alignItems:"center",gap:6}}>⤷ Request info</div>
             <div onClick={manualClose} style={{padding:"6px 10px",background:C.s2,border:`1px solid ${C.br}`,borderRadius:3,cursor:"pointer",fontSize:10,fontFamily:M,color:C.t2,letterSpacing:.8,display:"flex",alignItems:"center",gap:6}}><Kbd k="c"/> Manual Close</div>
             <div onClick={snooze} style={{padding:"6px 10px",background:C.s2,border:`1px solid ${C.br}`,borderRadius:3,cursor:"pointer",fontSize:10,fontFamily:M,color:C.t2,letterSpacing:.8,display:"flex",alignItems:"center",gap:6}}><Kbd k="s"/> Snooze</div>
             <div onClick={toggleBulk} style={{padding:"6px 10px",background:bulkMode?C.am+"22":C.s2,border:`1px solid ${bulkMode?C.am:C.br}`,borderRadius:3,cursor:"pointer",fontSize:10,fontFamily:M,color:bulkMode?C.am:C.t2,letterSpacing:.8,display:"flex",alignItems:"center",gap:6,fontWeight:bulkMode?600:400}}><Kbd k="b" active={bulkMode}/> Bulk</div>
