@@ -4,6 +4,7 @@ import { useCurrentUser } from "@aegis/auth/react";
 import { AgentActivityFeed } from "./agent-activity-feed.jsx";
 import { AgentScorecard } from "./agent-scorecard.jsx";
 import { PendingReviewQueue } from "./pending-review-queue.jsx";
+import { ExecutiveSummary } from "./executive-summary.jsx";
 
 const ENDPOINT = "/api/ai-ops/summary";
 
@@ -66,6 +67,9 @@ export function AIOperationsSection(){
         Some panels couldn’t load: {data.panelErrors.join(", ")}. The remaining panels are live.
       </div>
     )}
+    {/* C-14 — executive band above the AI-loop panels. Self-contained
+        fetch so it degrades independently of the summary payload. */}
+    <ExecutiveSummary/>
     {data && (
       <>
         <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:12,marginBottom:12}}>
