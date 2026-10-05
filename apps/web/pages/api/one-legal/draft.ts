@@ -26,6 +26,21 @@ function skeleton(instruction: string, title: string): string {
   return `# ${title}\n\n_Draft generated from: "${instruction}". AI drafting is offline — this is a starting skeleton to edit._\n\n## Purpose\n\n- \n\n## Key points\n\n- \n- \n\n## Details\n\n\n\n## Next steps\n\n- \n\n---\n_Not legal advice — a qualified lawyer should review before use._`;
 }
 
+// C-11 — multilingual drafting. The target language is picked from a fixed
+// allowlist (never free text) so it can only steer the output language, not
+// inject arbitrary instructions into the prompt. English is the default and
+// adds no instruction.
+const DRAFT_LANGUAGES = [
+  "English", "Spanish", "French", "German", "Portuguese", "Italian", "Dutch",
+  "Hindi", "Japanese", "Chinese (Simplified)", "Korean", "Arabic",
+] as const;
+
+function resolveLanguage(input: unknown): string {
+  return typeof input === "string" && (DRAFT_LANGUAGES as readonly string[]).includes(input)
+    ? input
+    : "English";
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -39,6 +54,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const instruction = String((req.body || {}).instruction || (req.body || {}).text || "").trim();
     if (instruction.length < 3) return res.status(400).json({ ok: false, error: "Describe what to draft." });
     const title = titleFrom(instruction);
+    const language = resolveLanguage((req.body || {}).language);
 
     let content = "";
     let degraded = false;
@@ -48,7 +64,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         "You are AEGIS, drafting for a corporate legal-operations team. Produce a clean, well-structured Markdown draft that " +
         "the user will edit — a memo, email, clause, summary, outline, or similar as the instruction implies. Use clear headings " +
         "and lists. Keep placeholders like [Party], [Date], [Amount] where specifics are unknown — never invent facts, names, or " +
-        "numbers. End with a one-line note that a qualified lawyer should review. Output ONLY the Markdown, no preamble.";
+        "numbers. End with a one-line note that a qualified lawyer should review. Output ONLY the Markdown, no preamble." +
+        (language !== "English"
+          ? ` Write the entire draft — headings, body, and the closing review note — in ${language}. Keep the bracketed placeholders in their original form.`
+          : "");
       content = ((await callClaude(instruction, { system, maxTokens: 1200, timeout: 25000 })) || "").trim();
       if (!content) throw new Error("empty");
     } catch {
@@ -56,7 +75,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       content = skeleton(instruction, title);
     }
 
-    return res.status(200).json({ ok: true, title, content, degraded });
+    return res.status(200).json({ ok: true, title, content, degraded, language });
   } catch (err) {
     if (err instanceof AccessDeniedError) return res.status(403).json({ ok: false, error: err.decision.message });
     return res.status(400).json({ ok: false, error: String((err as Error).message || err) });
