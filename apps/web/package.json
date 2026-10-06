@@ -9,7 +9,11 @@
     "start": "next start",
     "lint": "next lint --dir src --dir pages",
     "typecheck": "tsc --noEmit",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:report": "playwright show-report e2e-report/html",
+    "test:e2e:typecheck": "tsc --noEmit -p e2e/tsconfig.json"
   },
   "dependencies": {
     "@aegis/admin": "workspace:*",
@@ -45,6 +49,7 @@
     "@types/node": "^20.17.9",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
+    "@playwright/test": "1.49.1",
     "eslint": "^8.57.1",
     "eslint-config-next": "14.2.35",
     "typescript": "5.6.3",

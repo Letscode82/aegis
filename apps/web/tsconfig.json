@@ -17,5 +17,5 @@
     "plugins": [{ "name": "next" }]
   },
   "include": ["next-env.d.ts", "src/**/*", "pages/**/*", "**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules", ".next"]
+  "exclude": ["node_modules", ".next", "e2e", "playwright.config.ts", "e2e-report"]
 }
