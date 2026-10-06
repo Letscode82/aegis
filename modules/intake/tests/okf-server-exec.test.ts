@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from "vitest";
-import { processTicketWithAgent, setOkfDocResolver } from "../src/agents/index.js";
-import { staticDefForKey } from "../src/agents/okf/static-defs";
+import { processTicketWithAgent, setOkfDocResolver } from "../src/internal/agents/index.js";
+import { staticDefForKey } from "../src/internal/agents/okf/static-defs";
 
 // oKF-6: the server runner injects a DB-backed doc resolver so server-
 // created tickets take the SAME oKF execution path as the browser. Here we

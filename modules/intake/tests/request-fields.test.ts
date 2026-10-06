@@ -9,7 +9,7 @@ const {
   fieldValuesToLines,
   DynamicFields,
   RequestFieldValues,
-} = await import("../src/intake/request-fields.jsx" as never);
+} = await import("../src/internal/intake/request-fields.jsx" as never);
 
 const FIELDS = [
   { key: "counterparty_name", label: "Counterparty name", kind: "text", required: true, sortOrder: 10 },

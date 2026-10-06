@@ -10,7 +10,7 @@ import {
   computeMissing,
   clarifyIntake,
   governingLawForJurisdiction,
-} from "../src/clarify/server";
+} from "../src/internal/clarify/server";
 
 describe("requiredFieldsForCategory", () => {
   it("returns the NDA field set", () => {

@@ -12,13 +12,13 @@ vi.mock("@aegis/ai", () => ({
   friendlyAIError: () => "AI unavailable.",
 }));
 const checkCounterpartyMock = vi.fn();
-vi.mock("../src/agents/counterparty-lookup", () => ({
+vi.mock("../src/internal/agents/counterparty-lookup", () => ({
   checkCounterpartyRelationship: checkCounterpartyMock,
 }));
 
-const { LitigationAgent } = await import("../src/agents/litigation.js" as never);
+const { LitigationAgent } = await import("../src/internal/agents/litigation.js" as never);
 const { routeToAgent, ALL_AGENTS, AGENTS_BY_ID } = await import(
-  "../src/agents/index.js" as never
+  "../src/internal/agents/index.js" as never
 );
 
 beforeEach(() => {

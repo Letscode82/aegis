@@ -7,10 +7,10 @@ import {
   mapConfidenceToAction,
   resolveTools,
   runDefinition,
-} from "../src/agents/okf/runtime";
-import { buildRec, buildDegradedRec } from "../src/agents/build-rec.js";
-import { normalizeDocument } from "../src/agents/okf/serialize";
-import { staticDefForKey } from "../src/agents/okf/static-defs";
+} from "../src/internal/agents/okf/runtime";
+import { buildRec, buildDegradedRec } from "../src/internal/agents/build-rec.js";
+import { normalizeDocument } from "../src/internal/agents/okf/serialize";
+import { staticDefForKey } from "../src/internal/agents/okf/static-defs";
 
 const friendlyAIError = (e: unknown) => String((e as Error)?.message || e);
 

@@ -282,12 +282,18 @@ P4 — Email channel. **Stub-first** so Graph debugging stays off the
        threading.
 
 PR #5 (was Step 5) — Refactor Intake into `internal/api` split.
-       Original Foundation plan checkpoint, **deferred until after
-       Intake P1–P4 ship** so there's a real surface to split
-       rather than a demo prototype. The first
+       **Shipped** as a behavior-neutral refactor (see
+       [What's new in PR #5](#whats-new-in-pr-5-step-5--intake-internalapi-split)).
+       All of `modules/intake/src/**` moved under `src/internal/`; a
+       new public `modules/intake/api.ts` is the `@aegis/intake` entry;
+       the narrow subpath entries in `package.json#exports` carry the
+       server/logic surface and re-point to `src/internal/**` so every
+       `apps/web` call-site stays byte-identical. The first
        [Documented exception row](#documented-exceptions-to-the-module-isolation-rule)
-       (seed cross-package import) sunsets here as originally
-       planned.
+       (seed cross-package import) is updated in place: Step 5 landed,
+       and the seed now reaches the fixtures under `src/internal/` while
+       staying a relative narrow-leaf import — reclassified permanent
+       dev-only (cycle-avoidance), matching its auth/workflow siblings.
 
 PR #6 (was Step 6) — Spend & Counsel module + cross-module flow.
        Deferred until after PR #5. The `getMatterCostBasisService`
@@ -320,7 +326,7 @@ the shared bit into a package or add it to the module's `api.ts`.
 
 | Site | Direction | Why allowed | Sunset / permanent? |
 |---|---|---|---|
-| `packages/db/prisma/seed.ts` | imports `modules/intake/src/seed/{v72-seed,v8-cockpit-seed,v8-bulk-nda-seed}.js` **and** `modules/intake/src/agents/okf/static-defs.js` (oKF-1) | Dev-only seed script reading its own input. Runs at `pnpm db:seed` time only — never bundled, never imported by app code. The v8 demo fixtures are the canonical demo dataset; `static-defs.js` is the code-shipped oKF spec for the 11 agents the seed writes into `AgentDefinition`/`KnowledgePack` rows (client-safe data module — imports only `agent-profiles` + the pure serializer, no `@aegis/db`, so no cycle). Duplicating either inside `packages/db` would create two sources of truth. | **Sunset at Step 5** (v8 fixtures) — the Intake `internal/api` split absorbs them into the module's public surface. The `static-defs.js` import sunsets when the oKF spec moves to `@aegis/intake`'s public surface (post-oKF-4), same mechanism. |
+| `packages/db/prisma/seed.ts` | imports `modules/intake/src/internal/seed/{v72-seed,v8-cockpit-seed,v8-bulk-nda-seed}.js`, `modules/intake/src/internal/agents/okf/static-defs.js` (oKF-1), and `modules/intake/src/internal/trademark/{bootstrap-data,similarity}.ts` — all via relative paths | Dev-only seed script reading its own input. Runs at `pnpm db:seed` time only — never bundled, never imported by app code. The v8 demo fixtures are the canonical demo dataset; `static-defs.js` is the code-shipped oKF spec for the 11 agents the seed writes into `AgentDefinition`/`KnowledgePack` rows (client-safe data module — imports only `agent-profiles` + the pure serializer, no `@aegis/db`, so no cycle); the trademark bootstrap data + normaliser seed `TrademarkMark` rows. Routing these through `@aegis/intake`'s public `api.ts` would pull the module's server surface (→ `@aegis/db`) into the seed's own import graph and create a `@aegis/db` ⇄ `@aegis/intake` runtime cycle — so the seed imports the **narrow leaf modules** directly, which transitively touch no `@aegis/db`. Same shape as the auth (`../../auth/src/roles`) and workflow (`../../workflow/src/…`) seed rows. Duplicating any of them inside `packages/db` would create two sources of truth. | **Permanent** (dev-only build-time input). **Step 5 landed** (Intake `internal/api` split): the fixtures + specs now live under `src/internal/` and the seed tracks the new path, but it stays a relative narrow-leaf import for the cycle-avoidance reason above — the same permanent justification as its auth/workflow siblings, not an open-ended "fix later." |
 | `packages/db/prisma/seed.ts` | imports `packages/auth/src/roles` via the relative path `../../auth/src/roles` | Same dev-only seed reads the canonical `ROLE_PERMISSIONS` bundles from `@aegis/auth`. A package-name import would create a turbo-detected cycle (`@aegis/auth` depends on `@aegis/db` at runtime). The relative path skips the `package.json` edge while still pointing at the single source of truth — duplicating the role bundles inside the seed would drift the moment a permission is added. | **Permanent.** Role definitions live in `@aegis/auth` by design; build-time tooling reaching them via relative path is the cleanest way to keep one source of truth without introducing a circular package dep. Revisit if the cycle goes away (e.g., if `@aegis/auth` ever stops depending on `@aegis/db`). |
 | `packages/db/prisma/seed.ts` | imports `packages/workflow/src/{library,engine}` via relative paths (`../../workflow/src/…`) | Same dev-only seed category as the auth/intake imports above. §13 seeds the 10-ladder governance library (`seedWorkflowLibrary`) and starts a few running instances (`startWorkflow`) on seeded intake tickets, so the Workflows editor + Cockpit aren't empty after the human-dispatch-first change removed intake auto-start. A package-name import would create the turbo-detected `@aegis/db` ↔ `@aegis/workflow` cycle (`@aegis/workflow` depends on `@aegis/db`); the relative path skips the `package.json` edge. Duplicating the ladder specs / engine writes inside the seed would drift from the single source of truth. | **Permanent** in current shape (dev-only demo data). Revisit only if the cycle goes away or a dedicated demo-fixtures package is introduced. |
 | `modules/matter/src/internal/services/m365.ts` (`MockM365Client`) | retains the mock implementation as a fallback when M365 credentials are absent (CI; local dev without creds) | The mock is no longer the default in production — `m365-factory.getM365ClientForOrg(orgId)` selects `M365GraphClient` when env vars or per-org credentials are present (sub-PR 4c). The mock survives as a CI-friendly fallback so module-isolation tests don't require a tenant. | **Permanent** in current shape. Sunset only if Graph integration becomes mandatory and CI is restructured to provision a tenant. |
@@ -349,8 +355,10 @@ the shared bit into a package or add it to the module's `api.ts`.
 - **Build-time / dev-only tooling.** Seed scripts, codegen, fixtures
   that the app does not import at runtime.
 - **The script reads its own legacy input.** The Step 5 refactor
-  moves the v8 fixtures' canonical home; until then, the seed reads
-  the existing location.
+  moved the v8 fixtures under `modules/intake/src/internal/`; the seed
+  reads them there by relative narrow-leaf path (routing through the
+  module's public `api.ts` would create a `@aegis/db` ⇄ `@aegis/intake`
+  cycle), the same shape as the auth/workflow seed rows.
 - **Each crossing is per-line, with a prose justification.** No
   blanket disables. No file-level disable. No directory-level disable.
 - **The exception has a recorded sunset condition or permanent justification.**
@@ -920,6 +928,64 @@ model, resolver, and routing seam are reused unchanged, so it stays the
 half-day job above. See `docs/sso-federation.md`.
 
 ---
+
+## What's new in PR #5 (Step 5 — Intake internal/api split)
+
+Retrofits `modules/intake` to the canonical `internal/` + `api.ts`
+layout the other modules ship with. **Pure, behavior-neutral
+refactor** — no logic, no schema, no auth/login, no API routes
+changed. The v8 Intake demo bundles and runs byte-identically; the
+proof is that the move touches only file locations and import
+specifiers, and the full gate stays green (intake 703 tests, intake
++ db + web + worker typecheck, `next build`, lint 0 errors).
+
+- **The move.** Every file under `modules/intake/src/**` (136 files,
+  35 subdirs + 5 root files) moved wholesale into
+  `modules/intake/src/internal/**` via `git mv`. Because no
+  intra-module import ever escaped `src/`, moving the whole tree down
+  one level preserves all 136 files' relative imports with **zero
+  edits** — the risk-minimising property that made the retrofit safe
+  to land under live demos.
+- **Public surface.** New `modules/intake/api.ts` is the
+  `@aegis/intake` entry (`exports["."]` + `main`/`types`). It
+  re-exports the module's React UI surface (`IntakeView`,
+  `MissionControlBriefing`, `TicketSummaryButton`, `AskAuroraChat`,
+  `MatterRiskBadge`, `buildBriefingContext`, `AICopilot`, `AIInsight`,
+  `useAIInsight`) verbatim from the internal UI barrel, so the two
+  `apps/web` bare `@aegis/intake` importers are unchanged.
+- **Subpath entries kept, re-pointed.** All 39 server/logic subpath
+  exports (`@aegis/intake/server`, `/ai-ops`, `/agents`, `/sla`, …)
+  stay in `package.json#exports`, re-pointed from `./src/**` to
+  `./src/internal/**`. Every `apps/web` subpath call-site (~80
+  imports) is therefore byte-identical — the demo-protection play.
+  The logic surfaces stay on narrow dedicated entries rather than
+  being aggregated into `api.ts`, so each consumer (and the dev-only
+  seed) pulls only the slice it needs and the `@aegis/db` ⇄
+  `@aegis/intake` import graph stays acyclic.
+- **ESLint isolation.** The `no-restricted-paths` rule already
+  blocked any module from importing intake's `src/**` (only `api.ts`
+  is excepted), so isolation was already effectively enforced; this
+  PR gives intake the `api.ts` convention and the `internal/` naming
+  the rule's intent assumes. No rule change.
+- **Seed exception updated in place** (not a new row). The dev-only
+  `packages/db/prisma/seed.ts` tracks the fixtures to their new
+  `src/internal/` home and stays a relative narrow-leaf import —
+  reclassified from "sunset at Step 5" to **permanent dev-only**
+  (routing through `api.ts` would create a `@aegis/db` ⇄
+  `@aegis/intake` runtime cycle; the leaf modules touch no
+  `@aegis/db`), matching the auth/workflow seed rows.
+- **Tooling.** `package.json#files` adds `api.ts`; the lint script
+  becomes `eslint api.ts src`; `tsconfig.json` `rootDir` → `.` and
+  `include` adds `api.ts` — mirroring `modules/matter`. The 26 test
+  files that imported `../src/**` now import `../src/internal/**`;
+  no test logic changed.
+
+No new documented-exception rows, no schema migration, no new
+permission, no route change. UI `src/ui/` carve-out of the 26 `.jsx`
+components is intentionally **not** part of this PR: it would force
+ui↔logic relative-import rewrites (real churn + risk) for a boundary
+ESLint already enforces via `api.ts`. It can follow as a cosmetic
+pass if ever wanted.
 
 ## What's new in PRIV-1 (Privacy module — DSAR case handling)
 

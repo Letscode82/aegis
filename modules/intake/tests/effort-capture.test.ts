@@ -18,7 +18,7 @@ vi.mock("@aegis/db", () => ({
 }));
 
 const { logTaskEffort, WorkTrackingValidationError, WorkItemNotFoundError } =
-  await import("../src/work-tracking/server");
+  await import("../src/internal/work-tracking/server");
 
 beforeEach(() => {
   taskFindFirstMock.mockReset().mockResolvedValue({

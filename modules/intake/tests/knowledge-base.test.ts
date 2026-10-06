@@ -10,10 +10,10 @@
  */
 import { describe, expect, it } from "vitest";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const { AGENT_KB, matchAgentKB } = await import("../src/agents/kb.js" as any);
+const { AGENT_KB, matchAgentKB } = await import("../src/internal/agents/kb.js" as any);
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const { POLICY_LIBRARY, matchPolicy } = await import(
-  "../src/agents/policy-library.js" as any
+  "../src/internal/agents/policy-library.js" as any
 );
 
 describe("coverage counts", () => {

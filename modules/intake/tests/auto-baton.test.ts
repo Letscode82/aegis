@@ -5,7 +5,7 @@
  * semantics of what gets written.
  */
 import { describe, expect, it } from "vitest";
-import { buildAutoBatonRows } from "../src/handoff/auto";
+import { buildAutoBatonRows } from "../src/internal/handoff/auto";
 
 describe("buildAutoBatonRows — drafted with an assignee", () => {
   const plan = buildAutoBatonRows({

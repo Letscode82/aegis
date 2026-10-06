@@ -3,7 +3,7 @@ import {
   intakeTypeSpawnsContract,
   deriveContractType,
   deriveContractTitle,
-} from "../src/contract-spawn/server";
+} from "../src/internal/contract-spawn/server";
 
 describe("intakeTypeSpawnsContract", () => {
   it("spawns for contract-bearing intake types", () => {

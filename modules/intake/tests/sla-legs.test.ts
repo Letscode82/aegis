@@ -2,7 +2,7 @@
  * W2-4 (multi-leg SLA, issue #111) — pure per-leg clock semantics.
  */
 import { describe, expect, it } from "vitest";
-import { buildSlaLegs } from "../src/sla/legs";
+import { buildSlaLegs } from "../src/internal/sla/legs";
 
 const H = 3600 * 1000;
 const T0 = Date.parse("2026-07-01T09:00:00.000Z");

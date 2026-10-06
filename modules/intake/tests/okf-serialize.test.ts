@@ -4,9 +4,9 @@ import {
   serializeDocument,
   parseDocument,
   canonicalStringify,
-} from "../src/agents/okf/serialize";
-import { validateOkfDocument, OKF_VERSION } from "../src/agents/okf/schema";
-import { STATIC_AGENT_DEFS } from "../src/agents/okf/static-defs";
+} from "../src/internal/agents/okf/serialize";
+import { validateOkfDocument, OKF_VERSION } from "../src/internal/agents/okf/schema";
+import { STATIC_AGENT_DEFS } from "../src/internal/agents/okf/static-defs";
 
 describe("oKF serializer", () => {
   it("canonicalStringify sorts keys so structurally-equal objects are byte-equal", () => {

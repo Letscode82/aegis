@@ -5,7 +5,7 @@
 import { describe, expect, it } from "vitest";
 describe("request-types-admin module", () => {
   it("exports the reusable editors used by Workflows", async () => {
-    const mod = await import("../src/intake/request-types-admin.jsx" as never);
+    const mod = await import("../src/internal/intake/request-types-admin.jsx" as never);
     expect(typeof mod.TypeForm).toBe("function");
     expect(typeof mod.FieldsEditor).toBe("function");
   });

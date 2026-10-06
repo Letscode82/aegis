@@ -47,7 +47,7 @@ vi.mock("@aegis/ai", () => ({
 }));
 
 const { ingestInboundEmail, EmailIngestValidationError } = await import(
-  "../src/email/server"
+  "../src/internal/email/server"
 );
 
 beforeEach(() => {

@@ -1,7 +1,7 @@
 /** W2-1 unit: complexity derivation + matchComplexity in the engine. */
 import { describe, expect, it } from "vitest";
-import { deriveComplexity, isComplexityBand } from "../src/routing/complexity";
-import { evaluateRoutingRules } from "../src/routing/rules";
+import { deriveComplexity, isComplexityBand } from "../src/internal/routing/complexity";
+import { evaluateRoutingRules } from "../src/internal/routing/rules";
 
 describe("W2-1 deriveComplexity", () => {
   it("scores high-risk or heavy-effort work complex", () => {

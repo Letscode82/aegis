@@ -6,7 +6,7 @@ import {
   HANDOFF_HOLDERS,
   isHandoffHolder,
   validateHandoff,
-} from "../src/handoff/state";
+} from "../src/internal/handoff/state";
 
 describe("handoff holders", () => {
   it("recognises the three canonical holders", () => {

@@ -11,11 +11,11 @@ vi.mock("@aegis/ai", () => ({
 }));
 
 const { extractDeadlines, classifyNotice, slaHoursForDeadlines } = await import(
-  "../src/agents/notice-dates"
+  "../src/internal/agents/notice-dates"
 );
-const { NoticeMgmtAgent } = await import("../src/agents/notice-mgmt");
-const { LitigationAgent } = await import("../src/agents/litigation");
-const { routeToAgent } = await import("../src/agents/index");
+const { NoticeMgmtAgent } = await import("../src/internal/agents/notice-mgmt");
+const { LitigationAgent } = await import("../src/internal/agents/litigation");
+const { routeToAgent } = await import("../src/internal/agents/index");
 
 // Fixed receipt: 2026-07-01T00:00:00Z.
 const RECEIVED = Date.UTC(2026, 6, 1);

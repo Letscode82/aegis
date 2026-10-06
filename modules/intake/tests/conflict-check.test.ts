@@ -25,7 +25,7 @@ vi.mock("@aegis/db", () => ({
 }));
 
 const { runConflictCheck, ConflictEntityNotFoundError } = await import(
-  "../src/conflict/server"
+  "../src/internal/conflict/server"
 );
 
 const TICKET = {

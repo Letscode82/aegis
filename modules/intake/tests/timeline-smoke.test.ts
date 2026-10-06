@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@aegis/db", () => ({ prisma: {} }));
 
-const ui = await import("../src/intake/timeline-panel.jsx" as never);
-const srv = await import("../src/timeline/server" as never);
+const ui = await import("../src/internal/intake/timeline-panel.jsx" as never);
+const srv = await import("../src/internal/timeline/server" as never);
 
 describe("W1-3 Ticket Timeline", () => {
   it("exports the panel component", () => {

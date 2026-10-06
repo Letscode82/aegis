@@ -52,18 +52,18 @@ import {
   type RoleName,
 } from "../../auth/src/roles";
 // Dev-only seed reading its own module input — same documented-exception
-// category as the modules/intake/src/seed/* imports below (relative path
+// category as the modules/intake/src/internal/seed/* imports below (relative path
 // avoids the turbo-detected @aegis/db ↔ @aegis/intake cycle a package-name
 // import would create). STATIC_AGENT_DEFS is the code-shipped oKF spec for
 // the 11 agents; the seed writes it into AgentDefinition + KnowledgePack
 // rows so the Agent Designer has a starting point. Rows are written with
 // this file's own prisma client, so no runtime coupling to the module.
-import { STATIC_AGENT_DEFS } from "../../../modules/intake/src/agents/okf/static-defs.js";
+import { STATIC_AGENT_DEFS } from "../../../modules/intake/src/internal/agents/okf/static-defs.js";
 // Same dev-only, relative-path, pure-module category: the trademark
 // bootstrap DATA + the pure normalizer (no @aegis/db → no cycle). The
 // seed writes the knock-out reference marks with its own prisma client.
-import { TRADEMARK_BOOTSTRAP } from "../../../modules/intake/src/trademark/bootstrap-data.ts";
-import { normalizeMark as normalizeTrademark } from "../../../modules/intake/src/trademark/similarity.ts";
+import { TRADEMARK_BOOTSTRAP } from "../../../modules/intake/src/internal/trademark/bootstrap-data.ts";
+import { normalizeMark as normalizeTrademark } from "../../../modules/intake/src/internal/trademark/similarity.ts";
 // Dev-only, relative-path import of the workflow engine so the seed can
 // populate the governance-ladder library AND start a few running instances
 // (the Workflows editor is otherwise empty, and nothing runs after the
@@ -2041,7 +2041,7 @@ main()
 // Section 4 — Intake tickets
 // ───────────────────────────────────────────────────────────────────
 //
-// Reads the existing v8 demo fixtures from modules/intake/src/seed at
+// Reads the existing v8 demo fixtures from modules/intake/src/internal/seed at
 // runtime and translates them to IntakeTicket + AgentRecommendation
 // + IntakeConversation rows. Single source of truth for demo data.
 //
@@ -2088,11 +2088,11 @@ type V8Ticket = {
 
 async function loadV8Seeds(): Promise<V8Ticket[]> {
   // eslint-disable-next-line import/no-restricted-paths -- Dev-only seed import. Architectural rule prohibits modules ↔ packages coupling at RUNTIME; this is a build-time seed script reading its own input. Do not use this pattern for runtime code.
-  const v72 = await import("../../../modules/intake/src/seed/v72-seed.js");
+  const v72 = await import("../../../modules/intake/src/internal/seed/v72-seed.js");
   // eslint-disable-next-line import/no-restricted-paths -- Dev-only seed import. Architectural rule prohibits modules ↔ packages coupling at RUNTIME; this is a build-time seed script reading its own input. Do not use this pattern for runtime code.
-  const cockpit = await import("../../../modules/intake/src/seed/v8-cockpit-seed.js");
+  const cockpit = await import("../../../modules/intake/src/internal/seed/v8-cockpit-seed.js");
   // eslint-disable-next-line import/no-restricted-paths -- Dev-only seed import. Architectural rule prohibits modules ↔ packages coupling at RUNTIME; this is a build-time seed script reading its own input. Do not use this pattern for runtime code.
-  const bulk = await import("../../../modules/intake/src/seed/v8-bulk-nda-seed.js");
+  const bulk = await import("../../../modules/intake/src/internal/seed/v8-bulk-nda-seed.js");
   return [
     ...((v72 as { V72_SEED: V8Ticket[] }).V72_SEED ?? []),
     ...((cockpit as { V8_COCKPIT_SEED: V8Ticket[] }).V8_COCKPIT_SEED ?? []),
@@ -2433,7 +2433,7 @@ async function seedSlaDemoState(orgId: string): Promise<number> {
 // the list as fresh. GLOBAL reference data (no org scope). Production
 // replaces this with the live Treasury SDN feed via the admin refresh
 // trigger; the screening logic is identical either way. Mirrors
-// modules/intake/src/sanctions/bootstrap.ts (kept inline to avoid a
+// modules/intake/src/internal/sanctions/bootstrap.ts (kept inline to avoid a
 // cross-package runtime import in the seed).
 
 function normalizeSanctionsName(name: string): string {

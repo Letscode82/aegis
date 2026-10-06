@@ -22,8 +22,8 @@ vi.mock("@aegis/matter", () => ({
 }));
 
 const { buildNotificationEmail, normalizePrefs, prefAllows, toSnippet } =
-  await import("../src/notifications/templates");
-const { notifyTicketEvent } = await import("../src/notifications/server");
+  await import("../src/internal/notifications/templates");
+const { notifyTicketEvent } = await import("../src/internal/notifications/server");
 
 const TICKET = {
   id: "REQ-7001",

@@ -33,7 +33,7 @@ const {
   getAttorneyLoad,
   getRoutingEffectiveness,
   getExecutiveOperationsSummary,
-} = await import("../src/ai-ops/exec-summary");
+} = await import("../src/internal/ai-ops/exec-summary");
 
 beforeEach(() => {
   intakeTicketGroupBy.mockReset();

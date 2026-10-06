@@ -5,7 +5,7 @@
  * a 30% "similar matter" for an employment-retaliation request.
  */
 import { describe, expect, it } from "vitest";
-import { findSimilarMatters } from "../src/copilot/similar-matters";
+import { findSimilarMatters } from "../src/internal/copilot/similar-matters";
 
 const CDA_DESC =
   "Review and suggest\n\n--- Attached document: CDA Template-Mutual.docx ---\n" +

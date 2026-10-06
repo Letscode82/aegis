@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { normalizeMark, soundex, levenshtein, visualRatio, scoreMark, screenAgainstMarks } from "../src/trademark/similarity";
+import { normalizeMark, soundex, levenshtein, visualRatio, scoreMark, screenAgainstMarks } from "../src/internal/trademark/similarity";
 
 describe("trademark similarity primitives", () => {
   it("normalizeMark strips to lowercase alphanumerics", () => {

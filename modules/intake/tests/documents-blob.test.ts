@@ -21,7 +21,7 @@ const {
   finalizeBlobDocument,
   BlobUrlNotAllowedError,
   MAX_EXTRACT_CHARS,
-} = await import("../src/documents/blob");
+} = await import("../src/internal/documents/blob");
 
 const BLOB_URL = "https://abc123.public.blob.vercel-storage.com/nda-x9.txt";
 

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { looksLikePolicyDrafting, clarifyIntake } from "../src/clarify/server";
+import { looksLikePolicyDrafting, clarifyIntake } from "../src/internal/clarify/server";
 
 // The deterministic guard that stops a policy/notice drafting request from being
 // treated as a privacy DSAR (which would surface the data-subject intake form).

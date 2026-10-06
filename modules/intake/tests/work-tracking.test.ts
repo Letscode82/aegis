@@ -40,7 +40,7 @@ const {
   TicketNotFoundError,
   WorkItemNotFoundError,
   WorkTrackingValidationError,
-} = await import("../src/work-tracking/server");
+} = await import("../src/internal/work-tracking/server");
 
 beforeEach(() => {
   ticketFindFirst.mockReset().mockResolvedValue({ id: "REQ-1", workStatus: null });

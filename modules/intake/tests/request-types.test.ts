@@ -37,7 +37,7 @@ const {
   deleteRequestType,
   RequestTypeValidationError,
   RequestTypeNotFoundError,
-} = await import("../src/request-types/server");
+} = await import("../src/internal/request-types/server");
 
 const ROW = (over: Record<string, unknown> = {}) => ({
   id: "rt-1",

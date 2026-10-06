@@ -9,7 +9,7 @@ import { describe, expect, it } from "vitest";
 import {
   evaluateRoutingRules,
   type RoutingRuleLike,
-} from "../src/routing/rules";
+} from "../src/internal/routing/rules";
 
 function rule(partial: Partial<RoutingRuleLike> & { id: string }): RoutingRuleLike {
   return {

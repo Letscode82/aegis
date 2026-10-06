@@ -21,9 +21,9 @@ vi.mock("@aegis/matter", () => ({ pollDelegatedMailbox: vi.fn(), sendDelegatedMa
 // The ingest path is exercised by its own tests; here we just confirm it
 // is called once per message with the mapped fields.
 const ingestMock = vi.fn();
-vi.mock("../src/email/server", () => ({ ingestInboundEmail: ingestMock }));
+vi.mock("../src/internal/email/server", () => ({ ingestInboundEmail: ingestMock }));
 
-const { pollMailboxForIntake } = await import("../src/email/mailbox");
+const { pollMailboxForIntake } = await import("../src/internal/email/mailbox");
 
 const msg = (id: string, when: string, over: Record<string, unknown> = {}) => ({
   id,

@@ -28,10 +28,10 @@ vi.mock("@aegis/workflow", () => ({
   autoAdvanceOpeningStep: autoAdvanceMock,
 }));
 // Keep the real agent registry out of this unit test.
-vi.mock("../src/agents/index.js", () => ({ intakeWorkflowAgentHandler: vi.fn() }));
+vi.mock("../src/internal/agents/index.js", () => ({ intakeWorkflowAgentHandler: vi.fn() }));
 
 const { maybeStartWorkflowForTicket, defaultLadderKeyForType } = await import(
-  "../src/workflow-bridge/server"
+  "../src/internal/workflow-bridge/server"
 );
 
 const TICKET = {

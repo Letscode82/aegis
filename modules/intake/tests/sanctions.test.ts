@@ -26,7 +26,7 @@ const {
   refreshSanctionsList,
   normalizeName,
   STALE_AFTER_DAYS,
-} = await import("../src/sanctions/server");
+} = await import("../src/internal/sanctions/server");
 
 const NOW = Date.parse("2026-06-24T00:00:00Z");
 const fresh = () => new Date(NOW - 1 * 24 * 3600 * 1000); // 1 day old

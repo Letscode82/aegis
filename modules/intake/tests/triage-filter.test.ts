@@ -11,7 +11,7 @@
  */
 import { describe, expect, it } from "vitest";
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const { isAwaitingTriage } = await import("../src/intake/triage-filter.js" as any);
+const { isAwaitingTriage } = await import("../src/internal/intake/triage-filter.js" as any);
 
 const base = { triagedBy: null, status: "Awaiting Triage" };
 

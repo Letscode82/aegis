@@ -76,7 +76,7 @@ vi.mock("@aegis/matter", () => ({
   createMatter: vi.fn().mockResolvedValue({ id: "m-test", matterNumber: "M-2026-TEST" }),
 }));
 
-const { intakeStorageSet } = await import("../src/storage/server");
+const { intakeStorageSet } = await import("../src/internal/storage/server");
 
 // DB row shape for loadEnabledRoutingRules (RULE_SELECT projection).
 const NDA_RULE_ROW = {

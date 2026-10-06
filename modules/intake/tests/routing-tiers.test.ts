@@ -5,8 +5,8 @@
  * summary + patch carry the pool decision.
  */
 import { describe, expect, it, vi } from "vitest";
-import { evaluateRoutingRules } from "../src/routing/rules";
-import type { RoutingRuleLike, ResolvedPoolPick } from "../src/routing/rules";
+import { evaluateRoutingRules } from "../src/internal/routing/rules";
+import type { RoutingRuleLike, ResolvedPoolPick } from "../src/internal/routing/rules";
 
 function rule(over: Partial<RoutingRuleLike>): RoutingRuleLike {
   return {

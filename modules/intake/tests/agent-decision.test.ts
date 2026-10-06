@@ -37,7 +37,7 @@ vi.mock("@aegis/ai", () => ({ CLAUDE_MODEL: "claude-sonnet-5" }));
 const {
   syncAgentDecisionForTicket,
   isTicketAgentActionApproved,
-} = await import("../src/agent-decision/server");
+} = await import("../src/internal/agent-decision/server");
 
 const REC = {
   agentId: "nda-agent",

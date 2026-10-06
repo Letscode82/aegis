@@ -14,20 +14,20 @@ vi.mock("@aegis/ai", () => ({
   classifyIntakeRegex: () => null,
 }));
 // Retrieval helpers hit the network/DB — neutralize.
-vi.mock("../src/agents/counterparty-lookup", () => ({
+vi.mock("../src/internal/agents/counterparty-lookup", () => ({
   checkCounterpartyRelationship: vi.fn().mockResolvedValue({ found: false, note: "No prior relationship on record." }),
 }));
-vi.mock("../src/agents/sanctions-lookup", () => ({
+vi.mock("../src/internal/agents/sanctions-lookup", () => ({
   screenSanctions: vi.fn().mockResolvedValue({ status: "clear", flags: [], note: "clear" }),
 }));
-vi.mock("../src/storage/agent-log", () => ({ appendAgentLog: vi.fn() }));
+vi.mock("../src/internal/storage/agent-log", () => ({ appendAgentLog: vi.fn() }));
 
-const { AGENT_PROFILES } = await import("../src/agents/agent-profiles");
+const { AGENT_PROFILES } = await import("../src/internal/agents/agent-profiles");
 const {
   NDAAgent, FAQAgent, VendorIntakeAgent, ContractReviewAgent,
   TrademarkAgent, LitigationAgent, PolicyQAAgent, NoticeMgmtAgent,
   ContractSpecialistAgent, PrivacyAssessmentAgent, MarketingReviewAgent,
-} = await import("../src/agents/index");
+} = await import("../src/internal/agents/index");
 
 const AGENTS = [NDAAgent, FAQAgent, VendorIntakeAgent, ContractReviewAgent, TrademarkAgent, LitigationAgent, PolicyQAAgent, NoticeMgmtAgent, ContractSpecialistAgent, PrivacyAssessmentAgent, MarketingReviewAgent];
 
