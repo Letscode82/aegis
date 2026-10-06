@@ -2398,6 +2398,35 @@ model ClientPortalToken {
   @@index([organizationId, status])
 }
 
+/// C-12 — inbound machine credential for the AEGIS MCP server. An external
+/// agent presents the raw bearer token; only its SHA-256 hash is stored, and
+/// the token binds every request to this org (the MCP tools never read an org
+/// id from caller input). `scopes` gates which read-only tools the token may
+/// call. Fully standalone (plain-scalar org + createdById, no FK) so the
+/// migration stays localized. The whole surface is gated OFF by default by
+/// the AEGIS_MCP_ENABLED flag — a token alone does nothing until it's set.
+enum McpAccessTokenStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+model McpAccessToken {
+  id             String               @id @default(cuid())
+  organizationId String
+  tokenHash      String               @unique // SHA-256 of the raw bearer token
+  label          String // human label, e.g. "Acme research agent"
+  scopes         String[] // tool scopes this token may call; ["*"] = all read tools
+  status         McpAccessTokenStatus @default(ACTIVE)
+  expiresAt      DateTime
+  lastUsedAt     DateTime? // most recent successful tools/call
+  createdById    String? // internal User who minted the token
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  @@index([organizationId, status])
+}
+
 /// The playbook clause bank (CTR-5). One canonical entry per clause type
 /// per org: the preferred standard position, an acceptable fallback, and
 /// reviewer guidance. Contract-review compares an extracted
