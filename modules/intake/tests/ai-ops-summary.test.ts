@@ -31,7 +31,7 @@ const {
   getPendingReviewQueue,
   getAIOperationsSummary,
   ACTIVITY_ACTIONS,
-} = await import("../src/ai-ops/summary");
+} = await import("../src/internal/ai-ops/summary");
 
 beforeEach(() => {
   auditLogFindMany.mockReset();

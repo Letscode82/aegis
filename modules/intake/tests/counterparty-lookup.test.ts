@@ -19,7 +19,7 @@ vi.mock("@aegis/db", () => ({
 }));
 
 const { lookupCounterpartyRelationship } = await import(
-  "../src/counterparty/server"
+  "../src/internal/counterparty/server"
 );
 
 beforeEach(() => {

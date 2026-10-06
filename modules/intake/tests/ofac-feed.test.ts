@@ -9,7 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("./server", () => ({})); // type-only import; no runtime need
 
 const { parseCsv, parseOfacSdnCsv, makeOfacSdnFetcher, OFAC_SDN_CSV_URL } =
-  await import("../src/sanctions/ofac-feed");
+  await import("../src/internal/sanctions/ofac-feed");
 
 const SAMPLE = [
   `36,"AEROCARIBBEAN AIRLINES","-0- ","CUBA","-0- ","-0- "`,

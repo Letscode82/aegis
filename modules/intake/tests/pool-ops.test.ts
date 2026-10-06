@@ -2,7 +2,7 @@
  * W2-3 (pool ops dashboard, issue #110) — pure aggregation semantics.
  */
 import { describe, expect, it } from "vitest";
-import { computePoolOps, parsePoolFiring } from "../src/pool-ops/compute";
+import { computePoolOps, parsePoolFiring } from "../src/internal/pool-ops/compute";
 
 const NOW = new Date("2026-07-03T12:00:00.000Z");
 

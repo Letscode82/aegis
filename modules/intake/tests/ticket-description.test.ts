@@ -5,7 +5,7 @@
  * full concatenated desc; this only governs display.
  */
 import { describe, expect, it } from "vitest";
-import { splitTicketDescription } from "../src/intake/index.jsx";
+import { splitTicketDescription } from "../src/internal/intake/index.jsx";
 
 describe("splitTicketDescription", () => {
   it("returns the whole string as lead when there is no attachment", () => {

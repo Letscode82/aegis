@@ -142,7 +142,7 @@ let AGENTS_BY_ID: Record<string, { id: string; name?: string }>;
 const results: Array<Record<string, unknown>> = [];
 
 beforeAll(async () => {
-  const mod = await import("../src/agents/index.js");
+  const mod = await import("../src/internal/agents/index.js");
   routeToAgent = mod.routeToAgent as typeof routeToAgent;
   AGENTS_BY_ID = mod.AGENTS_BY_ID as typeof AGENTS_BY_ID;
   mkdirSync(OUT, { recursive: true });

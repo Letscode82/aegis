@@ -3,7 +3,7 @@
  * Cockpit leads with for the ladder's current step.
  */
 import { describe, it, expect } from "vitest";
-import { stepModeFor } from "../src/intake/cockpit-step-panel.jsx";
+import { stepModeFor } from "../src/internal/intake/cockpit-step-panel.jsx";
 
 describe("stepModeFor — Cockpit adapts to the ladder's current step", () => {
   it("AGENT steps are always agent mode (regardless of screenKey)", () => {

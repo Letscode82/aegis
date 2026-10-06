@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { STATIC_AGENT_DEFS } from "../src/agents/okf/static-defs";
-import { validateOkfDocument } from "../src/agents/okf/schema";
-import { selectItemsForTicket } from "../src/agents/okf/runtime";
+import { STATIC_AGENT_DEFS } from "../src/internal/agents/okf/static-defs";
+import { validateOkfDocument } from "../src/internal/agents/okf/schema";
+import { selectItemsForTicket } from "../src/internal/agents/okf/runtime";
 
 const byKey = (k: string) => STATIC_AGENT_DEFS.find((d) => d.agent.key === k)!;
 

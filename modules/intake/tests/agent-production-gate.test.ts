@@ -20,7 +20,7 @@ const {
   AGENTS_BY_ID,
   ALL_AGENTS,
   NDAAgent,
-} = await import("../src/agents/index.js" as never);
+} = await import("../src/internal/agents/index.js" as never);
 
 describe("filterActiveAgents() — gate mechanism (synthetic agents)", () => {
   const realAgent = { id: "real", productionReady: true, canHandle: () => false };

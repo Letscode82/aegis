@@ -37,7 +37,7 @@ const {
   intakeTypeToMatterType,
   deriveMatterTitle,
   maybeSpawnMatterForApprovedTicket,
-} = await import("../src/matter-spawn/server");
+} = await import("../src/internal/matter-spawn/server");
 
 const actor = {
   id: "u-alex",

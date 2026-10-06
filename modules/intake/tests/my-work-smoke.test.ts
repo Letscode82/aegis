@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@aegis/db", () => ({ prisma: {}, IntakeStatus: { AWAITING_TRIAGE: "AWAITING_TRIAGE", IN_REVIEW: "IN_REVIEW", APPROVED: "APPROVED", REJECTED: "REJECTED", ESCALATED: "ESCALATED", CLOSED: "CLOSED" } }));
 
-const ui = await import("../src/intake/my-work.jsx" as never);
-const srv = await import("../src/my-work/server" as never);
+const ui = await import("../src/internal/intake/my-work.jsx" as never);
+const srv = await import("../src/internal/my-work/server" as never);
 
 describe("W1-1 My Work", () => {
   it("exports the tab component", () => {

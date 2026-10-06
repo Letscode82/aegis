@@ -3,8 +3,8 @@
  * for `escalateTo` and `requireApprovalFrom`.
  */
 import { describe, expect, it } from "vitest";
-import { evaluateRoutingRules } from "../src/routing/rules";
-import type { RoutingRuleLike } from "../src/routing/rules";
+import { evaluateRoutingRules } from "../src/internal/routing/rules";
+import type { RoutingRuleLike } from "../src/internal/routing/rules";
 
 const BASE: RoutingRuleLike = {
   id: "r1",

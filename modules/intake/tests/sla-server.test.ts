@@ -26,7 +26,7 @@ vi.mock("@aegis/db", () => ({
 }));
 
 const { evaluateSlaBreaches, getSlaOperationsSummary } = await import(
-  "../src/sla/server"
+  "../src/internal/sla/server"
 );
 
 const HOUR = 3600 * 1000;

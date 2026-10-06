@@ -5,8 +5,8 @@
  * overflow chaining, and cycle/dead-end safety without any DB.
  */
 import { describe, expect, it } from "vitest";
-import { selectFromPool } from "../src/routing/pool";
-import type { PoolLike, PoolMemberLoad } from "../src/routing/pool";
+import { selectFromPool } from "../src/internal/routing/pool";
+import type { PoolLike, PoolMemberLoad } from "../src/internal/routing/pool";
 
 function member(
   userId: string,

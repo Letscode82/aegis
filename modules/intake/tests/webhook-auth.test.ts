@@ -3,7 +3,7 @@
  * in production when no secret is configured (no open ingest endpoint).
  */
 import { describe, expect, it } from "vitest";
-import { checkWebhookAuth } from "../src/email/webhook-auth";
+import { checkWebhookAuth } from "../src/internal/email/webhook-auth";
 
 describe("checkWebhookAuth()", () => {
   it("is OPEN in dev when no secret is configured", () => {

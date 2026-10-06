@@ -22,12 +22,12 @@ vi.mock("@aegis/db", () => ({
 vi.mock("@aegis/ai/server", () => ({ ensureServerClaudeTransport: vi.fn() }));
 
 const processMock = vi.fn();
-vi.mock("../src/agents/index.js", () => ({ processTicketWithAgent: processMock, setOkfDocResolver: vi.fn() }));
+vi.mock("../src/internal/agents/index.js", () => ({ processTicketWithAgent: processMock, setOkfDocResolver: vi.fn() }));
 
 const syncMock = vi.fn();
-vi.mock("../src/agent-decision/server", () => ({ syncAgentDecisionForTicket: syncMock }));
+vi.mock("../src/internal/agent-decision/server", () => ({ syncAgentDecisionForTicket: syncMock }));
 
-const { runAgentForTicketServer } = await import("../src/agents/run-server");
+const { runAgentForTicketServer } = await import("../src/internal/agents/run-server");
 
 beforeEach(() => {
   recDeleteMany.mockReset().mockResolvedValue({});

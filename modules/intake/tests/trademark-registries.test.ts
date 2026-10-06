@@ -1,9 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { normalizeStatus, coerceClasses, type HttpFetch, type HttpResponse } from "../src/trademark/registries/types";
-import { UsptoClient, mapUspto } from "../src/trademark/registries/uspto";
-import { EuipoClient, mapEuipo } from "../src/trademark/registries/euipo";
-import { WipoClient, mapWipo } from "../src/trademark/registries/wipo";
-import { getConfiguredRegistries, searchAllRegistries } from "../src/trademark/registries/factory";
+import { normalizeStatus, coerceClasses, type HttpFetch, type HttpResponse } from "../src/internal/trademark/registries/types";
+import { UsptoClient, mapUspto } from "../src/internal/trademark/registries/uspto";
+import { EuipoClient, mapEuipo } from "../src/internal/trademark/registries/euipo";
+import { WipoClient, mapWipo } from "../src/internal/trademark/registries/wipo";
+import { getConfiguredRegistries, searchAllRegistries } from "../src/internal/trademark/registries/factory";
 
 const ok = (body: unknown): HttpResponse => ({ ok: true, status: 200, json: async () => body, text: async () => JSON.stringify(body) });
 const httpReturning = (body: unknown): HttpFetch => async () => ok(body);

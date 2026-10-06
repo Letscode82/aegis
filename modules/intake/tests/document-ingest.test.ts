@@ -24,7 +24,7 @@ const {
   DocumentParseError,
   DocumentTooLargeError,
   MAX_DOCUMENT_BYTES,
-} = await import("../src/documents/server");
+} = await import("../src/internal/documents/server");
 
 beforeEach(() => {
   documentCreate.mockReset().mockResolvedValue({ id: "doc-1" });

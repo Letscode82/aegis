@@ -34,7 +34,7 @@ const {
   TicketNotFoundError,
   PartyNotFoundError,
   PartyValidationError,
-} = await import("../src/parties/server");
+} = await import("../src/internal/parties/server");
 
 beforeEach(() => {
   ticketFindFirst.mockReset().mockResolvedValue({ id: "REQ-1" });

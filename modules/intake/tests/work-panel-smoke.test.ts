@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 describe("WorkPanel module", () => {
   it("exports a component function", async () => {
-    const mod = await import("../src/intake/work-panel.jsx" as never);
+    const mod = await import("../src/internal/intake/work-panel.jsx" as never);
     expect(typeof mod.WorkPanel).toBe("function");
   });
 });

@@ -2,7 +2,7 @@
  * Webhook rate limiter (hardening). Sliding window, injectable clock.
  */
 import { describe, expect, it } from "vitest";
-import { createRateLimiter } from "../src/email/rate-limit";
+import { createRateLimiter } from "../src/internal/email/rate-limit";
 
 describe("createRateLimiter", () => {
   it("allows up to max within the window, then blocks", () => {

@@ -10,17 +10,17 @@ vi.mock("@aegis/ai", () => ({
   callClaudeJSON: callClaudeJSONMock,
   friendlyAIError: (e: unknown) => `AI unavailable: ${String(e)}`,
 }));
-vi.mock("../src/storage/agent-log", () => ({ appendAgentLog: vi.fn() }));
+vi.mock("../src/internal/storage/agent-log", () => ({ appendAgentLog: vi.fn() }));
 
 const {
   detectDataCategories, detectTransfer, detectNovelTech,
   regimeTriggers, gapsList, assessPrivacyRisk,
-} = await import("../src/agents/privacy-signals");
-const { scanClaims, matchLibraryClaims, routeMarketingReview } = await import("../src/agents/claims-signals");
-const { PrivacyAssessmentAgent } = await import("../src/agents/privacy-assessment");
-const { MarketingReviewAgent } = await import("../src/agents/marketing-review");
-const { FAQAgent } = await import("../src/agents/faq");
-const { routeToAgent } = await import("../src/agents/index");
+} = await import("../src/internal/agents/privacy-signals");
+const { scanClaims, matchLibraryClaims, routeMarketingReview } = await import("../src/internal/agents/claims-signals");
+const { PrivacyAssessmentAgent } = await import("../src/internal/agents/privacy-assessment");
+const { MarketingReviewAgent } = await import("../src/internal/agents/marketing-review");
+const { FAQAgent } = await import("../src/internal/agents/faq");
+const { routeToAgent } = await import("../src/internal/agents/index");
 
 const base = { id: "p1", from: "Dana Lee", dept: "Product" };
 

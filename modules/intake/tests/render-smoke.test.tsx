@@ -20,14 +20,14 @@ vi.mock("@aegis/auth/react", () => ({
   }),
 }));
 
-const { NewRequestV8, TicketDetailPanel } = (await import("../src/intake/index.jsx" as never)) as {
+const { NewRequestV8, TicketDetailPanel } = (await import("../src/internal/intake/index.jsx" as never)) as {
   NewRequestV8: React.ComponentType<Record<string, unknown>>;
   TicketDetailPanel: React.ComponentType<Record<string, unknown>>;
 };
-const { AgentsConsoleTab } = (await import("../src/intake/agents-console.jsx" as never)) as {
+const { AgentsConsoleTab } = (await import("../src/internal/intake/agents-console.jsx" as never)) as {
   AgentsConsoleTab: React.ComponentType<Record<string, unknown>>;
 };
-const { WorkflowDesignerTab } = (await import("../src/intake/workflow-designer.jsx" as never)) as {
+const { WorkflowDesignerTab } = (await import("../src/internal/intake/workflow-designer.jsx" as never)) as {
   WorkflowDesignerTab: React.ComponentType<Record<string, unknown>>;
 };
 

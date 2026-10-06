@@ -28,8 +28,8 @@ const {
   stripMentions,
   parseTeamsCommand,
   subjectFromText,
-} = await import("../src/teams-channel/protocol");
-const { handleTeamsActivity } = await import("../src/teams-channel/server");
+} = await import("../src/internal/teams-channel/protocol");
+const { handleTeamsActivity } = await import("../src/internal/teams-channel/server");
 const { prisma } = await import("@aegis/db");
 
 const SECRET = Buffer.from("super-secret-teams-token").toString("base64");

@@ -73,7 +73,7 @@ vi.mock("@aegis/matter", () => ({
   createMatter: vi.fn().mockResolvedValue({ id: "m-test", matterNumber: "M-2026-TEST" }),
 }));
 
-const { intakeStorageSet } = await import("../src/storage/server");
+const { intakeStorageSet } = await import("../src/internal/storage/server");
 
 const SESSION_USER = {
   id: "u-rachel",

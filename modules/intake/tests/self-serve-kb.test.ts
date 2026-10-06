@@ -4,12 +4,12 @@
  * 6-entry list with fabricated resolution / deflection stats.
  */
 import { describe, expect, it } from "vitest";
-import { AGENT_KB } from "../src/agents/kb";
+import { AGENT_KB } from "../src/internal/agents/kb";
 import {
   SELF_SERVE_ARTICLES,
   SELF_SERVE_CATEGORIES,
   selfServeCategory,
-} from "../src/intake-kb";
+} from "../src/internal/intake-kb";
 
 describe("Self-Service KB derivation", () => {
   it("derives one article per AGENT_KB entry (one source of truth)", () => {

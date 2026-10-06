@@ -7,7 +7,7 @@
  * Review. Both are fixed by matching descriptionLead(), not the full desc.
  */
 import { describe, it, expect, beforeAll } from "vitest";
-import { ruleMatches } from "../src/routing/rules";
+import { ruleMatches } from "../src/internal/routing/rules";
 
 // A Contract Review request: clean typed lead, a contract body appended.
 const LEAD = "Please review and approve the attached MSA with Nimbus Analytics. Need sign-off to execute.";
@@ -48,7 +48,7 @@ describe("agent router keys on the lead — contract with notice-y doc → Contr
   let routeToAgent: (t: unknown, s?: unknown, p?: unknown) => { id: string } | null;
   beforeAll(async () => {
     process.env.NEXT_PUBLIC_AEGIS_DEMO_AGENTS = "true";
-    const mod = await import("../src/agents/index.js");
+    const mod = await import("../src/internal/agents/index.js");
     routeToAgent = mod.routeToAgent as typeof routeToAgent;
   });
 

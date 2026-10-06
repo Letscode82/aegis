@@ -116,7 +116,7 @@ vi.mock("@aegis/matter", () => ({
 }));
 
 const { intakeStorageSet, intakeStorageGet } = await import(
-  "../src/storage/server"
+  "../src/internal/storage/server"
 );
 
 const SESSION_USER = {
@@ -401,7 +401,7 @@ describe("loadCockpitState — legacy attorney string sunset", () => {
     storeGetMock.mockReset();
     storeSetMock.mockReset();
     vi.resetModules();
-    vi.doMock("../src/storage/store", () => ({
+    vi.doMock("../src/internal/storage/store", () => ({
       storeGet: storeGetMock,
       storeSet: storeSetMock,
       storeDel: vi.fn(),
@@ -415,7 +415,7 @@ describe("loadCockpitState — legacy attorney string sunset", () => {
       triagedToday: 3,
       triagedDate: new Date().toISOString().slice(0, 10),
     });
-    const { loadCockpitState } = await import("../src/storage/cockpit-state");
+    const { loadCockpitState } = await import("../src/internal/storage/cockpit-state");
     const s = await loadCockpitState();
     expect(s.attorney).toBeNull();
     // Non-attorney fields are preserved so the user doesn't lose their
@@ -430,7 +430,7 @@ describe("loadCockpitState — legacy attorney string sunset", () => {
       triagedToday: 0,
       triagedDate: new Date().toISOString().slice(0, 10),
     });
-    const { loadCockpitState } = await import("../src/storage/cockpit-state");
+    const { loadCockpitState } = await import("../src/internal/storage/cockpit-state");
     const s = await loadCockpitState();
     expect(s.attorney).toBe("Marcus Reid");
   });

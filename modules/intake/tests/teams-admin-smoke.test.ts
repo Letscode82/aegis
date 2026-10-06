@@ -7,7 +7,7 @@ vi.mock("@aegis/auth/react", () => ({ useCurrentUser: () => ({ user: null }) }))
 
 describe("TeamsTab module", () => {
   it("exports a component function", async () => {
-    const mod = await import("../src/intake/teams-admin.jsx" as never);
+    const mod = await import("../src/internal/intake/teams-admin.jsx" as never);
     expect(typeof mod.TeamsTab).toBe("function");
   });
 });

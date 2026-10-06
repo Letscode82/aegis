@@ -11,9 +11,9 @@ vi.mock("@aegis/ai", () => ({
   friendlyAIError: () => "AI unavailable.",
   classifyIntakeRegex: () => null,
 }));
-vi.mock("../src/storage/agent-log", () => ({ appendAgentLog: vi.fn() }));
+vi.mock("../src/internal/storage/agent-log", () => ({ appendAgentLog: vi.fn() }));
 
-const { AGENTS_BY_ID } = await import("../src/agents/index");
+const { AGENTS_BY_ID } = await import("../src/internal/agents/index");
 const { GOVERNANCE_LIBRARY } = await import("@aegis/workflow");
 
 describe("governance library ↔ agent registry", () => {

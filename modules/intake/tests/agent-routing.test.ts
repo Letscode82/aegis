@@ -19,7 +19,7 @@ vi.mock("@aegis/ai", () => ({
 
 // Default import = production mode (NEXT_PUBLIC_AEGIS_DEMO_AGENTS unset).
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const prod = await import("../src/agents/index.js" as any);
+const prod = await import("../src/internal/agents/index.js" as any);
 
 const t = (over: Record<string, unknown>) => ({
   id: "REQ-X",
@@ -99,7 +99,7 @@ describe("demo flag on — routing unchanged (all agents already visible)", () =
       classifyIntakeRegex: () => null,
     }));
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const demo = await import("../src/agents/index.js" as any);
+    const demo = await import("../src/internal/agents/index.js" as any);
     expect(
       demo.routeToAgent(t({ type: "Trademark Check", desc: "Clearance for 'AurorAI'" }), {})?.id,
     ).toBe("trademark-agent");

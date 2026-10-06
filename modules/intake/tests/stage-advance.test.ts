@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("@aegis/db", () => ({ prisma: {}, logAudit: vi.fn(), getCurrentUser: vi.fn() }));
 
 const { computeStageAdvance, buildConfiguredWorkflow, FinalStageError, LEGACY_STAGES } =
-  await import("../src/stage/server" as never);
+  await import("../src/internal/stage/server" as never);
 
 describe("W1-5 stage advancement", () => {
   const stages = ["intake", "search", "opinion", "filed"];

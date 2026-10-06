@@ -36,7 +36,7 @@ const {
   RfiValidationError,
   RfiForbiddenError,
   RfiNotFoundError,
-} = await import("../src/rfi/server");
+} = await import("../src/internal/rfi/server");
 
 const NOW = new Date("2026-10-05T09:00:00Z");
 function rfiRow(over: Record<string, unknown> = {}) {

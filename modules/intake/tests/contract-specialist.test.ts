@@ -11,13 +11,13 @@ vi.mock("@aegis/ai", () => ({
   callClaudeJSON: callClaudeJSONMock,
   friendlyAIError: (e: unknown) => `AI unavailable: ${String(e)}`,
 }));
-vi.mock("../src/storage/agent-log", () => ({ appendAgentLog: vi.fn() }));
+vi.mock("../src/internal/storage/agent-log", () => ({ appendAgentLog: vi.fn() }));
 
-const { selectPlaybook, CONTRACT_PLAYBOOKS } = await import("../src/agents/contract-playbooks");
-const { ContractSpecialistAgent } = await import("../src/agents/contract-specialist");
-const { ContractReviewAgent } = await import("../src/agents/contract-review");
-const { NDAAgent } = await import("../src/agents/nda");
-const { routeToAgent } = await import("../src/agents/index");
+const { selectPlaybook, CONTRACT_PLAYBOOKS } = await import("../src/internal/agents/contract-playbooks");
+const { ContractSpecialistAgent } = await import("../src/internal/agents/contract-specialist");
+const { ContractReviewAgent } = await import("../src/internal/agents/contract-review");
+const { NDAAgent } = await import("../src/internal/agents/nda");
+const { routeToAgent } = await import("../src/internal/agents/index");
 
 const base = { id: "c1", from: "Dana Lee", dept: "Procurement", type: "Contract Review" };
 

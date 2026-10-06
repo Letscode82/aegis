@@ -7,8 +7,8 @@
  * stamps a severity when an agent didn't assess one itself.
  */
 import { describe, expect, it } from "vitest";
-import { buildRec, buildDegradedRec, severityFromTriageRiskFlag } from "../src/agents/build-rec";
-import { runDefinition } from "../src/agents/okf/runtime";
+import { buildRec, buildDegradedRec, severityFromTriageRiskFlag } from "../src/internal/agents/build-rec";
+import { runDefinition } from "../src/internal/agents/okf/runtime";
 
 describe("severityFromTriageRiskFlag", () => {
   it("maps the leading risk word of a triage riskFlag to the shared scale", () => {

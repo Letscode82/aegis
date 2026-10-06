@@ -21,12 +21,12 @@ vi.mock("@aegis/ai", () => ({
 }));
 
 const { buildDegradedRec, DEGRADED_CONFIDENCE, DEGRADED_ACTION } = await import(
-  "../src/agents/build-rec.js" as never
+  "../src/internal/agents/build-rec.js" as never
 );
-const { NDAAgent } = await import("../src/agents/nda.js" as never);
-const { VendorIntakeAgent } = await import("../src/agents/vendor-intake.js" as never);
-const { TrademarkAgent } = await import("../src/agents/trademark.js" as never);
-const { ContractReviewAgent } = await import("../src/agents/contract-review.js" as never);
+const { NDAAgent } = await import("../src/internal/agents/nda.js" as never);
+const { VendorIntakeAgent } = await import("../src/internal/agents/vendor-intake.js" as never);
+const { TrademarkAgent } = await import("../src/internal/agents/trademark.js" as never);
+const { ContractReviewAgent } = await import("../src/internal/agents/contract-review.js" as never);
 
 beforeEach(() => {
   callClaudeJSONMock.mockReset();

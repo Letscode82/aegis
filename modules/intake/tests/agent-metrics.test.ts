@@ -13,7 +13,7 @@ vi.mock("@aegis/db", () => ({
   },
 }));
 
-const { getAgentMetrics } = await import("../src/agent-metrics/server");
+const { getAgentMetrics } = await import("../src/internal/agent-metrics/server");
 
 beforeEach(() => {
   recFindManyMock.mockReset().mockResolvedValue([]);

@@ -14,7 +14,7 @@ vi.mock("@aegis/db", () => ({
   prisma: { user: { findMany: userFindManyMock } },
 }));
 
-const { listAssignableUsers } = await import("../src/assignees/server");
+const { listAssignableUsers } = await import("../src/internal/assignees/server");
 
 beforeEach(() => {
   userFindManyMock.mockReset();

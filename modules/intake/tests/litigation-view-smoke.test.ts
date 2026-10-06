@@ -1,6 +1,6 @@
 /** Smoke + unit: litigation-view module transforms and its detector works. */
 import { describe, expect, it } from "vitest";
-const mod = await import("../src/intake/litigation-view.jsx" as never);
+const mod = await import("../src/internal/intake/litigation-view.jsx" as never);
 
 describe("litigation-view", () => {
   it("exports the component + detector", () => {

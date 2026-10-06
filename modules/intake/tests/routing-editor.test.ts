@@ -37,7 +37,7 @@ const {
   deleteRoutingRule,
   RoutingRuleNotFoundError,
   RoutingRuleValidationError,
-} = await import("../src/routing/server");
+} = await import("../src/internal/routing/server");
 
 const ACTOR = { id: "u-alex", organizationId: "org1", name: "Alex" };
 

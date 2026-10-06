@@ -18,8 +18,8 @@ vi.mock("@aegis/ai", () => ({
   friendlyAIError: (e: unknown) => String((e as Error)?.message || e),
 }));
 
-const { processTicketWithAgent, setOkfDocResolver } = await import("../src/agents/index.js");
-const { staticDefForKey } = await import("../src/agents/okf/static-defs");
+const { processTicketWithAgent, setOkfDocResolver } = await import("../src/internal/agents/index.js");
+const { staticDefForKey } = await import("../src/internal/agents/okf/static-defs");
 
 // The client fetches the published def; here we inject the static def as the
 // server/runtime does, so the okf path resolves without a page origin.

@@ -3,7 +3,7 @@
 import { describe, expect, it } from "vitest";
 describe("HandoffDialog module", () => {
   it("exports a component function", async () => {
-    const mod = await import("../src/intake/handoff-dialog.jsx" as never);
+    const mod = await import("../src/internal/intake/handoff-dialog.jsx" as never);
     expect(typeof mod.HandoffDialog).toBe("function");
   });
 });
