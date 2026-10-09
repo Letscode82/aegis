@@ -10,7 +10,7 @@ export default function AdminHoldTemplatesPage() {
   return (
     <>
       <Head>
-        <title>AEGIS · Legal Hold scope templates</title>
+        <title>OneLegal · Legal Hold scope templates</title>
       </Head>
       <main style={{ background: "#0B1020", minHeight: "100vh" }}>
         <HoldScopeTemplatesAdmin />

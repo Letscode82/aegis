@@ -51,14 +51,14 @@ export function renderBasicEmail(input: BasicEmailInput): RenderedEmail {
 <tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border:1px solid #e5e7eb;border-radius:10px;">
 <tr><td style="padding:22px 26px;">
-<div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#2563eb;font-weight:700;margin-bottom:10px;">AEGIS</div>
+<div style="font-size:11px;letter-spacing:1.5px;text-transform:uppercase;color:#2563eb;font-weight:700;margin-bottom:10px;">OneLegal</div>
 <h1 style="margin:0 0 14px;font-size:18px;line-height:1.3;color:#111827;font-weight:600;">${escapeHtml(input.heading)}</h1>
 ${htmlParas}
 ${btn}
 ${foot}
 </td></tr>
 </table>
-<p style="margin:14px 0 0;font-size:11px;color:#9ca3af;">Sent by AEGIS · Legal Operations Platform</p>
+<p style="margin:14px 0 0;font-size:11px;color:#9ca3af;">Sent by OneLegal · Legal Operations Platform</p>
 </td></tr>
 </table>
 </body></html>`;
@@ -66,7 +66,7 @@ ${foot}
   const textLines: string[] = [input.heading, "", ...paras];
   if (input.button) textLines.push("", `${input.button.label}: ${input.button.url}`);
   if (input.footnote) textLines.push("", input.footnote);
-  textLines.push("", "— AEGIS · Legal Operations Platform");
+  textLines.push("", "— OneLegal · Legal Operations Platform");
 
   return { html, text: textLines.join("\n") };
 }

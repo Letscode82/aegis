@@ -74,7 +74,7 @@ export const NoticeMgmtAgent={
     const minimalAck=`We acknowledge receipt of your notice dated as referenced, which is under review. This acknowledgment is not an admission of any statement or claim made therein, and all rights and remedies are expressly reserved.\n\n— ${ticket.dept?ticket.dept+" — ":""}Legal Department`;
 
     try{
-      const prompt=`You are the Notice Management Agent for AEGIS Legal. An inbound legal notice needs a one-paragraph SITUATION BRIEF for the assigned counsel. The deadlines and classification below were extracted DETERMINISTICALLY by the platform — do not invent, change, or re-compute any date; reference them as given.
+      const prompt=`You are the Notice Management Agent for OneLegal Legal. An inbound legal notice needs a one-paragraph SITUATION BRIEF for the assigned counsel. The deadlines and classification below were extracted DETERMINISTICALLY by the platform — do not invent, change, or re-compute any date; reference them as given.
 
 NOTICE (as described/pasted by the mailroom or requester):
 "${text.slice(0,2500)}"

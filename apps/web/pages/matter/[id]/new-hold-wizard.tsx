@@ -23,7 +23,7 @@ export default function NewHoldWizardPage() {
   return (
     <>
       <Head>
-        <title>AEGIS · New legal hold</title>
+        <title>OneLegal · New legal hold</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <main style={{ background: "#0B1020", minHeight: "100vh" }}>

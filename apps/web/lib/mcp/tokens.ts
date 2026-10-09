@@ -1,7 +1,7 @@
 /**
  * C-12 — MCP access-token store.
  *
- * Inbound machine credentials for the AEGIS MCP server. Same hashed-token
+ * Inbound machine credentials for the OneLegal MCP server. Same hashed-token
  * posture as the login-less portals (DSAR / contract-review / client-portal):
  * only the SHA-256 hash of the raw bearer token is stored, the raw value is
  * returned exactly once at mint time, and validity + org + scopes are

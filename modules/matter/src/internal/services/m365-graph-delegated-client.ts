@@ -139,7 +139,7 @@ export class M365GraphDelegatedClient
             .api("/security/cases/ediscoveryCases")
             .post({
               displayName,
-              description: `AEGIS legal hold ${holdId}`,
+              description: `OneLegal legal hold ${holdId}`,
             })) as { id?: string };
           if (!created?.id) throw new Error("eDiscovery case create returned no id");
           return created.id;
@@ -221,7 +221,7 @@ export class M365GraphDelegatedClient
         metadata: { authMode: "delegated" },
       },
       async () => {
-        // Defense in depth at the AEGIS↔Graph trust boundary. Same
+        // Defense in depth at the OneLegal↔Graph trust boundary. Same
         // pattern as addCustodian's @-presence guard (PR #42): if a
         // future caller forgets to resolve from person.email, fail
         // loud upstream of Graph rather than 404 through it.

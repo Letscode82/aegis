@@ -1,5 +1,5 @@
 /**
- * Canonical permission catalog for AEGIS.
+ * Canonical permission catalog for OneLegal.
  *
  * The single source of truth for what a user can do. Every gated UI
  * affordance and every server-side mutation calls `canUserDo()` (or its

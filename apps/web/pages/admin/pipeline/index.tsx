@@ -10,7 +10,7 @@ export default function AdminPipelinePage() {
   return (
     <>
       <Head>
-        <title>AEGIS · Pipeline plan</title>
+        <title>OneLegal · Pipeline plan</title>
       </Head>
       <main style={{ background: "#0B1020", minHeight: "100vh" }}>
         <PipelinePlanPanel />

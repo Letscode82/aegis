@@ -56,7 +56,7 @@ export const MarketingReviewAgent={
 - Route: ${route}`;
 
     try{
-      const prompt=`You are the Marketing Review Agent for AEGIS Legal. Review the marketing copy / campaign described below against legal guidelines. The claim signals and route were detected DETERMINISTICALLY — do not clear a regulated claim or change the route; work within it.
+      const prompt=`You are the Marketing Review Agent for OneLegal Legal. Review the marketing copy / campaign described below against legal guidelines. The claim signals and route were detected DETERMINISTICALLY — do not clear a regulated claim or change the route; work within it.
 
 MATERIAL (as described/pasted):
 "${text.slice(0,2500)}"

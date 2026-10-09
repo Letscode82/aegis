@@ -3,7 +3,7 @@
  *
  * PROC-7b (increment 1) — read-only Purview eDiscovery explorer. Walks
  * cases → custodians / searches / reviewSets → a best-effort review-set item
- * probe, so we can map Purview's processed output into AEGIS review items.
+ * probe, so we can map Purview's processed output into OneLegal review items.
  *
  * Read-only; creates/mutates nothing. Requires admin:m365:manage (it drives a
  * delegated Graph call, same posture as delegated-test).

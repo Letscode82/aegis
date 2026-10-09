@@ -1,7 +1,7 @@
 /**
  * User invite email (professional onboarding).
  *
- * Inviting a user writes the AEGIS `User` authorization row, but the person
+ * Inviting a user writes the OneLegal `User` authorization row, but the person
  * still needs an Auth0 credential to sign in. This service closes the loop:
  * it mints a one-time "set your password" link via the Auth0 Management API
  * (`@aegis/auth/management`) and emails a branded invitation through the shared
@@ -51,20 +51,20 @@ export function buildInviteEmailContent(args: {
   setPasswordUrl?: string | null;
   appUrl?: string | null;
 }): InviteEmailContent {
-  const org = (args.orgName || "").trim() || "AEGIS";
+  const org = (args.orgName || "").trim() || "OneLegal";
   const inviter = (args.inviterName || "").trim();
   const role = (args.roleName || "").trim();
   const greetingName = (args.recipientName || "").trim();
 
   const opening =
     `Hello${greetingName ? ` ${greetingName}` : ""}, you've been invited` +
-    `${inviter ? ` by ${inviter}` : ""} to join ${org} on AEGIS, the legal operations platform.`;
+    `${inviter ? ` by ${inviter}` : ""} to join ${org} on OneLegal, the legal operations platform.`;
   const roleLine = role ? `Your access level is ${role}.` : null;
 
   if (args.setPasswordUrl) {
     return {
-      subject: `You're invited to ${org} on AEGIS`,
-      heading: "Set up your AEGIS account",
+      subject: `You're invited to ${org} on OneLegal`,
+      heading: "Set up your OneLegal account",
       paragraphs: [
         opening,
         ...(roleLine ? [roleLine] : []),
@@ -77,16 +77,16 @@ export function buildInviteEmailContent(args: {
 
   // Degraded path — no set-password link available.
   return {
-    subject: `You're invited to ${org} on AEGIS`,
-    heading: "You've been invited to AEGIS",
+    subject: `You're invited to ${org} on OneLegal`,
+    heading: "You've been invited to OneLegal",
     paragraphs: [
       opening,
       ...(roleLine ? [roleLine] : []),
       args.appUrl
-        ? "Open AEGIS using the button below and sign in with this email address."
+        ? "Open OneLegal using the button below and sign in with this email address."
         : "Your administrator will share the sign-in link with you shortly.",
     ],
-    button: args.appUrl ? { label: "Open AEGIS", url: args.appUrl } : null,
+    button: args.appUrl ? { label: "Open OneLegal", url: args.appUrl } : null,
     footnote: null,
   };
 }

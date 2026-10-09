@@ -4,7 +4,7 @@
  *
  * Same body as /api/office/word/redline. Produces a `.docx` whose insertions
  * and deletions are genuine Word revisions (`<w:ins>` / `<w:del>`) attributed
- * to "AEGIS Redline", so counsel opens it in Word and accepts or rejects each
+ * to "OneLegal Redline", so counsel opens it in Word and accepts or rejects each
  * change. Gated on contracts:create.
  */
 import type { NextApiRequest, NextApiResponse } from "next";
@@ -42,7 +42,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       title,
       clauseLabel,
       segments: result.segments,
-      author: "AEGIS Redline",
+      author: "OneLegal Redline",
       generatedAt: new Date().toISOString(),
       generatedBy: user.name ?? user.email ?? null,
       rationale: result.rationale,

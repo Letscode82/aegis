@@ -1072,7 +1072,7 @@ async function loadAgentLogV8(orgId: string): Promise<unknown[]> {
     if (r.actorType === "USER" && r.actorId) {
       attorney = userById.get(r.actorId) ?? "Unknown user";
     } else if (r.actorType === "AGENT") {
-      attorney = "AEGIS Agent";
+      attorney = "OneLegal Agent";
     } else if (r.actorType === "SYSTEM") {
       attorney = "System";
     }

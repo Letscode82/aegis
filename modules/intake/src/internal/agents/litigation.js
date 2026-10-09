@@ -77,7 +77,7 @@ export const LitigationAgent={
     ];
 
     try{
-      const prompt=`You are the Litigation Support Agent for AEGIS Legal. Assemble a CITED CASE BRIEF for an inbound NON-COURT-FACING litigation/dispute matter (demand letter, subpoena, pre-litigation dispute, notice of claim). You do NOT initiate a legal hold — preservation is handled by a separate process; never claim to have placed one.
+      const prompt=`You are the Litigation Support Agent for OneLegal Legal. Assemble a CITED CASE BRIEF for an inbound NON-COURT-FACING litigation/dispute matter (demand letter, subpoena, pre-litigation dispute, notice of claim). You do NOT initiate a legal hold — preservation is handled by a separate process; never claim to have placed one.
 
 RECORD PULL (authoritative — cite as given, do NOT invent or extend record contents):
 - ${recordFacts}
@@ -121,7 +121,7 @@ Respond with ONLY this JSON:
       // Degraded path keeps the deterministic value: the record pull
       // and the hold-trigger flag never depended on Claude.
       return buildDegradedRec(this.id,{
-        draftedResponse:`Hi ${name},\n\nWe've received your litigation/dispute intake and logged it for attorney review. A member of the litigation team will follow up shortly. In the meantime, please preserve any related documents and communications.\n\n— AEGIS Legal Intake`,
+        draftedResponse:`Hi ${name},\n\nWe've received your litigation/dispute intake and logged it for attorney review. A member of the litigation team will follow up shortly. In the meantime, please preserve any related documents and communications.\n\n— OneLegal Legal Intake`,
         reasoning:"Litigation intake received; Claude unavailable — record pull + hold-trigger flag completed deterministically; manual attorney triage required.",
         concerns:[friendlyAIError(e),...baseConcerns,"Manual attorney triage required."],
       });

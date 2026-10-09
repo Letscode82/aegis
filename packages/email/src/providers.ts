@@ -27,11 +27,11 @@ export interface EmailConfig {
   provider: EmailProviderName;
   /** The active provider's API key (undefined when provider is "none"). */
   apiKey?: string;
-  /** RFC-5322 From, e.g. "AEGIS <no-reply@aegis.example>". */
+  /** RFC-5322 From, e.g. "OneLegal <no-reply@aegis.example>". */
   from: string;
 }
 
-export const DEFAULT_FROM = "AEGIS <no-reply@aegis.local>";
+export const DEFAULT_FROM = "OneLegal <no-reply@aegis.local>";
 
 /** Normalise `to` (string | string[]) to a non-empty string[] (may be empty). */
 export function toList(to: string | string[] | undefined): string[] {

@@ -42,7 +42,7 @@ export async function copilotTurn({history,state,ticketType,requester}){
 
   const histBlock=history.map(m=>`${m.role==="user"?"USER":"AGENT"}: ${m.content}`).join("\n");
 
-  const prompt=`You are the AEGIS Intake Copilot — a warm, intelligent legal intake agent for a Fortune 50 General Counsel's office. You're talking to an employee (requester) who has a legal need.
+  const prompt=`You are the OneLegal Intake Copilot — a warm, intelligent legal intake agent for a Fortune 50 General Counsel's office. You're talking to an employee (requester) who has a legal need.
 
 Your job across the conversation:
 1. Understand what they need

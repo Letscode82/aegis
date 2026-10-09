@@ -18,7 +18,7 @@ export const ChatBubble=({role,children,d=0,streaming,meta})=>{
   const isUser=role==="user";
   return <div style={{display:"flex",justifyContent:isUser?"flex-end":"flex-start",marginBottom:10,animation:`fu .28s ease ${d}ms both`}}>
     <div style={{maxWidth:"78%",padding:"10px 13px",background:isUser?C.s1:C.cd,border:`1px solid ${isUser?C.br:C.br}`,borderLeft:isUser?`1px solid ${C.br}`:`2px solid ${C.cy}`,borderRadius:isUser?"8px 8px 2px 8px":"2px 8px 8px 8px",fontSize:12.5,color:C.t1,lineHeight:1.55,fontFamily:isUser?F:SR,fontWeight:isUser?400:400}}>
-      {!isUser&&<div style={{fontSize:8.5,fontFamily:M,color:C.cy,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5,fontWeight:600}}>◎ AEGIS INTAKE COPILOT</div>}
+      {!isUser&&<div style={{fontSize:8.5,fontFamily:M,color:C.cy,letterSpacing:1.5,textTransform:"uppercase",marginBottom:5,fontWeight:600}}>◎ OneLegal INTAKE COPILOT</div>}
       <div>{children}{streaming&&<span style={{display:"inline-block",width:6,height:12,background:C.cy,marginLeft:3,verticalAlign:"middle",animation:"p 1s infinite"}}/>}</div>
       {meta&&<div style={{fontSize:9,color:C.t4,marginTop:6,fontFamily:M,letterSpacing:.5}}>{meta}</div>}
     </div>

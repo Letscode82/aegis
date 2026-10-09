@@ -354,7 +354,7 @@ describe("loadAgentLogV8 — actor name resolution", () => {
 
     const result = await intakeStorageGet("aegis:intake:agent-log:v1");
     const entries = JSON.parse(result!.value) as Array<{ attorney: string }>;
-    expect(entries[0].attorney).toBe("AEGIS Agent");
+    expect(entries[0].attorney).toBe("OneLegal Agent");
     expect(entries[1].attorney).toBe("System");
     // No USER rows, so no user lookup is fired.
     expect(userFindManyMock).not.toHaveBeenCalled();

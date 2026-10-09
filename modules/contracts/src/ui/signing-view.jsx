@@ -54,7 +54,7 @@ export function SigningView({ token }) {
   const c = ctx.contract;
   return <div style={shell}><div style={card}>
     <div style={{ padding: "22px 24px", borderBottom: `1px solid ${C.br}` }}>
-      <div style={{ fontSize: 10, fontFamily: M, letterSpacing: 2, color: C.bl, textTransform: "uppercase" }}>AEGIS · Electronic Signature</div>
+      <div style={{ fontSize: 10, fontFamily: M, letterSpacing: 2, color: C.bl, textTransform: "uppercase" }}>OneLegal · Electronic Signature</div>
       <div style={{ fontSize: 22, fontFamily: SR, color: C.t1, marginTop: 4 }}>{c.title}</div>
       <div style={{ fontSize: 11.5, color: C.t3, marginTop: 4 }}>{c.type}{c.counterpartyName ? ` · ${c.counterpartyName}` : ""}{c.governingLaw ? ` · ${c.governingLaw}` : ""}</div>
     </div>

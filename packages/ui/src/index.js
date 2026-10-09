@@ -1,7 +1,7 @@
 /**
  * @aegis/ui — Aurora design system
  *
- * Public surface for shared UI primitives across the AEGIS monorepo.
+ * Public surface for shared UI primitives across the OneLegal monorepo.
  * Modules and apps consume from here. Do not deep-import internal files.
  */
 

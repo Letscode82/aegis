@@ -676,7 +676,7 @@ const Step4Confirm: React.FC<{
       <span style={{ color: C.am, fontFamily: M, fontWeight: 700 }}>
         Note —
       </span>{" "}
-      AEGIS records the issuance and audit chain immediately. Real email
+      OneLegal records the issuance and audit chain immediately. Real email
       delivery is a separate integration (sunset condition: when
       SES/Outlook/SMTP integration ships). Recipients in the audit log
       show {`"Recorded"`} until the delivery surface lands.

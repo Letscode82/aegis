@@ -2673,7 +2673,7 @@ export function IntakeView(){
   const awaiting=store.tickets.filter(isAwaitingTriage).length;
 
   if(store.loading) return <div style={{padding:40,textAlign:"center",color:C.t3,fontFamily:M,fontSize:12,letterSpacing:1}}>
-    ◎ LOADING AEGIS LEGAL INTAKE …
+    ◎ LOADING OneLegal LEGAL INTAKE …
   </div>;
 
   return <div>

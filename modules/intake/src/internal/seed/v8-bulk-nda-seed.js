@@ -19,7 +19,7 @@ export const V8_BULK_NDA_SEED=(() => {
     workflow:[{label:"Submitted",done:true},{label:"Agent Analysis",done:true},{label:"Attorney Review",active:true},{label:"Close"}],
     aiTriage:{category:"NDA — Standard Mutual",riskFlag:"None — 100% template match",suggestedAssignee:"NDA Agent",estimatedHours:0,similarMatters:142,confidence:96,routingRule:"RULE-0",source:"regex"},
     agentRecommendation:mkRec("nda-agent",0.95,"approve-and-send",
-      `Hi ${requesters[i].from.split(" ")[0]},\n\nStandard Mutual NDA with ${cp} drafted from template MNDA-v4.2:\n• 2-year confidentiality, standard carve-outs\n• Mutual no-solicit 12 months\n• Delaware law\n\nNo prior NDA on file with ${cp}. Ready for DocuSign.\n\n— AEGIS Legal (auto-drafted)`,
+      `Hi ${requesters[i].from.split(" ")[0]},\n\nStandard Mutual NDA with ${cp} drafted from template MNDA-v4.2:\n• 2-year confidentiality, standard carve-outs\n• Mutual no-solicit 12 months\n• Delaware law\n\nNo prior NDA on file with ${cp}. Ready for DocuSign.\n\n— OneLegal Legal (auto-drafted)`,
       `Template-fit 100%. No prior NDA with ${cp} in registry. RULE-0 match.`,
       [],
       [{id:"NDA-TEMPLATE-v4.2",title:"Standard Mutual NDA Template"}],

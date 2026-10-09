@@ -58,7 +58,7 @@ export function assertTransition(from: EnvelopeStatusValue, to: EnvelopeStatusVa
 }
 
 /**
- * Normalize a provider's native status string to the AEGIS lifecycle. Unknown
+ * Normalize a provider's native status string to the OneLegal lifecycle. Unknown
  * strings fall back to "sent" (in-flight) rather than throwing, so a surprising
  * provider value never strands an envelope.
  */

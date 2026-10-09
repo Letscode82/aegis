@@ -20,7 +20,7 @@ export default function DsarReviewPage() {
   return (
     <>
       <Head>
-        <title>AEGIS · DSAR Collect &amp; Review</title>
+        <title>OneLegal · DSAR Collect &amp; Review</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <main style={{ background: "#0B1020", minHeight: "100vh" }}>

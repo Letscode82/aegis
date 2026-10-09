@@ -166,7 +166,7 @@ export async function startReviewSetExport(
   const endpoint = `/security/cases/ediscoveryCases/${caseId}/reviewSets/${reviewSetId}/export`;
   const body: GraphObject = {
     outputName: opts.outputName ?? `aegis-export-${Date.now()}`,
-    description: opts.description ?? "AEGIS Purview processing read-back test",
+    description: opts.description ?? "OneLegal Purview processing read-back test",
   };
   if (opts.exportOptions) body.exportOptions = opts.exportOptions;
   if (opts.exportStructure) body.exportStructure = opts.exportStructure;

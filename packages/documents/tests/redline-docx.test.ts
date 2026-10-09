@@ -25,7 +25,7 @@ describe("renderRedlineDocx", () => {
       title: "Term clause",
       clauseLabel: "Section 3 — Term",
       segments: SEGMENTS,
-      author: "AEGIS Redline",
+      author: "OneLegal Redline",
       generatedAt: "2026-10-03T00:00:00.000Z",
       generatedBy: "Harsha",
       rationale: "Shortened the term to one year to match our standard playbook.",
@@ -39,7 +39,7 @@ describe("renderRedlineDocx", () => {
     expect(xml).toContain("three (3) years");
     expect(xml).toContain("one (1) year");
     // Revision metadata present.
-    expect(xml).toContain('w:author="AEGIS Redline"');
+    expect(xml).toContain('w:author="OneLegal Redline"');
     expect(xml).toContain('w:date="2026-10-03T00:00:00.000Z"');
     // The unchanged text survives as a normal run.
     expect(xml).toContain("from the Effective Date.");

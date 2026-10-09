@@ -2,7 +2,7 @@
  * E-signature — types (C-5).
  *
  * An e-signature connector fronts the signing provider a legal department uses
- * to execute contracts (DocuSign, Adobe Acrobat Sign). AEGIS reaches it through
+ * to execute contracts (DocuSign, Adobe Acrobat Sign). OneLegal reaches it through
  * the shared F-8 OAuth framework (`@aegis/connectors`); the Contracts module
  * drives it to move a `Contract` from APPROVED → EXECUTED, chain-sealing every
  * step. This module is pure types — no runtime, no dependencies.
@@ -11,7 +11,7 @@
  * contract execution state machine never branches on a provider's vocabulary.
  */
 
-/** Registry ids for the e-signature providers AEGIS fronts. */
+/** Registry ids for the e-signature providers OneLegal fronts. */
 export type ESignatureProviderId = "docusign" | "adobesign";
 
 /**
@@ -47,7 +47,7 @@ export interface EnvelopeDocument {
 
 /** The request to create an envelope. */
 export interface CreateEnvelopeRequest {
-  /** AEGIS-side correlation (e.g. the Contract id) echoed back on status. */
+  /** OneLegal-side correlation (e.g. the Contract id) echoed back on status. */
   referenceId?: string;
   subject: string;
   message?: string;

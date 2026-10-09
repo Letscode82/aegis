@@ -1,7 +1,7 @@
 import { profileFor } from "./agent-profiles";
 import { normalizeSeverity, rollUpOverall, coerceFindings } from "@aegis/legal-skills/output-contract";
 
-// SK-4 — the AEGIS shared output contract (@aegis/legal-skills) is the single
+// SK-4 — the OneLegal shared output contract (@aegis/legal-skills) is the single
 // source of truth for the output SHAPE. Every recommendation this helper
 // builds carries an `overall` severity on the one S1–S4/Info scale plus the
 // structured `findings` list when the agent produced one, so findings from the

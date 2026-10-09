@@ -25,7 +25,7 @@ export const PolicyQAAgent={
     if(/harassment|discriminat|retaliation/.test(cat)){
       return buildRec(this.id,{
         confidence:0.55,suggestedAction:"escalate",
-        draftedResponse:`⚠ SENSITIVE MATTER — ATTORNEY HANDLING REQUIRED\n\nHi ${name},\n\nThis request describes a sensitive employment matter (potential retaliation / harassment pattern). I'm not drafting a substantive response — these matters require attorney-led investigation.\n\nRouting directly to Rachel Adams (Employment Lead). You'll hear back within 12 hours.\n\n— AEGIS Legal`,
+        draftedResponse:`⚠ SENSITIVE MATTER — ATTORNEY HANDLING REQUIRED\n\nHi ${name},\n\nThis request describes a sensitive employment matter (potential retaliation / harassment pattern). I'm not drafting a substantive response — these matters require attorney-led investigation.\n\nRouting directly to Rachel Adams (Employment Lead). You'll hear back within 12 hours.\n\n— OneLegal Legal`,
         reasoning:"Sensitive employment matter. Agent confidence is INTENTIONALLY low per policy — these tickets must be attorney-handled.",
         concerns:["Do not auto-send","Third-party reports of retaliation require specialist attorney review","Consider legal hold / preservation obligations"],
         precedentLinks:[{id:"POLICY-RETAL-v2",title:"Retaliation Response Protocol"}],
@@ -75,7 +75,7 @@ Respond with ONLY this JSON:
     }catch(e){
       console.error("[agent:policy-qa] callClaudeJSON failed:",e);
       return buildDegradedRec(this.id,{
-        draftedResponse:`Hi ${name},\n\nPer ${policy.policy}: ${policy.answer}\n\nIf your specific situation doesn't fit the standard answer, reply and I'll loop in the right specialist.\n\n— AEGIS Policy Desk`,
+        draftedResponse:`Hi ${name},\n\nPer ${policy.policy}: ${policy.answer}\n\nIf your specific situation doesn't fit the standard answer, reply and I'll loop in the right specialist.\n\n— OneLegal Policy Desk`,
         reasoning:`Policy match: ${policy.policy}. Claude unavailable — surfaced policy text for attorney review (not auto-send).`,
         concerns:[friendlyAIError(e),"Raw policy text — attorney must review before sending."],
         precedentLinks:[{id:`POLICY-${policy.policy.replace(/\W+/g,"-")}`,title:policy.policy}],

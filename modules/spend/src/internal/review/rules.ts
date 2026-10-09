@@ -6,7 +6,7 @@
  * items) and a review context (approved rates, roster, budget,
  * guidelines), it returns a set of FLAGS with a proposed short-pay.
  *
- * Governance split (AEGIS conservative-AI, non-negotiable #7):
+ * Governance split (OneLegal conservative-AI, non-negotiable #7):
  *   - "deterministic" flags are math/rule facts — they may auto-reduce
  *     where the billing guideline authorises, and always write an audit
  *     row. Their reductions feed `proposedApprovedAmount`.

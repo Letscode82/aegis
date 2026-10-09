@@ -10,7 +10,7 @@ export default function AdminNoticeTemplatesPage() {
   return (
     <>
       <Head>
-        <title>AEGIS · Hold notice templates</title>
+        <title>OneLegal · Hold notice templates</title>
       </Head>
       <main style={{ background: "#0B1020", minHeight: "100vh" }}>
         <NoticeTemplatesAdmin />

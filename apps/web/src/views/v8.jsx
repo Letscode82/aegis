@@ -34,7 +34,7 @@ export function BoardReportView(){
     1:<div style={{textAlign:"center",paddingTop:80}}>
       <div style={{fontSize:10,fontFamily:M,color:C.t3,letterSpacing:3,textTransform:"uppercase"}}>AURORA · CONFIDENTIAL</div>
       <div style={{fontSize:42,fontFamily:SR,fontWeight:400,color:C.bg,lineHeight:1.15,margin:"40px 0 20px"}}>Q1 2026<br/>Legal Risk<br/>Committee Pack</div>
-      <div style={{fontSize:13,color:"#666",fontFamily:M,letterSpacing:1}}>AEGIS Legal Mission Control</div>
+      <div style={{fontSize:13,color:"#666",fontFamily:M,letterSpacing:1}}>OneLegal Legal Mission Control</div>
       <div style={{fontSize:11,color:"#999",fontFamily:M,marginTop:20}}>Prepared for: Board Audit Committee · {new Date().toLocaleDateString("en-US",{month:"long",day:"numeric",year:"numeric"})}</div>
       <div style={{fontSize:10,color:"#999",fontFamily:M,marginTop:40}}>Auto-drafted by Aurora from live platform data</div>
     </div>,

@@ -19,7 +19,7 @@
  */
 import { prisma } from "./client";
 
-const DEMO_ORG_NAME = "AEGIS Demo Corp";
+const DEMO_ORG_NAME = "OneLegal Demo Corp";
 const DEMO_USER_EMAIL = "alex.nguyen@aegis-demo.example";
 
 export interface CurrentUser {

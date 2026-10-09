@@ -1,5 +1,5 @@
 /**
- * SK-4 — the eleven intake agents converge on the AEGIS shared output
+ * SK-4 — the eleven intake agents converge on the OneLegal shared output
  * contract (@aegis/legal-skills): every recommendation carries an `overall`
  * severity on the one S1–S4/Info scale plus structured `findings`. These
  * tests cover the three convergence seams: buildRec normalisation, the oKF

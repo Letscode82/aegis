@@ -13,7 +13,7 @@ export default function AdminNoticeTemplateEditPage() {
   return (
     <>
       <Head>
-        <title>AEGIS · Edit notice template</title>
+        <title>OneLegal · Edit notice template</title>
       </Head>
       <main style={{ background: "#0B1020", minHeight: "100vh" }}>
         {id && <NoticeTemplateEditor templateId={id} />}

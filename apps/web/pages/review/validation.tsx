@@ -16,7 +16,7 @@ export default function ValidationDashboardPage() {
   return (
     <>
       <Head>
-        <title>AEGIS · AI Validation</title>
+        <title>OneLegal · AI Validation</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <main style={{ background: "#0B1020", minHeight: "100vh" }}>

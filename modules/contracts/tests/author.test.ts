@@ -3,9 +3,9 @@ import { renderTemplateBody } from "../src/internal/author";
 
 describe("renderTemplateBody", () => {
   it("substitutes known variables", () => {
-    const body = "This NDA is between {{counterparty.name}} and AEGIS, governed by {{contract.governingLaw}}.";
+    const body = "This NDA is between {{counterparty.name}} and OneLegal, governed by {{contract.governingLaw}}.";
     const out = renderTemplateBody(body, { "counterparty.name": "Globex", "contract.governingLaw": "Delaware" });
-    expect(out).toBe("This NDA is between Globex and AEGIS, governed by Delaware.");
+    expect(out).toBe("This NDA is between Globex and OneLegal, governed by Delaware.");
   });
 
   it("tolerates whitespace inside the braces", () => {

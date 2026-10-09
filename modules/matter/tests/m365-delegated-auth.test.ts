@@ -672,7 +672,7 @@ describe("Device Code orchestrator (DB-backed)", () => {
   });
 
   it("includes client_secret in /devicecode and /token POST bodies (confidential client)", async () => {
-    // Regression test for AADSTS7000218. AEGIS's Entra app
+    // Regression test for AADSTS7000218. OneLegal's Entra app
     // registration is a confidential client; Microsoft requires
     // client_secret in the body for both Device Code endpoints.
     const recorded: Array<{ url: string; body: URLSearchParams }> = [];

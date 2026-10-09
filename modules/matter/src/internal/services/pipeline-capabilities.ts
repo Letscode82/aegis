@@ -19,7 +19,7 @@ export interface PipelineEngines {
   purviewPreserve: boolean;
   /** Purview processing available — note: read-back is portal-limited (PROC-7b). */
   purviewProcess: boolean;
-  /** AEGIS AI review — always available (degrades to deterministic without a key). */
+  /** OneLegal AI review — always available (degrades to deterministic without a key). */
   aiReview: boolean;
 }
 

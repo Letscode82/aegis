@@ -72,7 +72,7 @@ export const AdminM365Status: React.FC = () => {
     useState<"pending" | "connected" | "expired" | "error" | null>(null);
   const [testing, setTesting] = useState(false);
 
-  // App-only credentials editor (point AEGIS at a client tenant from the UI).
+  // App-only credentials editor (point OneLegal at a client tenant from the UI).
   const [showCredForm, setShowCredForm] = useState(false);
   const [credTenant, setCredTenant] = useState("");
   const [credClientId, setCredClientId] = useState("");
@@ -259,7 +259,7 @@ export const AdminM365Status: React.FC = () => {
         {showCredForm && (
           <div style={{ marginTop: 12, padding: 14, border: `1px solid ${C.brL}`, borderRadius: 8, background: C.bg, display: "grid", gap: 10 }}>
             <div style={{ fontSize: 11.5, color: C.t3 }}>
-              Point AEGIS at a Microsoft 365 tenant (app-only credentials from an Entra app registration). The secret is
+              Point OneLegal at a Microsoft 365 tenant (app-only credentials from an Entra app registration). The secret is
               encrypted at rest (AES-256-GCM) and never leaves the server. Requires <span style={{ fontFamily: M }}>AEGIS_ENCRYPTION_KEY</span> set.
             </div>
             <label style={{ display: "grid", gap: 4, fontSize: 11, color: C.t3 }}>

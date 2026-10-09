@@ -22,7 +22,7 @@ const REQ: CreateEnvelopeRequest = {
   documents: [{ name: "msa.pdf", mimeType: "application/pdf", content: new Uint8Array([1, 2, 3]) }],
   recipients: [
     { email: "gc@acme.com", name: "Acme GC" },
-    { email: "cc@aegis.com", name: "AEGIS", role: "cc" },
+    { email: "cc@aegis.com", name: "OneLegal", role: "cc" },
   ],
 };
 

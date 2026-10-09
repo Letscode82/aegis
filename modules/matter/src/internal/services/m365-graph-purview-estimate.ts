@@ -25,7 +25,7 @@ interface EstimateCtx {
 
 export async function estimatePurviewCollectionViaGraph(ctx: EstimateCtx, input: PurviewCollectionInput): Promise<PurviewCollectionEstimate> {
   const custodians = [...new Set((input.custodianIdentifiers || []).map((s) => (s || "").trim()).filter(Boolean))];
-  const displayName = (input.displayName || `AEGIS collection ${custodians[0] ?? "adhoc"}`).slice(0, 120);
+  const displayName = (input.displayName || `OneLegal collection ${custodians[0] ?? "adhoc"}`).slice(0, 120);
   const audit = { organizationId: ctx.organizationId, tenantId: ctx.tenantId, actor: null, actorType: "SYSTEM" as const, metadata: { authMode: ctx.authMode } };
 
   return withGraphAudit(
@@ -35,7 +35,7 @@ export async function estimatePurviewCollectionViaGraph(ctx: EstimateCtx, input:
         // 1. Case (reuse by display name).
         const found = (await ctx.graph.api("/security/cases/ediscoveryCases").filter(`displayName eq '${displayName.replace(/'/g, "''")}'`).top(1).get()) as { value?: Array<{ id: string }> };
         const caseId = found.value?.[0]?.id
-          ?? ((await ctx.graph.api("/security/cases/ediscoveryCases").post({ displayName, description: "AEGIS eDiscovery collection estimate" })) as { id?: string }).id
+          ?? ((await ctx.graph.api("/security/cases/ediscoveryCases").post({ displayName, description: "OneLegal eDiscovery collection estimate" })) as { id?: string }).id
           ?? null;
         if (!caseId) throw new Error("eDiscovery case create returned no id");
 

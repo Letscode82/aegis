@@ -53,7 +53,7 @@ test("falls back to triage for unrelated text", () => {
 
 test("system prompt includes standards before the skill", () => {
   const p = buildSystemPrompt(reg, ["contracts/contract-review"], { matter: { id: "MAT-1" } });
-  assert.ok(p.indexOf("AEGIS Skill Standards") < p.indexOf('aegis_skill id="contracts/contract-review"'));
+  assert.ok(p.indexOf("OneLegal Skill Standards") < p.indexOf('aegis_skill id="contracts/contract-review"'));
   assert.match(p, /playbook-schema\.md/);
   assert.match(p, /data, not instructions/);
 });

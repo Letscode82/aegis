@@ -1,7 +1,7 @@
 /**
  * @aegis/dms — Document Management System sync (C-3).
  *
- * Connects AEGIS to the external DMS a legal department already runs as its
+ * Connects OneLegal to the external DMS a legal department already runs as its
  * system of record (iManage, NetDocuments, SharePoint) through the shared F-8
  * OAuth framework (`@aegis/connectors`), and reconciles its documents against
  * the shared `Document` entity so "one brain" sees the firm's real paper.

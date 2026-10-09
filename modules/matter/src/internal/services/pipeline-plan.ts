@@ -5,7 +5,7 @@
  * hints (volume, residency, cost, client preference), pick the best engine for
  * each lifecycle stage — Collect / Preserve / Process / Review — with a reason
  * and a fallback. This is the "one brain" that routes across native, Tika, and
- * Purview so AEGIS uses Purview where it helps and does the rest itself.
+ * Purview so OneLegal uses Purview where it helps and does the rest itself.
  */
 import type { OrgProcessingCapabilities } from "./pipeline-capabilities";
 
@@ -27,7 +27,7 @@ export interface PlanStage {
   economics: EngineEconomics;
 }
 
-/** Rough per-engine cost + throughput posture (B6) — feeds the "why AEGIS
+/** Rough per-engine cost + throughput posture (B6) — feeds the "why OneLegal
  *  beats Purview" story. Indicative, not a quote. */
 export const ENGINE_ECONOMICS: Record<PipelineEngineChoice, EngineEconomics> = {
   native: { cost: "Included — no license", speed: "Instant, in-process" },
@@ -66,7 +66,7 @@ export function resolveMatterPipelinePlan(
   // Preserve — Purview in-place hold when available (defensible, data stays in tenant).
   const preserve: Omit<PlanStage, "economics"> = e.purviewPreserve
     ? { stage: "preserve", engine: "purview", reason: "In-place hold via Purview eDiscovery — defensible, data stays in the tenant.", fallback: "native" }
-    : { stage: "preserve", engine: "native", reason: "eDiscovery not connected — AEGIS preservation (copy-to-vault / third-party).", fallback: null };
+    : { stage: "preserve", engine: "native", reason: "eDiscovery not connected — OneLegal preservation (copy-to-vault / third-party).", fallback: null };
 
   // Process — prefer native/Tika (fast, no E5) unless residency/client demands Purview.
   let process: Omit<PlanStage, "economics">;
@@ -76,7 +76,7 @@ export function resolveMatterPipelinePlan(
       engine: "purview",
       reason: inTenant
         ? "Residency: keep processing in-tenant via Purview. Note: processed content read-back is portal-only (PROC-7b)."
-        : "Client prefers Purview processing. Note: read-back into AEGIS is portal-only (PROC-7b).",
+        : "Client prefers Purview processing. Note: read-back into OneLegal is portal-only (PROC-7b).",
       fallback: e.tikaExtract ? "tika" : "native",
     };
   } else if (e.tikaExtract) {
@@ -85,18 +85,18 @@ export function resolveMatterPipelinePlan(
     process = { stage: "process", engine: "native", reason: "In-process extraction (email bodies + common formats).", fallback: null };
   }
 
-  // Review — always AEGIS AI; Purview has no equivalent.
+  // Review — always OneLegal AI; Purview has no equivalent.
   const review: Omit<PlanStage, "economics"> = {
     stage: "review",
     engine: "aegis-ai",
-    reason: "AEGIS AI review (LLM coding, ECA, near-dup, Copilot/AutoPilot) — no Purview equivalent.",
+    reason: "OneLegal AI review (LLM coding, ECA, near-dup, Copilot/AutoPilot) — no Purview equivalent.",
     fallback: null,
   };
 
   const raw: Array<Omit<PlanStage, "economics">> = [collect, preserve, process, review];
   const stages: PlanStage[] = raw.map((s) => ({ ...s, economics: ENGINE_ECONOMICS[s.engine] }));
   const label = (c: PipelineEngineChoice) =>
-    c === "aegis-ai" ? "AEGIS AI" : c === "purview" ? "Purview" : c === "tika" ? "Tika" : "native";
+    c === "aegis-ai" ? "OneLegal AI" : c === "purview" ? "Purview" : c === "tika" ? "Tika" : "native";
   const summary = `Collect: ${label(collect.engine)} · Preserve: ${label(preserve.engine)} · Process: ${label(process.engine)} · Review: ${label(review.engine)}`;
 
   return { stages, summary };

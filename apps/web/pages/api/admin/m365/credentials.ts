@@ -3,7 +3,7 @@
  *
  * Upsert this org's app-only Microsoft 365 credentials (tenant id, client id,
  * client secret). The secret is encrypted at rest via `AEGIS_ENCRYPTION_KEY`
- * (AES-256-GCM). This is the "point AEGIS at a client tenant" control — an
+ * (AES-256-GCM). This is the "point OneLegal at a client tenant" control — an
  * operator switches domains from the UI instead of editing env vars. After a
  * successful save, the caller re-verifies.
  *

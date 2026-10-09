@@ -3,7 +3,7 @@
  *
  * CONSERVATIVE-GOVERNANCE ADAPTATION (deliberate departure from the
  * assessed Python engine): the original auto-applied an agent's
- * decision above min_confidence. AEGIS's non-negotiable #7 says every
+ * decision above min_confidence. OneLegal's non-negotiable #7 says every
  * AI action that mutates state requires human approval — so here the
  * agent NEVER advances the ladder. Running a task stores the agent's
  * findings on the task row (DONE when confidence clears the step's

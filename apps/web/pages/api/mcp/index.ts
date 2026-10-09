@@ -1,5 +1,5 @@
 /**
- * POST /api/mcp — AEGIS MCP server endpoint (C-12).
+ * POST /api/mcp — OneLegal MCP server endpoint (C-12).
  *
  * JSON-RPC 2.0 over HTTP. An external agent authenticates with a bearer token
  * (an `McpAccessToken`) and calls the read-only tools in lib/mcp/tools.ts.

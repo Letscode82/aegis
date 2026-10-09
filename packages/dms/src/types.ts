@@ -3,7 +3,7 @@
  *
  * A DMS connector fronts an external document store (iManage, NetDocuments,
  * SharePoint) that a Fortune-50 legal department already runs as its system of
- * record for matter files. AEGIS reaches it through the shared F-8 OAuth
+ * record for matter files. OneLegal reaches it through the shared F-8 OAuth
  * framework (`@aegis/connectors`) and reconciles its documents against the
  * shared `Document` entity so "one brain" sees the firm's real paper.
  *
@@ -12,7 +12,7 @@
  * planner (`sync.ts`) is pure and provider-agnostic.
  */
 
-/** Registry ids for the DMS providers AEGIS fronts. */
+/** Registry ids for the DMS providers OneLegal fronts. */
 export type DmsProviderId = "imanage" | "netdocuments" | "sharepoint";
 
 /** A folder (workspace / cabinet / drive folder) in the external DMS. */

@@ -3,7 +3,7 @@
  *
  * A white-label, read-only view of the matters a client contact is a party
  * to: status, open tasks, active legal holds. The token IS the gate (resolved
- * server-side by /api/portal/client/[token]); no session, no AEGIS account.
+ * server-side by /api/portal/client/[token]); no session, no OneLegal account.
  * Self-contained page — no module import beyond @aegis/ui tokens.
  */
 import Head from "next/head";
@@ -57,7 +57,7 @@ export default function ClientPortalPage() {
   return (
     <>
       <Head>
-        <title>Your matters · AEGIS</title>
+        <title>Your matters · OneLegal</title>
         <meta name="viewport" content="width=device-width,initial-scale=1" />
       </Head>
       <main style={{ background: C.bg, minHeight: "100vh", fontFamily: F, color: C.t1, padding: "40px 20px" }}>

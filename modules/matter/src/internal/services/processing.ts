@@ -2,7 +2,7 @@
  * PROC-1 — the pluggable Processing Engine (mirrors the M365Client factory).
  *
  * Processing turns collected bytes (email bodies + attachments) into review-
- * searchable text. AEGIS supports (or will support) three engines behind one
+ * searchable text. OneLegal supports (or will support) three engines behind one
  * interface, selected per organisation:
  *
  *   - NativeJsEngine   — in-process extraction (text/html/pdf/docx today; xlsx/

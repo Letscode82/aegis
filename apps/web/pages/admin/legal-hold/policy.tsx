@@ -10,7 +10,7 @@ export default function AdminHoldPolicyPage() {
   return (
     <>
       <Head>
-        <title>AEGIS · Legal Hold policy</title>
+        <title>OneLegal · Legal Hold policy</title>
       </Head>
       <main style={{ background: "#0B1020", minHeight: "100vh" }}>
         <HoldPolicyEditor />

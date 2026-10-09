@@ -51,7 +51,7 @@ export function AiDraftModal({ onClose, onCreated }) {
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ width: 600, maxWidth: "100%", maxHeight: "88vh", overflow: "auto", background: C.cd, border: `1px solid ${C.br}`, borderRadius: 8, padding: 20 }}>
         <div style={{ fontSize: 15, fontFamily: SR, color: C.t1, marginBottom: 3 }}>✨ Draft a contract with AI</div>
-        <div style={{ fontSize: 11, color: C.t3, marginBottom: 16, lineHeight: 1.5 }}>Describe the deal; AEGIS drafts a full contract on <b>our paper</b> using our playbook. It's created as a <b>DRAFT</b> for you to review, edit, and run through approval — the human is always the gate.</div>
+        <div style={{ fontSize: 11, color: C.t3, marginBottom: 16, lineHeight: 1.5 }}>Describe the deal; OneLegal drafts a full contract on <b>our paper</b> using our playbook. It's created as a <b>DRAFT</b> for you to review, edit, and run through approval — the human is always the gate.</div>
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10, marginBottom: 10 }}>
           <div><label style={lbl}>Title</label><input value={title} onChange={(e) => setTitle(e.target.value)} style={inp} placeholder="Acme Master Services Agreement" /></div>
           <div><label style={lbl}>Type</label><input value={type} onChange={(e) => setType(e.target.value)} style={inp} placeholder="MSA" /></div>

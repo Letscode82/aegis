@@ -28,7 +28,7 @@ export const edgarProvider: ResearchProvider = {
       headers: {
         Accept: "application/json",
         // SEC fair-access policy requires an identifying UA; fall back to a generic one.
-        "User-Agent": ctx.userAgent || "AEGIS Legal Operations research@aegis.example",
+        "User-Agent": ctx.userAgent || "OneLegal Legal Operations research@aegis.example",
       },
     });
     if (res.status < 200 || res.status >= 300) {

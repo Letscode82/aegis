@@ -21,7 +21,7 @@ export function DsarPortalStatus({ token }) {
   return (
     <div style={wrap}>
       <div style={panel}>
-        <div style={{ fontSize: 10, fontFamily: M, letterSpacing: 2, color: C.tl, textTransform: "uppercase" }}>AEGIS · Privacy</div>
+        <div style={{ fontSize: 10, fontFamily: M, letterSpacing: 2, color: C.tl, textTransform: "uppercase" }}>OneLegal · Privacy</div>
         <div style={{ fontSize: 22, fontFamily: SR, color: C.t1, marginBottom: 18 }}>Your data request</div>
         {view === undefined ? <div style={{ color: C.t4, fontFamily: M, fontSize: 12 }}>Loading…</div>
           : view === null ? <div style={{ color: C.rd, fontFamily: M, fontSize: 12 }}>This link is invalid or has expired.</div>
@@ -73,7 +73,7 @@ export function DsarPortalIntake() {
   return (
     <div style={wrap}>
       <div style={panel}>
-        <div style={{ fontSize: 10, fontFamily: M, letterSpacing: 2, color: C.tl, textTransform: "uppercase" }}>AEGIS · Privacy</div>
+        <div style={{ fontSize: 10, fontFamily: M, letterSpacing: 2, color: C.tl, textTransform: "uppercase" }}>OneLegal · Privacy</div>
         <div style={{ fontSize: 22, fontFamily: SR, color: C.t1, marginBottom: 6 }}>Submit a data request</div>
         <div style={{ fontSize: 12, color: C.t3, marginBottom: 18 }}>Exercise your rights over your personal data. No account required.</div>
         {state.error && <div style={{ color: C.rd, fontFamily: M, fontSize: 12, marginBottom: 10 }}>⚠ {state.error}</div>}

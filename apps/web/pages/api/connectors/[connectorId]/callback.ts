@@ -84,7 +84,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       metadata: { connectorId, label: descriptor.label, scope: token.scope ?? null },
     });
 
-    return page(res, 200, `${descriptor.label} connected`, "AEGIS is now connected. You can close this window.");
+    return page(res, 200, `${descriptor.label} connected`, "OneLegal is now connected. You can close this window.");
   } catch (err) {
     if (err instanceof AccessDeniedError) return res.status(403).json({ ok: false, error: err.decision.message });
     console.error("[connector-callback] token exchange failed:", err);

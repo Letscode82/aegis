@@ -2,7 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 import path from "node:path";
 
 /**
- * AEGIS end-to-end test harness.
+ * OneLegal end-to-end test harness.
  *
  * Safety model (see e2e/README.md):
  *  - The suite is READ-ONLY by default. Tests that create/modify data are

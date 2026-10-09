@@ -1,7 +1,7 @@
 /**
  * The governance workflow library — 10 pharma-GC ladders, ported from
  * the assessed engine's library (docs/workflow-engine-assessment.md)
- * and adapted to AEGIS:
+ * and adapted to OneLegal:
  *
  * - approverRole values are the platform's canonical role names
  *   (@aegis/auth RoleName) — the original's org-chart roles map onto

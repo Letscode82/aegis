@@ -45,7 +45,7 @@ export function toSnippet(desc: string): string {
 
 function footer(ctx: NotificationContext): string {
   const link = ctx.appUrl ? `\nOpen it: ${ctx.appUrl}/?ticket=${ctx.ticketId}` : "";
-  return `${link}\n\n— AEGIS Legal Intake (automated notification; manage these in your AEGIS notification settings)`;
+  return `${link}\n\n— OneLegal Legal Intake (automated notification; manage these in your OneLegal notification settings)`;
 }
 
 export function buildNotificationEmail(
@@ -56,7 +56,7 @@ export function buildNotificationEmail(
   switch (kind) {
     case "assignment":
       return {
-        subject: `[AEGIS] Assigned to you: ${head}`,
+        subject: `[OneLegal] Assigned to you: ${head}`,
         body:
           `A legal request was assigned to you.\n\n` +
           `Ticket: ${ctx.ticketId}\n` +
@@ -67,7 +67,7 @@ export function buildNotificationEmail(
       };
     case "stage":
       return {
-        subject: `[AEGIS] Update on your request ${ctx.ticketId}: ${ctx.stage ?? "moved forward"}`,
+        subject: `[OneLegal] Update on your request ${ctx.ticketId}: ${ctx.stage ?? "moved forward"}`,
         body:
           `Your legal request moved forward.\n\n` +
           `Ticket: ${ctx.ticketId}\n` +
@@ -77,7 +77,7 @@ export function buildNotificationEmail(
       };
     case "breach":
       return {
-        subject: `[AEGIS] ⚠ SLA breached: ${head}`,
+        subject: `[OneLegal] ⚠ SLA breached: ${head}`,
         body:
           `A ticket on your plate has breached its SLA window and was escalated.\n\n` +
           `Ticket: ${ctx.ticketId}\n` +
@@ -88,7 +88,7 @@ export function buildNotificationEmail(
       };
     case "closure":
       return {
-        subject: `[AEGIS] Resolved: your request ${ctx.ticketId}`,
+        subject: `[OneLegal] Resolved: your request ${ctx.ticketId}`,
         body:
           `Your legal request is resolved.\n\n` +
           `Ticket: ${ctx.ticketId}\n` +

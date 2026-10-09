@@ -2,7 +2,7 @@
  * MatterSpaceHome (WS-2 + WS-4) — the Harvey/Legora-style "Space" landing
  * for a matter. One console that composes the matter's workstreams and now
  * carries the scoped assistant:
- *   - "Ask AEGIS about this Space" — Ask mode routes the question through the
+ *   - "Ask OneLegal about this Space" — Ask mode routes the question through the
  *     matter-scoped assistant (WS-4) and can save the answer as an Artifact;
  *     File mode files an intake request (WS-1 pipeline). Scope toggle:
  *     This Space / Org / Web.
@@ -214,7 +214,7 @@ export const MatterSpaceHome: React.FC<{
       <Card>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap", marginBottom: 10 }}>
           <div style={{ fontSize: 15, fontFamily: SR, color: C.t1, minWidth: 0 }}>
-            Ask AEGIS about <em style={{ color: C.tl, fontStyle: "italic" }}>{matter.title}</em>
+            Ask OneLegal about <em style={{ color: C.tl, fontStyle: "italic" }}>{matter.title}</em>
           </div>
           <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>{modeTab("ask", "Ask")}{modeTab("file", "File request")}</div>
         </div>
@@ -233,7 +233,7 @@ export const MatterSpaceHome: React.FC<{
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => { if (e.key === "Enter") submit(); }}
             placeholder={mode === "ask" ? "Ask a question · draft a clause · summarize the risk…" : "Draft an NDA · flag a dispute · review a vendor…"}
-            aria-label="Ask AEGIS about this matter"
+            aria-label="Ask OneLegal about this matter"
             style={{ flex: 1, minWidth: 0, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 6, color: C.t1, fontFamily: F, fontSize: 12.5, padding: "9px 11px", outline: "none" }}
           />
           <button type="button" onClick={submit} disabled={busy || input.trim().length < 3} style={{ background: C.tl, color: C.bg, border: "none", borderRadius: 6, padding: "9px 16px", fontFamily: M, fontSize: 10, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700, cursor: busy ? "default" : "pointer", opacity: busy || input.trim().length < 3 ? 0.6 : 1, flexShrink: 0 }}>
@@ -276,7 +276,7 @@ export const MatterSpaceHome: React.FC<{
       <Card>
         <div style={{ fontSize: 10, fontFamily: M, color: C.t3, letterSpacing: 1, textTransform: "uppercase", marginBottom: 10 }}>Artifacts · {artifacts.length}</div>
         {artifacts.length === 0 ? (
-          <div style={{ fontSize: 11, color: C.t4, fontFamily: M }}>No artifacts yet. Ask AEGIS above, then “Save as artifact”.</div>
+          <div style={{ fontSize: 11, color: C.t4, fontFamily: M }}>No artifacts yet. Ask OneLegal above, then “Save as artifact”.</div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 10 }}>
             {artifacts.map((a) => (

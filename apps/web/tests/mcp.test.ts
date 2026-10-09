@@ -1,5 +1,5 @@
 /**
- * C-12 — AEGIS MCP server unit tests.
+ * C-12 — OneLegal MCP server unit tests.
  *
  * Covers the JSON-RPC dispatch (initialize / ping / tools.list / tools.call /
  * notifications / errors), the scope model, the flag gate, and the token

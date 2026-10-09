@@ -61,7 +61,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       ensureServerClaudeTransport();
       const system =
-        "You are AEGIS, drafting for a corporate legal-operations team. Produce a clean, well-structured Markdown draft that " +
+        "You are OneLegal, drafting for a corporate legal-operations team. Produce a clean, well-structured Markdown draft that " +
         "the user will edit — a memo, email, clause, summary, outline, or similar as the instruction implies. Use clear headings " +
         "and lists. Keep placeholders like [Party], [Date], [Amount] where specifics are unknown — never invent facts, names, or " +
         "numbers. End with a one-line note that a qualified lawyer should review. Output ONLY the Markdown, no preamble." +

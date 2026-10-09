@@ -69,7 +69,7 @@ export const oauthFetch: OAuthHttp = async (url, init) => {
   return { status: res.status, json: () => res.json(), text: () => res.text() };
 };
 
-/** The public base URL AEGIS is reached at, for building OAuth redirect URIs. */
+/** The public base URL OneLegal is reached at, for building OAuth redirect URIs. */
 export function publicBaseUrl(req: NextApiRequest): string {
   const override = process.env.AEGIS_PUBLIC_BASE_URL;
   if (override) return override.replace(/\/+$/, "");

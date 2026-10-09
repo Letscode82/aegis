@@ -27,7 +27,7 @@ import { getM365ClientForOrg } from "../../../modules/matter/src/internal/servic
 // eslint-disable-next-line import/no-restricted-paths -- Same rationale as above.
 import { verifyM365Credentials } from "../../../modules/matter/src/internal/services/m365-graph-auth";
 
-const DEMO_ORG_NAME = "AEGIS Demo Corp";
+const DEMO_ORG_NAME = "OneLegal Demo Corp";
 
 async function main() {
   console.log("[m365-smoke] starting…");

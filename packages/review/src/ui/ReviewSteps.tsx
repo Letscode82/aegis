@@ -360,7 +360,7 @@ export const ReviewStep: React.FC<ReviewStepProps> = ({ apiBase, reviewSetId, ca
           </div>
           {draftOpen && (
             <div style={{ border: `1px solid ${C.pp}55`, borderRadius: 8, padding: "10px 12px", background: `${C.pp}0d`, display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ fontSize: 11.5, fontWeight: 600, color: C.pp }}>Describe the matter / investigation — AEGIS drafts criteria + issue codes (you edit before saving)</div>
+              <div style={{ fontSize: 11.5, fontWeight: 600, color: C.pp }}>Describe the matter / investigation — OneLegal drafts criteria + issue codes (you edit before saving)</div>
               <textarea value={draftDesc} onChange={(e) => setDraftDesc(e.target.value)} rows={3} placeholder="e.g. Departing VP of Engineering suspected of taking trade-secret source code and pricing models to a competitor before resigning." style={{ ...inputS, fontSize: 13, resize: "vertical" }} />
               <div style={{ display: "flex", gap: 8 }}>
                 <button disabled={drafting || !draftDesc.trim()} onClick={draftWithAi} style={{ ...btn(C.pp), padding: "8px 14px", fontSize: 12.5 }}>{drafting ? "Drafting…" : "Draft criteria →"}</button>
@@ -622,7 +622,7 @@ export const ProduceStep: React.FC<ProduceStepProps> = ({ apiBase, reviewSetId, 
   const toast = useToast();
   const [manifest, setManifest] = useState<Manifest | null>(null);
   const [busy, setBusy] = useState(false);
-  const [prefix, setPrefix] = useState("AEGIS");
+  const [prefix, setPrefix] = useState("OneLegal");
   const [relInstance, setRelInstance] = useState("");
   const [relWs, setRelWs] = useState("");
   const [pushing, setPushing] = useState(false);
@@ -648,7 +648,7 @@ export const ProduceStep: React.FC<ProduceStepProps> = ({ apiBase, reviewSetId, 
   const produce = async () => {
     setBusy(true);
     try {
-      const r = await fetch(`${apiBase}/${reviewSetId}/produce`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ batesPrefix: prefix.trim() || "AEGIS" }) });
+      const r = await fetch(`${apiBase}/${reviewSetId}/produce`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ batesPrefix: prefix.trim() || "OneLegal" }) });
       const d = await r.json(); if (!r.ok || !d.ok) throw new Error(d.error);
       setManifest(d.manifest); onReload();
       toast.success(`Produced ${d.manifest.counts.produced} · ${d.manifest.counts.privileged} withheld`);

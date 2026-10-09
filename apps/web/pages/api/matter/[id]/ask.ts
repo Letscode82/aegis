@@ -38,7 +38,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!ctx) return res.status(404).json({ ok: false, error: "Matter not found" });
 
     const system =
-      "You are AEGIS, an in-house legal operations assistant for a General Counsel's team. " +
+      "You are OneLegal, an in-house legal operations assistant for a General Counsel's team. " +
       "Answer questions and draft documents scoped to the specific legal matter described. " +
       `Ground your answer in ${SCOPE_LABEL[scope] || SCOPE_LABEL.space}. ` +
       "Be concise, practical and specific. When asked to draft, return clean Markdown. " +
