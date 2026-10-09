@@ -1,7 +1,7 @@
 /**
  * Connector registry (F-8).
  *
- * The single source of truth for "which external systems AEGIS can connect to."
+ * The single source of truth for "which external systems OneLegal can connect to."
  * A surface (admin connect page, research tool, DMS picker) resolves a connector
  * by id and reads its OAuth config; it never hard-codes a provider. Ships empty
  * — concrete providers (C-3/C-4/C-5) register themselves as they land.

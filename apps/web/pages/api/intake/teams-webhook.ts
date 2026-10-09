@@ -5,7 +5,7 @@
  * webhook** at this URL; mentioning it in a channel files a legal
  * request on the same P4a pipeline as email (classify → route →
  * persist → audit, source TEAMS) and replies in-channel with the
- * ticket id. `@AEGIS status <id>` / `@AEGIS status` / `@AEGIS help`
+ * ticket id. `@OneLegal status <id>` / `@OneLegal status` / `@OneLegal help`
  * answer without filing.
  *
  * Auth: Teams outgoing webhooks sign the RAW body with HMAC-SHA256
@@ -18,7 +18,7 @@
  *   curl -X POST http://localhost:5173/api/intake/teams-webhook \
  *     -H 'content-type: application/json' \
  *     -d '{"type":"message","id":"m1","from":{"name":"Dana Lee"},
- *          "text":"<at>AEGIS</at> We need a mutual NDA with Acme."}'
+ *          "text":"<at>OneLegal</at> We need a mutual NDA with Acme."}'
  *
  * Body parsing is disabled so the HMAC verifies the exact bytes Teams
  * signed. Idempotent on the Teams message id (retries dedupe).
@@ -105,7 +105,7 @@ async function handler(
     console.error("[/api/intake/teams-webhook] failed:", err);
     return res.status(200).json({
       type: "message",
-      text: "Something went wrong on the AEGIS side — please try again shortly.",
+      text: "Something went wrong on the OneLegal side — please try again shortly.",
     });
   }
 }

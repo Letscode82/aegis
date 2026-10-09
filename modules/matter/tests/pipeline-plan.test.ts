@@ -12,7 +12,7 @@ const caps = (over: Partial<OrgProcessingCapabilities["engines"]> = {}): OrgProc
 const stage = (plan: ReturnType<typeof resolveMatterPipelinePlan>, key: string) => plan.stages.find((s) => s.stage === key)!;
 
 describe("resolveMatterPipelinePlan (B2)", () => {
-  it("bare org: everything native + AEGIS AI", () => {
+  it("bare org: everything native + OneLegal AI", () => {
     const p = resolveMatterPipelinePlan(caps());
     expect(stage(p, "collect").engine).toBe("native");
     expect(stage(p, "preserve").engine).toBe("native");

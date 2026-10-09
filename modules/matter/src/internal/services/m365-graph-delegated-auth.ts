@@ -88,7 +88,7 @@ export interface PersistDelegatedTokensInput {
   refreshToken: string;
   /** UPN of the signed-in service account, e.g. `aegis-svc@…`. */
   accountUpn: string;
-  /** AEGIS user id of the admin who clicked Connect. */
+  /** OneLegal user id of the admin who clicked Connect. */
   authorizedById: string | null;
   /** Access-token expiry observed from the device-code result. */
   accessTokenExpiresAt: Date;

@@ -1,4 +1,4 @@
-// AEGIS skill runtime: load the built registry, route a request to skills, and assemble prompts.
+// OneLegal skill runtime: load the built registry, route a request to skills, and assemble prompts.
 // Zero dependencies. Requires dist/registry.json (run `python scripts/build.py`).
 
 import { readFileSync } from "node:fs";
@@ -80,7 +80,7 @@ export function route(reg, query, { module, jurisdiction, limit = 3 } = {}) {
  */
 export function buildSystemPrompt(reg, ids, { includeReferences = true, matter } = {}) {
   const parts = [
-    "You are AEGIS Legal, an AI assistant for an in-house legal team. Follow the AEGIS standards below exactly.",
+    "You are OneLegal Legal, an AI assistant for an in-house legal team. Follow the OneLegal standards below exactly.",
   ];
   for (const name of SHARED_ORDER) {
     if (reg.shared[name]) parts.push(`<aegis_shared file="${name}">\n${reg.shared[name]}\n</aegis_shared>`);

@@ -5,7 +5,7 @@
  * This is the deterministic playbook pass: it reads the contract text
  * (an intake request description, a pasted draft, a renewal note) and
  * surfaces the commercial clauses it can identify, compares each to the
- * AEGIS contract playbook, and derives the obligations a reviewer must
+ * OneLegal contract playbook, and derives the obligations a reviewer must
  * track. It runs the SAME way whether invoked from intake (first-pass on
  * spawn) or from inside the Contracts module (renewal / amendment) — one
  * implementation, so "the contract agent works in CLM and both are the
@@ -49,7 +49,7 @@ interface TopicRule {
   playbook: string;
 }
 
-// One rule per commercial clause the AEGIS playbook cares about. Order is
+// One rule per commercial clause the OneLegal playbook cares about. Order is
 // the surfacing order (worst-risk topics first).
 const TOPIC_RULES: TopicRule[] = [
   { type: "LIABILITY_CAP", match: /liabilit|limitation of liability|\bcap\b/i, baseRisk: "MEDIUM", deviation: /unlimited|uncapped|no cap|without limit/i, playbook: "Cap at 12 months' fees; uncapped carve-outs only for IP / confidentiality / indemnity." },

@@ -20,7 +20,7 @@ export default function CollectionWorkspacePage() {
   return (
     <>
       <Head>
-        <title>AEGIS · Collection</title>
+        <title>OneLegal · Collection</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <main style={{ background: "#0B1020", minHeight: "100vh" }}>

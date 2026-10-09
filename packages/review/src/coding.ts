@@ -207,7 +207,7 @@ export async function produceReviewSet(organizationId: string, id: string, opts:
   const uncoded = rows.filter((r) => r.codedResponsive == null).length;
   if (uncoded > 0) throw new Error(`${uncoded} item(s) are uncoded — code every item before producing.`);
 
-  const prefix = (opts.batesPrefix || "").trim() || "AEGIS";
+  const prefix = (opts.batesPrefix || "").trim() || "OneLegal";
   const codeable: CodeableItem[] = rows.map((r) => ({ ...r, privilegeBasis: (r.codingJson as CodingBlob | null)?.privilegeBasis ?? null }));
   const manifest = buildProductionManifest(codeable, prefix);
 

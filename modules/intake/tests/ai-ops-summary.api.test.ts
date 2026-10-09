@@ -89,7 +89,7 @@ function fakeDbUser(permissions: string[]) {
       name: "legal_ops",
       permissions, // Role.permissions is Json — array of strings works.
     },
-    organization: { id: "org1", name: "AEGIS Demo" },
+    organization: { id: "org1", name: "OneLegal Demo" },
   };
 }
 

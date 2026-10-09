@@ -1,5 +1,5 @@
 /**
- * Workspace assistant (WS-4) — the "Ask AEGIS about this Space" backend.
+ * Workspace assistant (WS-4) — the "Ask OneLegal about this Space" backend.
  *
  * Two capabilities, both matter-scoped:
  *   - getMatterAskContext: assembles a compact, matter-scoped context (title,

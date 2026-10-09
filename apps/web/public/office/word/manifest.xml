@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  AEGIS Word add-in manifest (C-1).
+  OneLegal Word add-in manifest (C-1).
 
   Sideload for development against `pnpm dev` (apps/web on :5173). For any other
-  host, replace every `https://localhost:5173` below with the AEGIS base URL the
+  host, replace every `https://localhost:5173` below with the OneLegal base URL the
   add-in is served from (the SourceLocation + AppDomain + icon URLs must all be
-  https and reachable by Word). The task pane calls the same-origin AEGIS API
-  (/api/office/word/*) using the user's AEGIS session.
+  https and reachable by Word). The task pane calls the same-origin OneLegal API
+  (/api/office/word/*) using the user's OneLegal session.
 -->
 <OfficeApp
   xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
@@ -15,10 +15,10 @@
   xsi:type="TaskPaneApp">
   <Id>7f3a1c2e-9b44-4d7a-8c21-aegiswordc1ad</Id>
   <Version>0.1.0</Version>
-  <ProviderName>AEGIS</ProviderName>
+  <ProviderName>OneLegal</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
-  <DisplayName DefaultValue="AEGIS Redline" />
-  <Description DefaultValue="AI clause redlining as Word tracked changes, governed by AEGIS." />
+  <DisplayName DefaultValue="OneLegal Redline" />
+  <Description DefaultValue="AI clause redlining as Word tracked changes, governed by OneLegal." />
   <SupportUrl DefaultValue="https://localhost:5173/" />
   <AppDomains>
     <AppDomain>https://localhost:5173</AppDomain>

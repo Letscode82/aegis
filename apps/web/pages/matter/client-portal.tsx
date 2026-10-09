@@ -102,7 +102,7 @@ export default function ClientPortalAdminPage() {
 
   return (
     <>
-      <Head><title>AEGIS · Client portals</title></Head>
+      <Head><title>OneLegal · Client portals</title></Head>
       <main style={{ background: C.bg, minHeight: "100vh", padding: "32px 20px", fontFamily: F, color: C.t1 }}>
         <div style={{ maxWidth: 820, margin: "0 auto" }}>
           <div style={{ fontSize: 10, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Matter · Collaboration</div>

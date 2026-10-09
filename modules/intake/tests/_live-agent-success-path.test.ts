@@ -39,7 +39,7 @@ function stubTransport(body: { messages: Array<{ content: string }> }) {
     `I've completed the first-pass work on your request — "${subject}". ` +
     `The analysis below applies our standard playbook; key terms are within accepted bands and I've flagged anything that needs a human decision.\n\n` +
     `Summary of what I did, the standard I applied, and the recommended next step are in the attached deliverable. ` +
-    `This is ready for your review and (on approval) release.\n\n— AEGIS Legal`;
+    `This is ready for your review and (on approval) release.\n\n— OneLegal Legal`;
   const json = JSON.stringify({
     draftedResponse: draft,
     alternativeTone: `${firstName} — first pass done on "${subject.slice(0, 60)}". Ready for your review.`,

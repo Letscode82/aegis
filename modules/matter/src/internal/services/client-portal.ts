@@ -4,7 +4,7 @@
  * A white-label self-service link that lets a business-user / client contact
  * (a Person who is a party on one or more matters) see a scoped, read-only
  * view of those matters — status, open-task count, and active legal holds —
- * without an authenticated AEGIS account.
+ * without an authenticated OneLegal account.
  *
  * Same posture as the DSAR + contract-review portals: only the SHA-256 hash
  * of the raw token is stored; the raw token lives once in the shared URL;
@@ -219,7 +219,7 @@ export async function resolveClientPortalService(rawToken: string): Promise<Clie
   }
 
   return {
-    organizationName: org?.name ?? "AEGIS",
+    organizationName: org?.name ?? "OneLegal",
     personName: person?.name ?? "Client",
     matters,
     generatedAt: now.toISOString(),

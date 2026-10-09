@@ -9,7 +9,7 @@ export default function DsarPortalIntakePage() {
   return (
     <>
       <Head>
-        <title>Submit a data request · AEGIS</title>
+        <title>Submit a data request · OneLegal</title>
         <meta name="viewport" content="width=device-width,initial-scale=1" />
       </Head>
       <DsarPortalIntake />

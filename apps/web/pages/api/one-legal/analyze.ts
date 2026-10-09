@@ -65,7 +65,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     try {
       ensureServerClaudeTransport();
       const system =
-        "You are AEGIS, an in-house legal-operations assistant for a corporate General Counsel team. " +
+        "You are OneLegal, an in-house legal-operations assistant for a corporate General Counsel team. " +
         "Analyze ONLY the provided document. Be concrete and cite exact language where useful. Do not invent facts, " +
         "names, or numbers not present in the text. This is not definitive legal advice; note when a qualified lawyer should review.";
       answer = ((await callClaude(`Document: ${doc.name}\n\n${context}\n\n---\nTask: ${task}`, { system, maxTokens: 900, timeout: 25000 })) || "").trim();

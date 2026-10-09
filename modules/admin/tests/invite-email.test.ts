@@ -20,15 +20,15 @@ describe("buildInviteEmailContent", () => {
     expect(c.footnote).toMatch(/expires/i);
   });
 
-  it("falls back to an 'open AEGIS' invite when no link but app url is known", () => {
+  it("falls back to an 'open OneLegal' invite when no link but app url is known", () => {
     const c = buildInviteEmailContent({
       recipientName: "",
       orgName: null,
       setPasswordUrl: null,
       appUrl: "https://app.example",
     });
-    expect(c.subject).toContain("AEGIS");
-    expect(c.button).toEqual({ label: "Open AEGIS", url: "https://app.example" });
+    expect(c.subject).toContain("OneLegal");
+    expect(c.button).toEqual({ label: "Open OneLegal", url: "https://app.example" });
     expect(c.footnote).toBeNull();
   });
 

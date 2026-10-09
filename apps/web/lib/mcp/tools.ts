@@ -1,7 +1,7 @@
 /**
  * C-12 — MCP tool registry.
  *
- * The read-only surface the AEGIS MCP server exposes to authenticated external
+ * The read-only surface the OneLegal MCP server exposes to authenticated external
  * agents. Each tool wraps a module's public `api.ts` read function (or a shared
  * package read). apps/web is the composition root, so importing across modules
  * here is allowed; the same pattern as apps/web/lib/one-legal/tools.ts.

@@ -10,7 +10,7 @@ export default function CustodianHoldsHome() {
   return (
     <>
       <Head>
-        <title>AEGIS · Your legal holds</title>
+        <title>OneLegal · Your legal holds</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </Head>
       <main style={{ background: "#0B1020", minHeight: "100vh" }}>

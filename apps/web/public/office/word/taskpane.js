@@ -1,14 +1,14 @@
 /* global Office, Word */
 /**
- * AEGIS Word add-in task pane (C-1).
+ * OneLegal Word add-in task pane (C-1).
  *
- * Calls AEGIS for an AI redline of the selected clause, then applies the change
+ * Calls OneLegal for an AI redline of the selected clause, then applies the change
  * in-document as REAL Word tracked changes (track-revisions on + replace the
  * selected range), so the author accepts or rejects each one — human review is
  * the gate. "Download .docx" fetches the same redline as a tracked-changes file.
  *
- * Requests are same-origin to the AEGIS app that serves this page and rely on
- * the user's existing AEGIS session cookie; no token is handled client-side.
+ * Requests are same-origin to the OneLegal app that serves this page and rely on
+ * the user's existing OneLegal session cookie; no token is handled client-side.
  */
 (function () {
   "use strict";
@@ -72,7 +72,7 @@
     var body = readBody();
     if (!body.original.trim()) { setStatus("Select a clause or paste one first.", true); return; }
     if (!body.instruction.trim()) { setStatus("Describe what should change.", true); return; }
-    setBusy(true); setStatus("Asking AEGIS for a redline…");
+    setBusy(true); setStatus("Asking OneLegal for a redline…");
     requestRedline(body)
       .then(function (j) {
         rationaleEl.hidden = false;

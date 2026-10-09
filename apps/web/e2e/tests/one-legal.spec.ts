@@ -19,7 +19,7 @@ test.describe("ONE Legal", () => {
     await expect(page.getByText("Your one front door for legal", { exact: false })).toBeVisible({
       timeout: 30_000,
     });
-    const composer = page.getByLabel("Ask AEGIS or file a legal request");
+    const composer = page.getByLabel("Ask OneLegal or file a legal request");
     await expect(composer).toBeVisible();
     await expect(page.getByRole("button", { name: /Route/ })).toBeVisible();
     await assertNoCrash(page);
@@ -38,7 +38,7 @@ test.describe("ONE Legal", () => {
   });
 
   test("composer enables the Route action once text is entered", async ({ page }, testInfo) => {
-    const composer = page.getByLabel("Ask AEGIS or file a legal request");
+    const composer = page.getByLabel("Ask OneLegal or file a legal request");
     await composer.fill("What is our standard NDA term length?");
     const route = page.getByRole("button", { name: /Route/ });
     await expect(route).toBeEnabled({ timeout: 10_000 });
@@ -50,7 +50,7 @@ test.describe("ONE Legal", () => {
 
   test("@mutation ask a question and get an answer card", async ({ page }, testInfo) => {
     requireMutationsEnabled();
-    const composer = page.getByLabel("Ask AEGIS or file a legal request");
+    const composer = page.getByLabel("Ask OneLegal or file a legal request");
     await composer.fill("What is a legal hold and when do we issue one?");
     await page.getByRole("button", { name: /Route/ }).click();
     // The answer card renders its header once the turn resolves. Allow time

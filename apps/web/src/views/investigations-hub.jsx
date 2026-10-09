@@ -1,6 +1,6 @@
 /**
  * Investigations hub (INV-1) — the internal-investigations landing. Open an
- * investigation from a source letter: AEGIS extracts the issues and drafts a
+ * investigation from a source letter: OneLegal extracts the issues and drafts a
  * plan (workstream steps, custodian hints, collection scope), then creates the
  * backing Matter of type INVESTIGATION. From there the hold + collection flow
  * (eDiscovery) and the review pipeline take over — the whole spine in one place.
@@ -12,7 +12,7 @@ const badge = (col) => ({ fontSize: 10, fontWeight: 700, letterSpacing: .4, colo
 
 // Structured prompt shown when no letter is pasted — a fill-in-the-blanks
 // template so counsel can frame an investigation even without a formal referral.
-const SAMPLE_PLACEHOLDER = `No letter yet? Frame the investigation with a few lines — AEGIS extracts the issues and drafts the plan:
+const SAMPLE_PLACEHOLDER = `No letter yet? Frame the investigation with a few lines — OneLegal extracts the issues and drafts the plan:
 
 WHAT HAPPENED: <one or two sentences on the alleged conduct>
 WHO IS INVOLVED: <names / roles of the subject(s) and any witnesses>
@@ -21,12 +21,12 @@ POTENTIAL ISSUES: <e.g. trade-secret misappropriation, self-dealing, data exfilt
 WHERE THE EVIDENCE LIVES: <mailboxes, Teams, OneDrive/SharePoint sites, systems>
 WHAT WE NEED TO KNOW: <the questions the investigation must answer>
 
-…or paste the full allegation / whistleblower / referral letter here and AEGIS will read it directly.`;
+…or paste the full allegation / whistleblower / referral letter here and OneLegal will read it directly.`;
 
 // A worked example that matches the seeded demo mailboxes (vendorx / §8.2 IP dispute).
 const SAMPLE_ALLEGATION = `CONFIDENTIAL — INTERNAL INVESTIGATION REFERRAL
 
-WHAT HAPPENED: A whistleblower reports that during the VendorX master-services negotiation, a member of the engineering team shared AEGIS's confidential §8.2 pricing model and proprietary source-code excerpts with the counterparty ahead of contract execution, and that a departing engineer moved key files to a personal drive before resigning to join VendorX.
+WHAT HAPPENED: A whistleblower reports that during the VendorX master-services negotiation, a member of the engineering team shared OneLegal's confidential §8.2 pricing model and proprietary source-code excerpts with the counterparty ahead of contract execution, and that a departing engineer moved key files to a personal drive before resigning to join VendorX.
 
 WHO IS INVOLVED: Marcus Reid (in-house counsel on the deal), Priya Kulkarni (engineering lead), Carlos Mendez (finance). Possible departed custodian on the engineering side.
 
@@ -51,7 +51,7 @@ export function InvestigationsHub() {
         <div>
           <div style={{ marginBottom: 6, fontFamily: M, fontSize: 10.5, letterSpacing: 1.4, color: C.pp, textTransform: "uppercase" }}>Investigations · one spine from allegation to findings</div>
           <div style={{ fontFamily: SR, fontSize: 28, fontWeight: 600, marginBottom: 4 }}>Internal Investigations</div>
-          <div style={{ fontSize: 13.5, color: C.t3, marginBottom: 20 }}>Open from a source letter — AEGIS drafts the issues, the plan, and the custodian list, then hands off to preservation, collection, and issue-coded review.</div>
+          <div style={{ fontSize: 13.5, color: C.t3, marginBottom: 20 }}>Open from a source letter — OneLegal drafts the issues, the plan, and the custodian list, then hands off to preservation, collection, and issue-coded review.</div>
         </div>
         <button onClick={() => setShowNew(true)} style={{ flex: "none", padding: "10px 16px", background: C.pp, color: C.bg, border: "none", borderRadius: 8, fontFamily: F, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>+ New investigation</button>
       </div>
@@ -262,7 +262,7 @@ function NewInvestigationModal({ onClose, onCreated }) {
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(4,7,15,.72)", zIndex: 1200, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: F, padding: 20 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ width: 640, maxWidth: "96%", maxHeight: "90vh", overflow: "auto", background: C.cd, border: `1px solid ${C.brL}`, borderRadius: 14, padding: "24px 26px" }}>
         <div style={{ fontFamily: SR, fontSize: 19, fontWeight: 600, marginBottom: 4 }}>New investigation</div>
-        <div style={{ fontSize: 12.5, color: C.t3, marginBottom: 18 }}>Paste the source — an allegation letter, whistleblower complaint, or referral. AEGIS drafts the issues and plan; you edit, then open it as a matter.</div>
+        <div style={{ fontSize: 12.5, color: C.t3, marginBottom: 18 }}>Paste the source — an allegation letter, whistleblower complaint, or referral. OneLegal drafts the issues and plan; you edit, then open it as a matter.</div>
 
         {!created && (
           <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

@@ -11,7 +11,7 @@ import { parseJSONLoose } from "@aegis/ai";
 describe("parseJSONLoose — tolerates model JSON with unescaped newlines", () => {
   it("repairs a multi-line drafted response (literal newlines in a string)", () => {
     // What a model actually returns for a multi-paragraph NDA draft:
-    const raw = '{"draftedResponse":"Hi Harsha,\n\nI\'ve drafted a Standard Mutual NDA:\n\n• 2-year term\n• Delaware law\n\n— AEGIS Legal","confidence":0.9,"concerns":[]}';
+    const raw = '{"draftedResponse":"Hi Harsha,\n\nI\'ve drafted a Standard Mutual NDA:\n\n• 2-year term\n• Delaware law\n\n— OneLegal Legal","confidence":0.9,"concerns":[]}';
     // Sanity: this is NOT valid JSON as-is.
     expect(() => JSON.parse(raw)).toThrow();
     const parsed = parseJSONLoose(raw);

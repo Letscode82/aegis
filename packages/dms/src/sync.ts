@@ -2,7 +2,7 @@
  * Document Management System sync — reconciliation planner (C-3).
  *
  * Pure, provider-agnostic, deterministic. Given the current remote folder
- * listing and AEGIS's record of what it last synced (`SyncLink[]`), it emits
+ * listing and OneLegal's record of what it last synced (`SyncLink[]`), it emits
  * the actions that bring the two sides into agreement — and, critically, flags
  * the two-sided-edit case as a `conflict` rather than silently clobbering
  * either side. Applying the plan (writing `Document` rows, uploading bytes) and
@@ -13,11 +13,11 @@
 import type { DmsDocument } from "./types.js";
 
 /**
- * AEGIS's memory of one previously-synced (or locally-new) document. A link
+ * OneLegal's memory of one previously-synced (or locally-new) document. A link
  * with an empty `externalId` is a local-only document awaiting its first push.
  */
 export interface SyncLink {
-  /** The AEGIS `Document.id`. */
+  /** The OneLegal `Document.id`. */
   documentId: string;
   /** The DMS document id, or "" for a local-only document not yet pushed. */
   externalId: string;
@@ -25,7 +25,7 @@ export interface SyncLink {
   syncedHash?: string;
   /** `modifiedAt` recorded at the last successful sync (fallback change signal). */
   syncedModifiedAt?: string;
-  /** True when the AEGIS copy changed since the last sync. */
+  /** True when the OneLegal copy changed since the last sync. */
   localDirty?: boolean;
 }
 
@@ -50,7 +50,7 @@ export interface SyncPlan {
 export interface PlanSyncInput {
   /** The current DMS folder listing. */
   remote: DmsDocument[];
-  /** AEGIS's record of prior syncs for this folder (plus local-only docs). */
+  /** OneLegal's record of prior syncs for this folder (plus local-only docs). */
   links: SyncLink[];
 }
 

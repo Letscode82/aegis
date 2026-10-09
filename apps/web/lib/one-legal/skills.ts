@@ -1,5 +1,5 @@
 /**
- * ONE Legal skills (E1) — reusable legal-ops playbooks, authored for AEGIS.
+ * ONE Legal skills (E1) — reusable legal-ops playbooks, authored for OneLegal.
  *
  * A "skill" is a curated, one-click starting action: it carries a structured
  * prompt (the playbook) and how to run it. Invoking a skill routes through the
@@ -8,9 +8,9 @@
  * Skills add no new capability or gate; they make the good paths one click away
  * and surface them persistently in the rail's Skills section + the landing.
  *
- * These are AEGIS-native playbooks written in-house. The breadth is informed by
+ * These are OneLegal-native playbooks written in-house. The breadth is informed by
  * the open legal-skills ecosystem, but every entry is original and, crucially,
- * mapped to a REAL AEGIS capability — no vaporware:
+ * mapped to a REAL OneLegal capability — no vaporware:
  *   - "route"    → startTurn(prompt)     (intent router: ask / file / tool / compound)
  *   - "research" → startResearch(prompt) (the A1 read-only agent loop over the corpus)
  *   - "prefill"  → drop the prompt in the composer for the user to complete
@@ -181,7 +181,7 @@ export const SKILLS: OneLegalSkill[] = [
   { id: "opposing-counsel-review", label: "Opposing-counsel review", desc: "Stress-test our position from the other side's view.", icon: "◈", action: "prefill", prompt: "Stress-test our position as opposing counsel would — find the weak points and likely attacks: ", cats: [], category: "Litigation & Disputes" },
   { id: "settlement-pressure", label: "Settlement pressure-test", desc: "Pressure-test a settlement position (BATNA, ranges, leverage).", icon: "◈", action: "prefill", prompt: "Pressure-test our settlement position — BATNA, realistic ranges, and leverage — for: ", cats: [], category: "Litigation & Disputes" },
 
-  // ── Legal Hold & eDiscovery (AEGIS go-beyond) ─────────────────────────────
+  // ── Legal Hold & eDiscovery (OneLegal go-beyond) ─────────────────────────────
   { id: "legal-hold", label: "Legal hold", desc: "Open a preservation hold on a matter.", icon: "⚖", action: "route", prompt: "Start a legal hold on the matter", cats: ["Litigation — Non-Court"], category: "Legal Hold & eDiscovery", featured: true },
   { id: "custodian-manage", label: "Add custodians / sources", desc: "Add custodians and data sources to a hold.", icon: "◫", action: "prefill", prompt: "Add custodians and data sources to the legal hold for: ", run: "route", cats: [], category: "Legal Hold & eDiscovery" },
   { id: "preservation-notice", label: "Preservation notice", desc: "Draft a hold / preservation notice for custodians.", icon: "✎", action: "prefill", prompt: "Draft a preservation / legal-hold notice for custodians about: ", run: "draft", cats: [], category: "Legal Hold & eDiscovery" },
@@ -232,7 +232,7 @@ export const SKILLS: OneLegalSkill[] = [
   { id: "plain-language", label: "Plain-language rewrite", desc: "Rewrite legal text for a business audience.", icon: "✎", action: "prefill", prompt: "Rewrite this legal text in plain language for a business audience, keeping the meaning exact: ", cats: [], category: "Drafting & Translation" },
   { id: "legal-translation", label: "Legal translation", desc: "Translate legal text, preserving legal meaning.", icon: "✎", action: "prefill", prompt: "Translate this legal text into the requested language, preserving legal meaning and defined terms: ", run: "draft", cats: [], category: "Drafting & Translation" },
 
-  // ── Cross-module · One Brain (AEGIS go-beyond) ────────────────────────────
+  // ── Cross-module · One Brain (OneLegal go-beyond) ────────────────────────────
   { id: "everything-about", label: "Everything about…", desc: "One-brain view across matters, contracts, holds, spend.", icon: "◎", action: "prefill", prompt: "Show me everything we have on ", run: "route", cats: [], category: "Cross-module · One Brain" },
   { id: "open-contracts", label: "Open contracts", desc: "Live count + list of open contracts.", icon: "◴", action: "route", prompt: "What contracts are open right now?", cats: [], category: "Cross-module · One Brain" },
   { id: "holds-overview", label: "Holds overview", desc: "Which matters have active legal holds.", icon: "⚖", action: "route", prompt: "Which matters have active legal holds?", cats: [], category: "Cross-module · One Brain" },

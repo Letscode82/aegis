@@ -34,7 +34,7 @@ export const FAQAgent={
     }
 
     try{
-      const prompt=`You are the FAQ Agent for AEGIS Legal. A requester has asked a question that maps to a knowledge-base entry.
+      const prompt=`You are the FAQ Agent for OneLegal Legal. A requester has asked a question that maps to a knowledge-base entry.
 
 TICKET:
 - Requester: ${ticket.from} (${ticket.dept})
@@ -66,7 +66,7 @@ Respond with ONLY this JSON:
       });
     }catch(e){
       console.error("[agent:faq] callClaudeJSON failed:",e);
-      const fallback=`Hi ${name},\n\n${kb.answer}\n\nSource: ${kb.source}.\n\nReply if you have a specific situation that doesn't fit the standard answer.\n\n— AEGIS Legal Knowledge Graph`;
+      const fallback=`Hi ${name},\n\n${kb.answer}\n\nSource: ${kb.source}.\n\nReply if you have a specific situation that doesn't fit the standard answer.\n\n— OneLegal Legal Knowledge Graph`;
       return buildDegradedRec(this.id,{
         draftedResponse:fallback,
         reasoning:`Direct KB match. Source: ${kb.source}. Claude API unavailable — surfaced KB entry for attorney review (not auto-send).`,

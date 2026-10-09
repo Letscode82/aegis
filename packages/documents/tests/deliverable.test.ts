@@ -63,7 +63,7 @@ describe("renderAgentDeliverableDocx", () => {
   });
 
   it("builds a safe download filename", () => {
-    expect(deliverableFilename("REQ-3740", "nda-agent")).toBe("AEGIS-REQ-3740-nda-agent-deliverable.docx");
-    expect(deliverableFilename("a/b c", "x:y")).toBe("AEGIS-a-b-c-x-y-deliverable.docx");
+    expect(deliverableFilename("REQ-3740", "nda-agent")).toBe("OneLegal-REQ-3740-nda-agent-deliverable.docx");
+    expect(deliverableFilename("a/b c", "x:y")).toBe("OneLegal-a-b-c-x-y-deliverable.docx");
   });
 });

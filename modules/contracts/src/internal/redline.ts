@@ -10,9 +10,9 @@
  * Degrades to a no-op redline (original unchanged, explained) when Claude is
  * unavailable, so the add-in never dead-ends. The suggestion is advisory: the
  * human accepts or rejects each tracked change in Word — that acceptance is the
- * governance gate, so this generate step mutates no AEGIS state. When the
+ * governance gate, so this generate step mutates no OneLegal state. When the
  * redline targets a persisted contract, a best-effort `contract.redline.suggested`
- * audit row records that AEGIS proposed a change (no `before`/`after` — nothing
+ * audit row records that OneLegal proposed a change (no `before`/`after` — nothing
  * was applied).
  */
 import { callClaudeJSON } from "@aegis/ai";

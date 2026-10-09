@@ -13,7 +13,7 @@
  * re-authorize (Device Code) to pick them up.
  *
  * Every call is wrapped in `withGraphAudit` (records authMode:"delegated"
- * + the mailbox), so the chain shows exactly which messages AEGIS read or
+ * + the mailbox), so the chain shows exactly which messages OneLegal read or
  * sent on whose behalf.
  */
 import { getFreshDelegatedAccessToken } from "./m365-graph-delegated-auth";

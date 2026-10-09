@@ -39,7 +39,7 @@ const TIPS = [
   "Every action I take is logged to the chain-sealed audit ledger and needs your approval.",
 ];
 
-// What AEGIS can take on — the capability answer.
+// What OneLegal can take on — the capability answer.
 const CAPABILITIES = [
   { k: "Intake & routing", v: "File any legal request in plain language — I classify it, apply your routing rules, and send it to the right desk." },
   { k: "Contracts", v: "Draft or review NDAs, MSAs, SOWs, DPAs, and run third-party paper through the clause playbook." },
@@ -345,7 +345,7 @@ function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource, onRes
     return (
       <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16 }}>
         <div style={{ fontSize: 13.5, color: C.t1, lineHeight: 1.6, marginBottom: 12 }}>
-          I&rsquo;m <strong>AEGIS</strong> — your one front door for legal. Describe what you need and I&rsquo;ll plan it, file it, and route it. Here&rsquo;s what I can take on:
+          I&rsquo;m <strong>OneLegal</strong> — your one front door for legal. Describe what you need and I&rsquo;ll plan it, file it, and route it. Here&rsquo;s what I can take on:
         </div>
         <div style={{ display: "grid", gap: 8, marginBottom: 14 }}>
           {CAPABILITIES.map((cap) => (
@@ -434,7 +434,7 @@ function AnalyzeCard({ turn, onFollowUp, onFileInstead, onDeepReview }) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14, alignItems: "center" }}>
           <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase" }}>Next</span>
           {turn.analysis && onFollowUp && <button type="button" onClick={onFollowUp} style={chipBtn}>Ask a follow-up →</button>}
-          {turn.analysis && onDeepReview && <button type="button" onClick={() => onDeepReview(`Review this document (${turn.fileName}) against the right legal playbook.`, { documents: [{ name: `${turn.fileName} (AEGIS analysis)`, text: turn.analysis }] })} style={chipBtn}>⚖ Deep skill review →</button>}
+          {turn.analysis && onDeepReview && <button type="button" onClick={() => onDeepReview(`Review this document (${turn.fileName}) against the right legal playbook.`, { documents: [{ name: `${turn.fileName} (OneLegal analysis)`, text: turn.analysis }] })} style={chipBtn}>⚖ Deep skill review →</button>}
           {onFileInstead && <button type="button" onClick={() => onFileInstead(`Review the attached document: ${turn.fileName}`)} style={chipBtn}>File as a request →</button>}
         </div>
       )}
@@ -1754,7 +1754,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
         onChange={(e) => { const v = e.target.value; if (pendingSkillRef.current && !v.startsWith(pendingSkillRef.current.prompt)) pendingSkillRef.current = null; setInput(v); }}
         onKeyDown={(e) => { if (e.key === "Enter" && input.trim().length >= 3) submitComposer(input); }}
         placeholder={turns.length === 0 ? "Describe a request, ask a question, or attach a document…" : "Ask, file a request, or attach a document…"}
-        aria-label="Ask AEGIS or file a legal request"
+        aria-label="Ask OneLegal or file a legal request"
         style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: C.t1, fontFamily: F, fontSize: big ? 15 : 13, padding: "8px 0" }}
       />
       <button type="button" onClick={() => { if (input.trim().length >= 3) submitComposer(input); }} disabled={input.trim().length < 3} style={{ ...primaryBtn, opacity: input.trim().length < 3 ? 0.5 : 1, flexShrink: 0 }}>Route ⏎</button>
@@ -1777,7 +1777,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       {/* Header (overlay variant only — the embedded page uses the AppShell header) */}
       {!embedded && (
         <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 20px", borderBottom: `1px solid ${C.br}`, flexShrink: 0 }}>
-          <span style={{ fontFamily: SR, fontSize: 17 }}>AEGIS</span>
+          <span style={{ fontFamily: SR, fontSize: 17 }}>OneLegal</span>
           <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1.5, textTransform: "uppercase" }}>One front door</span>
           <button type="button" onClick={onClose} aria-label="Close" style={{ marginLeft: "auto", background: "transparent", border: `1px solid ${C.br}`, color: C.t2, borderRadius: 6, padding: "5px 12px", fontFamily: M, fontSize: 10, letterSpacing: 0.6, textTransform: "uppercase", cursor: "pointer" }}>← Esc</button>
         </div>

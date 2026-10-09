@@ -1,5 +1,5 @@
 /**
- * The eight canonical AEGIS roles and their permission sets.
+ * The eight canonical OneLegal roles and their permission sets.
  *
  * Roles are org-scoped strings persisted in `Role.name` (per the schema's
  * unique constraint on (organizationId, name)). The mapping below is the

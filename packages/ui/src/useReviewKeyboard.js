@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
 /**
- * useReviewKeyboard — the one keyboard-navigation hook shared by every AEGIS
+ * useReviewKeyboard — the one keyboard-navigation hook shared by every OneLegal
  * review surface (eDiscovery coding, invoice review, intake triage, …). It
  * replaces the per-surface duplicates.
  *

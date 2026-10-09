@@ -34,7 +34,7 @@ export const VendorIntakeAgent={
     if(sanctions.status==="hit"){
       return buildRec(this.id,{
         confidence:0.92,suggestedAction:"escalate",
-        draftedResponse:`⚠ VENDOR ONBOARDING HOLD — SANCTIONS EXPOSURE\n\nThe vendor ${counterparty||"(unnamed)"} has failed automated screening:\n\n${sanctions.flags.map(f=>"• "+f).join("\n")}\n\nOnboarding is paused pending Compliance + GC review. Do NOT proceed.\n\n— AEGIS Vendor Intake`,
+        draftedResponse:`⚠ VENDOR ONBOARDING HOLD — SANCTIONS EXPOSURE\n\nThe vendor ${counterparty||"(unnamed)"} has failed automated screening:\n\n${sanctions.flags.map(f=>"• "+f).join("\n")}\n\nOnboarding is paused pending Compliance + GC review. Do NOT proceed.\n\n— OneLegal Vendor Intake`,
         reasoning:`Sanctions screen HIT: ${sanctions.flags.join("; ")}. Mandatory escalation per RULE-8.`,
         concerns:["Sanctions exposure — do not auto-approve under any circumstances","Escalate to Compliance + GC"],
         precedentLinks:[{id:"RULE-8",title:"Sanctions Escalation Policy"}],
@@ -46,7 +46,7 @@ export const VendorIntakeAgent={
       // service error). Surface for manual review — never claim cleared.
       return buildRec(this.id,{
         confidence:0.4,suggestedAction:"flag-for-review",
-        draftedResponse:`Vendor onboarding for ${counterparty||"(unnamed)"} needs manual sanctions screening.\n\n${sanctions.note}\n\nA paralegal must complete OFAC / EU / UK screening before this vendor is approved.\n\n— AEGIS Vendor Intake`,
+        draftedResponse:`Vendor onboarding for ${counterparty||"(unnamed)"} needs manual sanctions screening.\n\n${sanctions.note}\n\nA paralegal must complete OFAC / EU / UK screening before this vendor is approved.\n\n— OneLegal Vendor Intake`,
         reasoning:`Automated sanctions screening unavailable: ${sanctions.flags.join("; ")}. Cannot certify clear — routing to manual review.`,
         concerns:["⚠ Sanctions screening did NOT run — do not treat as cleared.","Manual OFAC / EU / UK screening required before onboarding."],
         precedentLinks:[{id:"RULE-8",title:"Sanctions Escalation Policy"}],
@@ -56,7 +56,7 @@ export const VendorIntakeAgent={
 
     // status === "clear" — Claude drafts the success response
     try{
-      const prompt=`You are the Vendor Intake Agent for AEGIS. A vendor onboarding request needs a response.
+      const prompt=`You are the Vendor Intake Agent for OneLegal. A vendor onboarding request needs a response.
 
 TICKET:
 - Requester: ${ticket.from} (${ticket.dept})
@@ -94,7 +94,7 @@ Respond with ONLY this JSON:
       console.error("[agent:vendor-intake] callClaudeJSON failed:",e);
       const name=(ticket.from||"").split(" ")[0]||"there";
       return buildDegradedRec(this.id,{
-        draftedResponse:`Hi ${name},\n\nVendor screens complete${counterparty?` for ${counterparty}`:""}:\n\n✓ OFAC / EU / UN sanctions — CLEAR\n✓ Refinitiv World-Check — CLEAR\n✓ Anti-bribery (FCPA / UK Bribery Act) — CLEAR\n✓ DPA v3.1 applies\n\nApproved for onboarding.\n\n— AEGIS Vendor Intake`,
+        draftedResponse:`Hi ${name},\n\nVendor screens complete${counterparty?` for ${counterparty}`:""}:\n\n✓ OFAC / EU / UN sanctions — CLEAR\n✓ Refinitiv World-Check — CLEAR\n✓ Anti-bribery (FCPA / UK Bribery Act) — CLEAR\n✓ DPA v3.1 applies\n\nApproved for onboarding.\n\n— OneLegal Vendor Intake`,
         reasoning:`All automated screens clear. Claude unavailable — surfaced template for attorney review (not auto-send).`,
         concerns:[friendlyAIError(e),"Attorney must review before approving onboarding."],
         precedentLinks:[{id:"DPA-v3.1",title:"Standard DPA Template v3.1"}],

@@ -154,9 +154,9 @@ export const STATIC_AGENT_DEFS = [
     output: { autoSendAtConfidence: 0.85, degradedConfidence: 0.4, defaultAction: "flag-for-review", autoSendAction: "approve-and-send", precedentLinks: [] },
     prompt: {
       mode: "json",
-      systemTemplate: `You are the NDA Agent for AEGIS Legal. Review the NDA request from {{ticket.from}} ({{ticket.dept}}) against our approved template and note any deviations.\n\nApproved template + standards:\n{{knowledge}}\n\nRequest / document:\n"""\n{{ticket.desc}}\n"""`,
+      systemTemplate: `You are the NDA Agent for OneLegal Legal. Review the NDA request from {{ticket.from}} ({{ticket.dept}}) against our approved template and note any deviations.\n\nApproved template + standards:\n{{knowledge}}\n\nRequest / document:\n"""\n{{ticket.desc}}\n"""`,
       jsonContract: `Respond with ONLY this JSON (draftedResponse 120-200 words; use \\n for line breaks):\n{"draftedResponse":"response to the requester","alternativeTone":"one-line summary","confidence":0.0-1.0,"reasoning":"one-line basis","concerns":["..."]}`,
-      fallbackTemplate: `You are the NDA Agent for AEGIS Legal. Review this NDA request against our approved template and write a concise (150-word) response to {{ticket.firstName}} noting any deviations. Plain text only.\n\n{{knowledge}}\n\n{{ticket.desc}}`,
+      fallbackTemplate: `You are the NDA Agent for OneLegal Legal. Review this NDA request against our approved template and write a concise (150-word) response to {{ticket.firstName}} noting any deviations. Plain text only.\n\n{{knowledge}}\n\n{{ticket.desc}}`,
       variables: ["ticket.from", "ticket.dept", "ticket.firstName", "ticket.desc", "knowledge"],
     },
     // The NDA agent drafts from this pack; it is also the Contracts 📄
@@ -176,7 +176,7 @@ export const STATIC_AGENT_DEFS = [
     output: { autoSendAtConfidence: 0.9, degradedConfidence: 0.4, defaultAction: "flag-for-review", autoSendAction: "approve-and-send", precedentLinks: [] },
     prompt: {
       mode: "json",
-      systemTemplate: `You are the Vendor Intake Agent for AEGIS Legal. Summarize the sanctions/denied-party screening posture for the vendor described and recommend next steps.\n\nScreening rules:\n{{knowledge}}\n\nRequest:\n"""\n{{ticket.desc}}\n"""`,
+      systemTemplate: `You are the Vendor Intake Agent for OneLegal Legal. Summarize the sanctions/denied-party screening posture for the vendor described and recommend next steps.\n\nScreening rules:\n{{knowledge}}\n\nRequest:\n"""\n{{ticket.desc}}\n"""`,
       jsonContract: `Respond with ONLY this JSON:\n{"draftedResponse":"screening summary","confidence":0.0-1.0,"reasoning":"one-line basis","concerns":["..."]}`,
       fallbackTemplate: `You are the Vendor Intake Agent. Summarize the screening posture for this vendor and recommend next steps in ~120 words. Plain text.\n\n{{knowledge}}\n\n{{ticket.desc}}`,
       variables: ["ticket.desc", "knowledge"],
@@ -195,7 +195,7 @@ export const STATIC_AGENT_DEFS = [
     output: { autoSendAtConfidence: 0.85, degradedConfidence: 0.4, defaultAction: "flag-for-review", autoSendAction: "approve-and-send", precedentLinks: [{ id: "CONTRACT-TYPE-CATALOG", title: "Contract-Type Playbook Catalog" }] },
     prompt: {
       mode: "json",
-      systemTemplate: `You are the Contract-Type Specialist for AEGIS Legal. Identify the contract type, select the matching playbook, and review the document against it clause by clause.\n\nType playbooks:\n{{knowledge}}\n\nDocument:\n"""\n{{ticket.desc}}\n"""`,
+      systemTemplate: `You are the Contract-Type Specialist for OneLegal Legal. Identify the contract type, select the matching playbook, and review the document against it clause by clause.\n\nType playbooks:\n{{knowledge}}\n\nDocument:\n"""\n{{ticket.desc}}\n"""`,
       jsonContract: `Respond with ONLY this JSON (draftedResponse 160-240 words):\n{"draftedResponse":"review with the selected playbook named + deviations","confidence":0.0-1.0,"reasoning":"one-line basis","concerns":["${ATTORNEY_RISK}","..."]}`,
       fallbackTemplate: `You are the Contract-Type Specialist. Name the contract type + matching playbook, review against it, and write a ~200-word review to {{ticket.firstName}} ending with attorney sign-off required. Plain text.\n\n{{knowledge}}\n\n{{ticket.desc}}`,
       variables: ["ticket.firstName", "ticket.desc", "knowledge"],
@@ -215,9 +215,9 @@ export const STATIC_AGENT_DEFS = [
     output: { autoSendAtConfidence: 0.85, degradedConfidence: 0.4, defaultAction: "flag-for-review", autoSendAction: "approve-and-send", precedentLinks: [{ id: "PLAYBOOK-MSA-v2", title: "MSA / Contract Playbook" }] },
     prompt: {
       mode: "json",
-      systemTemplate: `You are the Contract Review Agent for AEGIS Legal. Do a FIRST-PASS review of the contract below, comparing its terms against our playbook. Review clause by clause where the text is present; otherwise review what's described and call out what still needs the full text.\n\nAEGIS Contract Playbook (defaults to check against):\n{{knowledge}}\n\nFor EVERY issue you flag, assign a severity: BLOCKER / HIGH / MEDIUM / LOW, worst first.\n\nTICKET:\n- Requester: {{ticket.from}} ({{ticket.dept}})\n- Description / document:\n"""\n{{ticket.desc}}\n"""`,
-      jsonContract: `Respond with ONLY this JSON (keep draftedResponse 160-240 words; use \\n for line breaks; no double-quotes inside the string). Severity uses the AEGIS scale S1 (critical) / S2 (high) / S3 (medium) / S4 (low) / Info; "overall" is the worst finding:\n{"draftedResponse":"review summary with a bulleted deviations list","alternativeTone":"one-line summary","confidence":0.0-1.0,"reasoning":"one-line basis","overall":"S1|S2|S3|S4|Info","findings":[{"severity":"S1|S2|S3|S4|Info","category":"liability|data-protection|termination|ip|commercial|other","title":"short title","location":"clause ref or null","recommendation":"the fix"}],"concerns":["${ATTORNEY_RISK}","...key deviations the attorney must confirm"]}`,
-      fallbackTemplate: `You are the Contract Review Agent for AEGIS Legal. Do a FIRST-PASS review of the contract below against this playbook, then write a concise review (180-240 words) to {{ticket.firstName}} that names the key clauses, flags each deviation with a severity (BLOCKER/HIGH/MEDIUM/LOW, worst first) as a bulleted list, notes what still needs the full document, and ends by stating attorney sign-off is required before execution. Plain text only.\n\n{{knowledge}}\n\nTICKET:\n- Requester: {{ticket.from}} ({{ticket.dept}})\n"""\n{{ticket.desc}}\n"""`,
+      systemTemplate: `You are the Contract Review Agent for OneLegal Legal. Do a FIRST-PASS review of the contract below, comparing its terms against our playbook. Review clause by clause where the text is present; otherwise review what's described and call out what still needs the full text.\n\nAEGIS Contract Playbook (defaults to check against):\n{{knowledge}}\n\nFor EVERY issue you flag, assign a severity: BLOCKER / HIGH / MEDIUM / LOW, worst first.\n\nTICKET:\n- Requester: {{ticket.from}} ({{ticket.dept}})\n- Description / document:\n"""\n{{ticket.desc}}\n"""`,
+      jsonContract: `Respond with ONLY this JSON (keep draftedResponse 160-240 words; use \\n for line breaks; no double-quotes inside the string). Severity uses the OneLegal scale S1 (critical) / S2 (high) / S3 (medium) / S4 (low) / Info; "overall" is the worst finding:\n{"draftedResponse":"review summary with a bulleted deviations list","alternativeTone":"one-line summary","confidence":0.0-1.0,"reasoning":"one-line basis","overall":"S1|S2|S3|S4|Info","findings":[{"severity":"S1|S2|S3|S4|Info","category":"liability|data-protection|termination|ip|commercial|other","title":"short title","location":"clause ref or null","recommendation":"the fix"}],"concerns":["${ATTORNEY_RISK}","...key deviations the attorney must confirm"]}`,
+      fallbackTemplate: `You are the Contract Review Agent for OneLegal Legal. Do a FIRST-PASS review of the contract below against this playbook, then write a concise review (180-240 words) to {{ticket.firstName}} that names the key clauses, flags each deviation with a severity (BLOCKER/HIGH/MEDIUM/LOW, worst first) as a bulleted list, notes what still needs the full document, and ends by stating attorney sign-off is required before execution. Plain text only.\n\n{{knowledge}}\n\nTICKET:\n- Requester: {{ticket.from}} ({{ticket.dept}})\n"""\n{{ticket.desc}}\n"""`,
       variables: ["ticket.from", "ticket.dept", "ticket.firstName", "ticket.desc", "knowledge"],
     },
     knowledge: [
@@ -249,7 +249,7 @@ export const STATIC_AGENT_DEFS = [
     output: { autoSendAtConfidence: 0.95, degradedConfidence: 0.4, defaultAction: "flag-for-review", autoSendAction: "approve-and-send", precedentLinks: [] },
     prompt: {
       mode: "json",
-      systemTemplate: `You are the Trademark Agent for AEGIS Legal. Provide a PRELIMINARY clearance read (phonetic/visual/conceptual similarity + likely NICE classes) for the mark described. State clearly this is not a registry search.\n\nHeuristics:\n{{knowledge}}\n\nRequest:\n"""\n{{ticket.desc}}\n"""`,
+      systemTemplate: `You are the Trademark Agent for OneLegal Legal. Provide a PRELIMINARY clearance read (phonetic/visual/conceptual similarity + likely NICE classes) for the mark described. State clearly this is not a registry search.\n\nHeuristics:\n{{knowledge}}\n\nRequest:\n"""\n{{ticket.desc}}\n"""`,
       jsonContract: `Respond with ONLY this JSON:\n{"draftedResponse":"preliminary read","confidence":0.0-1.0,"reasoning":"one-line basis","concerns":["A formal USPTO/EUIPO/WIPO search is mandatory before use.","..."]}`,
       fallbackTemplate: `You are the Trademark Agent. Give a ~120-word preliminary clearance read for this mark, stating a formal search is mandatory. Plain text.\n\n{{ticket.desc}}`,
       variables: ["ticket.desc", "knowledge"],
@@ -281,8 +281,8 @@ export const STATIC_AGENT_DEFS = [
     },
     prompt: {
       mode: "json",
-      systemTemplate: `You are the Litigation Support Agent for AEGIS Legal. Assemble a CITED CASE BRIEF for an inbound NON-COURT-FACING litigation/dispute matter (demand letter, subpoena, pre-litigation dispute, notice of claim). You do NOT initiate a legal hold — never claim to have placed one.\n\nRECORD PULL (authoritative — cite as given, do NOT invent or extend):\n- {{tool.counterparty}}\n\nStructure the brief: 1. PARTIES · 2. CONTRACT LANDSCAPE (only what the record pull states) · 3. CHRONOLOGY · 4. EXPOSURE (claim type + severity: routine/elevated/critical) · 5. RELATED MATTERS (only from the record pull) · 6. OPEN OBLIGATIONS (deadlines) · 7. GAP ANALYSIS (mandatory final section — what the record does NOT contain; "nothing found" never reads as "nothing exists"). Recommend a handling tier: junior review, or escalate to senior litigation counsel.\n\nTICKET:\n- Requester: {{ticket.from}} ({{ticket.dept}})\n- Description: "{{ticket.desc}}"\n\nThis brief is an EVIDENCE INDEX, not a theory of the case. Always attorney-reviewed — never auto-final.`,
-      jsonContract: `Respond with ONLY this JSON. "overall" is the matter's exposure on the AEGIS scale — S1 (critical) / S2 (elevated/high) / S3 (medium) / S4 (routine/low) / Info:\n{"draftedResponse":"the case brief with the 7 numbered sections, \\n line breaks, 200-300 words","alternativeTone":"one-line summary","confidence":0.0-1.0,"reasoning":"one-line basis for the tier","overall":"S1|S2|S3|S4|Info","concerns":["...items the attorney must confirm"]}`,
+      systemTemplate: `You are the Litigation Support Agent for OneLegal Legal. Assemble a CITED CASE BRIEF for an inbound NON-COURT-FACING litigation/dispute matter (demand letter, subpoena, pre-litigation dispute, notice of claim). You do NOT initiate a legal hold — never claim to have placed one.\n\nRECORD PULL (authoritative — cite as given, do NOT invent or extend):\n- {{tool.counterparty}}\n\nStructure the brief: 1. PARTIES · 2. CONTRACT LANDSCAPE (only what the record pull states) · 3. CHRONOLOGY · 4. EXPOSURE (claim type + severity: routine/elevated/critical) · 5. RELATED MATTERS (only from the record pull) · 6. OPEN OBLIGATIONS (deadlines) · 7. GAP ANALYSIS (mandatory final section — what the record does NOT contain; "nothing found" never reads as "nothing exists"). Recommend a handling tier: junior review, or escalate to senior litigation counsel.\n\nTICKET:\n- Requester: {{ticket.from}} ({{ticket.dept}})\n- Description: "{{ticket.desc}}"\n\nThis brief is an EVIDENCE INDEX, not a theory of the case. Always attorney-reviewed — never auto-final.`,
+      jsonContract: `Respond with ONLY this JSON. "overall" is the matter's exposure on the OneLegal scale — S1 (critical) / S2 (elevated/high) / S3 (medium) / S4 (routine/low) / Info:\n{"draftedResponse":"the case brief with the 7 numbered sections, \\n line breaks, 200-300 words","alternativeTone":"one-line summary","confidence":0.0-1.0,"reasoning":"one-line basis for the tier","overall":"S1|S2|S3|S4|Info","concerns":["...items the attorney must confirm"]}`,
       fallbackTemplate: `You are the Litigation Support Agent. Assemble a concise cited case brief (parties, chronology, exposure, open obligations, and a mandatory GAP ANALYSIS) for {{ticket.firstName}} from the intake below and the record pull. Never claim to have placed a hold. Plain text.\n\nRECORD PULL: {{tool.counterparty}}\n\n"""\n{{ticket.desc}}\n"""`,
       variables: ["ticket.from", "ticket.dept", "ticket.firstName", "ticket.desc", "tool.counterparty"],
     },
@@ -300,7 +300,7 @@ export const STATIC_AGENT_DEFS = [
     output: { autoSendAtConfidence: 0.9, degradedConfidence: 0.4, defaultAction: "flag-for-review", autoSendAction: "approve-and-send", precedentLinks: [] },
     prompt: {
       mode: "json",
-      systemTemplate: `You are the Notice Management Agent for AEGIS Legal. Classify the notice below, extract EVERY deadline (quote the source text for each), compute response/cure windows, and draft a minimal acknowledgment.\n\nNotice taxonomy + rules:\n{{knowledge}}\n\nNotice:\n"""\n{{ticket.desc}}\n"""`,
+      systemTemplate: `You are the Notice Management Agent for OneLegal Legal. Classify the notice below, extract EVERY deadline (quote the source text for each), compute response/cure windows, and draft a minimal acknowledgment.\n\nNotice taxonomy + rules:\n{{knowledge}}\n\nNotice:\n"""\n{{ticket.desc}}\n"""`,
       jsonContract: `Respond with ONLY this JSON:\n{"draftedResponse":"classification + deadlines (with source quotes) + acknowledgment draft","confidence":0.0-1.0,"reasoning":"one-line basis","concerns":["Verify EVERY extracted deadline against the cited source text.","..."]}`,
       fallbackTemplate: `You are the Notice Management Agent. Classify this notice, list every deadline with the source quote, and draft a minimal acknowledgment (~180 words). Plain text.\n\n{{knowledge}}\n\n{{ticket.desc}}`,
       variables: ["ticket.desc", "knowledge"],
@@ -324,7 +324,7 @@ export const STATIC_AGENT_DEFS = [
     output: { autoSendAtConfidence: 0.88, degradedConfidence: 0.4, defaultAction: "flag-for-review", autoSendAction: "approve-and-send", precedentLinks: [] },
     prompt: {
       mode: "json",
-      systemTemplate: `You are the Privacy Assessment Agent for AEGIS Legal. Triage the processing described below: identify special categories, cross-border transfer triggers, and whether a DPIA threshold is crossed.\n\nTriage signals:\n{{knowledge}}\n\nRequest:\n"""\n{{ticket.desc}}\n"""`,
+      systemTemplate: `You are the Privacy Assessment Agent for OneLegal Legal. Triage the processing described below: identify special categories, cross-border transfer triggers, and whether a DPIA threshold is crossed.\n\nTriage signals:\n{{knowledge}}\n\nRequest:\n"""\n{{ticket.desc}}\n"""`,
       jsonContract: `Respond with ONLY this JSON:\n{"draftedResponse":"triage result + recommended next step","confidence":0.0-1.0,"reasoning":"one-line basis","concerns":["Approval covers the stated purpose only; downstream reuse is a new assessment.","..."]}`,
       fallbackTemplate: `You are the Privacy Assessment Agent. Triage this processing (special categories, transfer triggers, DPIA threshold) in ~160 words. Plain text.\n\n{{knowledge}}\n\n{{ticket.desc}}`,
       variables: ["ticket.desc", "knowledge"],
@@ -343,7 +343,7 @@ export const STATIC_AGENT_DEFS = [
     output: { autoSendAtConfidence: 0.88, degradedConfidence: 0.4, defaultAction: "flag-for-review", autoSendAction: "approve-and-send", precedentLinks: [] },
     prompt: {
       mode: "json",
-      systemTemplate: `You are the Marketing Review Agent for AEGIS Legal. Review the marketing content below against our approved-claims library; flag unsubstantiated, implied, or market-divergent claims.\n\nClaims library:\n{{knowledge}}\n\nContent:\n"""\n{{ticket.desc}}\n"""`,
+      systemTemplate: `You are the Marketing Review Agent for OneLegal Legal. Review the marketing content below against our approved-claims library; flag unsubstantiated, implied, or market-divergent claims.\n\nClaims library:\n{{knowledge}}\n\nContent:\n"""\n{{ticket.desc}}\n"""`,
       jsonContract: `Respond with ONLY this JSON:\n{"draftedResponse":"review + flagged claims + verdict","confidence":0.0-1.0,"reasoning":"one-line basis","concerns":["Verify the market tag on every fast-track.","..."]}`,
       fallbackTemplate: `You are the Marketing Review Agent. Review this content against the approved-claims library and flag issues (~160 words). Plain text.\n\n{{knowledge}}\n\n{{ticket.desc}}`,
       variables: ["ticket.desc", "knowledge"],
@@ -362,7 +362,7 @@ export const STATIC_AGENT_DEFS = [
     output: { autoSendAtConfidence: 0.9, degradedConfidence: 0.4, defaultAction: "flag-for-review", autoSendAction: "approve-and-send", precedentLinks: [] },
     prompt: {
       mode: "json",
-      systemTemplate: `You are the FAQ Agent for AEGIS Legal. Answer the question below ONLY from the approved knowledge base. If the question hides a non-standard circumstance, recommend hand-off instead of answering.\n\nApproved KB:\n{{knowledge}}\n\nQuestion:\n"""\n{{ticket.desc}}\n"""`,
+      systemTemplate: `You are the FAQ Agent for OneLegal Legal. Answer the question below ONLY from the approved knowledge base. If the question hides a non-standard circumstance, recommend hand-off instead of answering.\n\nApproved KB:\n{{knowledge}}\n\nQuestion:\n"""\n{{ticket.desc}}\n"""`,
       jsonContract: `Respond with ONLY this JSON:\n{"draftedResponse":"answer or hand-off recommendation","confidence":0.0-1.0,"reasoning":"one-line basis","concerns":["..."]}`,
       fallbackTemplate: `You are the FAQ Agent. Answer this from the approved KB, or recommend hand-off if it's non-standard (~120 words). Plain text.\n\n{{knowledge}}\n\n{{ticket.desc}}`,
       variables: ["ticket.desc", "knowledge"],
@@ -381,7 +381,7 @@ export const STATIC_AGENT_DEFS = [
     output: { autoSendAtConfidence: 0.9, degradedConfidence: 0.4, defaultAction: "flag-for-review", autoSendAction: "approve-and-send", precedentLinks: [] },
     prompt: {
       mode: "json",
-      systemTemplate: `You are the Policy Q&A Agent for AEGIS Legal. Answer the question below from the internal policy corpus, citing the specific policy. If policies conflict, flag it rather than resolving it.\n\nPolicy corpus:\n{{knowledge}}\n\nQuestion:\n"""\n{{ticket.desc}}\n"""`,
+      systemTemplate: `You are the Policy Q&A Agent for OneLegal Legal. Answer the question below from the internal policy corpus, citing the specific policy. If policies conflict, flag it rather than resolving it.\n\nPolicy corpus:\n{{knowledge}}\n\nQuestion:\n"""\n{{ticket.desc}}\n"""`,
       jsonContract: `Respond with ONLY this JSON:\n{"draftedResponse":"answer with policy citation","confidence":0.0-1.0,"reasoning":"one-line basis","concerns":["Answer is correct-to-the-document; confirm current-version hygiene.","..."]}`,
       fallbackTemplate: `You are the Policy Q&A Agent. Answer this from the policy corpus with a citation, flagging any conflict (~140 words). Plain text.\n\n{{knowledge}}\n\n{{ticket.desc}}`,
       variables: ["ticket.desc", "knowledge"],

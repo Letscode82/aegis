@@ -76,23 +76,23 @@ describe("verifyTeamsHmac", () => {
 
 describe("mention stripping + command parsing", () => {
   it("strips <at> mentions and html", () => {
-    expect(stripMentions("<at>AEGIS</at> We need an NDA &amp; a DPA")).toBe(
+    expect(stripMentions("<at>OneLegal</at> We need an NDA &amp; a DPA")).toBe(
       "We need an NDA & a DPA",
     );
   });
 
   it("parses help / status / file commands", () => {
-    expect(parseTeamsCommand("<at>AEGIS</at> help")).toEqual({ kind: "help" });
-    expect(parseTeamsCommand("<at>AEGIS</at>")).toEqual({ kind: "help" });
-    expect(parseTeamsCommand("<at>AEGIS</at> status REQ-1001")).toEqual({
+    expect(parseTeamsCommand("<at>OneLegal</at> help")).toEqual({ kind: "help" });
+    expect(parseTeamsCommand("<at>OneLegal</at>")).toEqual({ kind: "help" });
+    expect(parseTeamsCommand("<at>OneLegal</at> status REQ-1001")).toEqual({
       kind: "status",
       ticketId: "REQ-1001",
     });
-    expect(parseTeamsCommand("<at>AEGIS</at> STATUS")).toEqual({
+    expect(parseTeamsCommand("<at>OneLegal</at> STATUS")).toEqual({
       kind: "status",
       ticketId: null,
     });
-    expect(parseTeamsCommand("<at>AEGIS</at> We need an NDA with Acme")).toEqual({
+    expect(parseTeamsCommand("<at>OneLegal</at> We need an NDA with Acme")).toEqual({
       kind: "file",
       text: "We need an NDA with Acme",
     });
@@ -123,7 +123,7 @@ describe("handleTeamsActivity — dispatch", () => {
         from: { name: "Dana Lee" },
         conversation: { id: "conv-9" },
         channelData: { team: { name: "Sales" }, channel: { name: "General" } },
-        text: "<at>AEGIS</at> We need a mutual NDA with Acme Robotics",
+        text: "<at>OneLegal</at> We need a mutual NDA with Acme Robotics",
       },
       { organizationId: "org1", ingest },
     );
@@ -148,7 +148,7 @@ describe("handleTeamsActivity — dispatch", () => {
       {
         type: "message",
         from: { name: "Dana Lee" },
-        text: "<at>AEGIS</at> status REQ-1001",
+        text: "<at>OneLegal</at> status REQ-1001",
       },
       { organizationId: "org1", ingest },
     );
@@ -161,7 +161,7 @@ describe("handleTeamsActivity — dispatch", () => {
   it("reports an unknown ticket id gracefully", async () => {
     (prisma.intakeTicket.findFirst as ReturnType<typeof vi.fn>).mockResolvedValueOnce(null);
     const reply = await handleTeamsActivity(
-      { type: "message", from: { name: "Dana" }, text: "<at>AEGIS</at> status NOPE-1" },
+      { type: "message", from: { name: "Dana" }, text: "<at>OneLegal</at> status NOPE-1" },
       { organizationId: "org1" },
     );
     expect(reply.text).toContain("NOPE-1");
@@ -170,7 +170,7 @@ describe("handleTeamsActivity — dispatch", () => {
 
   it("replies with help for a bare mention", async () => {
     const reply = await handleTeamsActivity(
-      { type: "message", from: { name: "Dana" }, text: "<at>AEGIS</at>" },
+      { type: "message", from: { name: "Dana" }, text: "<at>OneLegal</at>" },
       { organizationId: "org1" },
     );
     expect(reply.text).toContain("file and track legal requests");
@@ -179,7 +179,7 @@ describe("handleTeamsActivity — dispatch", () => {
   it("returns a friendly error reply when ingest throws", async () => {
     const ingest = vi.fn().mockRejectedValue(new Error("db down"));
     const reply = await handleTeamsActivity(
-      { type: "message", from: { name: "Dana" }, text: "<at>AEGIS</at> file this" },
+      { type: "message", from: { name: "Dana" }, text: "<at>OneLegal</at> file this" },
       { organizationId: "org1", ingest },
     );
     expect(reply.type).toBe("message");
@@ -199,7 +199,7 @@ describe("handleTeamsActivity — dispatch", () => {
       deduped: true,
     });
     const reply = await handleTeamsActivity(
-      { type: "message", id: "msg-42", from: { name: "Dana" }, text: "<at>AEGIS</at> NDA please" },
+      { type: "message", id: "msg-42", from: { name: "Dana" }, text: "<at>OneLegal</at> NDA please" },
       { organizationId: "org1", ingest },
     );
     expect(reply.text).toContain("already filed");

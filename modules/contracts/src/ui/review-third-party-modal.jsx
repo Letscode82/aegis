@@ -58,7 +58,7 @@ export function ReviewThirdPartyModal({ onClose, onCreated }) {
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.55)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
       <div onClick={(e) => e.stopPropagation()} style={{ width: 620, maxWidth: "100%", maxHeight: "88vh", overflow: "auto", background: C.cd, border: `1px solid ${C.br}`, borderRadius: 8, padding: 20 }}>
         <div style={{ fontSize: 15, fontFamily: SR, color: C.t1, marginBottom: 3 }}>Review a third-party contract</div>
-        <div style={{ fontSize: 11, color: C.t3, marginBottom: 16, lineHeight: 1.5 }}>Paste the counterparty's paper. AEGIS creates it as <b>third-party</b>, extracts and risk-scores the clauses, and starts the internal legal review ladder — then discuss with the business in the collaboration thread and sign when approved.</div>
+        <div style={{ fontSize: 11, color: C.t3, marginBottom: 16, lineHeight: 1.5 }}>Paste the counterparty's paper. OneLegal creates it as <b>third-party</b>, extracts and risk-scores the clauses, and starts the internal legal review ladder — then discuss with the business in the collaboration thread and sign when approved.</div>
         <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 10, marginBottom: 10 }}>
           <div><label style={lbl}>Title</label><input value={title} onChange={(e) => setTitle(e.target.value)} style={inp} placeholder="Acme MSA (their paper)" /></div>
           <div><label style={lbl}>Type</label><input value={type} onChange={(e) => setType(e.target.value)} style={inp} placeholder="MSA" /></div>

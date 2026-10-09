@@ -1,5 +1,5 @@
 /**
- * AI-assisted relevance review — the AEGIS analog of Relativity aiR.
+ * AI-assisted relevance review — the OneLegal analog of Relativity aiR.
  *
  * Collected records enter as DSARReviewItems. `runRelevanceReview` scores every
  * pending item against the request's relevance criteria: it asks Claude for a

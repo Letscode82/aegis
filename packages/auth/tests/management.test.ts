@@ -48,9 +48,9 @@ describe("resolveMgmtConfig", () => {
       AUTH0_ISSUER_BASE_URL: "https://t.auth0.com",
       AUTH0_MGMT_CLIENT_ID: "cid",
       AUTH0_MGMT_CLIENT_SECRET: "sec",
-      AUTH0_DB_CONNECTION: "AEGIS-Users",
+      AUTH0_DB_CONNECTION: "OneLegal-Users",
     });
-    expect(cfg?.connection).toBe("AEGIS-Users");
+    expect(cfg?.connection).toBe("OneLegal-Users");
   });
 });
 

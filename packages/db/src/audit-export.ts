@@ -220,8 +220,8 @@ function renderPdf(report: AuditDefensibilityJsonReport): Promise<Buffer> {
       size: "LETTER",
       margin: 56,
       info: {
-        Title: "AEGIS — AuditLog Defensibility Report",
-        Author: "AEGIS",
+        Title: "OneLegal — AuditLog Defensibility Report",
+        Author: "OneLegal",
         Subject: `Audit chain export for org ${report.organizationId}`,
         Keywords: "audit defensibility chain-of-custody",
         CreationDate: new Date(),
@@ -243,7 +243,7 @@ function renderPdf(report: AuditDefensibilityJsonReport): Promise<Buffer> {
     doc
       .fontSize(20)
       .fillColor("#0F172A")
-      .text("AEGIS — AuditLog Defensibility Report", { align: "left" });
+      .text("OneLegal — AuditLog Defensibility Report", { align: "left" });
     doc.moveDown(0.3);
     doc
       .fontSize(10)

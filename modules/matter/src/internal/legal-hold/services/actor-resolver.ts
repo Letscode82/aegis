@@ -11,7 +11,7 @@
  * `SYSTEM` actors render as `🤖 SYSTEM` — no lookup needed.
  *
  * `AGENT` actors will (in 4d) carry an `AgentDecision.modelName` that
- * the resolver surfaces; until 4d, we render a generic `🤖 AEGIS Agent`
+ * the resolver surfaces; until 4d, we render a generic `🤖 OneLegal Agent`
  * label with `actorId` available on hover.
  */
 import { prisma } from "@aegis/db";
@@ -81,7 +81,7 @@ export async function resolveActorsService(
       out.set(k, {
         id: actorId,
         type: "AGENT",
-        displayName: "AEGIS Agent",
+        displayName: "OneLegal Agent",
         roleLabel: "AI",
         unknown: false,
       });

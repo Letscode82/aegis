@@ -10,7 +10,7 @@ export default function AdminLegalHoldJobsPage() {
   return (
     <>
       <Head>
-        <title>AEGIS · Legal Hold maintenance jobs</title>
+        <title>OneLegal · Legal Hold maintenance jobs</title>
       </Head>
       <main style={{ background: "#0B1020", minHeight: "100vh" }}>
         <JobsAdmin />

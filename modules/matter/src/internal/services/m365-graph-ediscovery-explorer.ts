@@ -4,7 +4,7 @@
  * A read-only diagnostic over the delegated eDiscovery API. It walks
  * cases → (custodians, searches, reviewSets) → a best-effort review-set item
  * probe, and returns the raw-ish shapes so we can map Purview's processed
- * output into AEGIS `ReviewSetItem`s (the actual read-back is increment 2).
+ * output into OneLegal `ReviewSetItem`s (the actual read-back is increment 2).
  *
  * Read-only: no case/hold/search is created or mutated. Every Graph call is
  * still chain-sealed via `withGraphAudit` (marked `diagnostic: true`). Uses the

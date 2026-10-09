@@ -1,7 +1,7 @@
 /**
  * Step 3 — Data Sources (sub-PR 4d.0).
  *
- * For each selected custodian, AEGIS auto-discovers their M365 data
+ * For each selected custodian, OneLegal auto-discovers their M365 data
  * sources via `POST /api/matter/[id]/holds/discover-data-sources`.
  * Each discovery card shows a per-source checkbox (all checked by
  * default) and a SharePoint picker that lists followed-sites +

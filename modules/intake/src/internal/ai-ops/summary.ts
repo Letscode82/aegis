@@ -206,7 +206,7 @@ export async function getRecentAgentActivity(
       r.actorType === "USER" && r.actorId
         ? userById.get(r.actorId)?.name ?? "Unknown user"
         : r.actorType === "AGENT"
-          ? "AEGIS Agent"
+          ? "OneLegal Agent"
           : r.actorType === "SYSTEM"
             ? "System"
             : "Unknown";

@@ -5,7 +5,7 @@ import { C } from "@aegis/ui";
 // Two self-contained, de-branded HTML demos ship under
 // apps/web/public/gc-suite/ and are surfaced as first-class nav tiles:
 //
-//   • company-brain.html — "AEGIS Legal Brain": five source systems
+//   • company-brain.html — "OneLegal Legal Brain": five source systems
 //     resolved into one legal memory, entity resolution, cross-system
 //     queries answered in seconds.
 //   • regulatory.html — "Regulatory Nervous System": obligation
@@ -13,7 +13,7 @@ import { C } from "@aegis/ui";
 //     scanning, conflict-of-law, filing calendar.
 //
 // They render inside a full-bleed iframe so the demo owns its own
-// layout/scroll while still living behind the AEGIS side-nav. Keeping
+// layout/scroll while still living behind the OneLegal side-nav. Keeping
 // them as static assets (rather than porting to React) preserves the
 // exact interaction design the demos were tuned for, and keeps the
 // bundle free of their inline scripts/styles.
@@ -39,7 +39,7 @@ function DemoFrame({ src, title }) {
 }
 
 export function BrainDemoView() {
-  return <DemoFrame src="/gc-suite/company-brain.html" title="AEGIS Legal Brain" />;
+  return <DemoFrame src="/gc-suite/company-brain.html" title="OneLegal Legal Brain" />;
 }
 
 export function RegulatoryDemoView() {

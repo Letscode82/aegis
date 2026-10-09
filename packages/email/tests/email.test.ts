@@ -42,7 +42,7 @@ describe("toList / parseAddress", () => {
     expect(toList(undefined)).toEqual([]);
   });
   it("parses 'Name <email>' and bare email", () => {
-    expect(parseAddress("AEGIS <no-reply@x.com>")).toEqual({ name: "AEGIS", email: "no-reply@x.com" });
+    expect(parseAddress("OneLegal <no-reply@x.com>")).toEqual({ name: "OneLegal", email: "no-reply@x.com" });
     expect(parseAddress("a@x.com")).toEqual({ email: "a@x.com" });
   });
 });
@@ -50,12 +50,12 @@ describe("toList / parseAddress", () => {
 describe("payload shaping", () => {
   const msg: EmailMessage = { to: "a@x.com", subject: "Hi", html: "<b>hi</b>", text: "hi", replyTo: "r@x.com" };
   it("Resend payload", () => {
-    const p = buildResendPayload(msg, "AEGIS <f@x.com>");
-    expect(p).toMatchObject({ from: "AEGIS <f@x.com>", to: ["a@x.com"], subject: "Hi", html: "<b>hi</b>", text: "hi", reply_to: "r@x.com" });
+    const p = buildResendPayload(msg, "OneLegal <f@x.com>");
+    expect(p).toMatchObject({ from: "OneLegal <f@x.com>", to: ["a@x.com"], subject: "Hi", html: "<b>hi</b>", text: "hi", reply_to: "r@x.com" });
   });
   it("SendGrid payload puts text before html and splits name/email", () => {
-    const p = buildSendgridPayload(msg, "AEGIS <f@x.com>");
-    expect(p.from).toEqual({ email: "f@x.com", name: "AEGIS" });
+    const p = buildSendgridPayload(msg, "OneLegal <f@x.com>");
+    expect(p.from).toEqual({ email: "f@x.com", name: "OneLegal" });
     expect(p.personalizations[0]!.to).toEqual([{ email: "a@x.com" }]);
     expect(p.content[0]).toEqual({ type: "text/plain", value: "hi" });
     expect(p.content[1]).toEqual({ type: "text/html", value: "<b>hi</b>" });

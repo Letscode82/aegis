@@ -130,7 +130,7 @@ export async function getContractPlaybookText(organizationId: string): Promise<s
     parts.push(`  Risk if deviated: ${e.riskIfDeviated}.`);
     return parts.join("\n");
   });
-  return `AEGIS Contract Playbook (org-configured — check every clause against these positions):\n${lines.join("\n")}`;
+  return `OneLegal Contract Playbook (org-configured — check every clause against these positions):\n${lines.join("\n")}`;
 }
 
 /** Upsert a clause (by code within the org's clause pack); chain-sealed. */

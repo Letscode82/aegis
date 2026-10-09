@@ -315,9 +315,9 @@ export async function pollMailboxForIntake(
           subject: `Re: ${m.subject || "Your legal request"}`,
           body:
             `Hi ${m.fromName || "there"},\n\n` +
-            `Thanks — we've received your request and AEGIS Legal has logged it as ${result.ticketId}. ` +
+            `Thanks — we've received your request and OneLegal Legal has logged it as ${result.ticketId}. ` +
             `An attorney will review it shortly; no action is needed from you right now.\n\n` +
-            `— AEGIS Legal Intake`,
+            `— OneLegal Legal Intake`,
           inReplyToInternetMessageId: m.internetMessageId,
         });
         acknowledged += 1;

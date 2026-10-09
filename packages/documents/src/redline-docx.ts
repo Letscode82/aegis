@@ -45,7 +45,7 @@ export interface RedlineDocInput {
   clauseLabel?: string | null;
   /** The ordered track-changes segments (equal / insert / delete). */
   segments: RedlineSegment[];
-  /** Revision author shown in Word's reviewing pane. Defaults to "AEGIS Redline". */
+  /** Revision author shown in Word's reviewing pane. Defaults to "OneLegal Redline". */
   author?: string | null;
   /** ISO string — passed in so rendering stays deterministic. */
   generatedAt: string;
@@ -55,7 +55,7 @@ export interface RedlineDocInput {
   rationale?: string | null;
 }
 
-const DEFAULT_AUTHOR = "AEGIS Redline";
+const DEFAULT_AUTHOR = "OneLegal Redline";
 
 const heading1 = (text: string): Paragraph =>
   new Paragraph({

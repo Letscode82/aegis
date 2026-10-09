@@ -12,7 +12,7 @@ import { callClaudeJSON, friendlyAIError } from "@aegis/ai";
 // FEATURE 1 — Mission Control daily briefing
 // ════════════════════════════════════════════════════════════════════
 
-const BRIEFING_SYSTEM = `You are AEGIS, the General Counsel's AI briefing assistant. Generate a concise morning briefing in 3-4 short paragraphs. Cover: (1) headline status of the legal department this morning, (2) the 2-3 things that need GC attention today and why, (3) anything trending in the wrong direction. Tone: confident, brief, like a chief of staff. No bullet points. No preamble like "Good morning". Start directly with substance.`;
+const BRIEFING_SYSTEM = `You are OneLegal, the General Counsel's AI briefing assistant. Generate a concise morning briefing in 3-4 short paragraphs. Cover: (1) headline status of the legal department this morning, (2) the 2-3 things that need GC attention today and why, (3) anything trending in the wrong direction. Tone: confident, brief, like a chief of staff. No bullet points. No preamble like "Good morning". Start directly with substance.`;
 
 function buildBriefingPrompt(ctx) {
   return `Today: ${ctx.dateLabel}.
@@ -64,7 +64,7 @@ export function MissionControlBriefing({ context }) {
 // FEATURE 2 — Cockpit "Summarize for me" on a ticket
 // ════════════════════════════════════════════════════════════════════
 
-const TICKET_SUMMARY_SYSTEM = `You are AEGIS, helping an attorney quickly understand a legal request. Summarize this ticket in exactly three sentences: (1) what the requester needs, (2) the legal/business context that makes it interesting or risky, (3) the suggested next action. Be precise. No fluff. No "In summary".`;
+const TICKET_SUMMARY_SYSTEM = `You are OneLegal, helping an attorney quickly understand a legal request. Summarize this ticket in exactly three sentences: (1) what the requester needs, (2) the legal/business context that makes it interesting or risky, (3) the suggested next action. Be precise. No fluff. No "In summary".`;
 
 function buildTicketSummaryPrompt(ticket) {
   const conv = (ticket.conversation || []).slice(0, 8)
@@ -163,7 +163,7 @@ const ASK_AURORA_KB = `Sample legal KB (use as background, not exhaustive):
 - Open-records / FOIA request: route to Government Affairs first.
 - Records destruction: must follow retention schedule; never destroy if any litigation hold attaches.`;
 
-const ASK_AURORA_SYSTEM = `You are Aurora, AEGIS's self-service legal assistant. Answer the user's question clearly and concisely (2-3 paragraphs max).
+const ASK_AURORA_SYSTEM = `You are Aurora, OneLegal's self-service legal assistant. Answer the user's question clearly and concisely (2-3 paragraphs max).
 ${ASK_AURORA_KB}
 
 If you're confident, give the direct answer. If the question requires actual legal judgment or is sensitive (employment issues, litigation, regulatory matters, anything involving named individuals), do NOT attempt to answer — set "decline" to true and explain briefly that this needs an attorney's review.
@@ -348,7 +348,7 @@ function ChatRow({ msg, thinking, onFileTicket }) {
 // FEATURE 4 — Matter risk scoring
 // ════════════════════════════════════════════════════════════════════
 
-const RISK_SYSTEM = `You are AEGIS, scoring legal matter risk. Output JSON only, no prose. Schema: { score: 'Low' | 'Medium' | 'High' | 'Critical', reasoning: 'one sentence' }. Consider: financial exposure, regulatory implications, counterparty risk, jurisdictional complexity, time pressure. Default to Medium when uncertain.`;
+const RISK_SYSTEM = `You are OneLegal, scoring legal matter risk. Output JSON only, no prose. Schema: { score: 'Low' | 'Medium' | 'High' | 'Critical', reasoning: 'one sentence' }. Consider: financial exposure, regulatory implications, counterparty risk, jurisdictional complexity, time pressure. Default to Medium when uncertain.`;
 
 function buildRiskPrompt(matter) {
   return `Matter ID: ${matter.id}

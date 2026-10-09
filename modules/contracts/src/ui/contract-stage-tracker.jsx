@@ -4,7 +4,7 @@ import { C, F, M } from "@aegis/ui";
 //
 // Icertis / Ironclad both present contracts as a 7-stage journey:
 // Request → Draft → Negotiate → Approve → Execute → Active → Renew.
-// AEGIS's 8-state ContractStatus machine maps onto those seven stages so
+// OneLegal's 8-state ContractStatus machine maps onto those seven stages so
 // the same journey is visible the moment a user opens the Contracts module
 // (pipeline strip on the repository) and on every contract (full stepper).
 //

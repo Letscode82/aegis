@@ -1,8 +1,8 @@
 /**
  * Server-only Auth0 Management API client.
  *
- * Purpose: turn an AEGIS admin invite into a *real* login. Inviting a user in
- * the Admin UI only writes the AEGIS `User` authorization row — it does not
+ * Purpose: turn an OneLegal admin invite into a *real* login. Inviting a user in
+ * the Admin UI only writes the OneLegal `User` authorization row — it does not
  * create the Auth0 identity the person signs in with. On a tenant whose
  * Universal Login has no self-service sign-up (the common enterprise posture),
  * an invited user therefore has no credential and cannot log in. This client
@@ -241,7 +241,7 @@ export type InviteLinkResult =
  * The one public entry point the invite flow calls: ensure the Auth0 user and
  * return a set-password URL to email them. Never throws — a configuration gap
  * or an Auth0 error comes back as `{ ok: false, reason }` so the invite (and
- * its AEGIS User row) is never rolled back by a provisioning hiccup.
+ * its OneLegal User row) is never rolled back by a provisioning hiccup.
  */
 export async function createInviteSetPasswordLink(
   input: { email: string; name?: string; ttlSec?: number },

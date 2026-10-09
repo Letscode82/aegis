@@ -83,7 +83,7 @@ describe("resolveActorsService()", () => {
     expect(findManyMock).not.toHaveBeenCalled();
     expect(lookup.get("AGENT:decision-1")).toMatchObject({
       type: "AGENT",
-      displayName: "AEGIS Agent",
+      displayName: "OneLegal Agent",
       roleLabel: "AI",
     });
   });
@@ -125,6 +125,6 @@ describe("resolveActorsService()", () => {
     expect(lookup.get("USER:u1")?.displayName).toBe("Alice");
     expect(lookup.get("USER:u2")?.roleLabel).toBe("Paralegal");
     expect(lookup.get("SYSTEM:")?.displayName).toBe("SYSTEM");
-    expect(lookup.get("AGENT:agent-x")?.displayName).toBe("AEGIS Agent");
+    expect(lookup.get("AGENT:agent-x")?.displayName).toBe("OneLegal Agent");
   });
 });

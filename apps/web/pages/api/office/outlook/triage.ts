@@ -1,6 +1,6 @@
 /**
  * POST /api/office/outlook/triage — file the email the user is reading in
- * Outlook into AEGIS intake.
+ * Outlook into OneLegal intake.
  *
  * The Outlook add-in reads the open message (subject / sender / body / thread)
  * and posts it here; it runs through the SAME `ingestInboundEmail` pipeline as

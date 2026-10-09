@@ -1,7 +1,7 @@
 /**
  * Connector framework types (F-8).
  *
- * A connector is an external system AEGIS reaches on behalf of an org through
+ * A connector is an external system OneLegal reaches on behalf of an org through
  * OAuth2 — a document store (iManage, NetDocuments, SharePoint), an e-signature
  * provider (DocuSign, Adobe), or a legal-research source. Every connector shares
  * the same auth shape, the same token-store seam, and the same registry so the
@@ -22,7 +22,7 @@ export interface OAuthConfig {
   clientId: string;
   /** Omitted for public clients using PKCE. */
   clientSecret?: string;
-  /** Redirect back into AEGIS after consent. */
+  /** Redirect back into OneLegal after consent. */
   redirectUri: string;
   /** Scopes requested at authorize time. */
   scopes: string[];

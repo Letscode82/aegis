@@ -56,7 +56,7 @@ export const NDAAgent={
     let draftedResponse=null,confidence=0.92,reasoning=null;
     const tmpl=await loadNdaTemplate();
     try{
-      const prompt=`You are the NDA Agent for AEGIS Legal Mission Control. A legal intake ticket has arrived requesting a Non-Disclosure Agreement.
+      const prompt=`You are the NDA Agent for OneLegal Legal Mission Control. A legal intake ticket has arrived requesting a Non-Disclosure Agreement.
 
 TICKET:
 - Requester: ${ticket.from} (${ticket.dept})
@@ -98,7 +98,7 @@ Respond with ONLY this JSON:
     }catch(e){
       console.error("[agent:nda] callClaudeJSON failed:",e);
       // Fallback: template response
-      const fallback=`Hi ${name},\n\nI've drafted a Standard Mutual NDA${counterparty?` with ${counterparty}`:""} using our approved template (MNDA-v4.2):\n\n• 2-year confidentiality, standard carve-outs\n• Mutual no-solicit (12 months)\n• Delaware law, standard venue\n\n${priorNDA.note}\n\nReady for DocuSign. Reply if you need edits.\n\n— AEGIS Legal (auto-drafted)`;
+      const fallback=`Hi ${name},\n\nI've drafted a Standard Mutual NDA${counterparty?` with ${counterparty}`:""} using our approved template (MNDA-v4.2):\n\n• 2-year confidentiality, standard carve-outs\n• Mutual no-solicit (12 months)\n• Delaware law, standard venue\n\n${priorNDA.note}\n\nReady for DocuSign. Reply if you need edits.\n\n— OneLegal Legal (auto-drafted)`;
       return buildDegradedRec(this.id,{
         draftedResponse:fallback,
         reasoning:`Template-fit match. Claude API unavailable — surfaced playbook template for attorney review (not auto-send).`,

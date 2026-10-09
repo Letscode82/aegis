@@ -1,7 +1,7 @@
 /**
  * @aegis/esignature — e-signature (C-5).
  *
- * Connects AEGIS to the signing provider a legal department uses to execute
+ * Connects OneLegal to the signing provider a legal department uses to execute
  * contracts (DocuSign, Adobe Acrobat Sign) through the shared F-8 OAuth
  * framework (`@aegis/connectors`). The Contracts module drives it to move a
  * `Contract` from APPROVED → EXECUTED, chain-sealing each step.

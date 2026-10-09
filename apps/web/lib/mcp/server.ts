@@ -1,8 +1,8 @@
 /**
- * C-12 — AEGIS MCP server dispatch (JSON-RPC 2.0 over HTTP).
+ * C-12 — OneLegal MCP server dispatch (JSON-RPC 2.0 over HTTP).
  *
  * Implements the minimal Model Context Protocol method set an external agent
- * needs to discover and call AEGIS's read-only tools: `initialize`, `ping`,
+ * needs to discover and call OneLegal's read-only tools: `initialize`, `ping`,
  * `tools/list`, `tools/call`, and the `notifications/*` no-ops. The HTTP route
  * (pages/api/mcp/index.ts) handles the flag gate + bearer-token auth and hands
  * each parsed message here with the already-resolved token.
@@ -85,7 +85,7 @@ export async function handleMcpMessage(
           capabilities: { tools: { listChanged: false } },
           serverInfo: SERVER_INFO,
           instructions:
-            "AEGIS legal-operations read API. All tools are read-only and scoped to your organization.",
+            "OneLegal legal-operations read API. All tools are read-only and scoped to your organization.",
         });
 
       case "ping":

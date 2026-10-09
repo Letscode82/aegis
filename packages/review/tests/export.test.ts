@@ -5,10 +5,10 @@ const FIELD = String.fromCharCode(20);
 const QUAL = String.fromCharCode(254);
 
 const manifest: LoadFileManifest = {
-  batesPrefix: "AEGIS",
+  batesPrefix: "OneLegal",
   produced: [
-    { bates: "AEGIS-000001", title: "Pricing model", redacted: false },
-    { bates: "AEGIS-000002", title: "Redacted memo", redacted: true },
+    { bates: "OneLegal-000001", title: "Pricing model", redacted: false },
+    { bates: "OneLegal-000002", title: "Redacted memo", redacted: true },
   ],
   privilegeLog: [{ logNo: "PRIV-0001", title: "Counsel advice", basis: "attorney-client" }],
   counts: { produced: 2, privileged: 1, nonResponsive: 3, uncoded: 0 },
@@ -20,7 +20,7 @@ describe("buildConcordanceDat", () => {
     const lines = dat.split("\r\n").filter(Boolean);
     expect(lines).toHaveLength(3); // header + 2 docs
     expect(lines[0]).toBe([`CONTROL NUMBER`, `TITLE`, `REDACTED`].map((h) => QUAL + h + QUAL).join(FIELD));
-    expect(lines[1]).toContain(QUAL + "AEGIS-000001" + QUAL);
+    expect(lines[1]).toContain(QUAL + "OneLegal-000001" + QUAL);
     expect(lines[1]!.endsWith(QUAL + "No" + QUAL)).toBe(true);
     expect(lines[2]!.endsWith(QUAL + "Yes" + QUAL)).toBe(true);
   });
@@ -33,7 +33,7 @@ describe("buildConcordanceDat", () => {
 describe("buildOpticonOpt", () => {
   it("emits one page line per doc with a doc break", () => {
     const opt = buildOpticonOpt(manifest).split("\r\n").filter(Boolean);
-    expect(opt).toEqual(["AEGIS-000001,,AEGIS-000001.tif,Y,,,1", "AEGIS-000002,,AEGIS-000002.tif,Y,,,1"]);
+    expect(opt).toEqual(["OneLegal-000001,,OneLegal-000001.tif,Y,,,1", "OneLegal-000002,,OneLegal-000002.tif,Y,,,1"]);
   });
   it("is empty for an empty produced set", () => {
     expect(buildOpticonOpt({ ...manifest, produced: [] })).toBe("");

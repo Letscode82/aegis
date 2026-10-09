@@ -21,7 +21,7 @@ export function CommandBar({ onNavigate, onAsk }) {
         type="button"
         onClick={openConsole}
         onFocus={openConsole}
-        aria-label="Open the AEGIS command console — file a legal request or ask anything"
+        aria-label="Open the OneLegal command console — file a legal request or ask anything"
         style={{
           width: "100%", display: "flex", alignItems: "center", gap: 8,
           background: C.bg, border: `1px solid ${C.br}`, borderRadius: 8, padding: "7px 11px",
@@ -32,7 +32,7 @@ export function CommandBar({ onNavigate, onAsk }) {
       >
         <span style={{ fontSize: 12, color: C.t4 }} aria-hidden="true">⌘</span>
         <span style={{ flex: 1, minWidth: 0, color: C.t4, fontFamily: F, fontSize: 12.5, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          New request or ask AEGIS anything…
+          New request or ask OneLegal anything…
         </span>
         <span style={{ background: C.em, color: C.bg, borderRadius: 5, padding: "3px 10px", fontFamily: M, fontSize: 9, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700, flexShrink: 0 }}>Open ⏎</span>
       </button>

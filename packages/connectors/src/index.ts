@@ -1,7 +1,7 @@
 /**
  * @aegis/connectors — shared connector / OAuth framework (F-8).
  *
- * The provider-agnostic base for AEGIS's external integrations: one OAuth2
+ * The provider-agnostic base for OneLegal's external integrations: one OAuth2
  * authorization-code implementation, a connector registry, and a token-store
  * seam. DMS sync (C-3), e-signature (C-5), and legal-authority research (C-4)
  * build on this rather than each wiring their own OAuth.

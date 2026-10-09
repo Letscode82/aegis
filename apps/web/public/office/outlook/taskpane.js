@@ -1,11 +1,11 @@
 /* global Office */
 /**
- * AEGIS Outlook add-in task pane (C-2).
+ * OneLegal Outlook add-in task pane (C-2).
  *
  * Reads the open message (subject / sender / body / thread) and files it into
- * AEGIS intake via the same-origin API, which runs it through the same
+ * OneLegal intake via the same-origin API, which runs it through the same
  * `ingestInboundEmail` pipeline as the webhook and the mailbox poller. Relies on
- * the user's existing AEGIS session; no token is handled client-side.
+ * the user's existing OneLegal session; no token is handled client-side.
  */
 (function () {
   "use strict";
@@ -45,7 +45,7 @@
 
   function onFile() {
     el("file").disabled = true;
-    setStatus("Filing to AEGIS…");
+    setStatus("Filing to OneLegal…");
     collect()
       .then(function (payload) {
         return fetch("/api/office/outlook/triage", {

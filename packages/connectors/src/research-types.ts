@@ -4,7 +4,7 @@
  * The research layer of `@aegis/connectors`: a provider-agnostic way to query
  * *external* legal authorities — caselaw (CourtListener), US statutes / CFR
  * (GovInfo), SEC filings (EDGAR), and EU law (EUR-Lex) — and get back a single
- * normalized shape AEGIS can cite. This is the roadmap's "biggest gap vs Harvey
+ * normalized shape OneLegal can cite. This is the roadmap's "biggest gap vs Harvey
  * & Legora": ONE Legal can already answer over the org's own documents; C-4
  * lets it answer over the law itself, with every claim traceable to a real,
  * linkable authority.

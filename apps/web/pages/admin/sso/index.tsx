@@ -171,7 +171,7 @@ export default function AdminSsoPage() {
   return (
     <>
       <Head>
-        <title>AEGIS · SSO federation</title>
+        <title>OneLegal · SSO federation</title>
       </Head>
       <main style={{ background: C.bg, minHeight: "100vh", padding: "32px 20px", fontFamily: F, color: C.t1 }}>
         <div style={{ maxWidth: 680, margin: "0 auto" }}>

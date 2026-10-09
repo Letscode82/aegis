@@ -28,7 +28,7 @@ export function resolveCustodianExternalIdentifier(person: {
 }
 
 /**
- * Raised when AEGIS could in principle call Graph for the given
+ * Raised when OneLegal could in principle call Graph for the given
  * DataSourceType but the wiring hasn't shipped yet. Distinct from
  * `NonGraphPreservationError` — this is a follow-up issue, not a
  * permanent product limit.

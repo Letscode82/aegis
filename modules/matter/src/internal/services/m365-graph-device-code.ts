@@ -6,12 +6,12 @@
  * The standard non-interactive UX for service accounts is the OAuth
  * 2.0 Device Authorization grant ("Device Code"):
  *
- *   1. AEGIS asks Microsoft for a device-code session via
+ *   1. OneLegal asks Microsoft for a device-code session via
  *      /oauth2/v2.0/devicecode.
  *   2. UI displays the user_code + verification_uri.
  *   3. The operator opens https://microsoft.com/devicelogin in a
  *      separate tab and signs in as the dedicated service account.
- *   4. AEGIS polls Microsoft's /oauth2/v2.0/token endpoint with
+ *   4. OneLegal polls Microsoft's /oauth2/v2.0/token endpoint with
  *      `grant_type=urn:ietf:params:oauth:grant-type:device_code` and
  *      the long opaque `device_code`. Microsoft returns
  *      `authorization_pending` until the user completes sign-in,
@@ -145,7 +145,7 @@ export async function initiateDeviceCodeFlow(
       "initiateDeviceCodeFlow requires authorizedById — anonymous initiates are not allowed",
     );
   }
-  // AEGIS's Entra app registration is a confidential client; Microsoft
+  // OneLegal's Entra app registration is a confidential client; Microsoft
   // requires `client_secret` in the body for both /devicecode and
   // /token. Re-use the canonical credential resolver in
   // `m365-graph-auth.ts` rather than maintaining a parallel one here.

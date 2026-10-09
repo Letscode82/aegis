@@ -198,7 +198,7 @@ const CollectStep: React.FC<{ matterId: string; holdId: string; canMutate: boole
 
         <div>
           <div style={{ fontSize: 17, fontWeight: 600, marginBottom: 4 }}>What are you looking for?</div>
-          <div style={{ fontSize: 13, color: C.t3, marginBottom: 12 }}>Describe it in plain language. AEGIS collects each custodian&apos;s mailbox and files, then the AI narrows it down.</div>
+          <div style={{ fontSize: 13, color: C.t3, marginBottom: 12 }}>Describe it in plain language. OneLegal collects each custodian&apos;s mailbox and files, then the AI narrows it down.</div>
           <div style={{ display: "flex", gap: 10 }}>
             <input value={nl} onChange={(e) => setNl(e.target.value)} disabled={!canMutate} placeholder="e.g. anything about the Snowflake MSA renewal and the vendorx §8.2 dispute" style={{ ...inputS, flex: 1 }} />
             <button disabled={busy || !canMutate || selected.length === 0} onClick={runPreview} style={btn(C.bl)}>{busy ? "…" : "Preview"}</button>

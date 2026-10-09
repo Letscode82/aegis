@@ -63,7 +63,7 @@ export const TrademarkAgent = {
       return buildRec(this.id, {
         confidence: 0.3,
         suggestedAction: "flag-for-review",
-        draftedResponse: `Hi ${name},\n\nTo run a trademark clearance screen I need the exact mark you want to clear. Please reply with the proposed mark in quotes (e.g. "AURORA") and the goods/services it will cover, and I'll run a knock-out screen and route to IP counsel.\n\n— AEGIS Trademark Clearance`,
+        draftedResponse: `Hi ${name},\n\nTo run a trademark clearance screen I need the exact mark you want to clear. Please reply with the proposed mark in quotes (e.g. "AURORA") and the goods/services it will cover, and I'll run a knock-out screen and route to IP counsel.\n\n— OneLegal Trademark Clearance`,
         reasoning: "No quoted mark found — cannot screen without the exact wording.",
         concerns: ["Ask the requester to quote the exact proposed mark and describe the goods/services."],
         precedentLinks: [{ id: "TM-CLEARANCE-PLAYBOOK", title: "Trademark Clearance Playbook" }],
@@ -82,7 +82,7 @@ export const TrademarkAgent = {
           : `Screening ${screen.status}: ${screen.note}`;
 
     try {
-      const prompt = `You are the Trademark Clearance Agent for AEGIS Legal. A DETERMINISTIC knock-out screen has already run against the registered-marks reference set — do NOT invent or contradict its results; interpret them. You still do not have the full registry, so a formal USPTO/EUIPO/WIPO search by counsel remains mandatory.
+      const prompt = `You are the Trademark Clearance Agent for OneLegal Legal. A DETERMINISTIC knock-out screen has already run against the registered-marks reference set — do NOT invent or contradict its results; interpret them. You still do not have the full registry, so a formal USPTO/EUIPO/WIPO search by counsel remains mandatory.
 
 TICKET:
 - Requester: ${ticket.from} (${ticket.dept})
@@ -130,7 +130,7 @@ Respond with ONLY this JSON:
       console.error("[agent:trademark] callClaudeJSON failed:", e);
       // Degraded path KEEPS the deterministic screen — its value never
       // depended on Claude (same discipline as the Vendor agent).
-      const fallback = `Hi ${name},\n\nKnock-out screen for "${proposedName}"${classes.length ? ` (class ${classes.join("/")})` : ""}:\n\n${screenSummary}\n\nOur AI assistant is temporarily unavailable, so this is the raw screen result. Next step: IP counsel runs a formal USPTO/EUIPO/WIPO clearance search before any naming commitment.\n\n— AEGIS Trademark Clearance`;
+      const fallback = `Hi ${name},\n\nKnock-out screen for "${proposedName}"${classes.length ? ` (class ${classes.join("/")})` : ""}:\n\n${screenSummary}\n\nOur AI assistant is temporarily unavailable, so this is the raw screen result. Next step: IP counsel runs a formal USPTO/EUIPO/WIPO clearance search before any naming commitment.\n\n— OneLegal Trademark Clearance`;
       return buildDegradedRec(this.id, {
         draftedResponse: fallback,
         reasoning: `Knock-out screen completed (${screen.status}); Claude unavailable for the memo — screen result surfaced for counsel review.`,

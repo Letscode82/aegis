@@ -3,7 +3,7 @@ import { callClaude, callClaudeJSON, friendlyAIError } from "@aegis/ai";
 
 // Compact playbook the agent reviews against. Mirrors the contract-term
 // KB entries; kept here so the prompt is self-contained.
-const CONTRACT_PLAYBOOK=`AEGIS Contract Playbook (defaults to check against):
+const CONTRACT_PLAYBOOK=`OneLegal Contract Playbook (defaults to check against):
 - Limitation of liability: cap = 12 months' fees; uncapped carve-outs for IP infringement, confidentiality breach, indemnity, gross negligence/willful misconduct. Reject unlimited liability or no cap.
 - Indemnification: mutual, third-party claims only. Reject unlimited or first-party indemnities.
 - Governing law: Delaware preferred; NY/CA acceptable. Avoid counterparty's home jurisdiction for non-US.
@@ -77,7 +77,7 @@ ${desc}
 """`;
 
     try{
-      const prompt=`You are the Contract Review Agent for AEGIS Legal. Do a FIRST-PASS review of the contract below, comparing its terms against our playbook. If the full document text is included, review it clause by clause; otherwise review what the requester described and call out what still needs the full text.
+      const prompt=`You are the Contract Review Agent for OneLegal Legal. Do a FIRST-PASS review of the contract below, comparing its terms against our playbook. If the full document text is included, review it clause by clause; otherwise review what the requester described and call out what still needs the full text.
 
 ${playbook}
 
@@ -112,7 +112,7 @@ Respond with ONLY this JSON (keep draftedResponse to 160-240 words; use \\n for 
       // Plain-text retry — same review, no fragile JSON. This is what makes
       // the AI Summary reliable on the very same document.
       try{
-        const textPrompt=`You are the Contract Review Agent for AEGIS Legal. Do a FIRST-PASS review of the contract below against this playbook, then write a concise review (180-240 words) addressed to ${name} that: names the key clauses, flags each deviation with a severity (BLOCKER/HIGH/MEDIUM/LOW, worst first) as a bulleted list, notes what still needs the full document, and gives a recommendation. End by stating attorney sign-off is required before execution. Plain text only — no preamble, no JSON.
+        const textPrompt=`You are the Contract Review Agent for OneLegal Legal. Do a FIRST-PASS review of the contract below against this playbook, then write a concise review (180-240 words) addressed to ${name} that: names the key clauses, flags each deviation with a severity (BLOCKER/HIGH/MEDIUM/LOW, worst first) as a bulleted list, notes what still needs the full document, and gives a recommendation. End by stating attorney sign-off is required before execution. Plain text only — no preamble, no JSON.
 
 ${playbook}
 
@@ -130,7 +130,7 @@ ${context}`;
         });
       }catch(e2){
         console.error("[agent:contract-review] plain-text fallback also failed:",e2);
-        const fallback=`Hi ${name},\n\nI've logged your contract review request. Our AI assistant is temporarily unavailable, so I can't produce the first-pass clause analysis right now.\n\nNext step: a reviewer will run the first-pass review against our playbook (liability cap, indemnity, governing law, termination, payment terms) and route to the responsible attorney for sign-off before execution.\n\n— AEGIS Contract Review`;
+        const fallback=`Hi ${name},\n\nI've logged your contract review request. Our AI assistant is temporarily unavailable, so I can't produce the first-pass clause analysis right now.\n\nNext step: a reviewer will run the first-pass review against our playbook (liability cap, indemnity, governing law, termination, payment terms) and route to the responsible attorney for sign-off before execution.\n\n— OneLegal Contract Review`;
         return buildDegradedRec(this.id,{
           draftedResponse:fallback,
           reasoning:"Claude unavailable — surfaced a holding response for attorney review (not auto-send).",

@@ -111,7 +111,7 @@ export class M365GraphClient implements M365Client {
       },
       async () => {
         try {
-          // Resolve the root site that hosts AEGIS document libraries.
+          // Resolve the root site that hosts OneLegal document libraries.
           const root = (await this.graph.api("/sites/root").get()) as {
             id?: string;
             webUrl?: string;
@@ -146,8 +146,8 @@ export class M365GraphClient implements M365Client {
   private async provisionTeamsChannel(matter: Matter): Promise<M365TeamsRef | null> {
     // Auto-creating a parent Team requires Group.ReadWrite.All — out
     // of scope per CLAUDE.md "Documented exceptions". The dev tenant
-    // has the parent Team pre-seeded. We resolve the AEGIS Team by
-    // displayName "AEGIS-Matters"; if absent, we return null and the
+    // has the parent Team pre-seeded. We resolve the OneLegal Team by
+    // displayName "OneLegal-Matters"; if absent, we return null and the
     // caller surface flags the matter as "Teams not provisioned".
     return withGraphAudit(
       {
@@ -163,7 +163,7 @@ export class M365GraphClient implements M365Client {
         try {
           const teamsResp = (await this.graph
             .api("/teams")
-            .filter("displayName eq 'AEGIS-Matters'")
+            .filter("displayName eq 'OneLegal-Matters'")
             .top(1)
             .get()) as { value?: Array<{ id: string }> };
           const teamId = teamsResp.value?.[0]?.id;
@@ -226,7 +226,7 @@ export class M365GraphClient implements M365Client {
   }
 
   async getMatterBindings(_matterId: string): Promise<MatterM365Bindings> {
-    // Bindings discovery is anchored on AEGIS-side rows
+    // Bindings discovery is anchored on OneLegal-side rows
     // (`Matter.m365Bindings` JSON). The Graph API doesn't store our
     // logical matter id as a queryable property, so without that
     // reverse-lookup we report empty. Production wiring (4c chunk 3)
@@ -353,7 +353,7 @@ export class M365GraphClient implements M365Client {
   }
 
   /**
-   * Match the AEGIS legal-hold id back out of the reason code we sent.
+   * Match the OneLegal legal-hold id back out of the reason code we sent.
    * The reasonCode convention from data-sources.ts is "hold:<holdId>";
    * fall back to a hash of the input if the convention is broken.
    */
@@ -392,7 +392,7 @@ export class M365GraphClient implements M365Client {
             .api("/security/cases/ediscoveryCases")
             .post({
               displayName,
-              description: `AEGIS legal hold ${holdId}`,
+              description: `OneLegal legal hold ${holdId}`,
             })) as { id?: string };
           if (!created?.id) throw new Error("eDiscovery case create returned no id");
           return created.id;
@@ -601,7 +601,7 @@ export class M365GraphClient implements M365Client {
     externalIdentifier: string,
   ): Promise<EnumeratedDataSource[]> {
     // Sub-PR 4c.1 cleanup: callers occasionally pass an email or an
-    // AEGIS person id where Graph's `/users/{id}/...` endpoints want
+    // OneLegal person id where Graph's `/users/{id}/...` endpoints want
     // a GUID or UPN. Resolve once here so legacy callers don't have
     // to thread a `resolveGraphUserId` step through their callsites.
     // GUID-shaped strings (8-4-4-4-12 hex) and `*@*` UPNs both pass
@@ -698,7 +698,7 @@ export class M365GraphClient implements M365Client {
   private readonly userIdCache = new Map<string, string>();
 
   /**
-   * Sub-PR 4c.1 — resolve an email/UPN/AEGIS-id input to whatever
+   * Sub-PR 4c.1 — resolve an email/UPN/OneLegal-id input to whatever
    * Graph's `/users/{id}` endpoints accept. Strategy:
    *
    *   - GUID-shaped → return as-is (Graph accepts).

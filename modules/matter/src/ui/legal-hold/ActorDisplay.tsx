@@ -11,7 +11,7 @@
  * Variants:
  *   USER   → "Marcus Reid · Admin" with role chip on the right
  *   SYSTEM → "🤖 SYSTEM" gray-blue, no chip
- *   AGENT  → "🤖 AEGIS Agent" with model name chip when 4d wires it
+ *   AGENT  → "🤖 OneLegal Agent" with model name chip when 4d wires it
  *
  * The underlying actorId is exposed via the `title` (hover) attribute
  * for forensic deep-dives, but never visible by default.

@@ -20,7 +20,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   try {
     assertUserCanDo(user, Permission.ContractsReadAll);
     const { keyDates } = await getKeyDates(user.organizationId);
-    const ics = buildKeyDatesICS(keyDates, { now: new Date(), calendarName: "AEGIS Contract Key Dates" });
+    const ics = buildKeyDatesICS(keyDates, { now: new Date(), calendarName: "OneLegal Contract Key Dates" });
     res.setHeader("Content-Type", "text/calendar; charset=utf-8");
     res.setHeader("Content-Disposition", 'attachment; filename="aegis-contract-key-dates.ics"');
     return res.status(200).send(ics);

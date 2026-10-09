@@ -106,11 +106,11 @@ export function buildHelpReply(): TeamsReply {
   return {
     type: "message",
     text: [
-      "**AEGIS Legal Intake** — file and track legal requests without leaving Teams.",
+      "**OneLegal Legal Intake** — file and track legal requests without leaving Teams.",
       "",
-      "- **File a request:** mention me and describe what you need, e.g. `@AEGIS We need a mutual NDA with Acme Robotics before the pilot.`",
-      "- **Check a ticket:** `@AEGIS status <ticket-id>`",
-      "- **Your recent tickets:** `@AEGIS status`",
+      "- **File a request:** mention me and describe what you need, e.g. `@OneLegal We need a mutual NDA with Acme Robotics before the pilot.`",
+      "- **Check a ticket:** `@OneLegal status <ticket-id>`",
+      "- **Your recent tickets:** `@OneLegal status`",
     ].join("\n"),
   };
 }
@@ -201,6 +201,6 @@ export function buildNotFoundReply(ticketId: string): TeamsReply {
 export function buildErrorReply(): TeamsReply {
   return {
     type: "message",
-    text: "Something went wrong filing that request — please try again, or use the AEGIS New Request form.",
+    text: "Something went wrong filing that request — please try again, or use the OneLegal New Request form.",
   };
 }

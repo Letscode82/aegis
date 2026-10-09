@@ -171,10 +171,10 @@ export function buildKeyDatesICS(
   const lines: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//AEGIS//Contract Key Dates//EN",
+    "PRODID:-//OneLegal//Contract Key Dates//EN",
     "CALSCALE:GREGORIAN",
     "METHOD:PUBLISH",
-    `X-WR-CALNAME:${escapeICSText(opts.calendarName ?? "AEGIS Contract Key Dates")}`,
+    `X-WR-CALNAME:${escapeICSText(opts.calendarName ?? "OneLegal Contract Key Dates")}`,
   ];
   for (const k of keyDates) {
     const summary = escapeICSText(`[${k.kind.replace(/_/g, " ")}] ${k.title}`);

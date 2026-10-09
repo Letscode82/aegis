@@ -20,7 +20,7 @@ interface Capabilities {
 interface PlanResponse { ok: boolean; capabilities?: Capabilities; plan?: { stages: PlanStage[]; summary: string }; error?: { message: string } }
 
 const ENGINE_COLOR: Record<Engine, string> = { purview: C.bl, tika: C.cy, native: C.t3, "aegis-ai": C.gn };
-const ENGINE_LABEL: Record<Engine, string> = { purview: "Purview", tika: "Tika", native: "Native", "aegis-ai": "AEGIS AI" };
+const ENGINE_LABEL: Record<Engine, string> = { purview: "Purview", tika: "Tika", native: "Native", "aegis-ai": "OneLegal AI" };
 const STAGE_LABEL: Record<string, string> = { collect: "Collect", preserve: "Preserve", process: "Process", review: "Review" };
 
 export const PipelinePlanPanel: React.FC = () => {
@@ -65,7 +65,7 @@ export const PipelinePlanPanel: React.FC = () => {
     <div style={{ padding: "26px 32px", fontFamily: F, color: C.t1, maxWidth: 1100, margin: "0 auto" }}>
       <div style={{ marginBottom: 4, fontFamily: M, fontSize: 10.5, letterSpacing: 1.4, color: C.cy, textTransform: "uppercase" }}>eDiscovery orchestration · one brain</div>
       <div style={{ fontFamily: F, fontSize: 26, fontWeight: 600, marginBottom: 4 }}>Pipeline plan</div>
-      <div style={{ fontSize: 13.5, color: C.t3, marginBottom: 20 }}>How AEGIS routes each stage across native, Tika, and Purview — chosen per matter by capability, cost, and residency.</div>
+      <div style={{ fontSize: 13.5, color: C.t3, marginBottom: 20 }}>How OneLegal routes each stage across native, Tika, and Purview — chosen per matter by capability, cost, and residency.</div>
 
       {/* capabilities */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18 }}>
@@ -74,7 +74,7 @@ export const PipelinePlanPanel: React.FC = () => {
             {chip("M365", caps.m365.connected, caps.m365.connected ? caps.m365.mode : "not connected")}
             {chip("Purview eDiscovery", caps.ediscovery.connected, caps.ediscovery.connected ? (caps.ediscovery.accountUpn ?? "connected") : (caps.ediscovery.expired ? "expired" : "not connected"))}
             {chip("Tika sidecar", caps.processing.tikaReachable, caps.processing.tikaReachable ? (caps.processing.tikaVersion ?? "reachable") : "not reachable")}
-            {chip("AEGIS AI review", true, "always")}
+            {chip("OneLegal AI review", true, "always")}
           </>
         ) : <span style={{ color: C.t4, fontFamily: M, fontSize: 12 }}>{busy ? "Loading capabilities…" : "—"}</span>}
       </div>

@@ -2,7 +2,7 @@ import { useReviewKeyboard } from "@aegis/ui";
 
 // Intake keyboard shortcuts — a thin adapter over the shared
 // `useReviewKeyboard` hook (@aegis/ui) so there is ONE keyboard-navigation
-// implementation across every AEGIS review surface (eDiscovery coding,
+// implementation across every OneLegal review surface (eDiscovery coding,
 // invoice + contract cockpits, intake triage). This preserves the intake
 // cockpit's existing API — a `{ key: handler }` map plus an `enabled` flag —
 // and its exact behavior: skip typing in inputs / textareas / selects /

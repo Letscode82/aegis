@@ -12,7 +12,7 @@ export default function DsarPortalStatusPage() {
   return (
     <>
       <Head>
-        <title>Your data request · AEGIS</title>
+        <title>Your data request · OneLegal</title>
         <meta name="viewport" content="width=device-width,initial-scale=1" />
       </Head>
       {token ? <DsarPortalStatus token={token} /> : null}

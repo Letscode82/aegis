@@ -74,7 +74,7 @@ export const PrivacyAssessmentAgent={
 - Gaps: ${gaps.length?gaps.join(" "):"none"}`;
 
     try{
-      const prompt=`You are the Privacy Assessment Agent for AEGIS Legal. Draft a PRELIMINARY privacy assessment for the initiative described below. The flags and rating were detected DETERMINISTICALLY by the platform — do not change the rating or invent categories; write the assessment around them.
+      const prompt=`You are the Privacy Assessment Agent for OneLegal Legal. Draft a PRELIMINARY privacy assessment for the initiative described below. The flags and rating were detected DETERMINISTICALLY by the platform — do not change the rating or invent categories; write the assessment around them.
 
 INITIATIVE (requester's description):
 "${text.slice(0,2500)}"

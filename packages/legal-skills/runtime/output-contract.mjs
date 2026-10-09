@@ -1,5 +1,5 @@
-// AEGIS output contract — the executable, single source of truth for the
-// SHAPE every AEGIS skill and intake agent returns.
+// OneLegal output contract — the executable, single source of truth for the
+// SHAPE every OneLegal skill and intake agent returns.
 //
 // `_shared/severity-scale.md` and `_shared/output-contract.md` are the human
 // spec; this module is the machine mirror the code depends on, so the intake

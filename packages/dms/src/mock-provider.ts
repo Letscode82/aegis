@@ -29,7 +29,7 @@ const EPOCH = "2026-01-01T00:00:00.000Z";
 function defaultSeed(): Required<MockDmsSeed> {
   const folders: DmsFolderRef[] = [
     { id: "root", name: "Matters", path: "/Matters" },
-    { id: "f-acme", name: "Acme v. AEGIS", path: "/Matters/Acme v. AEGIS", parentId: "root" },
+    { id: "f-acme", name: "Acme v. OneLegal", path: "/Matters/Acme v. OneLegal", parentId: "root" },
   ];
   const documents: DmsDocument[] = [
     {

@@ -19,7 +19,7 @@ export default function ContractSignPage() {
   return (
     <>
       <Head>
-        <title>Sign Contract · AEGIS</title>
+        <title>Sign Contract · OneLegal</title>
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="robots" content="noindex, nofollow" />
       </Head>

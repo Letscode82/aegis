@@ -5,7 +5,7 @@
  * (`office-word`) and the Outlook email-triage integration (`outlook`). Both
  * ride Microsoft's delegated OAuth2 authorization-code flow against the v2.0
  * endpoints — the same `login.microsoftonline.com/{tenant}/oauth2/v2.0/*`
- * shape the matter module's eDiscovery delegated auth uses — so AEGIS persists
+ * shape the matter module's eDiscovery delegated auth uses — so OneLegal persists
  * one refreshable token per (org, connector) through the shared `TokenStore`
  * seam and never re-implements OAuth per surface.
  *
@@ -32,7 +32,7 @@ export function microsoftTokenUrl(tenant: string): string {
 
 /**
  * Delegated Graph scopes for the Word add-in. `User.Read` identifies the
- * signed-in author; `Files.ReadWrite` lets AEGIS pull the active document and
+ * signed-in author; `Files.ReadWrite` lets OneLegal pull the active document and
  * write a redline back through Graph for the offline / email-it path;
  * `offline_access` yields the refresh token the token store persists.
  */
@@ -67,7 +67,7 @@ export interface MicrosoftConnectorOptions {
   clientSecret?: string;
   /** Azure AD tenant id, or "organizations" / "common". */
   tenant: string;
-  /** AEGIS OAuth callback for this connector. */
+  /** OneLegal OAuth callback for this connector. */
   redirectUri: string;
   scopes: readonly string[];
 }

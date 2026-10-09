@@ -181,7 +181,7 @@ export function buildNarrativePrompt(diff: ContractDiff, contractTitle: string):
   });
   return [
     `You are a contracts attorney reviewing a redline between two versions of "${contractTitle}".`,
-    `Version ${diff.fromVersion} → version ${diff.toVersion}. Clause-level changes (against the AEGIS playbook):`,
+    `Version ${diff.fromVersion} → version ${diff.toVersion}. Clause-level changes (against the OneLegal playbook):`,
     "",
     lines.join("\n"),
     "",

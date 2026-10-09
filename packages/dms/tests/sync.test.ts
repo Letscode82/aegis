@@ -14,7 +14,7 @@ function doc(externalId: string, over: Partial<DmsDocument> = {}): DmsDocument {
 }
 
 describe("planSync", () => {
-  it("pull-creates a remote document AEGIS has never seen", () => {
+  it("pull-creates a remote document OneLegal has never seen", () => {
     const plan = planSync({ remote: [doc("a")], links: [] });
     expect(plan.actions).toEqual([{ type: "pull-create", remote: doc("a") }]);
     expect(plan.summary["pull-create"]).toBe(1);

@@ -93,9 +93,9 @@ export default function App(){
     <div style={{width:220,background:C.s1,borderRight:`1px solid ${C.br}`,display:"flex",flexDirection:"column",flexShrink:0}}>
       <div style={{padding:"16px 16px 12px",borderBottom:`1px solid ${C.br}`}}>
         <div style={{display:"flex",alignItems:"center",gap:10}}>
-          <div style={{width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",background:C.em,fontSize:14,fontWeight:400,color:C.bg,fontFamily:SR}}>◎</div>
+          <div style={{width:30,height:30,display:"flex",alignItems:"center",justifyContent:"center",background:C.em,fontSize:13,fontWeight:600,letterSpacing:1,color:C.bg,fontFamily:SR}}>OL</div>
           <div>
-            <div style={{fontSize:14,fontFamily:SR,fontWeight:400,letterSpacing:1,color:C.t1}}>AEGIS<span style={{color:C.em,fontStyle:"italic"}}></span></div>
+            <div style={{fontSize:14,fontFamily:SR,fontWeight:400,letterSpacing:1,color:C.t1}}>OneLegal<span style={{color:C.em,fontStyle:"italic"}}></span></div>
             <div style={{fontSize:8,letterSpacing:2,color:C.t3,textTransform:"uppercase",fontFamily:M,marginTop:1}}>{isIntakeOnly?"Legal Intake":"Legal Mission Control"}</div>
           </div>
         </div>

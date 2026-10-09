@@ -1,7 +1,7 @@
 /**
  * /admin/mcp — internal admin surface for C-12 MCP access tokens.
  *
- * Mint / list / revoke the bearer tokens external agents use to call the AEGIS
+ * Mint / list / revoke the bearer tokens external agents use to call the OneLegal
  * MCP server (`POST /api/mcp`). A minted token's raw value is shown ONCE here;
  * only its hash is stored. Tokens are inert until the platform flag
  * `AEGIS_MCP_ENABLED` is turned on. Gated client-side by `admin:manage_users`
@@ -115,13 +115,13 @@ export default function McpAdminPage() {
 
   return (
     <>
-      <Head><title>AEGIS · MCP access tokens</title></Head>
+      <Head><title>OneLegal · MCP access tokens</title></Head>
       <main style={{ background: C.bg, minHeight: "100vh", padding: "32px 20px", fontFamily: F, color: C.t1 }}>
         <div style={{ maxWidth: 820, margin: "0 auto" }}>
           <div style={{ fontSize: 10, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", marginBottom: 6 }}>Admin · Integrations</div>
           <h1 style={{ fontFamily: SR, fontSize: 22, fontWeight: 600, margin: "0 0 6px" }}>MCP access tokens</h1>
           <p style={{ color: C.t3, fontSize: 13, lineHeight: 1.6, margin: "0 0 16px", maxWidth: "68ch" }}>
-            Bearer tokens let an external agent call the AEGIS MCP server (<code style={{ fontFamily: M, fontSize: 12 }}>POST /api/mcp</code>) to run read-only tools scoped to this organization. A token is shown once when generated — copy it then; only its hash is stored.
+            Bearer tokens let an external agent call the OneLegal MCP server (<code style={{ fontFamily: M, fontSize: 12 }}>POST /api/mcp</code>) to run read-only tools scoped to this organization. A token is shown once when generated — copy it then; only its hash is stored.
           </p>
           <Card style={{ padding: "10px 14px", marginBottom: 20, color: C.am, fontFamily: M, fontSize: 11.5, background: C.amG, border: `1px solid ${C.am}44` }}>
             The MCP server is <strong>off by default</strong>. Tokens stay inert until the platform flag <code>AEGIS_MCP_ENABLED</code> is set in the environment.

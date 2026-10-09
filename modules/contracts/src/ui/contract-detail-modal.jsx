@@ -186,7 +186,7 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 12 }}>
                 <KeyTerm label="Parties">
-                  <div style={{ fontSize: 11, color: C.t1 }}>AEGIS <span style={{ color: C.t4 }}>↔</span> {c.counterpartyName || <span style={{ color: C.am }}>— set counterparty —</span>}</div>
+                  <div style={{ fontSize: 11, color: C.t1 }}>OneLegal <span style={{ color: C.t4 }}>↔</span> {c.counterpartyName || <span style={{ color: C.am }}>— set counterparty —</span>}</div>
                 </KeyTerm>
                 <KeyTerm label="Pricing">
                   <div style={{ fontSize: 11, color: C.t1 }}>{money(c.value, c.currency)} <span style={{ color: C.t4, fontFamily: M, fontSize: 9 }}>{c.currency}</span></div>
@@ -499,7 +499,7 @@ function SignaturesPanel({ contractId, canManage, counterpartyName, onChanged })
       {err && <div style={{ fontSize: 10.5, color: C.rd, fontFamily: M, marginBottom: 6 }}>⚠ {err}</div>}
       {!state ? <div style={{ fontSize: 10.5, color: C.t4, fontFamily: M }}>Loading…</div> : (
         <>
-          <Row party="INTERNAL" label="AEGIS / us" />
+          <Row party="INTERNAL" label="OneLegal / us" />
           <Row party="COUNTERPARTY" label={counterpartyName || "Counterparty"} />
           {state.blockedReason && state.status !== "EXECUTED" && state.status !== "ACTIVE" && (
             <div style={{ fontSize: 9.5, fontFamily: M, color: C.t4, marginTop: 8, lineHeight: 1.5 }}>{state.blockedReason} {state.bothSigned && state.status !== "APPROVED" ? "Advance the lifecycle to Approved, then the final signature executes it." : ""}</div>

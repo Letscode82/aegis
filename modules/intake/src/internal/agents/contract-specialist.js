@@ -77,7 +77,7 @@ NEGOTIABLE BANDS (deviation = NEGOTIATE with the stated fallback):
 ${pb.negotiable.map(x=>"- "+x).join("\n")}`;
 
     try{
-      const prompt=`You are the Contract-Type Specialist agent for AEGIS Legal. Review the contract described below against the SPECIFIC playbook for its type. You are reviewing the DESCRIPTION (not the full document unless pasted) — call out what needs the full text.
+      const prompt=`You are the Contract-Type Specialist agent for OneLegal Legal. Review the contract described below against the SPECIFIC playbook for its type. You are reviewing the DESCRIPTION (not the full document unless pasted) — call out what needs the full text.
 
 ${playbookText}
 
@@ -121,7 +121,7 @@ Respond with ONLY this JSON (keep draftedResponse to 160-240 words; use \\n for 
       console.error("[agent:contract-specialist] JSON path failed, retrying as plain text:",e);
       // Plain-text retry — same type-specific review, no fragile JSON.
       try{
-        const textPrompt=`You are the Contract-Type Specialist agent for AEGIS Legal. Review the contract below against this SPECIFIC playbook, then write a concise review (180-240 words) addressed to ${(ticket.from||"").split(" ")[0]||"there"} that: lists mandatory clauses addressed/missing, any forbidden-clause signals, deviations from the negotiable bands (with the standard fallback), and a recommendation — each issue tagged ACCEPT/NEGOTIATE/REJECT, worst first. End by stating attorney sign-off is required before execution. Plain text only — no preamble, no JSON.
+        const textPrompt=`You are the Contract-Type Specialist agent for OneLegal Legal. Review the contract below against this SPECIFIC playbook, then write a concise review (180-240 words) addressed to ${(ticket.from||"").split(" ")[0]||"there"} that: lists mandatory clauses addressed/missing, any forbidden-clause signals, deviations from the negotiable bands (with the standard fallback), and a recommendation — each issue tagged ACCEPT/NEGOTIATE/REJECT, worst first. End by stating attorney sign-off is required before execution. Plain text only — no preamble, no JSON.
 
 ${playbookText}
 
@@ -146,7 +146,7 @@ ${(ticket.desc||"").slice(0,MAX_DOC_CHARS)}
       // Degraded path keeps the deterministic value: the selected
       // playbook (stamped + cited) and the escalation-gate results.
       return buildDegradedRec(this.id,{
-        draftedResponse:`Hi ${(ticket.from||"").split(" ")[0]||"there"},\n\nI've logged your ${pb.label.toLowerCase()} review request. Our AI assistant is temporarily unavailable, so the clause-by-clause analysis will be run by a reviewer against playbook ${pb.id} ${pb.version} (mandatory clauses, forbidden clauses, negotiable bands) before attorney sign-off.\n\n— AEGIS Contract Review`,
+        draftedResponse:`Hi ${(ticket.from||"").split(" ")[0]||"there"},\n\nI've logged your ${pb.label.toLowerCase()} review request. Our AI assistant is temporarily unavailable, so the clause-by-clause analysis will be run by a reviewer against playbook ${pb.id} ${pb.version} (mandatory clauses, forbidden clauses, negotiable bands) before attorney sign-off.\n\n— OneLegal Contract Review`,
         reasoning:`Playbook ${pb.id} ${pb.version} selected deterministically; AI review unavailable — manual review against the same standard required.`,
         concerns:[friendlyAIError(e2),...selectionConcerns,"No AI review produced — manual playbook review + attorney sign-off required."],
         precedentLinks:[{id:pb.id,title:`${pb.label} playbook ${pb.version}`}],

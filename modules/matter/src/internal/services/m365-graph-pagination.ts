@@ -2,7 +2,7 @@
  * Microsoft Graph pagination helper (sub-PR 4d.0).
  *
  * Microsoft Graph paginates responses via `@odata.nextLink` and
- * REJECTS `$top=N` on a number of read endpoints AEGIS uses for
+ * REJECTS `$top=N` on a number of read endpoints OneLegal uses for
  * data-source enumeration (Drives, Teams, MailFolders, etc.) with:
  *
  *   "Query option 'Top' is not allowed."
