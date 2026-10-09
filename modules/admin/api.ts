@@ -25,6 +25,7 @@ import {
   inviteUserService,
   listUsersService,
   reactivateUserService,
+  resendUserInviteService,
   suspendUserService,
   updateUserRoleService,
 } from "./src/internal/services/users";
@@ -102,6 +103,13 @@ export async function inviteUser(
   actor: AdminActor,
 ): Promise<UserSummary> {
   return inviteUserService(input, actor);
+}
+
+export async function resendUserInvite(
+  userId: string,
+  actor: AdminActor,
+): Promise<UserSummary> {
+  return resendUserInviteService(userId, actor);
 }
 
 export async function updateUserRole(

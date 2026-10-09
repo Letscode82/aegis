@@ -113,6 +113,32 @@ The next sign-in by an unknown email currently returns null in
 canonical user list). A "first-login provisioning" flow is on the
 backlog for a later step.
 
+### User invitations (invite-by-email)
+
+Inviting a user in **Admin → Users** creates the AEGIS authorization row
+**and** emails them a one-time "set your password" link, so an admin never
+has to create the Auth0 user by hand. Two pieces make the email work; each
+degrades safely when unconfigured (the invite still creates the account —
+it just can't send the link, and the UI says so).
+
+1. **Mail provider.** Set `RESEND_API_KEY` (preferred) or
+   `SENDGRID_API_KEY`, plus `MAIL_FROM` (a verified sender). Unset → the
+   message is logged, not sent.
+2. **Auth0 Management API.** In Auth0, create a **Machine-to-Machine**
+   application authorized for the **Auth0 Management API** with scopes
+   `read:users`, `create:users`, `create:user_tickets`. Put its id/secret
+   in `AUTH0_MGMT_CLIENT_ID` / `AUTH0_MGMT_CLIENT_SECRET` (these are
+   *separate* from the login app's `AUTH0_CLIENT_ID` / `AUTH0_CLIENT_SECRET`;
+   the tenant is the same `AUTH0_ISSUER_BASE_URL`). Optionally set
+   `AUTH0_DB_CONNECTION` if your database connection isn't the default
+   `Username-Password-Authentication`.
+
+With both set, the invite flow ensures the Auth0 user exists and mints a
+password-change ticket (7-day expiry) that the email links to. A
+**Resend invite** action on each pending user re-sends it. Every attempt
+is chain-sealed (`user.invite_email.sent` / `user.invite_email.not_delivered`
+/ `user.invite_resent`).
+
 ### DATABASE_URL setup (Neon)
 
 1. Create a Neon project — region close to the Vercel region the project

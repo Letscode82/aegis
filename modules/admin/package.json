@@ -20,6 +20,7 @@
   "dependencies": {
     "@aegis/auth": "workspace:*",
     "@aegis/db": "workspace:*",
+    "@aegis/email": "workspace:*",
     "@aegis/ui": "workspace:*",
     "react": "^18.3.1"
   },

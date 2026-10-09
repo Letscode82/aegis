@@ -175,6 +175,9 @@ importers:
       '@aegis/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@aegis/email':
+        specifier: workspace:*
+        version: link:../../packages/email
       '@aegis/ui':
         specifier: workspace:*
         version: link:../../packages/ui
