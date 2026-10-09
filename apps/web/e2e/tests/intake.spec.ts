@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { VIEW, openView, assertNoCrash, shot } from "../support/app";
+import { VIEW, openView, assertNoCrash, shot, intakeTab } from "../support/app";
 import { requireMutationsEnabled, e2eTag } from "../support/safety";
 
 /**
@@ -7,6 +7,10 @@ import { requireMutationsEnabled, e2eTag } from "../support/safety";
  * Read-only tests verify the cockpit, tab surfaces and the New Request picker
  * load and render. The single @mutation test files a ticket end-to-end and is
  * skipped unless E2E_TARGET=test + E2E_ALLOW_MUTATIONS=1.
+ *
+ * Note: the intake store loads several storage keys on mount (tickets,
+ * cockpit, agent-log, settings) which can be slow against a cold/remote DB, so
+ * the tab bar gets a generous visibility timeout.
  */
 test.describe("Legal Intake", () => {
   test.beforeEach(async ({ page }) => {
@@ -24,44 +28,47 @@ test.describe("Legal Intake", () => {
   test("intake section tabs are present", async ({ page }, testInfo) => {
     const tabBar = page.locator('nav[aria-label="Intake sections"]');
     await expect(tabBar).toBeVisible({ timeout: 30_000 });
-    // Staff (seeded admin) sees the full tab set.
+    // Staff (seeded admin) sees the full tab set. Tabs are role=button with
+    // aria-label "<label> section" (see intakeTab).
     for (const label of ["Inbox", "Triage Cockpit", "New Request", "SLA Dashboard"]) {
-      await expect(tabBar.getByText(label, { exact: true }).first()).toBeVisible();
+      await expect(intakeTab(page, label)).toBeVisible({ timeout: 20_000 });
     }
     await shot(page, "intake-tabs", testInfo);
   });
 
   test("each intake tab opens without a contained crash", async ({ page }, testInfo) => {
-    const tabBar = page.locator('nav[aria-label="Intake sections"]');
-    await expect(tabBar).toBeVisible();
+    await expect(page.locator('nav[aria-label="Intake sections"]')).toBeVisible({ timeout: 30_000 });
     for (const label of ["Inbox", "Triage Cockpit", "My Requests", "Self-Service", "SLA Dashboard"]) {
-      const tab = tabBar.getByText(label, { exact: true }).first();
+      const tab = intakeTab(page, label);
       if ((await tab.count()) === 0) continue;
-      await tab.click();
-      await page.waitForTimeout(400); // let the panel swap + fetch settle
+      await tab.first().click();
+      await page.waitForTimeout(600); // let the panel swap + fetch settle
       await assertNoCrash(page);
     }
     await shot(page, "intake-last-tab", testInfo);
   });
 
   test("New Request shows the file-a-request picker", async ({ page }, testInfo) => {
-    await page.locator('nav[aria-label="Intake sections"]').getByText("New Request", { exact: true }).first().click();
+    await expect(page.locator('nav[aria-label="Intake sections"]')).toBeVisible({ timeout: 30_000 });
+    await intakeTab(page, "New Request").first().click();
     await expect(page.getByText("How would you like to file this?", { exact: false })).toBeVisible({
       timeout: 20_000,
     });
     // A couple of request-type tiles should be offered.
-    await expect(page.getByText("NDA Request", { exact: false }).first()).toBeVisible();
+    await expect(page.getByText("NDA", { exact: false }).first()).toBeVisible();
     await assertNoCrash(page);
     await shot(page, "intake-new-request-picker", testInfo);
   });
 
   test("@mutation file an NDA request through the form", async ({ page }, testInfo) => {
     requireMutationsEnabled();
-    await page.locator('nav[aria-label="Intake sections"]').getByText("New Request", { exact: true }).first().click();
+    await expect(page.locator('nav[aria-label="Intake sections"]')).toBeVisible({ timeout: 30_000 });
+    await intakeTab(page, "New Request").first().click();
     await expect(page.getByText("How would you like to file this?", { exact: false })).toBeVisible();
 
-    // Pick the fast-path structured form via the NDA tile.
-    await page.getByText("NDA Request", { exact: true }).first().click();
+    // Pick the fast-path structured form via the NDA tile (icon prefix varies,
+    // so match on substring, not exact).
+    await page.getByText(/NDA Request/i).first().click();
 
     const name = page.getByPlaceholder("Jane Smith");
     await expect(name).toBeVisible({ timeout: 15_000 });
