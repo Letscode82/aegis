@@ -304,8 +304,18 @@ async function resolveByEmail(
   email: string,
   hint?: { name?: string; allowJit?: boolean },
 ): Promise<AuthUser | null> {
+  // Case-insensitive match. IdPs (Auth0 database connections, Entra ID,
+  // other enterprise connections) return the email in whatever case the
+  // user typed at the IdP — but the invite path stores it lowercased
+  // (inviteUserService) and the JIT/seed paths store it verbatim. A
+  // case-sensitive lookup therefore silently fails to find an invited
+  // user whose IdP email has any uppercase (e.g. `Jane.Doe@corp.com`):
+  // Auth0 authenticates them, but getResolvedUser returns null and the
+  // app shows an empty/denied session that looks exactly like "can't log
+  // in." `mode: "insensitive"` matches regardless of how either side is
+  // cased, without requiring the stored rows to be normalised first.
   const dbUser = await prisma.user.findFirst({
-    where: { email },
+    where: { email: { equals: email, mode: "insensitive" } },
     include: { role: true, organization: true },
   });
   if (!dbUser) {
