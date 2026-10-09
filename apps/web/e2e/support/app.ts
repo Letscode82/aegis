@@ -40,8 +40,10 @@ export async function openView(page: Page, viewId: string): Promise<void> {
   await page.goto(`/?view=${encodeURIComponent(viewId)}`, { waitUntil: "domcontentloaded" });
   // The shell is dynamic(ssr:false); wait for hydration to paint the sidebar.
   await expect(page.getByText("AEGIS", { exact: true }).first()).toBeVisible({ timeout: 30_000 });
-  await page.waitForLoadState("networkidle").catch(() => {
-    /* some views keep a poll open; idle is best-effort */
+  // Best-effort idle wait, capped: some views poll /api/auth/current-user every
+  // ~1s so the page never truly goes idle — don't block the whole test on it.
+  await page.waitForLoadState("networkidle", { timeout: 8_000 }).catch(() => {
+    /* expected on polling views */
   });
 }
 
@@ -69,6 +71,16 @@ export async function shot(page: Page, name: string, testInfo: import("@playwrig
 /** Click a left-sidebar nav entry by its visible label. */
 export async function clickNav(page: Page, label: string): Promise<void> {
   await page.getByText(label, { exact: true }).first().click();
+}
+
+/**
+ * Locate an Intake section tab by its label. The tabs render an icon glyph and
+ * a bare text label inside one element, so an exact text match never equals
+ * just the label. They are built with the `pressable()` helper, which sets
+ * role="button" + aria-label="<label> section" — that's the stable selector.
+ */
+export function intakeTab(page: Page, label: string) {
+  return page.getByRole("button", { name: `${label} section` });
 }
 
 /**
