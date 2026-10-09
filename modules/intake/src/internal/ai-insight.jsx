@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { C, F, M, SR } from "@aegis/ui";
+import { C, F, M, SR, ThinkingOrb, useTheme } from "@aegis/ui";
 import { callClaude, callClaudeJSON, friendlyAIError } from "@aegis/ai";
 
 // Module-scoped session cache. Survives in-app navigation, not page reload.
@@ -135,17 +135,13 @@ export function AIInsight({ title = "AI insight", state, onRegenerate, children,
 }
 
 function AIThinkingDots() {
+  // thinking-orbs "working" orb, themed to the live Aurora palette (the
+  // theme toggle mutates tokens in place rather than setting a DOM class,
+  // so pass the resolved mode through instead of relying on `auto`).
+  const { theme } = useTheme();
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", color: C.t3 }}>
-      <span style={{ display: "inline-flex", gap: 3 }}>
-        {[0, 1, 2].map(i => (
-          <span key={i} style={{
-            width: 5, height: 5, borderRadius: "50%", background: C.cy,
-            display: "inline-block",
-            animation: `typing 1.2s ${i * 0.18}s infinite ease-in-out`,
-          }}/>
-        ))}
-      </span>
+      <ThinkingOrb state="working" size={20} theme={theme === "dark" ? "dark" : "light"} />
       <span style={{ fontSize: 11, fontFamily: M, letterSpacing: 1, color: C.cy, textTransform: "uppercase" }}>AI thinking…</span>
     </div>
   );
