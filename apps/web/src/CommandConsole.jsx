@@ -1,7 +1,16 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { C, F, M, SR } from "@aegis/ui";
+import { C, F, M, SR, ThinkingOrb, useTheme } from "@aegis/ui";
 import { friendlyAIError } from "@aegis/ai";
 import { SKILLS, SKILL_CATEGORIES, resolveSkillTarget } from "../lib/one-legal/skills";
+
+// ConsoleOrb — the thinking-orbs "thinking" indicator wired to the live
+// Aurora theme (the toggle mutates tokens in place rather than setting a
+// DOM class, so the orb's `auto` detection can't see it — pass it through).
+// Each AI working state maps to the orb animation that reads it best.
+function ConsoleOrb({ state = "working", size = 20 }) {
+  const { theme } = useTheme();
+  return <ThinkingOrb state={state} size={size} theme={theme === "dark" ? "dark" : "light"} />;
+}
 
 // Command Console (WS-1, agentic) — "ONE Legal", the full-page front door,
 // built to feel like a first-class AI workspace (Harvey / Legora / Claude).
@@ -367,7 +376,7 @@ function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource, onRes
   if (turn.answerLoading) {
     return (
       <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16, display: "flex", alignItems: "center", gap: 10, color: C.t3, fontFamily: M, fontSize: 12 }}>
-        <span style={{ width: 12, height: 12, borderRadius: "50%", border: `2px solid ${C.br}`, borderTopColor: C.em, display: "inline-block", animation: "sp .7s linear infinite" }} />
+        <ConsoleOrb state="working" />
         Thinking…
       </div>
     );
@@ -419,7 +428,7 @@ function AnalyzeCard({ turn, onFollowUp, onFileInstead, onDeepReview }) {
       </div>
       {busy ? (
         <div style={{ display: "flex", alignItems: "center", gap: 10, color: C.t3, fontFamily: M, fontSize: 12 }}>
-          <span style={{ width: 12, height: 12, borderRadius: "50%", border: `2px solid ${C.br}`, borderTopColor: C.em, display: "inline-block", animation: "sp .7s linear infinite" }} />
+          <ConsoleOrb state={turn.uploading ? "searching" : "solving"} />
           {turn.uploading ? "Reading document…" : "Analyzing…"}
         </div>
       ) : turn.error ? (
@@ -447,7 +456,7 @@ function ResearchCard({ turn, onFollowUp, onFileInstead, onOpenSource }) {
   if (turn.researchLoading) {
     return (
       <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16, display: "flex", alignItems: "center", gap: 10, color: C.t3, fontFamily: M, fontSize: 12 }}>
-        <span style={{ width: 12, height: 12, borderRadius: "50%", border: `2px solid ${C.br}`, borderTopColor: C.em, display: "inline-block", animation: "sp .7s linear infinite" }} />
+        <ConsoleOrb state="searching" />
         Researching your documents…
       </div>
     );
@@ -538,7 +547,7 @@ function LegalResearchCard({ turn, onFollowUp, onFileInstead }) {
   if (turn.researchLoading) {
     return (
       <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16, display: "flex", alignItems: "center", gap: 10, color: C.t3, fontFamily: M, fontSize: 12 }}>
-        <span style={{ width: 12, height: 12, borderRadius: "50%", border: `2px solid ${C.br}`, borderTopColor: C.em, display: "inline-block", animation: "sp .7s linear infinite" }} />
+        <ConsoleOrb state="searching" />
         Researching case law, statutes &amp; filings…
       </div>
     );
@@ -593,7 +602,7 @@ function SkillReviewCard({ turn, onFollowUp, onFileInstead }) {
   if (turn.reviewLoading) {
     return (
       <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16, display: "flex", alignItems: "center", gap: 10, color: C.t3, fontFamily: M, fontSize: 12 }}>
-        <span style={{ width: 12, height: 12, borderRadius: "50%", border: `2px solid ${C.br}`, borderTopColor: C.em, display: "inline-block", animation: "sp .7s linear infinite" }} />
+        <ConsoleOrb state="solving" />
         Matching a playbook…
       </div>
     );
@@ -659,7 +668,7 @@ function ArtifactCard({ turn, onSave, onRegenerate, onFileInstead }) {
   if (turn.draftLoading) {
     return (
       <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16, display: "flex", alignItems: "center", gap: 10, color: C.t3, fontFamily: M, fontSize: 12 }}>
-        <span style={{ width: 12, height: 12, borderRadius: "50%", border: `2px solid ${C.br}`, borderTopColor: C.em, display: "inline-block", animation: "sp .7s linear infinite" }} />
+        <ConsoleOrb state="composing" />
         Drafting…
       </div>
     );
@@ -1789,7 +1798,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
         /* ── Landing (vertically + horizontally centered, Claude-style) ── */
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px" }}>
           <div style={{ maxWidth: 640, width: "100%", margin: "0 auto", textAlign: "center", animation: "ccIn .3s ease" }}>
-            <div style={{ fontSize: 46, marginBottom: 18, color: C.em, lineHeight: 1 }} aria-hidden="true">✳</div>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}><ConsoleOrb state="working" size={64} /></div>
             <div style={{ fontFamily: SR, fontSize: 38, lineHeight: 1.12, color: C.t1, marginBottom: 6 }}>
               {firstName ? `${firstName} returns.` : "Welcome to ONE Legal."}
             </div>

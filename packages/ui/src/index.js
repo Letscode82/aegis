@@ -46,6 +46,10 @@ export { PanelBoundary } from "./PanelBoundary";
 // useIsNarrow (W4-3) — responsive breakpoint hook.
 export { useIsNarrow } from "./useIsNarrow";
 
+// ThinkingOrb — dotted canvas "thinking" indicator (vendored thinking-orbs
+// engine, MIT; React wrapper OneLegal-authored). Six states × two sizes.
+export { ThinkingOrb } from "./thinking-orb/ThinkingOrb";
+
 // Review cockpit (PR-R1) — shared Relativity-style 3-pane review shell +
 // the one keyboard-navigation hook every review surface uses.
 export { ReviewCockpit } from "./ReviewCockpit.jsx";

@@ -155,6 +155,29 @@ export class PanelBoundary extends React.Component<PanelBoundaryProps> {}
 // useIsNarrow (W4-3)
 export function useIsNarrow(maxWidthPx?: number): boolean;
 
+// ThinkingOrb — dotted canvas "thinking" indicator (vendored thinking-orbs
+// engine, MIT; React wrapper OneLegal-authored).
+export type OrbState =
+  | "working"
+  | "searching"
+  | "solving"
+  | "listening"
+  | "composing"
+  | "shaping";
+export type OrbSize = 64 | 20;
+export type OrbTheme = "auto" | "dark" | "light";
+export interface ThinkingOrbProps {
+  state?: OrbState;
+  size?: OrbSize;
+  theme?: OrbTheme;
+  speed?: number;
+  paused?: boolean;
+  className?: string;
+  style?: CSSProperties;
+  "aria-label"?: string;
+}
+export const ThinkingOrb: React.FC<ThinkingOrbProps>;
+
 // Review cockpit (PR-R1) — shared Relativity-style review shell + kbd hook.
 export interface ReviewKeyBinding {
   keys: string[];
