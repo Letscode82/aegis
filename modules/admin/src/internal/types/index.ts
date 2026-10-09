@@ -29,6 +29,16 @@ export interface UserSummary {
   suspendedAt: string | null;
   status: UserStatus;
   createdAt: string;
+  /**
+   * Outcome of the invitation email, attached only by the invite / resend
+   * paths (list/get reads omit it). Lets the admin UI confirm whether the
+   * person actually received a set-password link.
+   */
+  inviteEmail?: {
+    delivered: boolean;
+    reason?: string;
+    linkCreated: boolean;
+  };
 }
 
 export interface UserListFilter {

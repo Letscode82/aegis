@@ -26,6 +26,7 @@ import type {
   UserStatus,
   UserSummary,
 } from "../types";
+import { sendUserInviteEmail } from "./invite-email";
 
 export class LastAdminProtectedError extends Error {
   constructor() {
@@ -176,7 +177,82 @@ export async function inviteUserService(
     metadata: { source: "admin-ui" },
   });
 
-  return toSummary(created);
+  // Fire the onboarding email (mints an Auth0 set-password link). Best-effort:
+  // a mail / provisioning failure must never roll back the invite itself.
+  const inviteEmail = await sendUserInviteEmail({
+    organizationId: actor.organizationId,
+    user: {
+      id: created.id,
+      email: created.email,
+      name: created.name,
+      roleName: created.role?.name ?? null,
+    },
+    orgName: await resolveOrgName(actor.organizationId),
+    inviterName: actor.name ?? null,
+    actor: { id: actor.id, type: "USER" },
+  }).catch((): UserSummary["inviteEmail"] => ({
+    delivered: false,
+    reason: "invite-email-threw",
+    linkCreated: false,
+  }));
+
+  return { ...toSummary(created), inviteEmail };
+}
+
+/** Resolve the org's display name for invite copy; null if not found. */
+async function resolveOrgName(organizationId: string): Promise<string | null> {
+  const org = await prisma.organization.findUnique({
+    where: { id: organizationId },
+    select: { name: true },
+  });
+  return org?.name ?? null;
+}
+
+/**
+ * Re-send the onboarding email for an already-invited user. Useful when the
+ * first link expired or never arrived. Writes a `user.invite_resent` audit row
+ * (plus the email's own send/not-delivered row).
+ */
+export async function resendUserInviteService(
+  userId: string,
+  actor: AdminActor,
+): Promise<UserSummary> {
+  const user = await prisma.user.findFirst({
+    where: { id: userId, organizationId: actor.organizationId },
+    include: { role: true },
+  });
+  if (!user) throw new UserNotFoundError(userId);
+
+  await logAudit({
+    organizationId: actor.organizationId,
+    actorId: actor.id,
+    actorType: "USER",
+    action: "user.invite_resent",
+    resourceType: "User",
+    resourceId: user.id,
+    afterJson: { email: user.email, roleName: user.role?.name ?? null },
+    metadata: { source: "admin-ui" },
+  });
+
+  const inviteEmail = await sendUserInviteEmail({
+    organizationId: actor.organizationId,
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      roleName: user.role?.name ?? null,
+    },
+    orgName: await resolveOrgName(actor.organizationId),
+    inviterName: actor.name ?? null,
+    actor: { id: actor.id, type: "USER" },
+    auditAction: "user.invite_resent",
+  }).catch((): UserSummary["inviteEmail"] => ({
+    delivered: false,
+    reason: "invite-email-threw",
+    linkCreated: false,
+  }));
+
+  return { ...toSummary(user), inviteEmail };
 }
 
 export async function updateUserRoleService(

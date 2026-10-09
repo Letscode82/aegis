@@ -310,6 +310,7 @@ const UserRow: React.FC<{
   const [editingRole, setEditingRole] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [note, setNote] = useState<string | null>(null);
 
   async function call(path: string, init?: RequestInit) {
     setBusy(true);
@@ -326,6 +327,33 @@ const UserRow: React.FC<{
     } finally {
       setBusy(false);
       setMenuOpen(false);
+    }
+  }
+
+  async function resendInvite() {
+    setBusy(true);
+    setError(null);
+    setNote(null);
+    setMenuOpen(false);
+    try {
+      const r = await fetch(`${endpoint}/${u.id}/resend-invite`, { method: "POST" });
+      if (!r.ok) {
+        const text = await r.text();
+        throw new Error(`HTTP ${r.status}: ${text}`);
+      }
+      const updated = (await r.json()) as UserSummary;
+      const ie = updated.inviteEmail;
+      setNote(
+        ie?.delivered
+          ? `Invitation re-sent to ${u.email}.`
+          : ie?.reason === "not-configured"
+            ? "Email isn't configured — nothing was sent."
+            : `Couldn't send the invitation${ie?.reason ? ` (${ie.reason})` : ""}.`,
+      );
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -457,6 +485,9 @@ const UserRow: React.FC<{
             >
               View activity
             </MenuItem>
+            {u.status === "PENDING_INVITE" && (
+              <MenuItem onClick={resendInvite}>Resend invite</MenuItem>
+            )}
             {u.status !== "SUSPENDED" ? (
               <MenuItem
                 danger
@@ -490,6 +521,27 @@ const UserRow: React.FC<{
             }}
           >
             {error}
+          </div>
+        )}
+        {note && !error && (
+          <div
+            style={{
+              position: "absolute",
+              right: 0,
+              top: 32,
+              background: C.gnG,
+              border: `1px solid ${C.gn}`,
+              padding: 6,
+              fontSize: 10,
+              fontFamily: M,
+              color: C.gn,
+              maxWidth: 320,
+              borderRadius: 4,
+              zIndex: 11,
+            }}
+            onClick={() => setNote(null)}
+          >
+            {note}
           </div>
         )}
       </div>
@@ -530,6 +582,7 @@ const InviteUserDialog: React.FC<{
   const [roleId, setRoleId] = useState(roles[0]?.id ?? "");
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<UserSummary | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -545,7 +598,9 @@ const InviteUserDialog: React.FC<{
         const text = await r.text();
         throw new Error(`HTTP ${r.status}: ${text}`);
       }
+      const created = (await r.json()) as UserSummary;
       onCreated();
+      setResult(created);
     } catch (e) {
       setError(String(e));
     } finally {
@@ -578,7 +633,33 @@ const InviteUserDialog: React.FC<{
           color: C.t1,
         }}
       >
-        <SH icon="✉" title="Invite user" sub="Creates a User row; provision via Auth0 dashboard for now" />
+        <SH icon="✉" title="Invite user" sub="Creates the account and emails a set-password link" />
+        {result ? (
+          <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+            <InviteOutcome user={result} />
+            <div style={{ display: "flex", justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={onClose}
+                style={{
+                  background: C.bl,
+                  border: "none",
+                  color: C.bg,
+                  padding: "6px 18px",
+                  borderRadius: 4,
+                  cursor: "pointer",
+                  fontFamily: F,
+                  fontSize: 11,
+                  fontWeight: 700,
+                  letterSpacing: 0.5,
+                  textTransform: "uppercase",
+                }}
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        ) : (
         <div style={{ display: "grid", gap: 10, marginTop: 10 }}>
           <div>
             <label style={{ fontSize: 10, color: C.t3, fontFamily: F }}>Email</label>
@@ -653,7 +734,52 @@ const InviteUserDialog: React.FC<{
             </button>
           </div>
         </div>
+        )}
       </form>
+    </div>
+  );
+};
+
+// ── Invite outcome banner ────────────────────────────────────────
+
+const InviteOutcome: React.FC<{ user: UserSummary }> = ({ user: u }) => {
+  const ie = u.inviteEmail;
+  const ok = Boolean(ie?.delivered);
+  const linkOnly = Boolean(ie?.linkCreated && !ie?.delivered);
+  const bg = ok ? C.gnG : C.rdG;
+  const bd = ok ? C.gn : C.rd;
+  const fg = ok ? C.gn : C.rd;
+  let line: string;
+  if (ok) {
+    line = `Invitation sent to ${u.email}. They'll get a link to set their password and sign in.`;
+  } else if (ie?.reason === "not-configured") {
+    line =
+      `Account created for ${u.email}, but no invitation email was sent — email isn't configured yet. ` +
+      `Share the sign-in link manually, or configure a mail provider to send invites automatically.`;
+  } else if (linkOnly) {
+    line = `A set-password link was created for ${u.email}, but the email couldn't be sent (${ie?.reason}).`;
+  } else {
+    line =
+      `Account created for ${u.email}, but the invitation email wasn't delivered` +
+      `${ie?.reason ? ` (${ie.reason})` : ""}. You can resend it from the user's menu.`;
+  }
+  return (
+    <div
+      style={{
+        background: bg,
+        border: `1px solid ${bd}`,
+        borderRadius: 6,
+        padding: "10px 12px",
+        fontSize: 11.5,
+        lineHeight: 1.5,
+        fontFamily: F,
+        color: fg,
+      }}
+    >
+      <strong style={{ fontFamily: M, fontSize: 10, letterSpacing: 0.5 }}>
+        {ok ? "✓ INVITATION SENT" : "ACCOUNT CREATED"}
+      </strong>
+      <div style={{ marginTop: 4, color: C.t1 }}>{line}</div>
     </div>
   );
 };
