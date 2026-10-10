@@ -85,6 +85,56 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const t0 = Date.now();
     const question = String((req.body || {}).text || "").trim();
     if (question.length < 3) return res.status(400).json({ ok: false, error: "Ask a question in a few words." });
+    const activeDocumentId = String((req.body || {}).documentId || "").trim();
+
+    // 0) Active-document follow-up. When the console passes the id of the
+    // document the conversation is centred on (the user just uploaded /
+    // analysed / deep-reviewed it), ground the answer on its WHOLE extracted
+    // text. This is the correct context for "what are the two findings"-style
+    // follow-ups — far better than the keyword path, which returns a ~320-char
+    // excerpt per Document row and fans a re-uploaded file out into several
+    // near-identical preamble snippets. Bounded so a huge contract still fits
+    // the model window; degrades to the normal retrieval path on any miss.
+    if (activeDocumentId) {
+      const doc = await prisma.document.findFirst({
+        where: { id: activeDocumentId, organizationId: user.organizationId },
+        select: { id: true, name: true, ownerType: true, ownerId: true, extractedText: true },
+      });
+      const fullText = (doc?.extractedText || "").trim();
+      if (doc && fullText) {
+        const MAX_DOC_CHARS = 16000;
+        const bounded = fullText.length > MAX_DOC_CHARS ? fullText.slice(0, MAX_DOC_CHARS) + "\n\n…[document truncated for length]…" : fullText;
+        const source = {
+          n: 1,
+          documentId: doc.id,
+          name: doc.name || "Document",
+          ownerType: String(doc.ownerType),
+          ownerId: doc.ownerId,
+          snippet: fullText.slice(0, 500).trim(),
+          score: 1,
+          retrieval: "active-document",
+          navigate: navigateForOwner(String(doc.ownerType)),
+        };
+        let answer = "";
+        let degraded = false;
+        try {
+          ensureServerClaudeTransport();
+          answer = ((await callClaude(`Question: ${question}\n\nContext:\n[1] ${doc.name}\n${bounded}`, { system: GROUNDED_SYSTEM, maxTokens: 1500, timeout: 40000 })) || "").trim();
+          if (!answer) throw new Error("empty response from model");
+        } catch (e) {
+          degraded = true;
+          answer =
+            `From "${doc.name}":\n\n` +
+            fullText.slice(0, 600).trim() +
+            (fullText.length > 600 ? "…" : "") +
+            "\n\n(AI summarization is offline; showing the opening of the document. A qualified lawyer should review.)";
+          console.error("[one-legal:ask] active-document answer failed:", (e as { status?: number })?.status ?? "", (e as Error)?.message || e);
+        }
+        recordSpan("one_legal.ask", Date.now() - t0, { mode: "active-document", degraded, docChars: fullText.length });
+        return res.status(200).json({ ok: true, answer, grounded: true, degraded, sources: [source], mode: "active-document" });
+      }
+      // No such document (or no extracted text) → fall through to normal paths.
+    }
 
     // K3 — entity cross-linking: "everything about <counterparty>", "contracts
     // with <company>". Answer from the resolved counterparty's linked records
