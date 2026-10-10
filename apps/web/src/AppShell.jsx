@@ -182,11 +182,14 @@ export default function App(){
     </div>
     {/* Main */}
     <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-      <div style={{padding:"10px 20px",borderBottom:`1px solid ${C.br}`,display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,background:C.s1}}>
+      <div style={{padding:"16px 20px 12px",borderBottom:`1px solid ${C.br}`,display:"flex",justifyContent:"space-between",alignItems:"center",gap:12,background:C.s1}}>
         {narrow && <button type="button" onClick={()=>setMobileOpen(true)} aria-label="Open menu" style={{...navBtnStyle,width:34,height:34,fontSize:16}}>☰</button>}
+        {/* Eyebrow + title mirror the sidebar brand block (same 16/12 vertical
+            padding and the same small-label styling) so the top strip reads as
+            one uniform band across the sidebar divider. */}
         <div style={{minWidth:0}}>
-          <div style={{fontSize:8,fontFamily:M,color:C.t4,letterSpacing:2,textTransform:"uppercase"}}>{NAV.find(n=>n.id===effectiveView)?.group||"MODULE"}</div>
-          <span style={{fontSize:14,fontFamily:SR,fontWeight:400,color:C.t1,letterSpacing:.3}}>{NAV.find(n=>n.id===effectiveView)?.label||"Today"}</span>
+          <div style={{fontSize:8,fontFamily:M,color:C.t3,letterSpacing:1.3,lineHeight:1.3,textTransform:"uppercase"}}>{NAV.find(n=>n.id===effectiveView)?.group||"MODULE"}</div>
+          <span style={{display:"block",fontSize:14,fontFamily:SR,fontWeight:400,color:C.t1,letterSpacing:.3,lineHeight:1.3,marginTop:1}}>{NAV.find(n=>n.id===effectiveView)?.label||"Today"}</span>
         </div>
         {effectiveView==="onelegal" ? <div style={{flex:1,margin:"0 20px"}}/> : <CommandBar onNavigate={setView}/>}
         <div style={{display:"flex",alignItems:"center",gap:16,flexShrink:0}}>

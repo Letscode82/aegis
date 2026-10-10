@@ -76,6 +76,100 @@ export async function callAnthropicMessages(body, opts = {}) {
   return JSON.parse(text);
 }
 
+/**
+ * Stream a Claude completion token-by-token (server-side only).
+ *
+ * Sets `stream: true` on the Messages API call and parses the Anthropic SSE,
+ * invoking `opts.onText(delta)` for each text delta as it arrives and
+ * returning the full concatenated text when the stream ends. This is what
+ * lets a long review (deep skill review, document read) render progressively
+ * in the UI instead of being buffered into one response that can outrun the
+ * serverless function's time limit — the same pattern Harvey / Legora /
+ * ChatGPT use.
+ *
+ * Throws on a non-2xx open, a missing key, or an upstream `error` event, with
+ * `.status` / `.body` set so callers' friendlyAIError + degraded fallback
+ * behave the same as the buffered path. Honors `opts.signal` (AbortController)
+ * for a caller deadline / a user "Stop". Single attempt — no retry — because
+ * the buffered route stays as the degrade path.
+ *
+ * @param {object} body Messages API body ({ model, max_tokens, system, messages }).
+ * @param {{ signal?: AbortSignal, onText?: (text: string) => void }} [opts]
+ * @returns {Promise<string>} the full text.
+ */
+export async function streamAnthropicMessages(body, opts = {}) {
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    console.error("[@aegis/ai/server] ANTHROPIC_API_KEY is not set");
+    const e = new Error("AI service not configured");
+    e.status = 500;
+    e.body = "ANTHROPIC_API_KEY not configured";
+    throw e;
+  }
+  const resp = await fetch(ANTHROPIC_URL, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({ ...body, stream: true }),
+    signal: opts.signal,
+  });
+  if (!resp.ok || !resp.body) {
+    const text = await resp.text().catch(() => "");
+    console.error(`[@aegis/ai/server] Claude stream ${resp.status}: ${text.slice(0, 300)}`);
+    const e = new Error(`Claude API ${resp.status}: ${text.slice(0, 200)}`);
+    e.status = resp.status;
+    e.body = text;
+    throw e;
+  }
+
+  const reader = resp.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  let full = "";
+  // Parse the SSE frames: events are separated by a blank line; within an
+  // event the `data:` line(s) carry the JSON. We only care about
+  // `content_block_delta` text deltas; an `error` event aborts.
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let sep;
+    while ((sep = buf.indexOf("\n\n")) !== -1) {
+      const frame = buf.slice(0, sep);
+      buf = buf.slice(sep + 2);
+      const dataStr = frame
+        .split("\n")
+        .filter((l) => l.startsWith("data:"))
+        .map((l) => l.slice(5).trim())
+        .join("\n");
+      if (!dataStr || dataStr === "[DONE]") continue;
+      let evt;
+      try {
+        evt = JSON.parse(dataStr);
+      } catch {
+        continue; // partial / non-JSON keep-alive frame
+      }
+      if (evt.type === "content_block_delta" && evt.delta && evt.delta.type === "text_delta") {
+        const t = evt.delta.text || "";
+        if (t) {
+          full += t;
+          if (opts.onText) opts.onText(t);
+        }
+      } else if (evt.type === "error") {
+        const msg = (evt.error && (evt.error.message || evt.error.type)) || "stream error";
+        console.error(`[@aegis/ai/server] Claude stream error: ${msg}`);
+        const e = new Error(msg);
+        e.status = (evt.error && evt.error.status) || 502;
+        throw e;
+      }
+    }
+  }
+  return full;
+}
+
 let _installed = false;
 /** Idempotently route @aegis/ai's callClaude through the direct
  * Anthropic transport for this process. */
