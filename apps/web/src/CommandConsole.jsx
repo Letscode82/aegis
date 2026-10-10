@@ -1104,6 +1104,12 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   const [me, setMe] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [history, setHistory] = useState([]);
+  // OL-6: a document the user attached but has NOT run yet. Attaching only
+  // *stages* the file (upload + index); nothing executes until the user submits
+  // with Enter / Route (optionally after typing a question). `staging` is the
+  // upload-in-flight flag.
+  const [stagedDoc, setStagedDoc] = useState(null);
+  const [staging, setStaging] = useState(false);
   const scrollRef = useRef(null);
   const startedRef = useRef(false);
   const inputRef = useRef(null);
@@ -1334,10 +1340,13 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   // B2 — upload a document, then deep-read it. The file is extracted +
   // persisted + indexed server-side; the analysis is a single-document read.
   // The uploaded doc also becomes citable by later questions in the console.
-  const uploadAndAnalyze = useCallback(async (file) => {
+  // OL-6: stage a document — upload + index only, NO analysis. The staged
+  // file sits by the composer until the user explicitly submits (Enter/Route),
+  // optionally after typing a question or picking a skill.
+  const uploadDocument = useCallback(async (file) => {
     if (!file) return;
-    const id = ++TURN_SEQ;
-    setTurns((ts) => [...ts, { id, kind: "analyze", request: `Analyze ${file.name}`, fileName: file.name, uploading: true, analyzeLoading: false, analysis: null, documentId: null, chars: 0, error: null }]);
+    setStaging(true);
+    setStagedDoc(null);
     try {
       const contentBase64 = await new Promise((resolve, reject) => {
         const r = new FileReader();
@@ -1350,19 +1359,32 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filename: file.name, mimeType: file.type, contentBase64, sessionId }),
       }).then((r) => r.json()).catch(() => ({}));
-      if (!up || !up.ok) { patchTurn(id, { uploading: false, error: (up && up.error) || "Upload failed." }); return; }
-      patchTurn(id, { uploading: false, analyzeLoading: true, documentId: up.documentId, chars: up.charCount || 0 });
-      const an = await fetch("/api/one-legal/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId: up.documentId }),
-      }).then((r) => r.json()).catch(() => ({}));
+      setStaging(false);
+      if (!up || !up.ok) { setStagedDoc({ fileName: file.name, error: (up && up.error) || "Upload failed." }); return; }
+      setStagedDoc({ documentId: up.documentId, fileName: file.name, chars: up.charCount || 0 });
+      setTimeout(() => inputRef.current?.focus(), 30);
+    } catch {
+      setStaging(false);
+      setStagedDoc({ fileName: file.name, error: "Could not read that file." });
+    }
+  }, [sessionId]);
+
+  // OL-6: run the quick analysis on an already-staged (uploaded) document, with
+  // an optional typed question. Fired from the composer submit, never on attach.
+  const analyzeStaged = useCallback((doc, question) => {
+    if (!doc || !doc.documentId) return;
+    const id = ++TURN_SEQ;
+    const q = String(question || "").trim();
+    setTurns((ts) => [...ts, { id, kind: "analyze", request: q ? `${q} — ${doc.fileName}` : `Analyze ${doc.fileName}`, fileName: doc.fileName, uploading: false, analyzeLoading: true, analysis: null, documentId: doc.documentId, chars: doc.chars || 0, error: null }]);
+    fetch("/api/one-legal/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentId: doc.documentId, question: q || undefined }),
+    }).then((r) => r.json()).then((an) => {
       if (an && an.ok) patchTurn(id, { analyzeLoading: false, analysis: (an.answer || "").trim(), degraded: !!an.degraded });
       else patchTurn(id, { analyzeLoading: false, error: (an && an.error) || "Analysis failed." });
-    } catch (e) {
-      patchTurn(id, { uploading: false, analyzeLoading: false, error: friendlyAIError(e) });
-    }
-  }, [patchTurn, sessionId]);
+    }).catch((e) => patchTurn(id, { analyzeLoading: false, error: friendlyAIError(e) }));
+  }, [patchTurn]);
 
   // A1 — run the research agent loop (multi-step, read-only) over the org's
   // documents and render the trace + cited answer. Never mutates anything.
@@ -1587,6 +1609,17 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   // exactly as before.
   const submitComposer = useCallback((text) => {
     const t = (text ?? input).trim();
+    // OL-6: if a document is staged, the submit runs it — quick analysis over
+    // the staged doc, answering the typed question when one was given. This is
+    // the single explicit trigger; attaching never ran anything on its own.
+    const doc = stagedDoc && stagedDoc.documentId ? stagedDoc : null;
+    if (doc) {
+      setStagedDoc(null);
+      setInput("");
+      pendingSkillRef.current = null;
+      analyzeStaged(doc, t);
+      return;
+    }
     if (t.length < 3) return;
     const sk = pendingSkillRef.current;
     if (sk) {
@@ -1608,7 +1641,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       pendingSkillRef.current = null; // user replaced the prompt — treat as typed input
     }
     startTurn(t);
-  }, [input, startArtifact, startResearch, runSkillReview, startTurn]);
+  }, [input, stagedDoc, analyzeStaged, startArtifact, startResearch, runSkillReview, startTurn]);
 
   // OL-6 — start a governance ladder (a GOVERNANCE_LIBRARY skill) from the
   // console. POSTs to the governed /run-ladder route, which begins a tracked
@@ -1785,26 +1818,48 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   const busy = turns.some((t) => t.kind === "ask" ? t.answerLoading : (t.kind === "research" || t.kind === "legal-research") ? t.researchLoading : t.kind === "skill-review" ? t.reviewLoading : t.kind === "artifact" ? (t.draftLoading || t.saving) : t.kind === "analyze" ? (t.uploading || t.analyzeLoading) : t.kind === "compound" ? t.tasks.some((tk) => tk.state === "running") : (!t.result && !t.error));
   const firstName = (me?.name || "").trim().split(/\s+/)[0] || "";
 
+  // OL-6: submit is allowed when there's a typed request OR a staged document
+  // waiting to be run. Attaching alone never submits.
+  const hasStagedDoc = !!(stagedDoc && stagedDoc.documentId);
+  const canSubmit = input.trim().length >= 3 || hasStagedDoc;
   const composer = (big) => (
-    <div style={{ display: "flex", gap: 8, alignItems: "center", background: C.cd, border: `1px solid ${C.brL}`, borderRadius: 12, padding: big ? "6px 6px 6px 16px" : "5px 5px 5px 14px", boxShadow: big ? "0 2px 14px rgba(16,24,40,.06)" : "none" }}>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".txt,.md,.markdown,.docx,.pdf,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        style={{ display: "none" }}
-        onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) uploadAndAnalyze(f); e.target.value = ""; }}
-      />
-      <button type="button" onClick={() => fileInputRef.current?.click()} aria-label="Attach a document to analyze" title="Attach a document (.txt, .md, .docx, .pdf)" style={{ background: "transparent", border: "none", color: C.t3, fontSize: 16, cursor: "pointer", padding: "4px 2px", flexShrink: 0, lineHeight: 1 }}>📎</button>
-      <input
-        ref={inputRef}
-        value={input}
-        onChange={(e) => { const v = e.target.value; if (pendingSkillRef.current && !v.startsWith(pendingSkillRef.current.prompt)) pendingSkillRef.current = null; setInput(v); }}
-        onKeyDown={(e) => { if (e.key === "Enter" && input.trim().length >= 3) submitComposer(input); }}
-        placeholder={turns.length === 0 ? "Describe a request, ask a question, or attach a document…" : "Ask, file a request, or attach a document…"}
-        aria-label="Ask OneLegal or file a legal request"
-        style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: C.t1, fontFamily: F, fontSize: big ? 15 : 13, padding: "8px 0" }}
-      />
-      <button type="button" onClick={() => { if (input.trim().length >= 3) submitComposer(input); }} disabled={input.trim().length < 3} style={{ ...primaryBtn, opacity: input.trim().length < 3 ? 0.5 : 1, flexShrink: 0 }}>Route ⏎</button>
+    <div>
+      {/* OL-6: staged-document chip — the file is uploaded but nothing runs
+          until the user submits. */}
+      {(staging || stagedDoc) && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, padding: "6px 10px", background: C.cd, border: `1px solid ${stagedDoc && stagedDoc.error ? C.rd + "55" : C.brL}`, borderRadius: 10, fontSize: 12 }}>
+          <span aria-hidden="true" style={{ flexShrink: 0 }}>📎</span>
+          <span style={{ minWidth: 0, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: C.t2 }}>
+            <strong style={{ color: C.t1 }}>{(staging ? null : stagedDoc?.fileName) || (staging ? "Uploading…" : "Document")}</strong>
+            {staging ? <span style={{ color: C.t3 }}> uploading…</span>
+              : stagedDoc?.error ? <span style={{ color: C.rd }}> — {stagedDoc.error}</span>
+              : <span style={{ color: C.t3 }}> ready — type a question or just hit Route to analyze it.</span>}
+          </span>
+          {!staging && (
+            <button type="button" onClick={() => setStagedDoc(null)} aria-label="Remove attached document" title="Remove" style={{ background: "transparent", border: "none", color: C.t3, cursor: "pointer", fontSize: 13, flexShrink: 0, lineHeight: 1 }}>✕</button>
+          )}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 8, alignItems: "center", background: C.cd, border: `1px solid ${C.brL}`, borderRadius: 12, padding: big ? "6px 6px 6px 16px" : "5px 5px 5px 14px", boxShadow: big ? "0 2px 14px rgba(16,24,40,.06)" : "none" }}>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".txt,.md,.markdown,.docx,.pdf,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          style={{ display: "none" }}
+          onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) uploadDocument(f); e.target.value = ""; }}
+        />
+        <button type="button" onClick={() => fileInputRef.current?.click()} aria-label="Attach a document" title="Attach a document (.txt, .md, .docx, .pdf) — nothing runs until you hit Route" style={{ background: "transparent", border: "none", color: C.t3, fontSize: 16, cursor: "pointer", padding: "4px 2px", flexShrink: 0, lineHeight: 1 }}>📎</button>
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={(e) => { const v = e.target.value; if (pendingSkillRef.current && !v.startsWith(pendingSkillRef.current.prompt)) pendingSkillRef.current = null; setInput(v); }}
+          onKeyDown={(e) => { if (e.key === "Enter" && canSubmit) submitComposer(input); }}
+          placeholder={hasStagedDoc ? "Ask something about this document, or hit Route to analyze it…" : turns.length === 0 ? "Describe a request, ask a question, or attach a document…" : "Ask, file a request, or attach a document…"}
+          aria-label="Ask OneLegal or file a legal request"
+          style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: C.t1, fontFamily: F, fontSize: big ? 15 : 13, padding: "8px 0" }}
+        />
+        <button type="button" onClick={() => { if (canSubmit) submitComposer(input); }} disabled={!canSubmit} style={{ ...primaryBtn, opacity: canSubmit ? 1 : 0.5, flexShrink: 0 }}>Route ⏎</button>
+      </div>
     </div>
   );
 
