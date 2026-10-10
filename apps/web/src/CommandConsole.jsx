@@ -1319,6 +1319,11 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   // The in-flight deep-review stream's AbortController, so the Stop button can
   // end it and keep whatever has streamed so far.
   const reviewAbortRef = useRef(null);
+  // The document the conversation is currently centred on (the last one the
+  // user uploaded). A follow-up question ("what are the two findings") carries
+  // this id so /ask grounds on the WHOLE document, not a keyword sliver of it —
+  // and so re-uploads of the same file don't fan out into duplicate excerpts.
+  const activeDocRef = useRef(null);
 
   const isOpen = embedded || open;
   const wide = useWide(1080);
@@ -1490,7 +1495,9 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       const resp = await fetch("/api/one-legal/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text }),
+        // Pass the conversation's active document so the server grounds the
+        // answer on its full text rather than a keyword excerpt.
+        body: JSON.stringify({ text, documentId: activeDocRef.current?.documentId || undefined }),
       });
       const data = await resp.json().catch(() => ({}));
       if (data && data.ok && (data.answer || "").trim()) {
@@ -1561,6 +1568,9 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       setStaging(false);
       if (!up || !up.ok) { setStagedDoc({ fileName: file.name, error: (up && up.error) || "Upload failed." }); return; }
       setStagedDoc({ documentId: up.documentId, fileName: file.name, chars: up.charCount || 0 });
+      // Remember it as the conversation's active document so later follow-ups
+      // ground on its full text (survives analyze → deep-review → follow-up).
+      activeDocRef.current = { documentId: up.documentId, name: file.name };
       setTimeout(() => inputRef.current?.focus(), 30);
     } catch {
       setStaging(false);
@@ -1975,6 +1985,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     setInput("");
     setStagedDoc(null);
     pendingSkillRef.current = null;
+    activeDocRef.current = null;
     setTimeout(() => inputRef.current?.focus(), 0);
   }, []);
 
