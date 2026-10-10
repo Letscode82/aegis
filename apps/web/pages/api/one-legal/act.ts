@@ -48,7 +48,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       label: result.label,
       navigate: result.navigate,
       argsSummary: result.argsSummary,
-      requestNumber: result.requestNumber,
     });
   } catch (err) {
     if (err instanceof AccessDeniedError) return res.status(403).json({ ok: false, error: err.decision.message });
