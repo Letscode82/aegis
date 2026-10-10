@@ -84,17 +84,29 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       includeReferences: true,
       matter: { requestedBy: user.name || null, organizationId: user.organizationId },
     });
-    const userMsg = (docs.length ? wrapDocuments(docs) + "\n\n" : "") + `Task: ${text}\n\nReturn format: json`;
+    // Keep the review complete but BOUNDED. An unbounded playbook review on
+    // sonnet can generate past the serverless function's time limit — which
+    // surfaced as both a mid-sentence cut-off (token cap) and a hard timeout
+    // (the generation outran the 60s maxDuration). Directing a tight, ranked
+    // deviation list keeps the whole review inside the budget.
+    const outputGuide =
+      "Produce a COMPLETE but CONCISE review: a 2-3 sentence summary, then the material findings as a tight list — " +
+      "for each: the clause, its severity, the issue in one line, and a one-line recommendation. Highest-severity first. " +
+      "Do not repeat the document back or pad; finish the whole review within the list.";
+    const userMsg =
+      (docs.length ? wrapDocuments(docs) + "\n\n" : "") + `Task: ${text}\n\n${outputGuide}\n\nReturn format: json`;
 
     let answer = "";
     let degraded = false;
     let aiError: string | null = null;
     try {
       ensureServerClaudeTransport();
-      // A full clause-by-clause playbook review runs long — 1500 output tokens
-      // truncated the result mid-sentence. Give it room to finish; the 45s
-      // timeout still fits under the route's 60s maxDuration.
-      answer = ((await callClaude(userMsg, { system, maxTokens: 4000, timeout: 45000 })) || "").trim();
+      // Cap output at 2800 tokens so the model can never try to generate a
+      // response longer than the ~60s function window allows (which was timing
+      // the request out). 2800 is well past what a ranked deviation review
+      // needs, so it finishes rather than truncates. The 55s timeout gives the
+      // model the full window and still aborts cleanly just under maxDuration.
+      answer = ((await callClaude(userMsg, { system, maxTokens: 2800, timeout: 55000 })) || "").trim();
       if (!answer) throw new Error("empty response from model");
     } catch (e) {
       degraded = true;

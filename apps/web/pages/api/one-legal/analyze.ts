@@ -73,7 +73,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         "You are OneLegal, an in-house legal-operations assistant for a corporate General Counsel team. " +
         "Analyze ONLY the provided document. Be concrete and cite exact language where useful. Do not invent facts, " +
         "names, or numbers not present in the text. This is not definitive legal advice; note when a qualified lawyer should review.";
-      answer = ((await callClaude(`Document: ${doc.name}\n\n${context}\n\n---\nTask: ${task}`, { system, maxTokens: 900, timeout: 25000 })) || "").trim();
+      // 900 tokens truncated a full document read (e.g. an NDA deviation review)
+      // mid-sentence. 2500 lets the read finish; the 45s timeout stays under the
+      // route's 60s maxDuration.
+      answer = ((await callClaude(`Document: ${doc.name}\n\n${context}\n\n---\nTask: ${task}`, { system, maxTokens: 2500, timeout: 45000 })) || "").trim();
       if (!answer) throw new Error("empty");
     } catch {
       degraded = true;
