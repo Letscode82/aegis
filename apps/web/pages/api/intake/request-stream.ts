@@ -21,6 +21,7 @@ import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
 import { classifyIntakeRegex, classifyIntakeLaya } from "@aegis/ai";
 import { intakeStorageSet } from "@aegis/intake/server";
+import { assignRequestNumber } from "@aegis/db";
 
 const TICKETS_KEY = "aegis:tickets:v1";
 
@@ -102,7 +103,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // audit fire inside this call).
     send({ type: "step", key: "file", state: "active" });
     const now = new Date();
-    const id = "REQ-" + (5000 + Math.floor(Math.random() * 4999));
+    // Sequential per-org REQ number (reserved atomically, collision-free),
+    // persisted immediately by this id through the chokepoint upsert — the
+    // sanctioned standalone-reservation pattern (replaces the old random id).
+    const id = await assignRequestNumber(user.organizationId);
     const ticket = {
       id,
       _source: "copilot",
