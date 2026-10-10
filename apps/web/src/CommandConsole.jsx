@@ -406,9 +406,6 @@ function CompoundCard({ turn, onOpenTicket, onOpenCockpit, onFollowUp, onApprove
               <div style={{ marginTop: 10, border: `1px solid ${C.br}`, borderRadius: 10, background: C.bg, padding: 12, display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                 <span style={{ fontSize: 13, fontFamily: SR }}>Created {task.toolResult.resourceLabel}</span>
                 <span style={{ fontSize: 9, fontFamily: M, color: C.gn, border: `1px solid ${C.gn}`, borderRadius: 4, padding: "1px 7px", letterSpacing: 0.5, textTransform: "uppercase" }}>{task.toolResult.label}</span>
-                {task.toolResult.requestNumber && (
-                  <button type="button" onClick={() => onOpenTicket(task.toolResult.requestNumber)} title="Tracked in intake" style={{ ...ghostBtn, fontFamily: M, fontSize: 11 }}>{task.toolResult.requestNumber} ↗</button>
-                )}
                 <button type="button" onClick={() => onOpenNav(task.toolResult.navigate)} style={{ ...primaryBtn, marginLeft: "auto" }}>Open →</button>
               </div>
             )}
