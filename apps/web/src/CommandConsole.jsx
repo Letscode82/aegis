@@ -666,8 +666,11 @@ function riskTierBadge(tier) {
   const label = tier === "review-required" ? "review required" : tier.replace(/-/g, " ");
   return { col, label };
 }
-function SkillReviewCard({ turn, onFollowUp, onFileInstead }) {
-  if (turn.reviewLoading) {
+function SkillReviewCard({ turn, onFollowUp, onFileInstead, onStop }) {
+  // Only the pre-stream "matching" phase shows the bare orb. Once a playbook is
+  // matched or text starts streaming, we render the card so the answer appears
+  // progressively underneath it.
+  if (turn.reviewLoading && !turn.matched && !turn.answer) {
     return (
       <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16, display: "flex", alignItems: "center", gap: 10, color: C.t3, fontFamily: M, fontSize: 12 }}>
         <ConsoleOrb state="solving" />
@@ -699,15 +702,35 @@ function SkillReviewCard({ turn, onFollowUp, onFileInstead }) {
           {turn.note && !turn.answer && (
             <div style={{ fontSize: 12.5, color: C.t3, lineHeight: 1.6 }}>{turn.note}</div>
           )}
+          {/* Still routing but matched already shown — waiting on first token. */}
+          {turn.reviewLoading && !turn.answer && !turn.note && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, color: C.t3, fontFamily: M, fontSize: 12 }}>
+              <ConsoleOrb state="solving" />
+              Reviewing…
+            </div>
+          )}
           {turn.answer && (
             <Markdown text={turn.answer} />
+          )}
+          {/* Live writing indicator + Stop while the answer streams in. */}
+          {turn.streaming && (
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+              <span style={{ fontSize: 10.5, fontFamily: M, color: C.t4, letterSpacing: 0.3, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                <span aria-hidden="true" style={{ width: 7, height: 7, borderRadius: "50%", background: C.em, display: "inline-block", animation: "ccPulse 1s ease-in-out infinite" }} />
+                Writing…
+              </span>
+              {onStop && <button type="button" onClick={onStop} style={{ ...chipBtn, padding: "4px 10px" }}>■ Stop</button>}
+            </div>
+          )}
+          {turn.stopped && !turn.streaming && (
+            <div style={{ marginTop: 8, fontSize: 10.5, fontFamily: M, color: C.t4 }}>Stopped — showing what was written.</div>
           )}
           {turn.degraded && (
             <div style={{ marginTop: 10, color: C.am, fontFamily: M, fontSize: 11, background: C.s1, border: `1px solid ${C.br}`, borderRadius: 8, padding: "7px 10px" }}>
               ⚠ {turn.aiError || "The model couldn’t run this review just now"} — matched the right playbook; retry or open it to run manually.
             </div>
           )}
-          {turn.answer && !turn.degraded && (
+          {turn.answer && !turn.degraded && !turn.streaming && (
             <div style={{ marginTop: 12, fontSize: 10.5, fontFamily: M, color: C.t4, letterSpacing: 0.2, lineHeight: 1.5 }}>
               Draft output — a qualified lawyer should review before anything is sent or relied on.
             </div>
@@ -1040,8 +1063,8 @@ function WorkspaceRail({ turns, onOpenTicket, onNavigate, history, onRunSkill, o
       { label: last.analyzeLoading ? "Analyzing" : last.error ? "Analysis" : "Analyzed", state: last.uploading ? "pending" : last.analyzeLoading ? "active" : last.error ? "error" : "done" },
     ];
     if (last.kind === "skill-review") return [
-      { label: last.reviewLoading ? "Matching a playbook" : "Matched a playbook", state: last.reviewLoading ? "active" : last.error ? "error" : "done" },
-      { label: last.reviewLoading ? "Running the review" : last.error ? "Review" : "Reviewed", state: last.reviewLoading ? "pending" : last.error ? "error" : "done" },
+      { label: last.reviewLoading && !last.matched ? "Matching a playbook" : "Matched a playbook", state: last.reviewLoading && !last.matched ? "active" : last.error ? "error" : "done" },
+      { label: last.reviewLoading || last.streaming ? "Running the review" : last.error ? "Review" : "Reviewed", state: last.reviewLoading || last.streaming ? "active" : last.error ? "error" : "done" },
     ];
     if (last.kind === "ladder") return [
       { label: last.ladderLoading ? "Starting the governance ladder" : last.error ? "Start" : "Ladder started", state: last.ladderLoading ? "active" : last.error ? "error" : "done" },
@@ -1235,6 +1258,9 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   // (draft canvas / governed playbook incl. its pinned reviewSkillId / router)
   // instead of being re-classified by intake triage.
   const pendingSkillRef = useRef(null);
+  // The in-flight deep-review stream's AbortController, so the Stop button can
+  // end it and keep whatever has streamed so far.
+  const reviewAbortRef = useRef(null);
 
   const isOpen = embedded || open;
   const wide = useWide(1080);
@@ -1569,8 +1595,11 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   // @aegis/ai proxy). Read-only: files nothing, gates nothing — the output is a
   // draft. Degrade-safe: on model-offline the endpoint still returns the matched
   // playbook so the user sees the routing.
-  const runSkillReviewTurn = useCallback(async (turnId, text, opts) => {
-    patchTurn(turnId, { reviewLoading: true, error: null });
+  // Buffered fallback: the original one-shot /skill-review call. Used when the
+  // streaming endpoint is unavailable (old deploy, proxy, no SSE) so the review
+  // still lands.
+  const runBufferedSkillReview = useCallback(async (turnId, text, opts) => {
+    patchTurn(turnId, { reviewLoading: true, streaming: false, error: null });
     try {
       const resp = await fetch("/api/one-legal/skill-review", {
         method: "POST",
@@ -1587,6 +1616,97 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       patchTurn(turnId, { reviewLoading: false, error: friendlyAIError(e) });
     }
   }, [patchTurn]);
+
+  // Streamed deep review (Harvey/Legora pattern): the answer renders
+  // token-by-token off /skill-review-stream, so a long review never "times
+  // out" and is never truncated. Degrades to the buffered route if the stream
+  // can't open. The Stop button aborts and keeps what streamed.
+  const runSkillReviewTurn = useCallback(async (turnId, text, opts) => {
+    patchTurn(turnId, { reviewLoading: true, streaming: false, stopped: false, answer: "", error: null, aiError: null, degraded: false, note: null });
+    const ctrl = new AbortController();
+    reviewAbortRef.current = ctrl;
+    try {
+      const resp = await fetch("/api/one-legal/skill-review-stream", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+        body: JSON.stringify({ text, jurisdiction: opts?.jurisdiction, documents: opts?.documents, skillId: opts?.skillId }),
+        signal: ctrl.signal,
+      });
+      const ctype = resp.headers.get("content-type") || "";
+      // Streaming unavailable (non-SSE response) → fall through to buffered.
+      if (!resp.ok || !resp.body || !ctype.includes("text/event-stream")) {
+        // A JSON body here is the pre-stream path (no match / validation /
+        // auth). Honour it rather than re-running.
+        const d = ctype.includes("application/json") ? await resp.json().catch(() => null) : null;
+        if (d && d.ok) {
+          patchTurn(turnId, { reviewLoading: false, matched: d.matched || null, answer: (d.answer || "").trim(), degraded: !!d.degraded, note: d.note || null, aiError: d.aiError || null });
+          return;
+        }
+        throw new Error("stream-unavailable");
+      }
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+      let buf = "";
+      let acc = "";
+      let matched = null;
+      let degraded = false;
+      let aiError = null;
+      let note = null;
+      let lastFlush = 0;
+      const flush = (force) => {
+        const now = Date.now();
+        if (force || now - lastFlush > 60) {
+          lastFlush = now;
+          patchTurn(turnId, { answer: acc, reviewLoading: false, streaming: true });
+        }
+      };
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buf += decoder.decode(value, { stream: true });
+        let sep;
+        while ((sep = buf.indexOf("\n\n")) !== -1) {
+          const frame = buf.slice(0, sep);
+          buf = buf.slice(sep + 2);
+          const dataStr = frame.split("\n").filter((l) => l.startsWith("data:")).map((l) => l.slice(5).trim()).join("\n");
+          if (!dataStr) continue;
+          let f;
+          try { f = JSON.parse(dataStr); } catch { continue; }
+          if (f.type === "matched") { matched = f.matched; patchTurn(turnId, { matched: f.matched }); }
+          else if (f.type === "delta") { acc += f.text || ""; flush(false); }
+          else if (f.type === "note") { note = f.note; matched = f.matched || matched; }
+          else if (f.type === "done") { degraded = !!f.degraded; aiError = f.aiError || null; }
+          else if (f.type === "error") { throw new Error(f.error || "stream error"); }
+        }
+      }
+      // Stream closed. If nothing streamed and it degraded, show the same
+      // degraded message the buffered route returns.
+      if (!acc && degraded) {
+        const title = matched?.title || "the matched";
+        patchTurn(turnId, {
+          reviewLoading: false, streaming: false, matched, degraded: true, aiError, note,
+          answer: `Matched the "${title}" playbook${matched ? ` (${matched.module})` : ""}. ${aiError || "The model couldn’t run this review just now."} You can retry, or open the skill to run it manually. A qualified lawyer should review before anything is sent.`.trim(),
+        });
+      } else {
+        patchTurn(turnId, { reviewLoading: false, streaming: false, matched, degraded, aiError, note, answer: acc });
+      }
+    } catch {
+      if (ctrl.signal.aborted) {
+        // User hit Stop — keep whatever streamed; mark it stopped.
+        patchTurn(turnId, { reviewLoading: false, streaming: false, stopped: true });
+        return;
+      }
+      // Stream failed to open or mid-stream before any text → buffered fallback.
+      await runBufferedSkillReview(turnId, text, opts);
+    } finally {
+      if (reviewAbortRef.current === ctrl) reviewAbortRef.current = null;
+    }
+  }, [patchTurn, runBufferedSkillReview]);
+
+  // Stop an in-flight streamed review (keeps the text already rendered).
+  const stopReview = useCallback(() => {
+    reviewAbortRef.current?.abort();
+  }, []);
 
   const runSkillReview = useCallback((text, opts) => {
     const t = (text || "").trim();
@@ -1851,7 +1971,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       } else if (t.kind === "research") {
         if (!t.researchLoading && (t.answer || t.error)) rec(`r-${t.id}`, { title: t.request.slice(0, 80), request: t.request, kind: "ask", status: t.error ? "error" : "done", answer: t.answer || "" });
       } else if (t.kind === "skill-review") {
-        if (!t.reviewLoading && (t.answer || t.matched || t.error)) rec(`sr-${t.id}`, { title: (t.matched?.title || t.request).slice(0, 80), request: t.request, kind: "ask", status: t.error ? "error" : "done", answer: t.answer || "" });
+        if (!t.reviewLoading && !t.streaming && (t.answer || t.matched || t.error)) rec(`sr-${t.id}`, { title: (t.matched?.title || t.request).slice(0, 80), request: t.request, kind: "ask", status: t.error ? "error" : "done", answer: t.answer || "" });
       } else if (t.kind === "file") {
         if (t.result || t.error) rec(`f-${t.id}`, { title: t.result?.ticketId || t.request.slice(0, 60), request: t.request, kind: "file", status: t.error ? "error" : "done", resourceType: "IntakeTicket", resourceId: t.result?.ticketId, resourceLabel: t.result?.ticketId, navigate: "intake", error: t.error });
       } else if (t.kind === "analyze") {
@@ -1940,7 +2060,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
 
   if (!isOpen) return null;
 
-  const busy = turns.some((t) => t.kind === "ask" ? t.answerLoading : (t.kind === "research" || t.kind === "legal-research") ? t.researchLoading : t.kind === "skill-review" ? t.reviewLoading : t.kind === "artifact" ? (t.draftLoading || t.saving) : t.kind === "analyze" ? (t.uploading || t.analyzeLoading) : t.kind === "compound" ? t.tasks.some((tk) => tk.state === "running") : (!t.result && !t.error));
+  const busy = turns.some((t) => t.kind === "ask" ? t.answerLoading : (t.kind === "research" || t.kind === "legal-research") ? t.researchLoading : t.kind === "skill-review" ? (t.reviewLoading || t.streaming) : t.kind === "artifact" ? (t.draftLoading || t.saving) : t.kind === "analyze" ? (t.uploading || t.analyzeLoading) : t.kind === "compound" ? t.tasks.some((tk) => tk.state === "running") : (!t.result && !t.error));
   const firstName = (me?.name || "").trim().split(/\s+/)[0] || "";
 
   // OL-6: submit is allowed when there's a typed request OR a staged document
@@ -1994,7 +2114,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
 
   return (
     <div style={shell}>
-      <style>{`@keyframes ccIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}@keyframes ccBar{0%{left:-40%}100%{left:100%}}`}</style>
+      <style>{`@keyframes ccIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}@keyframes ccBar{0%{left:-40%}100%{left:100%}}@keyframes ccPulse{0%,100%{opacity:1}50%{opacity:.3}}`}</style>
 
       {/* Activity bar */}
       <div style={{ height: 2, background: "transparent", position: "relative", overflow: "hidden", flexShrink: 0 }}>
@@ -2097,7 +2217,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
                       ) : t.kind === "analyze" ? (
                         <AnalyzeCard turn={t} onFollowUp={focusComposer} onFileInstead={fileRequest} onDeepReview={runSkillReview} />
                       ) : t.kind === "skill-review" ? (
-                        <SkillReviewCard turn={t} onFollowUp={focusComposer} onFileInstead={fileRequest} />
+                        <SkillReviewCard turn={t} onFollowUp={focusComposer} onFileInstead={fileRequest} onStop={stopReview} />
                       ) : t.kind === "ladder" ? (
                         <LadderCard turn={t} />
                       ) : t.kind === "compound" ? (
