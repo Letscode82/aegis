@@ -172,6 +172,7 @@ export interface ThinkingOrbProps {
   theme?: OrbTheme;
   speed?: number;
   paused?: boolean;
+  ink?: string;
   className?: string;
   style?: CSSProperties;
   "aria-label"?: string;

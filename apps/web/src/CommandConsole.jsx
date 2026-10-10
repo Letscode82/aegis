@@ -9,7 +9,7 @@ import { SKILLS, SKILL_CATEGORIES, resolveSkillTarget } from "../lib/one-legal/s
 // Each AI working state maps to the orb animation that reads it best.
 function ConsoleOrb({ state = "working", size = 20 }) {
   const { theme } = useTheme();
-  return <ThinkingOrb state={state} size={size} theme={theme === "dark" ? "dark" : "light"} />;
+  return <ThinkingOrb state={state} size={size} theme={theme === "dark" ? "dark" : "light"} ink={C.em} />;
 }
 
 // Command Console (WS-1, agentic) — "ONE Legal", the full-page front door,

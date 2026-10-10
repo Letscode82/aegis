@@ -130,18 +130,22 @@ export default function App(){
     <div style={narrow
       ? {width:248,background:C.s1,borderRight:`1px solid ${C.br}`,display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,bottom:0,zIndex:50,transform:mobileOpen?"translateX(0)":"translateX(-100%)",transition:"transform .2s ease",boxShadow:mobileOpen?"4px 0 24px rgba(0,0,0,.18)":"none"}
       : {width:rail?64:220,background:C.s1,borderRight:`1px solid ${C.br}`,display:"flex",flexDirection:"column",flexShrink:0,transition:"width .16s ease"}}>
-      <div style={{padding:rail?"16px 0 12px":"16px 16px 12px",borderBottom:`1px solid ${C.br}`,display:"flex",alignItems:"center",justifyContent:rail?"center":"space-between",gap:8}}>
+      <div style={{padding:rail?"14px 0 12px":"16px 16px 12px",borderBottom:`1px solid ${C.br}`,display:"flex",flexDirection:rail?"column":"row",alignItems:"center",justifyContent:rail?"center":"space-between",gap:rail?10:8}}>
         <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
-          <div style={{width:30,height:30,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",background:C.em,fontSize:13,fontWeight:600,letterSpacing:1,color:C.bg,fontFamily:SR}}>OL</div>
+          <div style={{width:30,height:30,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",background:C.em,fontSize:13,fontWeight:600,letterSpacing:1,color:"#fff",fontFamily:SR}}>OL</div>
           {showLabels && <div style={{minWidth:0}}>
             <div style={{fontSize:14,fontFamily:SR,fontWeight:400,letterSpacing:1,color:C.t1}}>OneLegal<span style={{color:C.em,fontStyle:"italic"}}></span></div>
             <div style={{fontSize:8,letterSpacing:2,color:C.t3,textTransform:"uppercase",fontFamily:M,marginTop:1,whiteSpace:"nowrap"}}>{isIntakeOnly?"Legal Intake":"Legal Mission Control"}</div>
           </div>}
         </div>
-        {/* Drawer close (phone) / collapse toggle (desktop) */}
-        {showLabels && (narrow
-          ? <button type="button" onClick={()=>setMobileOpen(false)} aria-label="Close menu" style={navBtnStyle}>✕</button>
-          : <button type="button" onClick={toggleCollapsed} aria-label="Collapse sidebar" title="Collapse sidebar" style={navBtnStyle}>«</button>)}
+        {/* Toggle — always visible: ✕ closes the phone drawer, « collapses to
+            the rail, » expands the rail back (the top position means the
+            expand control is never scrolled out of reach). */}
+        <button type="button"
+          onClick={narrow?()=>setMobileOpen(false):toggleCollapsed}
+          aria-label={narrow?"Close menu":rail?"Expand sidebar":"Collapse sidebar"}
+          title={narrow?"Close menu":rail?"Expand sidebar":"Collapse sidebar"}
+          style={navBtnStyle}>{narrow?"✕":rail?"»":"«"}</button>
       </div>
       <div style={{padding:rail?"8px 0":"8px 6px",flex:1,overflowY:"auto"}}>
         {(() => {
@@ -169,9 +173,7 @@ export default function App(){
         })()}
       </div>
       {rail
-        ? <div style={{padding:"12px 0",borderTop:`1px solid ${C.br}`,display:"flex",justifyContent:"center"}}>
-            <button type="button" onClick={toggleCollapsed} aria-label="Expand sidebar" title="Expand sidebar" style={navBtnStyle}>»</button>
-          </div>
+        ? <div style={{padding:"12px 0",borderTop:`1px solid ${C.br}`,display:"flex",justifyContent:"center"}}><Dot c={C.em} p/></div>
         : <div style={{padding:"12px 14px",borderTop:`1px solid ${C.br}`,fontSize:9.5,color:C.t4,fontFamily:M}}>
             <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:4}}><Dot c={C.em} p/><span style={{color:C.em,fontWeight:600,letterSpacing:1}}>AURORA · ACTIVE</span></div>
             <div style={{fontSize:9,letterSpacing:.5}}>38 Jurisdictions · 17 Modules</div>

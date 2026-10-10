@@ -58,6 +58,13 @@ export interface ThinkingOrbProps {
   /** Freeze the animation on the current frame. @default false */
   paused?: boolean;
 
+  /**
+   * Optional brand tint as a `#rrggbb` hex. When set, the dots render in
+   * this colour (depth preserved via opacity) instead of grayscale — e.g.
+   * pass the Aurora accent token for an on-brand orb. @default undefined
+   */
+  ink?: string;
+
   /** Optional class on the rendered canvas. */
   className?: string;
 
