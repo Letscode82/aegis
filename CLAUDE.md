@@ -39,7 +39,11 @@ approval and writes an `AuditLog` entry.
    through `/api/claude` so the API key never leaves the server.
 6. **The demo never breaks.** Every PR keeps the v8 Intake demo working
    end-to-end (Mission Control briefing, Cockpit, Copilot, all 6 agents,
-   approve/edit/reject keyboard shortcuts, "Ask Aurora" panel).
+   approve/edit/reject keyboard shortcuts, and the ONE Legal command bar —
+   the single AI front door on every screen). The per-module "Ask Aurora"
+   self-service chatbot was removed in favor of ONE Legal; "Aurora" now
+   refers only to the design system (the `C`/`F`/`M`/`SR` tokens and the
+   "Mission Control · Aurora" shell), never a chatbot.
 7. **Conservative AI governance.** Every AI action that mutates state
    requires human approval **and** writes an `AuditLog` entry. This is
    not optional and not a future feature — it is the product.

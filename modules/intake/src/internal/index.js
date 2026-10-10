@@ -19,7 +19,6 @@ export { IntakeView } from "./intake/index.jsx";
 export {
   MissionControlBriefing,
   TicketSummaryButton,
-  AskAuroraChat,
   MatterRiskBadge,
   buildBriefingContext,
 } from "./ai-features.jsx";

@@ -156,7 +156,7 @@ function StepRow({ step }) {
   );
 }
 
-function ResultCard({ result, onOpenTicket, onOpenCockpit, onFollowUp, onAsk }) {
+function ResultCard({ result, onOpenTicket, onOpenCockpit, onFollowUp }) {
   const c = result.classification;
   const matters = result.spawned?.matters || [];
   const contracts = result.spawned?.contracts || [];
@@ -188,7 +188,6 @@ function ResultCard({ result, onOpenTicket, onOpenCockpit, onFollowUp, onAsk }) 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12, alignItems: "center" }}>
         <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase" }}>Next</span>
         <button type="button" onClick={onFollowUp} style={chipBtn}>File a related request</button>
-        {onAsk && <button type="button" onClick={onAsk} style={chipBtn}>◎ Ask Aurora about this</button>}
       </div>
     </div>
   );
@@ -282,7 +281,7 @@ function CompoundCard({ turn, onOpenTicket, onOpenCockpit, onFollowUp, onApprove
                 <button type="button" onClick={() => onOpenNav(task.toolResult.navigate)} style={{ ...primaryBtn, marginLeft: "auto" }}>Open →</button>
               </div>
             )}
-            {task.result && <ResultCard result={task.result} onOpenTicket={onOpenTicket} onOpenCockpit={onOpenCockpit} onFollowUp={onFollowUp} onAsk={null} />}
+            {task.result && <ResultCard result={task.result} onOpenTicket={onOpenTicket} onOpenCockpit={onOpenCockpit} onFollowUp={onFollowUp} />}
           </div>
           );
         })}
@@ -349,7 +348,7 @@ function CitationWarnings({ citations }) {
   );
 }
 
-function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource, onResearch, onResearchLaw, onDeepReview }) {
+function AnswerCard({ turn, onExample, onFileInstead, onOpenSource, onResearch, onResearchLaw, onDeepReview }) {
   if (turn.capability) {
     return (
       <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16 }}>
@@ -386,7 +385,7 @@ function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource, onRes
       {turn.answerError ? (
         <div style={{ color: C.t2, fontSize: 13, lineHeight: 1.6 }}>
           <div style={{ color: C.am, fontFamily: M, fontSize: 11.5, marginBottom: 8 }}>⚠ {turn.answerError}</div>
-          I couldn&rsquo;t answer that just now — but I can still file it as a request, or hand it to Aurora for a deeper look.
+          I couldn&rsquo;t answer that just now — but I can still file it as a request, or run a deeper skill review on it.
         </div>
       ) : (
         <>
@@ -408,7 +407,6 @@ function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource, onRes
         {!turn.answerError && onDeepReview && <button type="button" onClick={() => onDeepReview(turn.request)} style={chipBtn}>⚖ Deep skill review →</button>}
         {!turn.answerError && onResearch && <button type="button" onClick={() => onResearch(turn.request)} style={chipBtn}>🔎 Research across your documents →</button>}
         {!turn.answerError && onResearchLaw && <button type="button" onClick={() => onResearchLaw(turn.request)} style={chipBtn}>⚖ Research the law →</button>}
-        {onAsk && <button type="button" onClick={onAsk} style={chipBtn}>◎ Continue in Aurora</button>}
       </div>
     </div>
   );
@@ -870,6 +868,51 @@ function SkillSearchBox({ value, onChange }) {
   );
 }
 
+// OL-7: the full-catalogue skills browser as a searchable modal (the
+// Harvey/Legora/Claude pattern) — one entry point on the landing instead of a
+// wall of chips. Reuses SkillSearchBox + SkillRow + the SKILL_CATEGORIES
+// grouping the rail already uses, so there's one source of truth for the list.
+function SkillsDrawer({ onRunSkill, onClose }) {
+  const [query, setQuery] = useState("");
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [onClose]);
+  const q = query.trim().toLowerCase();
+  const run = (s) => { if (onRunSkill) onRunSkill(s); onClose(); };
+  const hits = q ? SKILLS.filter((s) => s.label.toLowerCase().includes(q) || s.desc.toLowerCase().includes(q) || s.category.toLowerCase().includes(q)) : null;
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(16,24,40,.35)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "8vh 20px" }}>
+      <div onClick={(e) => e.stopPropagation()} role="dialog" aria-label="All skills" style={{ width: "100%", maxWidth: 560, maxHeight: "80vh", display: "flex", flexDirection: "column", background: C.bg, border: `1px solid ${C.br}`, borderRadius: 14, boxShadow: "0 12px 48px rgba(16,24,40,.22)", overflow: "hidden" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 16px", borderBottom: `1px solid ${C.br}` }}>
+          <span style={{ fontFamily: SR, fontSize: 16, flex: 1 }}>All skills</span>
+          <span style={{ fontSize: 10, fontFamily: M, color: C.t4 }}>{SKILLS.length}</span>
+          <button type="button" onClick={onClose} aria-label="Close" style={{ background: "transparent", border: `1px solid ${C.br}`, color: C.t2, borderRadius: 6, padding: "4px 9px", fontFamily: M, fontSize: 10, cursor: "pointer" }}>Esc</button>
+        </div>
+        <div style={{ padding: "12px 16px 4px" }}><SkillSearchBox value={query} onChange={setQuery} /></div>
+        <div style={{ flex: 1, overflowY: "auto", padding: "4px 16px 16px" }}>
+          {hits ? (
+            hits.length === 0 ? <div style={{ fontSize: 12.5, color: C.t4, padding: "10px 2px" }}>No skills match &ldquo;{query}&rdquo;.</div>
+            : hits.map((s) => <SkillRow key={s.id} skill={s} onRunSkill={run} />)
+          ) : (
+            SKILL_CATEGORIES.map((cat) => {
+              const items = SKILLS.filter((s) => s.category === cat);
+              if (!items.length) return null;
+              return (
+                <div key={cat} style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 8.5, fontFamily: M, letterSpacing: 0.6, textTransform: "uppercase", color: C.t4, margin: "6px 2px 4px" }}>{cat}</div>
+                  {items.map((s) => <SkillRow key={s.id} skill={s} onRunSkill={run} />)}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // OL-6 — confirmation card for a governance ladder started from the console.
 // The ladder is now a tracked governed WorkflowInstance; AGENT steps queue a
 // PENDING task for a human and never auto-advance.
@@ -899,7 +942,7 @@ function LadderCard({ turn }) {
 
 // Cowork-style right rail (à la Claude): Progress / Working folder / Context /
 // Skills, all derived from the live turns — no separate state.
-function WorkspaceRail({ turns, onOpenTicket, onNavigate, history, onRunSkill }) {
+function WorkspaceRail({ turns, onOpenTicket, onNavigate, history, onRunSkill, onReopen }) {
   const last = turns[turns.length - 1] || null;
   const progress = (() => {
     if (!last) return [];
@@ -999,15 +1042,24 @@ function WorkspaceRail({ turns, onOpenTicket, onNavigate, history, onRunSkill })
 
       {history && history.length > 0 && (
         <RailSection title="Recent (persisted)">
-          {history.slice(0, 8).map((h) => (
-            <button key={h.id} type="button" onClick={h.navigate && onNavigate ? () => onNavigate(h.navigate) : undefined} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 9, padding: "6px 8px", marginBottom: 3, background: "transparent", border: `1px solid ${C.br}`, borderRadius: 8, cursor: h.navigate && onNavigate ? "pointer" : "default" }}>
-              <span aria-hidden="true" style={{ fontSize: 12, color: h.status === "error" ? C.rd : C.gn }}>{h.status === "error" ? "✕" : "✓"}</span>
-              <span style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 11.5, color: C.t2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{h.resourceLabel || h.title}</div>
-                <div style={{ fontSize: 9.5, color: C.t4, fontFamily: M }}>{h.toolId || h.kind}</div>
-              </span>
-            </button>
-          ))}
+          {history.slice(0, 8).map((h) => {
+            // OL-5: a row is clickable if it can be reopened (has a saved
+            // answer) or navigated to a resource. Reopen takes priority.
+            const canReopen = !!(h.hasAnswer && onReopen);
+            const canNavigate = !!(h.navigate && onNavigate);
+            const clickable = canReopen || canNavigate;
+            const onClick = canReopen ? () => onReopen(h) : canNavigate ? () => onNavigate(h.navigate) : undefined;
+            return (
+              <button key={h.id} type="button" onClick={onClick} title={canReopen ? "Reopen this" : undefined} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 9, padding: "6px 8px", marginBottom: 3, background: "transparent", border: `1px solid ${C.br}`, borderRadius: 8, cursor: clickable ? "pointer" : "default" }}>
+                <span aria-hidden="true" style={{ fontSize: 12, color: h.status === "error" ? C.rd : C.gn }}>{h.status === "error" ? "✕" : "✓"}</span>
+                <span style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: 11.5, color: C.t2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{h.resourceLabel || h.title}</div>
+                  <div style={{ fontSize: 9.5, color: C.t4, fontFamily: M }}>{h.toolId || h.kind}</div>
+                </span>
+                {canReopen && <span aria-hidden="true" style={{ fontSize: 11, color: C.t4, flexShrink: 0 }}>↩</span>}
+              </button>
+            );
+          })}
         </RailSection>
       )}
 
@@ -1089,12 +1141,20 @@ function ClarifyCard({ turn, onFile }) {
   );
 }
 
-export function CommandConsole({ open, embedded, initialText, onClose, onNavigate, onAsk }) {
+export function CommandConsole({ open, embedded, initialText, onClose, onNavigate }) {
   const [turns, setTurns] = useState([]);
   const [input, setInput] = useState("");
   const [me, setMe] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [history, setHistory] = useState([]);
+  // OL-6: a document the user attached but has NOT run yet. Attaching only
+  // *stages* the file (upload + index); nothing executes until the user submits
+  // with Enter / Route (optionally after typing a question). `staging` is the
+  // upload-in-flight flag.
+  const [stagedDoc, setStagedDoc] = useState(null);
+  const [staging, setStaging] = useState(false);
+  // OL-7: the full-catalogue skills browser (modal) open state.
+  const [skillsOpen, setSkillsOpen] = useState(false);
   const scrollRef = useRef(null);
   const startedRef = useRef(false);
   const inputRef = useRef(null);
@@ -1325,10 +1385,13 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   // B2 — upload a document, then deep-read it. The file is extracted +
   // persisted + indexed server-side; the analysis is a single-document read.
   // The uploaded doc also becomes citable by later questions in the console.
-  const uploadAndAnalyze = useCallback(async (file) => {
+  // OL-6: stage a document — upload + index only, NO analysis. The staged
+  // file sits by the composer until the user explicitly submits (Enter/Route),
+  // optionally after typing a question or picking a skill.
+  const uploadDocument = useCallback(async (file) => {
     if (!file) return;
-    const id = ++TURN_SEQ;
-    setTurns((ts) => [...ts, { id, kind: "analyze", request: `Analyze ${file.name}`, fileName: file.name, uploading: true, analyzeLoading: false, analysis: null, documentId: null, chars: 0, error: null }]);
+    setStaging(true);
+    setStagedDoc(null);
     try {
       const contentBase64 = await new Promise((resolve, reject) => {
         const r = new FileReader();
@@ -1341,19 +1404,32 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ filename: file.name, mimeType: file.type, contentBase64, sessionId }),
       }).then((r) => r.json()).catch(() => ({}));
-      if (!up || !up.ok) { patchTurn(id, { uploading: false, error: (up && up.error) || "Upload failed." }); return; }
-      patchTurn(id, { uploading: false, analyzeLoading: true, documentId: up.documentId, chars: up.charCount || 0 });
-      const an = await fetch("/api/one-legal/analyze", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ documentId: up.documentId }),
-      }).then((r) => r.json()).catch(() => ({}));
+      setStaging(false);
+      if (!up || !up.ok) { setStagedDoc({ fileName: file.name, error: (up && up.error) || "Upload failed." }); return; }
+      setStagedDoc({ documentId: up.documentId, fileName: file.name, chars: up.charCount || 0 });
+      setTimeout(() => inputRef.current?.focus(), 30);
+    } catch {
+      setStaging(false);
+      setStagedDoc({ fileName: file.name, error: "Could not read that file." });
+    }
+  }, [sessionId]);
+
+  // OL-6: run the quick analysis on an already-staged (uploaded) document, with
+  // an optional typed question. Fired from the composer submit, never on attach.
+  const analyzeStaged = useCallback((doc, question) => {
+    if (!doc || !doc.documentId) return;
+    const id = ++TURN_SEQ;
+    const q = String(question || "").trim();
+    setTurns((ts) => [...ts, { id, kind: "analyze", request: q ? `${q} — ${doc.fileName}` : `Analyze ${doc.fileName}`, fileName: doc.fileName, uploading: false, analyzeLoading: true, analysis: null, documentId: doc.documentId, chars: doc.chars || 0, error: null }]);
+    fetch("/api/one-legal/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ documentId: doc.documentId, question: q || undefined }),
+    }).then((r) => r.json()).then((an) => {
       if (an && an.ok) patchTurn(id, { analyzeLoading: false, analysis: (an.answer || "").trim(), degraded: !!an.degraded });
       else patchTurn(id, { analyzeLoading: false, error: (an && an.error) || "Analysis failed." });
-    } catch (e) {
-      patchTurn(id, { uploading: false, analyzeLoading: false, error: friendlyAIError(e) });
-    }
-  }, [patchTurn, sessionId]);
+    }).catch((e) => patchTurn(id, { analyzeLoading: false, error: friendlyAIError(e) }));
+  }, [patchTurn]);
 
   // A1 — run the research agent loop (multi-step, read-only) over the org's
   // documents and render the trace + cited answer. Never mutates anything.
@@ -1578,6 +1654,17 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   // exactly as before.
   const submitComposer = useCallback((text) => {
     const t = (text ?? input).trim();
+    // OL-6: if a document is staged, the submit runs it — quick analysis over
+    // the staged doc, answering the typed question when one was given. This is
+    // the single explicit trigger; attaching never ran anything on its own.
+    const doc = stagedDoc && stagedDoc.documentId ? stagedDoc : null;
+    if (doc) {
+      setStagedDoc(null);
+      setInput("");
+      pendingSkillRef.current = null;
+      analyzeStaged(doc, t);
+      return;
+    }
     if (t.length < 3) return;
     const sk = pendingSkillRef.current;
     if (sk) {
@@ -1599,7 +1686,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       pendingSkillRef.current = null; // user replaced the prompt — treat as typed input
     }
     startTurn(t);
-  }, [input, startArtifact, startResearch, runSkillReview, startTurn]);
+  }, [input, stagedDoc, analyzeStaged, startArtifact, startResearch, runSkillReview, startTurn]);
 
   // OL-6 — start a governance ladder (a GOVERNANCE_LIBRARY skill) from the
   // console. POSTs to the governed /run-ladder route, which begins a tracked
@@ -1679,15 +1766,15 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     };
     for (const t of turns) {
       if (t.kind === "ask") {
-        if (!t.answerLoading && (t.answer || t.answerError || t.capability)) rec(`a-${t.id}`, { title: t.request.slice(0, 80), request: t.request, kind: "ask", status: t.answerError ? "error" : "done" });
+        if (!t.answerLoading && (t.answer || t.answerError || t.capability)) rec(`a-${t.id}`, { title: t.request.slice(0, 80), request: t.request, kind: "ask", status: t.answerError ? "error" : "done", answer: t.answer || "" });
       } else if (t.kind === "research") {
-        if (!t.researchLoading && (t.answer || t.error)) rec(`r-${t.id}`, { title: t.request.slice(0, 80), request: t.request, kind: "ask", status: t.error ? "error" : "done" });
+        if (!t.researchLoading && (t.answer || t.error)) rec(`r-${t.id}`, { title: t.request.slice(0, 80), request: t.request, kind: "ask", status: t.error ? "error" : "done", answer: t.answer || "" });
       } else if (t.kind === "skill-review") {
-        if (!t.reviewLoading && (t.answer || t.matched || t.error)) rec(`sr-${t.id}`, { title: (t.matched?.title || t.request).slice(0, 80), request: t.request, kind: "ask", status: t.error ? "error" : "done" });
+        if (!t.reviewLoading && (t.answer || t.matched || t.error)) rec(`sr-${t.id}`, { title: (t.matched?.title || t.request).slice(0, 80), request: t.request, kind: "ask", status: t.error ? "error" : "done", answer: t.answer || "" });
       } else if (t.kind === "file") {
         if (t.result || t.error) rec(`f-${t.id}`, { title: t.result?.ticketId || t.request.slice(0, 60), request: t.request, kind: "file", status: t.error ? "error" : "done", resourceType: "IntakeTicket", resourceId: t.result?.ticketId, resourceLabel: t.result?.ticketId, navigate: "intake", error: t.error });
       } else if (t.kind === "analyze") {
-        if (!t.uploading && !t.analyzeLoading && (t.analysis || t.error)) rec(`an-${t.id}`, { title: t.fileName?.slice(0, 80) || "Document", request: t.request, kind: "file", status: t.error ? "error" : "done", resourceType: "Document", resourceId: t.documentId, resourceLabel: t.fileName, error: t.error });
+        if (!t.uploading && !t.analyzeLoading && (t.analysis || t.error)) rec(`an-${t.id}`, { title: t.fileName?.slice(0, 80) || "Document", request: t.request, kind: "file", status: t.error ? "error" : "done", resourceType: "Document", resourceId: t.documentId, resourceLabel: t.fileName, error: t.error, answer: t.analysis || "" });
       } else if (t.kind === "artifact") {
         if (t.savedDocumentId) rec(`art-${t.id}`, { title: (t.title || "Draft").slice(0, 80), request: t.request, kind: "file", status: "done", resourceType: "Document", resourceId: t.savedDocumentId, resourceLabel: t.title });
       } else if (t.kind === "compound") {
@@ -1740,33 +1827,83 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     if (onClose) onClose();
     if (onNavigate) onNavigate(view);
   }, [onClose, onNavigate]);
-  const handleAsk = onAsk ? () => { if (onClose) onClose(); onAsk(); } : null;
+
+  // OL-5: reopen a past task from the Recent list, read-only (ChatGPT/Claude-
+  // style). Fetches the saved answer body and appends it as an ask-shaped turn
+  // so its full Q&A is back in the thread and its "Next" actions (file, deep
+  // review, research) can continue it. If the row has no saved answer but does
+  // have a navigate target, fall back to navigating to that resource.
+  const reopenTask = useCallback(async (h) => {
+    if (!h) return;
+    if (!h.hasAnswer) { if (h.navigate && onNavigate) goModule(h.navigate); return; }
+    const loadingId = ++TURN_SEQ;
+    setTurns((ts) => [...ts, { id: loadingId, kind: "ask", request: h.resourceLabel || h.title || "Reopened", answerLoading: true, reopened: true }]);
+    try {
+      const d = await fetch(`/api/one-legal/task?id=${encodeURIComponent(h.id)}`).then((r) => r.json());
+      if (d && d.ok && d.task) {
+        const task = d.task;
+        patchTurn(loadingId, {
+          request: task.request || h.title || "Reopened",
+          answerLoading: false,
+          answer: (task.answerSnapshot || "").trim(),
+          answerError: task.status === "error" ? (task.error || "This task ended with an error.") : null,
+          reopened: true,
+        });
+      } else {
+        patchTurn(loadingId, { answerLoading: false, answerError: "Couldn’t reopen this item from history." });
+      }
+    } catch {
+      patchTurn(loadingId, { answerLoading: false, answerError: "Couldn’t reopen this item from history." });
+    }
+  }, [onNavigate, goModule, patchTurn]);
 
   if (!isOpen) return null;
 
   const busy = turns.some((t) => t.kind === "ask" ? t.answerLoading : (t.kind === "research" || t.kind === "legal-research") ? t.researchLoading : t.kind === "skill-review" ? t.reviewLoading : t.kind === "artifact" ? (t.draftLoading || t.saving) : t.kind === "analyze" ? (t.uploading || t.analyzeLoading) : t.kind === "compound" ? t.tasks.some((tk) => tk.state === "running") : (!t.result && !t.error));
   const firstName = (me?.name || "").trim().split(/\s+/)[0] || "";
 
+  // OL-6: submit is allowed when there's a typed request OR a staged document
+  // waiting to be run. Attaching alone never submits.
+  const hasStagedDoc = !!(stagedDoc && stagedDoc.documentId);
+  const canSubmit = input.trim().length >= 3 || hasStagedDoc;
   const composer = (big) => (
-    <div style={{ display: "flex", gap: 8, alignItems: "center", background: C.cd, border: `1px solid ${C.brL}`, borderRadius: 12, padding: big ? "6px 6px 6px 16px" : "5px 5px 5px 14px", boxShadow: big ? "0 2px 14px rgba(16,24,40,.06)" : "none" }}>
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".txt,.md,.markdown,.docx,.pdf,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-        style={{ display: "none" }}
-        onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) uploadAndAnalyze(f); e.target.value = ""; }}
-      />
-      <button type="button" onClick={() => fileInputRef.current?.click()} aria-label="Attach a document to analyze" title="Attach a document (.txt, .md, .docx, .pdf)" style={{ background: "transparent", border: "none", color: C.t3, fontSize: 16, cursor: "pointer", padding: "4px 2px", flexShrink: 0, lineHeight: 1 }}>📎</button>
-      <input
-        ref={inputRef}
-        value={input}
-        onChange={(e) => { const v = e.target.value; if (pendingSkillRef.current && !v.startsWith(pendingSkillRef.current.prompt)) pendingSkillRef.current = null; setInput(v); }}
-        onKeyDown={(e) => { if (e.key === "Enter" && input.trim().length >= 3) submitComposer(input); }}
-        placeholder={turns.length === 0 ? "Describe a request, ask a question, or attach a document…" : "Ask, file a request, or attach a document…"}
-        aria-label="Ask OneLegal or file a legal request"
-        style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: C.t1, fontFamily: F, fontSize: big ? 15 : 13, padding: "8px 0" }}
-      />
-      <button type="button" onClick={() => { if (input.trim().length >= 3) submitComposer(input); }} disabled={input.trim().length < 3} style={{ ...primaryBtn, opacity: input.trim().length < 3 ? 0.5 : 1, flexShrink: 0 }}>Route ⏎</button>
+    <div>
+      {/* OL-6: staged-document chip — the file is uploaded but nothing runs
+          until the user submits. */}
+      {(staging || stagedDoc) && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, padding: "6px 10px", background: C.cd, border: `1px solid ${stagedDoc && stagedDoc.error ? C.rd + "55" : C.brL}`, borderRadius: 10, fontSize: 12 }}>
+          <span aria-hidden="true" style={{ flexShrink: 0 }}>📎</span>
+          <span style={{ minWidth: 0, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: C.t2 }}>
+            <strong style={{ color: C.t1 }}>{(staging ? null : stagedDoc?.fileName) || (staging ? "Uploading…" : "Document")}</strong>
+            {staging ? <span style={{ color: C.t3 }}> uploading…</span>
+              : stagedDoc?.error ? <span style={{ color: C.rd }}> — {stagedDoc.error}</span>
+              : <span style={{ color: C.t3 }}> ready — type a question or just hit Route to analyze it.</span>}
+          </span>
+          {!staging && (
+            <button type="button" onClick={() => setStagedDoc(null)} aria-label="Remove attached document" title="Remove" style={{ background: "transparent", border: "none", color: C.t3, cursor: "pointer", fontSize: 13, flexShrink: 0, lineHeight: 1 }}>✕</button>
+          )}
+        </div>
+      )}
+      <div style={{ display: "flex", gap: 8, alignItems: "center", background: C.cd, border: `1px solid ${C.brL}`, borderRadius: 12, padding: big ? "6px 6px 6px 16px" : "5px 5px 5px 14px", boxShadow: big ? "0 2px 14px rgba(16,24,40,.06)" : "none" }}>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".txt,.md,.markdown,.docx,.pdf,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          style={{ display: "none" }}
+          onChange={(e) => { const f = e.target.files && e.target.files[0]; if (f) uploadDocument(f); e.target.value = ""; }}
+        />
+        <button type="button" onClick={() => fileInputRef.current?.click()} aria-label="Attach a document" title="Attach a document (.txt, .md, .docx, .pdf) — nothing runs until you hit Route" style={{ background: "transparent", border: "none", color: C.t3, fontSize: 16, cursor: "pointer", padding: "4px 2px", flexShrink: 0, lineHeight: 1 }}>📎</button>
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={(e) => { const v = e.target.value; if (pendingSkillRef.current && !v.startsWith(pendingSkillRef.current.prompt)) pendingSkillRef.current = null; setInput(v); }}
+          onKeyDown={(e) => { if (e.key === "Enter" && canSubmit) submitComposer(input); }}
+          placeholder={hasStagedDoc ? "Ask something about this document, or hit Route to analyze it…" : turns.length === 0 ? "Describe a request, ask a question, or attach a document…" : "Ask, file a request, or attach a document…"}
+          aria-label="Ask OneLegal or file a legal request"
+          style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: C.t1, fontFamily: F, fontSize: big ? 15 : 13, padding: "8px 0" }}
+        />
+        <button type="button" onClick={() => { if (canSubmit) submitComposer(input); }} disabled={!canSubmit} style={{ ...primaryBtn, opacity: canSubmit ? 1 : 0.5, flexShrink: 0 }}>Route ⏎</button>
+      </div>
     </div>
   );
 
@@ -1822,22 +1959,23 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
                 style={{ background: "transparent", border: "none", color: input.trim().length < 3 ? C.t4 : C.em, fontFamily: M, fontSize: 10, letterSpacing: 0.6, textTransform: "uppercase", cursor: input.trim().length < 3 ? "default" : "pointer", opacity: input.trim().length < 3 ? 0.6 : 1 }}
               >⚖ Deep skill review</button>
             </div>
+            {/* OL-7: a few suggestions, not the whole catalogue (Harvey/Legora/
+                Claude pattern). The full list lives behind "Browse all skills". */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 18, justifyContent: "center" }}>
-              {EXAMPLES.map((ex) => (
+              {EXAMPLES.slice(0, 4).map((ex) => (
                 <button key={ex.text} type="button" onClick={() => startTurn(ex.text)} style={exampleChip}>
                   <span style={{ color: C.tl, marginRight: 7 }} aria-hidden="true">{ex.icon}</span>{ex.text}
                 </button>
               ))}
             </div>
-            {/* Skills (E1) — one-click legal-ops playbooks. */}
-            <div style={{ marginTop: 20 }}>
-              <div style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>Skills</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
-                {SKILLS.filter((s) => s.featured).map((s) => (
-                  <button key={s.id} type="button" onClick={() => runSkill(s)} title={s.desc} style={exampleChip}>
-                    <span style={{ color: C.em, marginRight: 7 }} aria-hidden="true">{s.icon}</span>{s.label}
-                  </button>
-                ))}
+            {/* One entry to the full catalogue + a one-line explainer of Skills
+                vs Deep review, instead of two walls of chips. */}
+            <div style={{ marginTop: 16, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+              <button type="button" onClick={() => setSkillsOpen(true)} style={{ ...chipBtn, display: "inline-flex", alignItems: "center", gap: 7 }}>
+                <span aria-hidden="true" style={{ color: C.em }}>⚡</span>Browse all skills<span aria-hidden="true" style={{ color: C.t4 }}>&nbsp;· {SKILLS.length}</span>
+              </button>
+              <div style={{ fontSize: 11, color: C.t4, lineHeight: 1.5, maxWidth: 460 }}>
+                A <strong style={{ color: C.t3 }}>skill</strong> runs one specific playbook. <strong style={{ color: C.t3 }}>Deep skill review</strong> picks the right playbook for a document or task and runs it for you.
               </div>
             </div>
           </div>
@@ -1860,7 +1998,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
                       {t.kind === "clarify" ? (
                         <ClarifyCard turn={t} onFile={fileRequest} />
                       ) : t.kind === "ask" ? (
-                        <AnswerCard turn={t} onExample={startTurn} onFileInstead={fileRequest} onAsk={handleAsk} onOpenSource={goModule} onResearch={startResearch} onResearchLaw={startLegalResearch} onDeepReview={runSkillReview} />
+                        <AnswerCard turn={t} onExample={startTurn} onFileInstead={fileRequest} onOpenSource={goModule} onResearch={startResearch} onResearchLaw={startLegalResearch} onDeepReview={runSkillReview} />
                       ) : t.kind === "research" ? (
                         <ResearchCard turn={t} onFollowUp={focusComposer} onFileInstead={fileRequest} onOpenSource={goModule} />
                       ) : t.kind === "legal-research" ? (
@@ -1883,7 +2021,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
                           </div>
                           {t.error && <div style={{ marginTop: 10, color: C.rd, fontFamily: M, fontSize: 12, background: C.rdG, border: `1px solid ${C.rd}44`, borderRadius: 8, padding: "9px 11px" }}>⚠ {t.error}</div>}
                           {t.result && (
-                            <ResultCard result={t.result} onOpenTicket={goIntake} onOpenCockpit={() => goIntake(null)} onFollowUp={focusComposer} onAsk={handleAsk} />
+                            <ResultCard result={t.result} onOpenTicket={goIntake} onOpenCockpit={() => goIntake(null)} onFollowUp={focusComposer} />
                           )}
                         </>
                       )}
@@ -1898,18 +2036,14 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
           <div style={{ borderTop: `1px solid ${C.br}`, padding: "12px 20px", flexShrink: 0 }}>
             <div style={{ maxWidth: 760, margin: "0 auto" }}>
               {composer(false)}
-              {handleAsk && (
-                <div style={{ textAlign: "center", marginTop: 8 }}>
-                  <button type="button" onClick={handleAsk} style={{ background: "transparent", border: "none", color: C.t4, fontFamily: M, fontSize: 9.5, letterSpacing: 0.5, textTransform: "uppercase", cursor: "pointer" }}>◎ Open Aurora copilot</button>
-                </div>
-              )}
             </div>
           </div>
         </>
       )}
         </div>
-        {embedded && wide && <WorkspaceRail turns={turns} onOpenTicket={goIntake} onNavigate={goModule} history={history} onRunSkill={runSkill} />}
+        {embedded && wide && <WorkspaceRail turns={turns} onOpenTicket={goIntake} onNavigate={goModule} history={history} onRunSkill={runSkill} onReopen={reopenTask} />}
       </div>
+      {skillsOpen && <SkillsDrawer onRunSkill={runSkill} onClose={() => setSkillsOpen(false)} />}
     </div>
   );
 }

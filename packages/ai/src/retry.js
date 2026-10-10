@@ -71,7 +71,10 @@ export async function fetchWithRetry(url, options = {}, opts = {}) {
       return resp;
     } catch (err) {
       lastErr = err;
-      if (attempt < retries) {
+      // An aborted request (caller deadline hit) is intentional — fail fast,
+      // never burn the retry budget waiting out a timeout that already fired.
+      const aborted = (err && err.name === "AbortError") || (options.signal && options.signal.aborted);
+      if (!aborted && attempt < retries) {
         await sleep(backoffMs(attempt, base));
         continue;
       }

@@ -9,7 +9,7 @@
  *
  * What this entry exposes: the Intake module's React UI surface, which
  * the composition root (apps/web) embeds across the v8 demo views
- * (Mission Control briefing, Cockpit/Inbox, the "Ask Aurora" panel,
+ * (Mission Control briefing, Cockpit/Inbox, the AICopilot panel,
  * AI-insight building blocks). These are re-exported verbatim from the
  * internal UI barrel so existing `@aegis/intake` consumers are
  * byte-identical across the Step 5 split.
@@ -27,7 +27,6 @@ export {
   IntakeView,
   MissionControlBriefing,
   TicketSummaryButton,
-  AskAuroraChat,
   MatterRiskBadge,
   buildBriefingContext,
   AICopilot,

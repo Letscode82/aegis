@@ -23,12 +23,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const sessionId = typeof req.query.sessionId === "string" ? req.query.sessionId : undefined;
     const limit = Math.min(Number(req.query.limit) || 20, 50);
     try {
-      const tasks = await prisma.legalTask.findMany({
+      const rows = await prisma.legalTask.findMany({
         where: { organizationId: user.organizationId, ...(sessionId ? { sessionId } : {}) },
         orderBy: { createdAt: "desc" },
         take: limit,
-        select: { id: true, title: true, kind: true, toolId: true, status: true, resourceType: true, resourceId: true, resourceLabel: true, navigate: true, createdAt: true },
+        // OL-5: select answerSnapshot only to derive a `hasAnswer` flag — the
+        // full body stays off the list (fetched on demand via /task) so the
+        // list payload stays small.
+        select: { id: true, title: true, request: true, kind: true, toolId: true, status: true, resourceType: true, resourceId: true, resourceLabel: true, navigate: true, createdAt: true, answerSnapshot: true },
       });
+      const tasks = rows.map(({ answerSnapshot, ...t }) => ({ ...t, hasAnswer: !!answerSnapshot }));
       return res.status(200).json({ ok: true, tasks });
     } catch {
       return res.status(200).json({ ok: true, tasks: [] }); // table not deployed yet

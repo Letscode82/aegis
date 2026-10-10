@@ -82,4 +82,20 @@ describe("fetchWithRetry", () => {
     await expect(fetchWithRetry("u", {}, { fetchImpl, sleep, retries: 1 })).rejects.toThrow("ECONNRESET");
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
+
+  it("does NOT retry an aborted request — a caller deadline fails fast", async () => {
+    const fetchImpl = vi.fn(async () => { const e = new Error("The operation was aborted"); e.name = "AbortError"; throw e; });
+    const sleep = vi.fn(async () => {});
+    await expect(fetchWithRetry("u", {}, { fetchImpl, sleep, retries: 2 })).rejects.toThrow(/abort/i);
+    expect(fetchImpl).toHaveBeenCalledTimes(1); // no retry
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
+  it("does NOT retry when the signal is already aborted", async () => {
+    const fetchImpl = vi.fn(async () => { throw new Error("boom"); });
+    const sleep = vi.fn(async () => {});
+    const signal = { aborted: true };
+    await expect(fetchWithRetry("u", { signal }, { fetchImpl, sleep, retries: 2 })).rejects.toThrow("boom");
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
 });
