@@ -66,14 +66,25 @@ export interface Resolved {
 
 const cache = new Map<string, Resolved>();
 
+/**
+ * Map any requested display size to the nearest tuned preset key. Only two
+ * tunings ship (20 inline, 64 avatar); a larger splash size (e.g. 128) still
+ * renders — it reuses the 64 tuning and simply paints into a bigger canvas.
+ * This keeps `resolvePreset` total over every number so an untuned size can
+ * never read `.count` off `undefined` and crash the render.
+ */
+function tunedKeyFor(size: number): OrbSize {
+  return size <= 42 ? 20 : 64;
+}
+
 /** Resolve a (state, size) pair to its mode + fully-scaled draw options. */
-export function resolvePreset(state: OrbState, size: OrbSize): Resolved {
+export function resolvePreset(state: OrbState, size: number): Resolved {
   const key = `${state}-${size}`;
   const hit = cache.get(key);
   if (hit) return hit;
 
   const mode = STATE_TO_MODE[state];
-  const preset = PRESETS[mode]![size]!;
+  const preset = PRESETS[mode]![tunedKeyFor(size)]!;
   let opts: ModeOpts = { ...BASE_PROFILES[mode]! };
   if (preset.count !== 1) opts = scaleCounts(opts, preset.count);
   if (preset.size !== 1) opts = scaleRadii(opts, preset.size);
