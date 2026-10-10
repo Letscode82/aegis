@@ -131,11 +131,11 @@ export default function App(){
       ? {width:248,background:C.s1,borderRight:`1px solid ${C.br}`,display:"flex",flexDirection:"column",position:"fixed",top:0,left:0,bottom:0,zIndex:50,transform:mobileOpen?"translateX(0)":"translateX(-100%)",transition:"transform .2s ease",boxShadow:mobileOpen?"4px 0 24px rgba(0,0,0,.18)":"none"}
       : {width:rail?64:220,background:C.s1,borderRight:`1px solid ${C.br}`,display:"flex",flexDirection:"column",flexShrink:0,transition:"width .16s ease"}}>
       <div style={{padding:rail?"14px 0 12px":"16px 16px 12px",borderBottom:`1px solid ${C.br}`,display:"flex",flexDirection:rail?"column":"row",alignItems:"center",justifyContent:rail?"center":"space-between",gap:rail?10:8}}>
-        <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,minWidth:0,flex:showLabels?1:"0 0 auto"}}>
           <div style={{width:30,height:30,flexShrink:0,display:"flex",alignItems:"center",justifyContent:"center",background:C.em,fontSize:13,fontWeight:600,letterSpacing:1,color:"#fff",fontFamily:SR}}>OL</div>
-          {showLabels && <div style={{minWidth:0}}>
-            <div style={{fontSize:14,fontFamily:SR,fontWeight:400,letterSpacing:1,color:C.t1}}>OneLegal<span style={{color:C.em,fontStyle:"italic"}}></span></div>
-            <div style={{fontSize:8,letterSpacing:2,color:C.t3,textTransform:"uppercase",fontFamily:M,marginTop:1,whiteSpace:"nowrap"}}>{isIntakeOnly?"Legal Intake":"Legal Mission Control"}</div>
+          {showLabels && <div style={{minWidth:0,overflow:"hidden"}}>
+            <div style={{fontSize:14,fontFamily:SR,fontWeight:400,letterSpacing:1,color:C.t1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>OneLegal<span style={{color:C.em,fontStyle:"italic"}}></span></div>
+            <div style={{fontSize:8,letterSpacing:1.3,lineHeight:1.3,color:C.t3,textTransform:"uppercase",fontFamily:M,marginTop:1}}>{isIntakeOnly?"Legal Intake":"Legal Mission Control"}</div>
           </div>}
         </div>
         {/* Toggle — always visible: ✕ closes the phone drawer, « collapses to
