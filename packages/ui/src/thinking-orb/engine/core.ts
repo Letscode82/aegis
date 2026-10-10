@@ -57,19 +57,52 @@ export function makeProj(yaw: number, tilt: number, cx: number, cy: number, scal
   };
 }
 
+// Optional brand tint. When set (OneLegal extension — upstream paints pure
+// grayscale), dots render in this colour instead of grey: the dot's ink
+// weight becomes opacity over the page, so near/dark dots read as saturated
+// brand colour and far/ghost dots fade toward transparent — the same depth
+// language, in colour. Set per frame by the React wrapper before each draw;
+// paint() runs synchronously within draw() so a module-level value is safe.
+let _ink: [number, number, number] | null = null;
+
+/** Set (or clear, with null) the brand tint used by `paint`. */
+export function setInk(hex: string | null): void {
+  if (!hex) {
+    _ink = null;
+    return;
+  }
+  const m = /^#?([0-9a-f]{6})$/i.exec(hex.trim());
+  if (!m || !m[1]) {
+    _ink = null;
+    return;
+  }
+  const n = parseInt(m[1], 16);
+  _ink = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+}
+
 /**
- * Painter: z-sort far→near, matte grayscale dots. On dark substrates the
- * ink value is mirrored (1 - white) so near dots read bright — the same
- * depth language on an inverted substrate.
+ * Painter: z-sort far→near, matte dots. Grayscale by default; on dark
+ * substrates the ink value is mirrored (1 - white) so near dots read bright.
+ * When a brand tint is set (`setInk`), dots take that colour with opacity
+ * driven by ink weight, so depth survives the recolour.
  */
 export function paint(ctx: CanvasRenderingContext2D, dots: Dot[], dark: boolean, rMin = 0.3): void {
   dots.sort((a, b) => a.z - b.z);
+  const ink = _ink;
   for (const d of dots) {
     const alpha = d.a ?? 1;
     if (alpha < 0.02) continue;
     const w = Math.min(1, Math.max(0, d.white));
-    const g = Math.round((dark ? 1 - w : w) * 255);
-    ctx.fillStyle = `rgba(${g},${g},${g},${alpha})`;
+    const lum = dark ? 1 - w : w; // 0 = full-weight ink, 1 = toward substrate
+    if (ink) {
+      // Weight the tint by darkness so close dots are saturated and ghost
+      // dots fade out; floor keeps faint paths visible.
+      const strength = 0.12 + 0.88 * (1 - lum);
+      ctx.fillStyle = `rgba(${ink[0]},${ink[1]},${ink[2]},${alpha * strength})`;
+    } else {
+      const g = Math.round(lum * 255);
+      ctx.fillStyle = `rgba(${g},${g},${g},${alpha})`;
+    }
     ctx.beginPath();
     ctx.arc(d.x, d.y, Math.max(rMin, d.r), 0, Math.PI * 2);
     ctx.fill();

@@ -141,7 +141,7 @@ function AIThinkingDots() {
   const { theme } = useTheme();
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", color: C.t3 }}>
-      <ThinkingOrb state="working" size={20} theme={theme === "dark" ? "dark" : "light"} />
+      <ThinkingOrb state="working" size={20} theme={theme === "dark" ? "dark" : "light"} ink={C.em} />
       <span style={{ fontSize: 11, fontFamily: M, letterSpacing: 1, color: C.cy, textTransform: "uppercase" }}>AI thinking…</span>
     </div>
   );

@@ -11,6 +11,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { MODE_DRAWS } from "./engine/registry";
+import { setInk } from "./engine/core";
 import { resolvePreset } from "./presets";
 import type { OrbSize, OrbState, OrbTheme, ThinkingOrbProps } from "./types";
 
@@ -101,6 +102,7 @@ export const ThinkingOrb: React.FC<ThinkingOrbProps> = ({
   theme = "auto",
   speed = 1,
   paused = false,
+  ink,
   className,
   style,
   "aria-label": ariaLabelProp,
@@ -125,6 +127,9 @@ export const ThinkingOrb: React.FC<ThinkingOrbProps> = ({
     const effSpeed = baseSpeed * speed;
 
     const frame = (tSec: number) => {
+      // Set the tint right before the draw — paint() reads it synchronously,
+      // so multiple orbs with different inks on one page stay independent.
+      setInk(ink ?? null);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       ctx.clearRect(0, 0, orbSize, orbSize);
       draw(ctx, orbSize, tSec, dark, opts);
@@ -178,7 +183,7 @@ export const ThinkingOrb: React.FC<ThinkingOrbProps> = ({
       io?.disconnect();
       document.removeEventListener("visibilitychange", onVisibilityChange);
     };
-  }, [state, size, speed, paused, dark, reduced]);
+  }, [state, size, speed, paused, dark, reduced, ink]);
 
   const ariaLabel = ariaLabelProp ?? LABELS[state];
 
