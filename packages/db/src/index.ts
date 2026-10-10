@@ -55,6 +55,11 @@ export {
   type CurrentOrganization,
 } from "./context";
 export {
+  nextRequestNumberInTx,
+  assignRequestNumber,
+  REQUEST_NUMBER_BASE,
+} from "./request-number";
+export {
   enqueueProcessingJob,
   claimNextProcessingJob,
   heartbeatProcessingJob,
