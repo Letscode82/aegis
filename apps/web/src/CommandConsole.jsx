@@ -36,13 +36,49 @@ function mdInline(s, kp) {
   }
   return out;
 }
+// Split a pipe-delimited table row into trimmed cells. Tolerates optional
+// leading/trailing pipes (`| a | b |` and `a | b` both work).
+function tableCells(line) {
+  let s = line.trim();
+  if (s.startsWith("|")) s = s.slice(1);
+  if (s.endsWith("|")) s = s.slice(0, -1);
+  return s.split("|").map((c) => c.trim());
+}
+// A GFM separator row: every cell is dashes with optional leading/trailing
+// colons for alignment (`---`, `:--`, `--:`, `:-:`).
+function isTableSeparator(line) {
+  if (!/\|/.test(line)) return false;
+  const cells = tableCells(line);
+  return cells.length > 0 && cells.every((c) => /^:?-+:?$/.test(c));
+}
 function Markdown({ text, style }) {
   const lines = String(text || "").replace(/\r\n/g, "\n").split("\n");
   const blocks = [];
   let list = null; // { ordered, items: [] }
   const flushList = () => { if (list) { blocks.push({ type: "list", ...list }); list = null; } };
-  for (const raw of lines) {
+  for (let idx = 0; idx < lines.length; idx++) {
+    const raw = lines[idx];
     const line = raw.replace(/\s+$/, "");
+    // Table: a header row with pipes, immediately followed by a separator row.
+    // Consume subsequent pipe rows as the body. Detecting on the separator keeps
+    // ordinary prose that happens to contain a `|` from being mis-parsed.
+    if (/\|/.test(line) && idx + 1 < lines.length && isTableSeparator(lines[idx + 1])) {
+      flushList();
+      const header = tableCells(line);
+      const align = tableCells(lines[idx + 1]).map((c) =>
+        c.startsWith(":") && c.endsWith(":") ? "center" : c.endsWith(":") ? "right" : c.startsWith(":") ? "left" : null,
+      );
+      const rows = [];
+      let j = idx + 2;
+      for (; j < lines.length; j++) {
+        const r = lines[j].trim();
+        if (!r || !/\|/.test(r)) break;
+        rows.push(tableCells(lines[j]));
+      }
+      blocks.push({ type: "table", header, align, rows });
+      idx = j - 1;
+      continue;
+    }
     const h = /^(#{1,6})\s+(.*)$/.exec(line);
     const ul = /^\s*[-*•]\s+(.*)$/.exec(line);
     const ol = /^\s*(\d+)[.)]\s+(.*)$/.exec(line);
@@ -66,6 +102,28 @@ function Markdown({ text, style }) {
         if (b.type === "gap") return <div key={i} style={{ height: 6 }} />;
         if (b.type === "h") return <div key={i} style={{ fontFamily: SR, fontWeight: b.level <= 2 ? 500 : 600, fontSize: H[b.level] || 13, color: C.t1, margin: i ? "14px 0 6px" : "0 0 6px", lineHeight: 1.3 }}>{mdInline(b.text, "h" + i)}</div>;
         if (b.type === "quote") return <div key={i} style={{ borderLeft: `2px solid ${C.em}`, padding: "2px 0 2px 10px", margin: "6px 0", color: C.t2, fontStyle: "italic" }}>{mdInline(b.text, "q" + i)}</div>;
+        if (b.type === "table") return (
+          <div key={i} style={{ margin: "10px 0", overflowX: "auto", border: `1px solid ${C.br}`, borderRadius: 6 }}>
+            <table style={{ borderCollapse: "collapse", width: "100%", fontSize: 12.5 }}>
+              <thead>
+                <tr>
+                  {b.header.map((c, k) => (
+                    <th key={k} style={{ textAlign: b.align[k] || "left", padding: "7px 10px", background: C.s1, borderBottom: `1px solid ${C.br}`, fontFamily: SR, fontWeight: 600, color: C.t1, whiteSpace: "nowrap" }}>{mdInline(c, "th" + i + "-" + k)}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {b.rows.map((r, ri) => (
+                  <tr key={ri} style={{ background: ri % 2 ? C.s1 + "55" : "transparent" }}>
+                    {b.header.map((_, ci) => (
+                      <td key={ci} style={{ textAlign: b.align[ci] || "left", padding: "6px 10px", borderBottom: ri < b.rows.length - 1 ? `1px solid ${C.br}` : "none", color: C.t2, verticalAlign: "top" }}>{mdInline(r[ci] ?? "", "td" + i + "-" + ri + "-" + ci)}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
         if (b.type === "list") return (
           <div key={i} style={{ margin: "6px 0", display: "grid", gap: 4 }}>
             {b.items.map((it, j) => (
