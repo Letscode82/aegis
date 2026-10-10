@@ -20,10 +20,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
 import { classifyIntakeRegex, classifyIntakeLaya } from "@aegis/ai";
-import { intakeStorageSet } from "@aegis/intake/server";
-import { assignRequestNumber } from "@aegis/db";
-
-const TICKETS_KEY = "aegis:tickets:v1";
+import { fileIntakeTicket } from "@aegis/intake/create";
 
 type StepState = "active" | "done" | "error";
 type Frame =
@@ -102,53 +99,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Step 4 — file: persist through the intake chokepoint (routing rules +
     // audit fire inside this call).
     send({ type: "step", key: "file", state: "active" });
-    const now = new Date();
-    // Sequential per-org REQ number (reserved atomically, collision-free),
-    // persisted immediately by this id through the chokepoint upsert — the
-    // sanctioned standalone-reservation pattern (replaces the old random id).
-    const id = await assignRequestNumber(user.organizationId);
-    const ticket = {
-      id,
-      _source: "copilot",
-      from: user.name || "(via Command Bar)",
-      dept: dept || "Unspecified",
-      type: bodyType || triage.cat || "Other",
-      priority: triage.priority || "Medium",
-      submitted: now.toISOString().slice(0, 16).replace("T", " "),
-      submittedTs: now.getTime(),
-      sla: triage.sla,
-      slaHours: triage.slaHours,
-      slaStatus: "On Track",
+    // Unified create path: mints the sequential REQ number, builds the
+    // canonical v8 ticket, and persists through the intake chokepoint
+    // (routing rules + chain-sealed audit fire inside).
+    const { ticketId: id, spawnedMatters: matters, spawnedContracts: contracts } = await fileIntakeTicket({
+      user,
+      dept,
+      type: bodyType,
       desc,
-      assigned: "Cockpit Queue",
-      status: "Awaiting Triage",
-      stage: "new",
-      seeded: false,
-      workflow: [
-        { label: "Submitted (Command Bar)", done: true },
-        { label: "Agent Analysis", active: true },
-        { label: "Attorney Review" },
-        { label: "Close" },
-      ],
-      aiTriage: {
-        category: triage.cat,
-        riskFlag: `${triage.risk} — ${triage.note}`,
-        suggestedAssignee: triage.team,
-        estimatedHours: triage.hrs,
-        similarMatters: 0,
-        confidence: triage.conf,
-        routingRule: `${triage.rule}: ${triage.cat}`,
-        source: triage.source || "copilot",
-      },
-    };
-    const result = (await intakeStorageSet(TICKETS_KEY, JSON.stringify([ticket]), { req, res })) as
-      | { spawnedMatters?: unknown[]; spawnedContracts?: unknown[] }
-      | undefined;
+      triage,
+      context: { req, res },
+    });
     send({ type: "step", key: "file", state: "done", detail: `→ ${id}` });
 
     // Step 5 — dispatch (only when the intake pipeline spawned downstream work).
-    const matters = (result && result.spawnedMatters) || [];
-    const contracts = (result && result.spawnedContracts) || [];
     if (matters.length + contracts.length > 0) {
       send({ type: "step", key: "dispatch", state: "active" });
       send({ type: "step", key: "dispatch", state: "done", detail: `→ ${matters.length} matter(s), ${contracts.length} contract(s)` });

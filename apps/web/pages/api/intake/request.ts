@@ -15,10 +15,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
 import { classifyIntakeRegex, classifyIntakeLaya } from "@aegis/ai";
-import { intakeStorageSet } from "@aegis/intake/server";
-import { assignRequestNumber } from "@aegis/db";
-
-const TICKETS_KEY = "aegis:tickets:v1";
+import { fileIntakeTicket } from "@aegis/intake/create";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
@@ -56,54 +53,21 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       source: "copilot",
     };
 
-    const now = new Date();
-    // Sequential per-org REQ number (reserved atomically, collision-free),
-    // then persisted immediately by this id through the chokepoint upsert —
-    // the sanctioned standalone-reservation pattern. Replaces the old
-    // random `REQ-<5000..9998>`, which was non-sequential and collision-prone.
-    const id = await assignRequestNumber(user.organizationId);
-    const ticket = {
-      id,
-      _source: "copilot",
-      from: user.name || "(via Command Bar)",
-      dept: dept || "Unspecified",
-      type: body.type || triage.cat || "Other",
-      priority: triage.priority || "Medium",
-      submitted: now.toISOString().slice(0, 16).replace("T", " "),
-      submittedTs: now.getTime(),
-      sla: triage.sla,
-      slaHours: triage.slaHours,
-      slaStatus: "On Track",
+    // Unified create path: mints the sequential REQ number, builds the
+    // canonical v8 ticket, and persists through the intake chokepoint
+    // (routing rules + chain-sealed audit fire inside).
+    const { ticketId, spawnedMatters, spawnedContracts } = await fileIntakeTicket({
+      user,
+      dept,
+      type: body.type,
       desc,
-      assigned: "Cockpit Queue",
-      status: "Awaiting Triage",
-      stage: "new",
-      seeded: false,
-      workflow: [
-        { label: "Submitted (Command Bar)", done: true },
-        { label: "Agent Analysis", active: true },
-        { label: "Attorney Review" },
-        { label: "Close" },
-      ],
-      aiTriage: {
-        category: triage.cat,
-        riskFlag: `${triage.risk} — ${triage.note}`,
-        suggestedAssignee: triage.team,
-        estimatedHours: triage.hrs,
-        similarMatters: 0,
-        confidence: triage.conf,
-        routingRule: `${triage.rule}: ${triage.cat}`,
-        source: triage.source || "copilot",
-      },
-    };
-
-    const result = (await intakeStorageSet(TICKETS_KEY, JSON.stringify([ticket]), { req, res })) as
-      | { spawnedMatters?: unknown[]; spawnedContracts?: unknown[] }
-      | undefined;
+      triage,
+      context: { req, res },
+    });
 
     return res.status(200).json({
       ok: true,
-      ticketId: id,
+      ticketId,
       classification: {
         category: triage.cat,
         team: triage.team,
@@ -116,8 +80,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         matched: !!(laya || regex),
       },
       spawned: {
-        matters: (result && result.spawnedMatters) || [],
-        contracts: (result && result.spawnedContracts) || [],
+        matters: spawnedMatters,
+        contracts: spawnedContracts,
       },
     });
   } catch (err) {
