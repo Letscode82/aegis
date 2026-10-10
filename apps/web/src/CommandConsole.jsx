@@ -870,6 +870,51 @@ function SkillSearchBox({ value, onChange }) {
   );
 }
 
+// OL-7: the full-catalogue skills browser as a searchable modal (the
+// Harvey/Legora/Claude pattern) — one entry point on the landing instead of a
+// wall of chips. Reuses SkillSearchBox + SkillRow + the SKILL_CATEGORIES
+// grouping the rail already uses, so there's one source of truth for the list.
+function SkillsDrawer({ onRunSkill, onClose }) {
+  const [query, setQuery] = useState("");
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, [onClose]);
+  const q = query.trim().toLowerCase();
+  const run = (s) => { if (onRunSkill) onRunSkill(s); onClose(); };
+  const hits = q ? SKILLS.filter((s) => s.label.toLowerCase().includes(q) || s.desc.toLowerCase().includes(q) || s.category.toLowerCase().includes(q)) : null;
+  return (
+    <div onClick={onClose} style={{ position: "fixed", inset: 0, zIndex: 400, background: "rgba(16,24,40,.35)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "8vh 20px" }}>
+      <div onClick={(e) => e.stopPropagation()} role="dialog" aria-label="All skills" style={{ width: "100%", maxWidth: 560, maxHeight: "80vh", display: "flex", flexDirection: "column", background: C.bg, border: `1px solid ${C.br}`, borderRadius: 14, boxShadow: "0 12px 48px rgba(16,24,40,.22)", overflow: "hidden" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "14px 16px", borderBottom: `1px solid ${C.br}` }}>
+          <span style={{ fontFamily: SR, fontSize: 16, flex: 1 }}>All skills</span>
+          <span style={{ fontSize: 10, fontFamily: M, color: C.t4 }}>{SKILLS.length}</span>
+          <button type="button" onClick={onClose} aria-label="Close" style={{ background: "transparent", border: `1px solid ${C.br}`, color: C.t2, borderRadius: 6, padding: "4px 9px", fontFamily: M, fontSize: 10, cursor: "pointer" }}>Esc</button>
+        </div>
+        <div style={{ padding: "12px 16px 4px" }}><SkillSearchBox value={query} onChange={setQuery} /></div>
+        <div style={{ flex: 1, overflowY: "auto", padding: "4px 16px 16px" }}>
+          {hits ? (
+            hits.length === 0 ? <div style={{ fontSize: 12.5, color: C.t4, padding: "10px 2px" }}>No skills match &ldquo;{query}&rdquo;.</div>
+            : hits.map((s) => <SkillRow key={s.id} skill={s} onRunSkill={run} />)
+          ) : (
+            SKILL_CATEGORIES.map((cat) => {
+              const items = SKILLS.filter((s) => s.category === cat);
+              if (!items.length) return null;
+              return (
+                <div key={cat} style={{ marginBottom: 10 }}>
+                  <div style={{ fontSize: 8.5, fontFamily: M, letterSpacing: 0.6, textTransform: "uppercase", color: C.t4, margin: "6px 2px 4px" }}>{cat}</div>
+                  {items.map((s) => <SkillRow key={s.id} skill={s} onRunSkill={run} />)}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // OL-6 — confirmation card for a governance ladder started from the console.
 // The ladder is now a tracked governed WorkflowInstance; AGENT steps queue a
 // PENDING task for a human and never auto-advance.
@@ -1110,6 +1155,8 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   // upload-in-flight flag.
   const [stagedDoc, setStagedDoc] = useState(null);
   const [staging, setStaging] = useState(false);
+  // OL-7: the full-catalogue skills browser (modal) open state.
+  const [skillsOpen, setSkillsOpen] = useState(false);
   const scrollRef = useRef(null);
   const startedRef = useRef(false);
   const inputRef = useRef(null);
@@ -1915,22 +1962,23 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
                 style={{ background: "transparent", border: "none", color: input.trim().length < 3 ? C.t4 : C.em, fontFamily: M, fontSize: 10, letterSpacing: 0.6, textTransform: "uppercase", cursor: input.trim().length < 3 ? "default" : "pointer", opacity: input.trim().length < 3 ? 0.6 : 1 }}
               >⚖ Deep skill review</button>
             </div>
+            {/* OL-7: a few suggestions, not the whole catalogue (Harvey/Legora/
+                Claude pattern). The full list lives behind "Browse all skills". */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 18, justifyContent: "center" }}>
-              {EXAMPLES.map((ex) => (
+              {EXAMPLES.slice(0, 4).map((ex) => (
                 <button key={ex.text} type="button" onClick={() => startTurn(ex.text)} style={exampleChip}>
                   <span style={{ color: C.tl, marginRight: 7 }} aria-hidden="true">{ex.icon}</span>{ex.text}
                 </button>
               ))}
             </div>
-            {/* Skills (E1) — one-click legal-ops playbooks. */}
-            <div style={{ marginTop: 20 }}>
-              <div style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 1, textTransform: "uppercase", marginBottom: 8 }}>Skills</div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
-                {SKILLS.filter((s) => s.featured).map((s) => (
-                  <button key={s.id} type="button" onClick={() => runSkill(s)} title={s.desc} style={exampleChip}>
-                    <span style={{ color: C.em, marginRight: 7 }} aria-hidden="true">{s.icon}</span>{s.label}
-                  </button>
-                ))}
+            {/* One entry to the full catalogue + a one-line explainer of Skills
+                vs Deep review, instead of two walls of chips. */}
+            <div style={{ marginTop: 16, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+              <button type="button" onClick={() => setSkillsOpen(true)} style={{ ...chipBtn, display: "inline-flex", alignItems: "center", gap: 7 }}>
+                <span aria-hidden="true" style={{ color: C.em }}>⚡</span>Browse all skills<span aria-hidden="true" style={{ color: C.t4 }}>&nbsp;· {SKILLS.length}</span>
+              </button>
+              <div style={{ fontSize: 11, color: C.t4, lineHeight: 1.5, maxWidth: 460 }}>
+                A <strong style={{ color: C.t3 }}>skill</strong> runs one specific playbook. <strong style={{ color: C.t3 }}>Deep skill review</strong> picks the right playbook for a document or task and runs it for you.
               </div>
             </div>
           </div>
@@ -2003,6 +2051,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
         </div>
         {embedded && wide && <WorkspaceRail turns={turns} onOpenTicket={goIntake} onNavigate={goModule} history={history} onRunSkill={runSkill} onReopen={reopenTask} />}
       </div>
+      {skillsOpen && <SkillsDrawer onRunSkill={runSkill} onClose={() => setSkillsOpen(false)} />}
     </div>
   );
 }
