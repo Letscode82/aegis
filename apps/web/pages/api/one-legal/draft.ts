@@ -41,6 +41,10 @@ function resolveLanguage(input: unknown): string {
     : "English";
 }
 
+// Give the model call room past Vercel's short default function limit (same
+// reason as the skill-review route; the callClaude timeout still aborts first).
+export const config = { maxDuration: 60 };
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");

@@ -33,6 +33,11 @@ function extractiveDigest(name: string, text: string): string {
   return `Deep AI analysis is offline — here is the opening of ${name} so you can review it directly:\n\n${head}${clean.length > 800 ? "…" : ""}\n\n(A qualified lawyer should review.)`;
 }
 
+// Heavier than the default route — a document-analysis model call can run past
+// Vercel's short default function limit, so give it room (same reason as the
+// skill-review route; the callClaude timeout still aborts first).
+export const config = { maxDuration: 60 };
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");

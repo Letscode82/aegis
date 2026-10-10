@@ -12,6 +12,76 @@ function ConsoleOrb({ state = "working", size = 20 }) {
   return <ThinkingOrb state={state} size={size} theme={theme === "dark" ? "dark" : "light"} ink={C.em} />;
 }
 
+// Markdown — a small, dependency-free renderer for the model's output so answers
+// read as clean formatted text (headings, bold, bullets, rules) instead of raw
+// `###` / `**` source. Handles the subset the AI actually emits; anything it
+// doesn't recognise falls through as plain text, so it can never throw on odd
+// input. Styled with the Aurora tokens to match the console.
+function mdInline(s, kp) {
+  // Split a line into bold / italic / inline-code / link spans. Order matters:
+  // `**` before `*` so bold isn't eaten by the italic rule.
+  const out = [];
+  const re = /(\*\*([^*]+?)\*\*|__([^_]+?)__|`([^`]+?)`|\*([^*\n]+?)\*|_([^_\n]+?)_|\[([^\]]+?)\]\((https?:\/\/[^)\s]+?)\))/;
+  let rest = String(s), k = 0;
+  while (rest) {
+    const m = re.exec(rest);
+    if (!m) { out.push(rest); break; }
+    if (m.index > 0) out.push(rest.slice(0, m.index));
+    const key = kp + "-" + k++;
+    if (m[2] != null || m[3] != null) out.push(<strong key={key} style={{ fontWeight: 600, color: C.t1 }}>{m[2] ?? m[3]}</strong>);
+    else if (m[4] != null) out.push(<code key={key} style={{ fontFamily: M, fontSize: "0.9em", background: C.s1, border: `1px solid ${C.br}`, borderRadius: 3, padding: "0 4px" }}>{m[4]}</code>);
+    else if (m[5] != null || m[6] != null) out.push(<em key={key}>{m[5] ?? m[6]}</em>);
+    else if (m[7] != null) out.push(<a key={key} href={m[8]} target="_blank" rel="noreferrer" style={{ color: C.em, textDecoration: "underline" }}>{m[7]}</a>);
+    rest = rest.slice(m.index + m[0].length);
+  }
+  return out;
+}
+function Markdown({ text, style }) {
+  const lines = String(text || "").replace(/\r\n/g, "\n").split("\n");
+  const blocks = [];
+  let list = null; // { ordered, items: [] }
+  const flushList = () => { if (list) { blocks.push({ type: "list", ...list }); list = null; } };
+  for (const raw of lines) {
+    const line = raw.replace(/\s+$/, "");
+    const h = /^(#{1,6})\s+(.*)$/.exec(line);
+    const ul = /^\s*[-*•]\s+(.*)$/.exec(line);
+    const ol = /^\s*(\d+)[.)]\s+(.*)$/.exec(line);
+    const quote = /^\s*>\s?(.*)$/.exec(line);
+    const hr = /^\s*([-*_])\1{2,}\s*$/.test(line);
+    if (hr) { flushList(); blocks.push({ type: "hr" }); continue; }
+    if (h) { flushList(); blocks.push({ type: "h", level: h[1].length, text: h[2] }); continue; }
+    if (ul) { if (!list || list.ordered) { flushList(); list = { ordered: false, items: [] }; } list.items.push(ul[1]); continue; }
+    if (ol) { if (!list || !list.ordered) { flushList(); list = { ordered: true, items: [] }; } list.items.push(ol[2]); continue; }
+    flushList();
+    if (quote) { blocks.push({ type: "quote", text: quote[1] }); continue; }
+    if (line.trim() === "") { blocks.push({ type: "gap" }); continue; }
+    blocks.push({ type: "p", text: line });
+  }
+  flushList();
+  const H = { 1: 19, 2: 16, 3: 14, 4: 13, 5: 12.5, 6: 12 };
+  return (
+    <div style={{ fontSize: 13.5, color: C.t1, lineHeight: 1.7, ...style }}>
+      {blocks.map((b, i) => {
+        if (b.type === "hr") return <div key={i} style={{ height: 1, background: C.br, margin: "12px 0" }} />;
+        if (b.type === "gap") return <div key={i} style={{ height: 6 }} />;
+        if (b.type === "h") return <div key={i} style={{ fontFamily: SR, fontWeight: b.level <= 2 ? 500 : 600, fontSize: H[b.level] || 13, color: C.t1, margin: i ? "14px 0 6px" : "0 0 6px", lineHeight: 1.3 }}>{mdInline(b.text, "h" + i)}</div>;
+        if (b.type === "quote") return <div key={i} style={{ borderLeft: `2px solid ${C.em}`, padding: "2px 0 2px 10px", margin: "6px 0", color: C.t2, fontStyle: "italic" }}>{mdInline(b.text, "q" + i)}</div>;
+        if (b.type === "list") return (
+          <div key={i} style={{ margin: "6px 0", display: "grid", gap: 4 }}>
+            {b.items.map((it, j) => (
+              <div key={j} style={{ display: "flex", gap: 8, alignItems: "baseline" }}>
+                <span style={{ color: C.em, fontFamily: M, fontSize: 11, flexShrink: 0, minWidth: b.ordered ? 16 : 10, textAlign: b.ordered ? "right" : "left" }}>{b.ordered ? (j + 1) + "." : "•"}</span>
+                <span style={{ flex: 1 }}>{mdInline(it, "li" + i + "-" + j)}</span>
+              </div>
+            ))}
+          </div>
+        );
+        return <div key={i} style={{ margin: "6px 0" }}>{mdInline(b.text, "p" + i)}</div>;
+      })}
+    </div>
+  );
+}
+
 // Command Console (WS-1, agentic) — "ONE Legal", the full-page front door,
 // built to feel like a first-class AI workspace (Harvey / Legora / Claude).
 //
@@ -389,7 +459,7 @@ function AnswerCard({ turn, onExample, onFileInstead, onOpenSource, onResearch, 
         </div>
       ) : (
         <>
-          <div style={{ fontSize: 13.5, color: C.t1, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{turn.answer}</div>
+          <Markdown text={turn.answer} />
           <CitationWarnings citations={turn.citations} />
           {Array.isArray(turn.nav) && turn.nav.length > 0 && onOpenSource && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 }}>
@@ -435,7 +505,7 @@ function AnalyzeCard({ turn, onFollowUp, onFileInstead, onDeepReview }) {
           I couldn&rsquo;t analyze that file. Supported: .txt, .md, .docx, .pdf (up to 3 MB).
         </div>
       ) : (
-        <div style={{ fontSize: 13.5, color: C.t1, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{turn.analysis}</div>
+        <Markdown text={turn.analysis} />
       )}
       {!busy && (
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14, alignItems: "center" }}>
@@ -487,7 +557,7 @@ function ResearchCard({ turn, onFollowUp, onFileInstead, onOpenSource }) {
               </div>
             </details>
           )}
-          <div style={{ fontSize: 13.5, color: C.t1, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{turn.answer}</div>
+          <Markdown text={turn.answer} />
           <SourcesList sources={turn.sources} grounded={!turn.degraded && (turn.sources || []).length > 0} onOpenSource={onOpenSource} />
         </>
       )}
@@ -564,7 +634,7 @@ function LegalResearchCard({ turn, onFollowUp, onFileInstead }) {
             <span style={{ fontSize: 8.5, fontFamily: M, color: C.em, border: `1px solid ${C.em}`, borderRadius: 4, padding: "0 5px", letterSpacing: 0.5, textTransform: "uppercase" }}>⚖ legal research</span>
             {turn.degraded && <span style={{ fontSize: 8.5, fontFamily: M, color: C.am, border: `1px solid ${C.am}`, borderRadius: 4, padding: "0 5px", letterSpacing: 0.5, textTransform: "uppercase" }}>AI offline</span>}
           </div>
-          <div style={{ fontSize: 13.5, color: C.t1, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{turn.answer}</div>
+          <Markdown text={turn.answer} />
           <CitationWarnings citations={turn.citations} />
           <AuthoritiesList sources={turn.sources} />
           {searched.length > 0 && (
@@ -630,7 +700,7 @@ function SkillReviewCard({ turn, onFollowUp, onFileInstead }) {
             <div style={{ fontSize: 12.5, color: C.t3, lineHeight: 1.6 }}>{turn.note}</div>
           )}
           {turn.answer && (
-            <div style={{ fontSize: 13.5, color: C.t1, lineHeight: 1.7, whiteSpace: "pre-wrap" }}>{turn.answer}</div>
+            <Markdown text={turn.answer} />
           )}
           {turn.degraded && (
             <div style={{ marginTop: 10, color: C.am, fontFamily: M, fontSize: 11, background: C.s1, border: `1px solid ${C.br}`, borderRadius: 8, padding: "7px 10px" }}>
