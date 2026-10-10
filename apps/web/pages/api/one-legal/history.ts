@@ -22,9 +22,17 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     await assertAndAudit(user, Permission.IntakeCreateTicket, { route: "one-legal.history" });
     const sessionId = typeof req.query.sessionId === "string" ? req.query.sessionId : undefined;
     const limit = Math.min(Number(req.query.limit) || 20, 50);
+    // OL-4 / "My activity": scope=mine returns the caller's tasks across ALL
+    // their ONE Legal sessions (sessions they started), not just the current
+    // one — so the console can show a cross-session personal history. Default
+    // stays session-scoped. Org scoping is always applied.
+    const mine = req.query.scope === "mine";
+    const where = mine
+      ? { organizationId: user.organizationId, session: { startedById: user.id } }
+      : { organizationId: user.organizationId, ...(sessionId ? { sessionId } : {}) };
     try {
       const rows = await prisma.legalTask.findMany({
-        where: { organizationId: user.organizationId, ...(sessionId ? { sessionId } : {}) },
+        where,
         orderBy: { createdAt: "desc" },
         take: limit,
         // OL-5: select answerSnapshot only to derive a `hasAnswer` flag — the
