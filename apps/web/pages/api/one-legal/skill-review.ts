@@ -28,7 +28,13 @@ import { loadRegistryFromData, route, buildSystemPrompt, wrapDocuments, getSkill
 // works inside the Next serverless bundle — see loadRegistryFromData.
 import registryData from "@aegis/legal-skills/registry.json";
 
-export const config = { api: { bodyParser: { sizeLimit: "2mb" } } };
+// maxDuration: the deep skill review carries a large playbook system prompt
+// (~13K tokens), so the model call runs longer than the light routes. Without
+// an explicit cap the function uses Vercel's short default (~10-15s) and the
+// platform kills the request mid-call — which surfaced as a generic "AI
+// unavailable" even though the model was healthy. 60s gives the call room; the
+// callClaude timeout below still aborts first and reports a precise reason.
+export const config = { api: { bodyParser: { sizeLimit: "2mb" } }, maxDuration: 60 };
 
 // Build the index once per warm lambda.
 const REGISTRY = loadRegistryFromData(registryData as never);
