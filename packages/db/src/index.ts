@@ -70,6 +70,11 @@ export {
   type ClaimOptions,
   type JobQueueCounts,
 } from "./processing-queue";
+export {
+  nextRequestNumberInTx,
+  assignRequestNumber,
+  REQUEST_NUMBER_BASE,
+} from "./request-number";
 
 // Re-export the generated Prisma namespace + enum types so callers don't
 // have to depend on @prisma/client directly. Keeps the module-isolation

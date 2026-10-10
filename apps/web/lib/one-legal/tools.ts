@@ -23,6 +23,7 @@ import { createDsarRequest } from "@aegis/privacy";
 import { runAndPersistReview } from "@aegis/spend";
 import { persistReviewSet } from "@aegis/review";
 import { prisma, logAudit, ReviewSetOrigin } from "@aegis/db";
+import { recordGovernedActionTicket } from "@aegis/intake/governed";
 import { createHash } from "crypto";
 import { assertAndAudit } from "../authz";
 
@@ -301,6 +302,10 @@ export interface GovernedExecution extends ToolResult {
   argsSummary: string;
   decisionId: string | null;
   auditLogId: string | null;
+  /** Two-tier model: the REQ number of the tracking intake ticket this
+   *  governed action back-filled, so it carries a request id and surfaces in
+   *  the queue. Null when no requester Person resolved (ticket skipped). */
+  requestNumber: string | null;
 }
 
 function decisionSeed(toolId: string, text: string, resourceType: string, args: unknown, label: string) {
@@ -392,5 +397,36 @@ export async function executeGovernedTool(
     } catch { /* ignore */ }
   }
 
-  return { ...result, argsSummary, decisionId, auditLogId };
+  // Two-tier model — a governed WRITE enters the approval ladder/workflow, so
+  // it earns a REQ number and shows in the intake queue. Pure-assistance tiers
+  // (ask/analyze/review/research/draft) never reach this path, so they stay
+  // unticketed by construction. Best-effort: the governed action already
+  // executed, so a back-fill failure never undoes it.
+  let requestNumber: string | null = null;
+  if (tool.kind === "write") {
+    const matterId =
+      tool.resourceType === "Matter"
+        ? result.resourceId
+        : tool.needsTarget?.kind === "matter" && targetId
+          ? targetId
+          : null;
+    try {
+      const ticket = await recordGovernedActionTicket({
+        organizationId: user.organizationId,
+        actor: { id: user.id, name: user.name ?? null },
+        tool: { id: tool.id, label: tool.label },
+        requestText: text,
+        resource: {
+          type: tool.resourceType,
+          id: result.resourceId,
+          label: result.resourceLabel,
+          navigate: result.navigate,
+        },
+        matterId,
+      });
+      requestNumber = ticket?.ticketId ?? null;
+    } catch { /* tracking ticket is best-effort — never undo the action */ }
+  }
+
+  return { ...result, argsSummary, decisionId, auditLogId, requestNumber };
 }
