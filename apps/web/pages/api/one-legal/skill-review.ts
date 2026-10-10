@@ -91,7 +91,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     let aiError: string | null = null;
     try {
       ensureServerClaudeTransport();
-      answer = ((await callClaude(userMsg, { system, maxTokens: 1500, timeout: 30000 })) || "").trim();
+      // A full clause-by-clause playbook review runs long — 1500 output tokens
+      // truncated the result mid-sentence. Give it room to finish; the 45s
+      // timeout still fits under the route's 60s maxDuration.
+      answer = ((await callClaude(userMsg, { system, maxTokens: 4000, timeout: 45000 })) || "").trim();
       if (!answer) throw new Error("empty response from model");
     } catch (e) {
       degraded = true;

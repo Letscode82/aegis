@@ -1789,6 +1789,17 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     startTurn(p); // "route" — intent router (ask / file / tool / compound)
   }, [startResearch, startTurn, runLadder]);
 
+  // Start a fresh conversation (Claude / Cowork "New chat"): clear the thread,
+  // the composer, and any staged document, returning to the landing without
+  // navigating away. Persisted history stays in the rail for reopening.
+  const newChat = useCallback(() => {
+    setTurns([]);
+    setInput("");
+    setStagedDoc(null);
+    pendingSkillRef.current = null;
+    setTimeout(() => inputRef.current?.focus(), 0);
+  }, []);
+
   // Auto-run a seeded request once when opened from the omnibox.
   useEffect(() => {
     if (isOpen && initialText && !startedRef.current) {
@@ -2053,6 +2064,14 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       ) : (
         /* ── Conversation ─────────────────────────────────────────── */
         <>
+          {/* Thread header with a Claude/Cowork-style "New chat" so you can
+              start fresh without leaving the ONE Legal view. */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "9px 20px", borderBottom: `1px solid ${C.br}`, flexShrink: 0 }}>
+            <span style={{ fontFamily: M, fontSize: 9.5, letterSpacing: 1.2, textTransform: "uppercase", color: C.t4 }}>ONE Legal</span>
+            <button type="button" onClick={newChat} title="Start a new conversation" style={{ ...ghostBtn, padding: "6px 12px", display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <span aria-hidden="true" style={{ fontSize: 13, lineHeight: 1 }}>＋</span> New chat
+            </button>
+          </div>
           <div ref={scrollRef} style={{ flex: 1, minHeight: 0, overflowY: "auto", padding: "24px 20px" }}>
             <div style={{ maxWidth: 760, margin: "0 auto", display: "grid", gap: 26 }}>
               {turns.map((t) => (
