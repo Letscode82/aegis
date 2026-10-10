@@ -899,7 +899,7 @@ function LadderCard({ turn }) {
 
 // Cowork-style right rail (à la Claude): Progress / Working folder / Context /
 // Skills, all derived from the live turns — no separate state.
-function WorkspaceRail({ turns, onOpenTicket, onNavigate, history, onRunSkill }) {
+function WorkspaceRail({ turns, onOpenTicket, onNavigate, history, onRunSkill, onReopen }) {
   const last = turns[turns.length - 1] || null;
   const progress = (() => {
     if (!last) return [];
@@ -999,15 +999,24 @@ function WorkspaceRail({ turns, onOpenTicket, onNavigate, history, onRunSkill })
 
       {history && history.length > 0 && (
         <RailSection title="Recent (persisted)">
-          {history.slice(0, 8).map((h) => (
-            <button key={h.id} type="button" onClick={h.navigate && onNavigate ? () => onNavigate(h.navigate) : undefined} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 9, padding: "6px 8px", marginBottom: 3, background: "transparent", border: `1px solid ${C.br}`, borderRadius: 8, cursor: h.navigate && onNavigate ? "pointer" : "default" }}>
-              <span aria-hidden="true" style={{ fontSize: 12, color: h.status === "error" ? C.rd : C.gn }}>{h.status === "error" ? "✕" : "✓"}</span>
-              <span style={{ minWidth: 0 }}>
-                <div style={{ fontSize: 11.5, color: C.t2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{h.resourceLabel || h.title}</div>
-                <div style={{ fontSize: 9.5, color: C.t4, fontFamily: M }}>{h.toolId || h.kind}</div>
-              </span>
-            </button>
-          ))}
+          {history.slice(0, 8).map((h) => {
+            // OL-5: a row is clickable if it can be reopened (has a saved
+            // answer) or navigated to a resource. Reopen takes priority.
+            const canReopen = !!(h.hasAnswer && onReopen);
+            const canNavigate = !!(h.navigate && onNavigate);
+            const clickable = canReopen || canNavigate;
+            const onClick = canReopen ? () => onReopen(h) : canNavigate ? () => onNavigate(h.navigate) : undefined;
+            return (
+              <button key={h.id} type="button" onClick={onClick} title={canReopen ? "Reopen this" : undefined} style={{ width: "100%", textAlign: "left", display: "flex", alignItems: "center", gap: 9, padding: "6px 8px", marginBottom: 3, background: "transparent", border: `1px solid ${C.br}`, borderRadius: 8, cursor: clickable ? "pointer" : "default" }}>
+                <span aria-hidden="true" style={{ fontSize: 12, color: h.status === "error" ? C.rd : C.gn }}>{h.status === "error" ? "✕" : "✓"}</span>
+                <span style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: 11.5, color: C.t2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{h.resourceLabel || h.title}</div>
+                  <div style={{ fontSize: 9.5, color: C.t4, fontFamily: M }}>{h.toolId || h.kind}</div>
+                </span>
+                {canReopen && <span aria-hidden="true" style={{ fontSize: 11, color: C.t4, flexShrink: 0 }}>↩</span>}
+              </button>
+            );
+          })}
         </RailSection>
       )}
 
@@ -1679,15 +1688,15 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     };
     for (const t of turns) {
       if (t.kind === "ask") {
-        if (!t.answerLoading && (t.answer || t.answerError || t.capability)) rec(`a-${t.id}`, { title: t.request.slice(0, 80), request: t.request, kind: "ask", status: t.answerError ? "error" : "done" });
+        if (!t.answerLoading && (t.answer || t.answerError || t.capability)) rec(`a-${t.id}`, { title: t.request.slice(0, 80), request: t.request, kind: "ask", status: t.answerError ? "error" : "done", answer: t.answer || "" });
       } else if (t.kind === "research") {
-        if (!t.researchLoading && (t.answer || t.error)) rec(`r-${t.id}`, { title: t.request.slice(0, 80), request: t.request, kind: "ask", status: t.error ? "error" : "done" });
+        if (!t.researchLoading && (t.answer || t.error)) rec(`r-${t.id}`, { title: t.request.slice(0, 80), request: t.request, kind: "ask", status: t.error ? "error" : "done", answer: t.answer || "" });
       } else if (t.kind === "skill-review") {
-        if (!t.reviewLoading && (t.answer || t.matched || t.error)) rec(`sr-${t.id}`, { title: (t.matched?.title || t.request).slice(0, 80), request: t.request, kind: "ask", status: t.error ? "error" : "done" });
+        if (!t.reviewLoading && (t.answer || t.matched || t.error)) rec(`sr-${t.id}`, { title: (t.matched?.title || t.request).slice(0, 80), request: t.request, kind: "ask", status: t.error ? "error" : "done", answer: t.answer || "" });
       } else if (t.kind === "file") {
         if (t.result || t.error) rec(`f-${t.id}`, { title: t.result?.ticketId || t.request.slice(0, 60), request: t.request, kind: "file", status: t.error ? "error" : "done", resourceType: "IntakeTicket", resourceId: t.result?.ticketId, resourceLabel: t.result?.ticketId, navigate: "intake", error: t.error });
       } else if (t.kind === "analyze") {
-        if (!t.uploading && !t.analyzeLoading && (t.analysis || t.error)) rec(`an-${t.id}`, { title: t.fileName?.slice(0, 80) || "Document", request: t.request, kind: "file", status: t.error ? "error" : "done", resourceType: "Document", resourceId: t.documentId, resourceLabel: t.fileName, error: t.error });
+        if (!t.uploading && !t.analyzeLoading && (t.analysis || t.error)) rec(`an-${t.id}`, { title: t.fileName?.slice(0, 80) || "Document", request: t.request, kind: "file", status: t.error ? "error" : "done", resourceType: "Document", resourceId: t.documentId, resourceLabel: t.fileName, error: t.error, answer: t.analysis || "" });
       } else if (t.kind === "artifact") {
         if (t.savedDocumentId) rec(`art-${t.id}`, { title: (t.title || "Draft").slice(0, 80), request: t.request, kind: "file", status: "done", resourceType: "Document", resourceId: t.savedDocumentId, resourceLabel: t.title });
       } else if (t.kind === "compound") {
@@ -1741,6 +1750,35 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     if (onNavigate) onNavigate(view);
   }, [onClose, onNavigate]);
   const handleAsk = onAsk ? () => { if (onClose) onClose(); onAsk(); } : null;
+
+  // OL-5: reopen a past task from the Recent list, read-only (ChatGPT/Claude-
+  // style). Fetches the saved answer body and appends it as an ask-shaped turn
+  // so its full Q&A is back in the thread and its "Next" actions (file, deep
+  // review, research) can continue it. If the row has no saved answer but does
+  // have a navigate target, fall back to navigating to that resource.
+  const reopenTask = useCallback(async (h) => {
+    if (!h) return;
+    if (!h.hasAnswer) { if (h.navigate && onNavigate) goModule(h.navigate); return; }
+    const loadingId = ++TURN_SEQ;
+    setTurns((ts) => [...ts, { id: loadingId, kind: "ask", request: h.resourceLabel || h.title || "Reopened", answerLoading: true, reopened: true }]);
+    try {
+      const d = await fetch(`/api/one-legal/task?id=${encodeURIComponent(h.id)}`).then((r) => r.json());
+      if (d && d.ok && d.task) {
+        const task = d.task;
+        patchTurn(loadingId, {
+          request: task.request || h.title || "Reopened",
+          answerLoading: false,
+          answer: (task.answerSnapshot || "").trim(),
+          answerError: task.status === "error" ? (task.error || "This task ended with an error.") : null,
+          reopened: true,
+        });
+      } else {
+        patchTurn(loadingId, { answerLoading: false, answerError: "Couldn’t reopen this item from history." });
+      }
+    } catch {
+      patchTurn(loadingId, { answerLoading: false, answerError: "Couldn’t reopen this item from history." });
+    }
+  }, [onNavigate, goModule, patchTurn]);
 
   if (!isOpen) return null;
 
@@ -1908,7 +1946,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
         </>
       )}
         </div>
-        {embedded && wide && <WorkspaceRail turns={turns} onOpenTicket={goIntake} onNavigate={goModule} history={history} onRunSkill={runSkill} />}
+        {embedded && wide && <WorkspaceRail turns={turns} onOpenTicket={goIntake} onNavigate={goModule} history={history} onRunSkill={runSkill} onReopen={reopenTask} />}
       </div>
     </div>
   );

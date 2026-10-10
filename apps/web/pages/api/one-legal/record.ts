@@ -29,6 +29,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!sessionId || !title) return res.status(400).json({ ok: false, error: "sessionId + title required" });
 
     const str = (v: unknown, n = 200) => (v == null ? null : String(v).slice(0, n));
+    // OL-5: capture the displayable answer body (capped) so the task can be
+    // reopened read-only from the Recent list. Blank/whitespace → null.
+    const answerRaw = b.answer == null ? "" : String(b.answer).trim();
+    const answerSnapshot = answerRaw ? answerRaw.slice(0, 16000) : null;
     try {
       await prisma.consoleSession.upsert({
         where: { id: sessionId },
@@ -49,6 +53,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
           resourceLabel: str(b.resourceLabel, 200),
           navigate: str(b.navigate, 40),
           error: str(b.error, 500),
+          answerSnapshot,
         },
       });
     } catch { /* tables not deployed yet → best-effort no-op */ }

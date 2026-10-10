@@ -4020,6 +4020,11 @@ model LegalTask {
   resourceLabel  String?
   navigate       String?
   error          String?
+  // OL-5: displayable answer body captured when the task completed, so a past
+  // ask / deep-review / analysis can be reopened read-only from the Recent
+  // list (ChatGPT/Claude-style). Nullable + additive — older rows and
+  // non-answer tasks (filed tickets) simply have none and keep navigating.
+  answerSnapshot String?  @db.Text
   createdAt      DateTime @default(now())
 
   session ConsoleSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
