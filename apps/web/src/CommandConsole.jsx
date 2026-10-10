@@ -1096,7 +1096,7 @@ function LadderCard({ turn }) {
 
 // Cowork-style right rail (à la Claude): Progress / Working folder / Context /
 // Skills, all derived from the live turns — no separate state.
-function WorkspaceRail({ turns, onOpenTicket, onNavigate, history, onRunSkill, onReopen }) {
+function WorkspaceRail({ turns, onOpenTicket, onNavigate, history, onRunSkill, onReopen, historyScope, onHistoryScope }) {
   const last = turns[turns.length - 1] || null;
   const progress = (() => {
     if (!last) return [];
@@ -1194,9 +1194,24 @@ function WorkspaceRail({ turns, onOpenTicket, onNavigate, history, onRunSkill, o
           ))}
       </RailSection>
 
-      {history && history.length > 0 && (
-        <RailSection title="Recent (persisted)">
-          {history.slice(0, 8).map((h) => {
+      <RailSection title="Recent">
+        {onHistoryScope && (
+          <div style={{ display: "flex", gap: 4, marginBottom: 10 }}>
+            {[["session", "This session"], ["mine", "My activity"]].map(([key, label]) => {
+              const active = historyScope === key;
+              return (
+                <button key={key} type="button" onClick={() => onHistoryScope(key)} style={{
+                  flex: 1, padding: "5px 6px", fontSize: 10, fontFamily: M, letterSpacing: 0.3, cursor: "pointer",
+                  borderRadius: 6, border: `1px solid ${active ? C.em : C.br}`,
+                  background: active ? C.emG : "transparent", color: active ? C.em : C.t3, fontWeight: active ? 700 : 500,
+                }}>{label}</button>
+              );
+            })}
+          </div>
+        )}
+        {(!history || history.length === 0)
+          ? <div style={{ fontSize: 12, color: C.t4 }}>{historyScope === "mine" ? "No activity yet across your sessions." : "Nothing in this session yet."}</div>
+          : history.slice(0, historyScope === "mine" ? 20 : 8).map((h) => {
             // OL-5: a row is clickable if it can be reopened (has a saved
             // answer) or navigated to a resource. Reopen takes priority.
             const canReopen = !!(h.hasAnswer && onReopen);
@@ -1214,8 +1229,7 @@ function WorkspaceRail({ turns, onOpenTicket, onNavigate, history, onRunSkill, o
               </button>
             );
           })}
-        </RailSection>
-      )}
+      </RailSection>
 
       <RailSection title="Context">
         {["Intake pipeline", lastRule ? `Routing · ${lastRule}` : "Routing rules", "Audit chain · sealed", "Matter / Contract auto-spawn"].map((c, i) => (
@@ -1301,6 +1315,10 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   const [me, setMe] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [history, setHistory] = useState([]);
+  // "My activity": the Recent rail can show just this session's tasks
+  // (default) or everything this user has run across all their ONE Legal
+  // sessions. The scope drives which /history query runs.
+  const [historyScope, setHistoryScope] = useState("session");
   // OL-6: a document the user attached but has NOT run yet. Attaching only
   // *stages* the file (upload + index); nothing executes until the user submits
   // with Enter / Route (optionally after typing a question). `staging` is the
@@ -2063,8 +2081,13 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   }, []);
   useEffect(() => {
     if (!isOpen || !sessionId) return;
-    fetch(`/api/one-legal/history?sessionId=${encodeURIComponent(sessionId)}&limit=20`).then((r) => r.json()).then((d) => { if (d?.ok) setHistory(d.tasks || []); }).catch(() => {});
-  }, [isOpen, sessionId]);
+    const q = historyScope === "mine"
+      ? `scope=mine&limit=30`
+      : `sessionId=${encodeURIComponent(sessionId)}&limit=20`;
+    let live = true;
+    fetch(`/api/one-legal/history?${q}`).then((r) => r.json()).then((d) => { if (live && d?.ok) setHistory(d.tasks || []); }).catch(() => {});
+    return () => { live = false; };
+  }, [isOpen, sessionId, historyScope]);
 
   // OL-4: persist each task the moment it reaches a terminal state (best-effort,
   // once per task). Keeps the durable run record + the rail's Recent section.
@@ -2360,7 +2383,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
         </>
       )}
         </div>
-        {embedded && wide && <WorkspaceRail turns={turns} onOpenTicket={goIntake} onNavigate={goModule} history={history} onRunSkill={runSkill} onReopen={reopenTask} />}
+        {embedded && wide && <WorkspaceRail turns={turns} onOpenTicket={goIntake} onNavigate={goModule} history={history} onRunSkill={runSkill} onReopen={reopenTask} historyScope={historyScope} onHistoryScope={setHistoryScope} />}
       </div>
       {skillsOpen && <SkillsDrawer onRunSkill={runSkill} onClose={() => setSkillsOpen(false)} />}
     </div>
