@@ -1324,6 +1324,12 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   // this id so /ask grounds on the WHOLE document, not a keyword sliver of it —
   // and so re-uploads of the same file don't fan out into duplicate excerpts.
   const activeDocRef = useRef(null);
+  // Live mirror of `turns` so a follow-up can read the conversation so far
+  // without the callback closing over a stale array — the basis for threading
+  // prior context (the deep review just produced, earlier answers) into the
+  // next question, the way Cowork / a chat thread carries its own history.
+  const turnsRef = useRef([]);
+  useEffect(() => { turnsRef.current = turns; }, [turns]);
 
   const isOpen = embedded || open;
   const wide = useWide(1080);
@@ -1482,6 +1488,37 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     execRequest(task.request, sinkTask(turnId, task.id)).then(() => patchTask(turnId, task.id, { state: "done" }));
   }, [execRequest, sinkTask, patchTask]);
 
+  // Build the conversation so far as a compact [{role, text}] list, so a
+  // follow-up is answered in context (the deep review just produced, earlier
+  // answers) — the thread-aware behaviour of Cowork / a chat. Reads the live
+  // turns mirror, skips the in-flight turn, bounds each item and the total.
+  const buildConversation = useCallback((exceptTurnId) => {
+    const outOf = (t) => {
+      if (t.kind === "analyze") return t.analysis;
+      if (t.kind === "skill-review") return t.matched ? `[Deep review — ${t.matched.title}]\n${t.answer || ""}` : t.answer;
+      return t.answer; // ask / research / legal-research
+    };
+    const msgs = [];
+    let budget = 8000;
+    for (const t of turnsRef.current) {
+      if (t.id === exceptTurnId) continue;
+      const out = String(outOf(t) || "").trim();
+      const req = String(t.request || "").trim();
+      if (!out && !req) continue;
+      if (req) msgs.push({ role: "user", text: req.slice(0, 1500) });
+      if (out) msgs.push({ role: "assistant", text: out.slice(0, 3000) });
+    }
+    // Keep the most recent exchanges within budget (newest-first trim).
+    const kept = [];
+    for (let i = msgs.length - 1; i >= 0; i--) {
+      const m = msgs[i];
+      budget -= m.text.length;
+      if (budget < 0 && kept.length > 0) break;
+      kept.unshift(m);
+    }
+    return kept;
+  }, []);
+
   // Answer a QUESTION — capability overview (built-in) or a model answer that
   // degrades gracefully. Never files a ticket.
   const runAsk = useCallback(async (turnId, text, capability) => {
@@ -1495,9 +1532,10 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       const resp = await fetch("/api/one-legal/ask", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // Pass the conversation's active document so the server grounds the
-        // answer on its full text rather than a keyword excerpt.
-        body: JSON.stringify({ text, documentId: activeDocRef.current?.documentId || undefined }),
+        // Pass the conversation's active document (grounds on its full text)
+        // AND the conversation so far (so "what are the two findings" is
+        // answered from the review already produced) — the Cowork/chat feel.
+        body: JSON.stringify({ text, documentId: activeDocRef.current?.documentId || undefined, conversation: buildConversation(turnId) }),
       });
       const data = await resp.json().catch(() => ({}));
       if (data && data.ok && (data.answer || "").trim()) {
@@ -1510,7 +1548,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     } catch (e) {
       patchTurn(turnId, { answerLoading: false, answerError: friendlyAIError(e) });
     }
-  }, [patchTurn]);
+  }, [patchTurn, buildConversation]);
 
   // Force-file text as a request (used by "File this as a request →").
   const fileRequest = useCallback((text) => {

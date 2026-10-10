@@ -87,6 +87,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (question.length < 3) return res.status(400).json({ ok: false, error: "Ask a question in a few words." });
     const activeDocumentId = String((req.body || {}).documentId || "").trim();
 
+    // Conversation so far (the console sends it so a follow-up is answered in
+    // context — e.g. "what are the two findings" after a deep review). Bounded
+    // defensively: at most 12 turns, each clipped, total capped, roles coerced.
+    const rawConvo = Array.isArray((req.body || {}).conversation) ? (req.body as { conversation: unknown[] }).conversation : [];
+    const convoTurns = rawConvo
+      .slice(-12)
+      .map((m) => {
+        const role = (m as { role?: unknown })?.role === "assistant" ? "Assistant" : "User";
+        const text = String((m as { text?: unknown })?.text || "").trim().slice(0, 3000);
+        return text ? `${role}: ${text}` : "";
+      })
+      .filter(Boolean);
+    const convoBlock = convoTurns.length ? `Conversation so far:\n${convoTurns.join("\n\n").slice(0, 9000)}\n\n` : "";
+
     // 0) Active-document follow-up. When the console passes the id of the
     // document the conversation is centred on (the user just uploaded /
     // analysed / deep-reviewed it), ground the answer on its WHOLE extracted
@@ -119,7 +133,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         let degraded = false;
         try {
           ensureServerClaudeTransport();
-          answer = ((await callClaude(`Question: ${question}\n\nContext:\n[1] ${doc.name}\n${bounded}`, { system: GROUNDED_SYSTEM, maxTokens: 1500, timeout: 40000 })) || "").trim();
+          answer = ((await callClaude(`${convoBlock}Question: ${question}\n\nContext:\n[1] ${doc.name}\n${bounded}`, { system: GROUNDED_SYSTEM, maxTokens: 1500, timeout: 40000 })) || "").trim();
           if (!answer) throw new Error("empty response from model");
         } catch (e) {
           degraded = true;
@@ -230,9 +244,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ensureServerClaudeTransport();
       if (grounded) {
         const context = sources.map((s) => `[${s.n}] ${s.name}\n${s.snippet}`).join("\n\n");
-        answer = ((await callClaude(`Question: ${question}\n\nContext:\n${context}`, { system: GROUNDED_SYSTEM, maxTokens: 700, timeout: 20000 })) || "").trim();
+        answer = ((await callClaude(`${convoBlock}Question: ${question}\n\nContext:\n${context}`, { system: GROUNDED_SYSTEM, maxTokens: 700, timeout: 20000 })) || "").trim();
       } else {
-        answer = ((await callClaude(question, { system: GENERAL_SYSTEM, maxTokens: 700, timeout: 20000 })) || "").trim();
+        answer = ((await callClaude(`${convoBlock}Question: ${question}`, { system: GENERAL_SYSTEM, maxTokens: 700, timeout: 20000 })) || "").trim();
       }
     } catch (e) {
       if (grounded) {
