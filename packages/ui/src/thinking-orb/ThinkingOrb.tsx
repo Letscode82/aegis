@@ -13,7 +13,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { MODE_DRAWS } from "./engine/registry";
 import { setInk } from "./engine/core";
 import { resolvePreset } from "./presets";
-import type { OrbSize, OrbState, OrbTheme, ThinkingOrbProps } from "./types";
+import type { OrbState, OrbTheme, ThinkingOrbProps } from "./types";
 
 const LABELS: Record<OrbState, string> = {
   working: "Working…",
@@ -116,7 +116,7 @@ export const ThinkingOrb: React.FC<ThinkingOrbProps> = ({
     if (!canvas) return;
 
     const dpr = Math.min(2, (typeof devicePixelRatio !== "undefined" && devicePixelRatio) || 1);
-    const orbSize: OrbSize = size;
+    const orbSize = size;
     canvas.width = Math.round(orbSize * dpr);
     canvas.height = Math.round(orbSize * dpr);
     const ctx = canvas.getContext("2d");

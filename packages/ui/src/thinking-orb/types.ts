@@ -43,8 +43,15 @@ export interface ThinkingOrbProps {
   /** Which animation to show. @default 'working' */
   state?: OrbState;
 
-  /** Tuned size preset — 64 or 20 CSS px. @default 64 */
-  size?: OrbSize;
+  /**
+   * Rendered size in CSS pixels. @default 64
+   *
+   * Two tunings ship (20 inline, 64 avatar); any other size renders at the
+   * nearest tuning scaled into a canvas of the requested px — e.g. a 128
+   * splash orb reuses the 64 tuning. Pass 20 or 64 for the pixel-perfect
+   * hand-tuned designs.
+   */
+  size?: number;
 
   /** Theme mode; `auto` detects from the host project. @default 'auto' */
   theme?: OrbTheme;
