@@ -1490,6 +1490,7 @@ model IntakeTicket {
   parties         IntakeTicketParty[]
   handoffs        IntakeTicketHandoff[]
   rfis            IntakeRfi[]
+  sourcedContracts Contract[]           @relation("IntakeTicketSourcedContracts")
 
   @@unique([organizationId, externalMessageId])
   @@index([organizationId, status])
@@ -2179,6 +2180,10 @@ model Contract {
   organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   counterparty Counterparty? @relation(fields: [counterpartyId], references: [id], onDelete: SetNull)
   matter       Matter?       @relation(fields: [matterId], references: [id], onDelete: SetNull)
+  /// Real FK to the intake ticket this contract spawned from (was a loose
+  /// String). SetNull so purging a ticket never orphans or deletes the
+  /// contract it produced — the contract outlives its intake record.
+  sourceIntakeTicket IntakeTicket? @relation("IntakeTicketSourcedContracts", fields: [sourceIntakeTicketId], references: [id], onDelete: SetNull)
 
   clauses           ContractClause[]
   reviewTokens      ContractReviewToken[]
@@ -2191,6 +2196,7 @@ model Contract {
   @@index([organizationId, expiryDate])
   @@index([counterpartyId])
   @@index([matterId])
+  @@index([sourceIntakeTicketId])
 }
 
 /// Visibility of a contract comment. INTERNAL threads are the back-and-forth
