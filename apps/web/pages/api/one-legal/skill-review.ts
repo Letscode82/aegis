@@ -89,12 +89,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // surfaced as both a mid-sentence cut-off (token cap) and a hard timeout
     // (the generation outran the 60s maxDuration). Directing a tight, ranked
     // deviation list keeps the whole review inside the budget.
+    // Ask for human-readable Markdown — the output contract's DEFAULT. (`json`
+    // made the model emit a raw JSON object that rendered as an ugly code block.)
     const outputGuide =
-      "Produce a COMPLETE but CONCISE review: a 2-3 sentence summary, then the material findings as a tight list — " +
-      "for each: the clause, its severity, the issue in one line, and a one-line recommendation. Highest-severity first. " +
-      "Do not repeat the document back or pad; finish the whole review within the list.";
+      "Produce a COMPLETE but CONCISE review in clean Markdown (NOT JSON, no code fences): a short Bottom line, " +
+      "then Findings highest-severity first — for each, the clause, its severity, the issue in one line, and a " +
+      "one-line recommendation — then Actions. Do not repeat the document back or pad; finish the whole review.";
     const userMsg =
-      (docs.length ? wrapDocuments(docs) + "\n\n" : "") + `Task: ${text}\n\n${outputGuide}\n\nReturn format: json`;
+      (docs.length ? wrapDocuments(docs) + "\n\n" : "") + `Task: ${text}\n\n${outputGuide}\n\nReturn format: markdown`;
 
     let answer = "";
     let degraded = false;
