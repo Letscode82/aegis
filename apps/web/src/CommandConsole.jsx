@@ -627,7 +627,7 @@ function SkillReviewCard({ turn, onFollowUp, onFileInstead }) {
           )}
           {turn.degraded && (
             <div style={{ marginTop: 10, color: C.am, fontFamily: M, fontSize: 11, background: C.s1, border: `1px solid ${C.br}`, borderRadius: 8, padding: "7px 10px" }}>
-              ⚠ Model execution is offline — matched the right playbook; open it to run manually.
+              ⚠ {turn.aiError || "The model couldn’t run this review just now"} — matched the right playbook; retry or open it to run manually.
             </div>
           )}
           {turn.answer && !turn.degraded && (
@@ -1424,7 +1424,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       });
       const d = await resp.json().catch(() => ({}));
       if (d && d.ok) {
-        patchTurn(turnId, { reviewLoading: false, matched: d.matched || null, answer: (d.answer || "").trim(), degraded: !!d.degraded, note: d.note || null });
+        patchTurn(turnId, { reviewLoading: false, matched: d.matched || null, answer: (d.answer || "").trim(), degraded: !!d.degraded, note: d.note || null, aiError: d.aiError || null });
       } else {
         patchTurn(turnId, { reviewLoading: false, error: (d && d.error) || "Skill review failed." });
       }
@@ -1437,7 +1437,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     const t = (text || "").trim();
     if (t.length < 3) return;
     const id = ++TURN_SEQ;
-    setTurns((ts) => [...ts, { id, kind: "skill-review", request: t, reviewLoading: true, matched: null, answer: null, degraded: false, note: null, error: null }]);
+    setTurns((ts) => [...ts, { id, kind: "skill-review", request: t, reviewLoading: true, matched: null, answer: null, degraded: false, note: null, error: null, aiError: null }]);
     runSkillReviewTurn(id, t, opts);
   }, [runSkillReviewTurn]);
 

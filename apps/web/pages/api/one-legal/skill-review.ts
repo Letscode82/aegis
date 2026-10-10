@@ -20,7 +20,7 @@ import type { NextApiRequest, NextApiResponse } from "next";
 import { Permission, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
 import { assertAndAudit } from "../../../lib/authz";
-import { callClaude } from "@aegis/ai";
+import { callClaude, friendlyAIError } from "@aegis/ai";
 import { ensureServerClaudeTransport } from "@aegis/ai/server";
 import { recordSpan } from "@aegis/observability";
 import { loadRegistryFromData, route, buildSystemPrompt, wrapDocuments, getSkill } from "@aegis/legal-skills";
@@ -82,17 +82,30 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     let answer = "";
     let degraded = false;
+    let aiError: string | null = null;
     try {
       ensureServerClaudeTransport();
       answer = ((await callClaude(userMsg, { system, maxTokens: 1500, timeout: 30000 })) || "").trim();
-      if (!answer) throw new Error("empty");
-    } catch {
+      if (!answer) throw new Error("empty response from model");
+    } catch (e) {
       degraded = true;
-      answer = `Matched the "${chosen.title}" playbook (${chosen.module}). AI execution is offline right now — open the skill to run it manually. A qualified lawyer should review before anything is sent.`;
+      // Surface the REAL reason (rate limit / overload / bad model id / out of
+      // credit / network) instead of a blanket "AI is offline". This heavier
+      // call (large playbook system prompt) can hit a transient upstream error
+      // while the model is perfectly reachable for lighter calls elsewhere —
+      // reporting a flat "offline" there is misleading. The console.error is
+      // the server-log breadcrumb; `aiError` is the user-facing reason.
+      console.error(
+        "[one-legal:skill-review] model execution failed:",
+        (e as { status?: number })?.status ?? "",
+        (e as Error)?.message || e,
+      );
+      aiError = friendlyAIError(e as never);
+      answer = `Matched the "${chosen.title}" playbook (${chosen.module}). ${aiError} You can retry, or open the skill to run it manually. A qualified lawyer should review before anything is sent.`;
     }
 
     recordSpan("one_legal.skill_review", Date.now() - t0, { skill: chosen.id, built: true, degraded });
-    return res.status(200).json({ ok: true, matched, answer, degraded });
+    return res.status(200).json({ ok: true, matched, answer, degraded, aiError });
   } catch (err) {
     if (err instanceof AccessDeniedError) return res.status(403).json({ ok: false, error: err.decision.message });
     return res.status(400).json({ ok: false, error: String((err as Error).message || err) });
