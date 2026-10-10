@@ -33,7 +33,7 @@ const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
  * reason (invalid key / rejected model / out of credit / overload) is
  * visible in the server logs — the one-legal routes degrade silently, and
  * this is the only breadcrumb to why. */
-export async function callAnthropicMessages(body) {
+export async function callAnthropicMessages(body, opts = {}) {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     console.error("[@aegis/ai/server] ANTHROPIC_API_KEY is not set");
@@ -54,6 +54,9 @@ export async function callAnthropicMessages(body) {
           "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify(body),
+        // Caller-supplied deadline (callClaude's AbortController). fetchWithRetry
+        // does NOT retry an abort — a timeout fails fast and cleanly.
+        signal: opts.signal,
       },
       { retries: 2, baseDelayMs: 400 }
     );

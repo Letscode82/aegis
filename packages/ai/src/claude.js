@@ -65,12 +65,23 @@ export async function callClaude(prompt,opts={}){
   const body={model:CLAUDE_MODEL,max_tokens:Math.max(maxTokens,1500),messages:[{role:"user",content:prompt}]};
   if(system) body.system=system;
   // Server-side: skip the relative-URL fetch and call the injected
-  // transport directly (it returns the parsed Anthropic response).
+  // transport directly (it returns the parsed Anthropic response). Enforce the
+  // same `timeout` the browser path has — previously the server path ignored
+  // it, so a heavy call (e.g. a one-legal deep skill review with a large
+  // playbook system prompt) could hang until the serverless platform's own
+  // hard limit instead of degrading promptly. The AbortController is handed to
+  // the transport so the underlying request is actually cancelled.
   if(_serverTransport){
-    const data=await _serverTransport(body);
-    const textBlock=(data&&data.content||[]).find(b=>b.type==="text");
-    if(!textBlock) throw new Error("No text block in response");
-    return textBlock.text;
+    const ctrl=typeof AbortController!=="undefined"?new AbortController():null;
+    const timer=ctrl?setTimeout(()=>ctrl.abort(),timeout):null;
+    try{
+      const data=await _serverTransport(body,ctrl?{signal:ctrl.signal}:undefined);
+      const textBlock=(data&&data.content||[]).find(b=>b.type==="text");
+      if(!textBlock) throw new Error("No text block in response");
+      return textBlock.text;
+    } finally {
+      if(timer) clearTimeout(timer);
+    }
   }
   const ctrl=typeof AbortController!=="undefined"?new AbortController():null;
   const timer=ctrl?setTimeout(()=>ctrl.abort(),timeout):null;
@@ -110,6 +121,11 @@ export async function callClaudeJSON(prompt,opts={}){
 export function friendlyAIError(err){
   const status=err&&err.status;
   const body=(err&&err.body)||"";
+  // A timeout surfaces as an AbortError (no HTTP status). Name it plainly so a
+  // heavy call that ran out of time reads as "too large / try again", not a
+  // generic outage.
+  if(err&&(err.name==="AbortError"||/aborted|timed? ?out/i.test(String(err.message||"")))&&typeof status!=="number")
+    return "The AI request timed out — the task may be too large. Try again, or narrow it.";
   if(status===429) return "Too many AI requests right now — please wait a minute.";
   if(status===500&&/not configured/i.test(body)) return "AI service is being configured (ANTHROPIC_API_KEY not set).";
   if(status===401||status===403) return "AI request rejected — the ANTHROPIC_API_KEY is invalid or lacks access.";
