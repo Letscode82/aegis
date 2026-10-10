@@ -2243,7 +2243,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
         /* ── Landing (vertically + horizontally centered, Claude-style) ── */
         <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "24px 20px" }}>
           <div style={{ maxWidth: 640, width: "100%", margin: "0 auto", textAlign: "center", animation: "ccIn .3s ease" }}>
-            <div style={{ display: "flex", justifyContent: "center", marginBottom: 18 }}><ConsoleOrb state="working" size={64} /></div>
+            <div style={{ display: "flex", justifyContent: "center", marginBottom: 22 }}><ConsoleOrb state="working" size={128} /></div>
             <div style={{ fontFamily: SR, fontSize: 38, lineHeight: 1.12, color: C.t1, marginBottom: 6 }}>
               {firstName ? `${firstName} returns.` : "Welcome to ONE Legal."}
             </div>

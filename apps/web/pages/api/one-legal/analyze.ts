@@ -27,6 +27,14 @@ const DEFAULT_TASK =
   "Summarize this document in 2-3 sentences, then list: key obligations, notable risks or unusual terms, " +
   "important dates/deadlines, and the parties. Use tight bullet lists. If something isn't present, say so — do not invent.";
 
+// Appended to every analyze task so the read always FINISHES inside the token
+// budget instead of being cut mid-sentence. Clean Markdown (the console renders
+// headings, bullets and tables); no raw JSON, no code fences.
+const COMPLETION_GUIDE =
+  "\n\nWrite in clean Markdown (headings + tight bullets; a small table only if it genuinely helps). " +
+  "Keep it COMPLETE but concise — prioritise the most important points and FINISH the whole response within a page; " +
+  "do not repeat the document back or pad. Never stop mid-sentence.";
+
 function extractiveDigest(name: string, text: string): string {
   const clean = text.replace(/\s+/g, " ").trim();
   const head = clean.slice(0, 800);
@@ -63,7 +71,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (!text) return res.status(200).json({ ok: true, documentId: doc.id, documentName: doc.name, answer: "This document has no extractable text to analyze.", degraded: false });
 
     const context = text.length > MAX_CONTEXT_CHARS ? `${text.slice(0, MAX_CONTEXT_CHARS)}\n\n[document truncated for length]` : text;
-    const task = question || DEFAULT_TASK;
+    const task = (question || DEFAULT_TASK) + COMPLETION_GUIDE;
 
     let answer = "";
     let degraded = false;
@@ -73,10 +81,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         "You are OneLegal, an in-house legal-operations assistant for a corporate General Counsel team. " +
         "Analyze ONLY the provided document. Be concrete and cite exact language where useful. Do not invent facts, " +
         "names, or numbers not present in the text. This is not definitive legal advice; note when a qualified lawyer should review.";
-      // 900 tokens truncated a full document read (e.g. an NDA deviation review)
-      // mid-sentence. 2500 lets the read finish; the 45s timeout stays under the
-      // route's 60s maxDuration.
-      answer = ((await callClaude(`Document: ${doc.name}\n\n${context}\n\n---\nTask: ${task}`, { system, maxTokens: 2500, timeout: 45000 })) || "").trim();
+      // 900 → 2500 → 3500: a full NDA read was still being cut mid-sentence at
+      // 2500. 3500 (paired with the "finish within a page" COMPLETION_GUIDE)
+      // lets a quick read land complete; the 50s timeout stays under the route's
+      // 60s maxDuration. The exhaustive pass is the streamed deep review.
+      answer = ((await callClaude(`Document: ${doc.name}\n\n${context}\n\n---\nTask: ${task}`, { system, maxTokens: 3500, timeout: 50000 })) || "").trim();
       if (!answer) throw new Error("empty");
     } catch {
       degraded = true;
