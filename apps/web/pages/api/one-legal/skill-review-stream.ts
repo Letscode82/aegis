@@ -88,11 +88,15 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       includeReferences: true,
       matter: { requestedBy: user.name || null, organizationId: user.organizationId },
     });
+    // Ask for human-readable Markdown — the output contract's DEFAULT. (Asking
+    // for `json` made the model stream a raw JSON object, which rendered as an
+    // ugly code block in the console.) A tight, ranked Markdown review reads
+    // well and streams naturally.
     const outputGuide =
-      "Produce a COMPLETE but CONCISE review: a 2-3 sentence summary, then the material findings as a tight list — " +
-      "for each: the clause, its severity, the issue in one line, and a one-line recommendation. Highest-severity first. " +
-      "Do not repeat the document back or pad; finish the whole review within the list.";
-    userMsg = (docs.length ? wrapDocuments(docs) + "\n\n" : "") + `Task: ${text}\n\n${outputGuide}\n\nReturn format: json`;
+      "Produce a COMPLETE but CONCISE review in clean Markdown (NOT JSON, no code fences): a short Bottom line, " +
+      "then Findings highest-severity first — for each, the clause, its severity, the issue in one line, and a " +
+      "one-line recommendation — then Actions. Do not repeat the document back or pad; finish the whole review.";
+    userMsg = (docs.length ? wrapDocuments(docs) + "\n\n" : "") + `Task: ${text}\n\n${outputGuide}\n\nReturn format: markdown`;
   } catch (err) {
     if (err instanceof AccessDeniedError) return res.status(403).json({ ok: false, error: err.decision.message });
     return res.status(400).json({ ok: false, error: String((err as Error).message || err) });
@@ -148,18 +152,19 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       },
     );
   } catch (e) {
-    // If the model produced nothing, surface the real reason so the client can
-    // show a precise degraded message (and fall back to the buffered route).
-    // If it already streamed text, the user keeps what arrived; we just end.
-    if (!produced) {
-      degraded = true;
-      aiError = friendlyAIError(e as never);
-      console.error(
-        "[one-legal:skill-review-stream] model stream failed:",
-        (e as { status?: number })?.status ?? "",
-        (e as Error)?.message || e,
-      );
-    }
+    // Surface the real reason either way. If nothing streamed, the client
+    // degrades to the buffered route. If text already streamed, the user keeps
+    // what arrived AND sees an "interrupted — retry" note instead of a silent
+    // cut-off (the failure mode the earlier version had).
+    degraded = true;
+    aiError = produced
+      ? "The review was interrupted before it finished — retry to get the whole thing."
+      : friendlyAIError(e as never);
+    console.error(
+      "[one-legal:skill-review-stream] model stream failed:",
+      (e as { status?: number })?.status ?? "",
+      (e as Error)?.message || e,
+    );
   } finally {
     clearTimeout(deadline);
   }

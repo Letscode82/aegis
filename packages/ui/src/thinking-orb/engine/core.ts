@@ -96,8 +96,9 @@ export function paint(ctx: CanvasRenderingContext2D, dots: Dot[], dark: boolean,
     const lum = dark ? 1 - w : w; // 0 = full-weight ink, 1 = toward substrate
     if (ink) {
       // Weight the tint by darkness so close dots are saturated and ghost
-      // dots fade out; floor keeps faint paths visible.
-      const strength = 0.12 + 0.88 * (1 - lum);
+      // dots fade out; the floor keeps faint paths visible. Raised from 0.12
+      // so the tinted orb reads darker/crisper (the pale dots were washing out).
+      const strength = 0.28 + 0.72 * (1 - lum);
       ctx.fillStyle = `rgba(${ink[0]},${ink[1]},${ink[2]},${alpha * strength})`;
     } else {
       const g = Math.round(lum * 255);
