@@ -45,7 +45,7 @@ type Frame =
   | { type: "task"; index: number; title: string; request: string; tool: ToolProposal | null; dependsOn?: number | null }
   | { type: "needs_approval"; index: number; tool: ToolProposal }
   | { type: "task_started"; index: number; toolId: string }
-  | { type: "task_succeeded"; index: number; result: { resourceId: string; resourceLabel: string; label: string; navigate: string; argsSummary: string } }
+  | { type: "task_succeeded"; index: number; result: { resourceId: string; resourceLabel: string; label: string; navigate: string; argsSummary: string; requestNumber: string | null } }
   | { type: "task_failed"; index: number; error: string }
   | { type: "complete"; planned?: number; executed?: number }
   | { type: "error"; error: string };
@@ -97,7 +97,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         send({ type: "task_started", index: i, toolId });
         try {
           const r = await executeGovernedTool(tool, { text: itemText, targetId, user }, { route: "one-legal.run" });
-          send({ type: "task_succeeded", index: i, result: { resourceId: r.resourceId, resourceLabel: r.resourceLabel, label: r.label, navigate: r.navigate, argsSummary: r.argsSummary } });
+          send({ type: "task_succeeded", index: i, result: { resourceId: r.resourceId, resourceLabel: r.resourceLabel, label: r.label, navigate: r.navigate, argsSummary: r.argsSummary, requestNumber: r.requestNumber } });
           executed += 1;
         } catch (err) {
           const msg = err instanceof AccessDeniedError ? err.decision.message : String((err as Error).message || err);

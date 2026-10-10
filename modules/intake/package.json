@@ -9,6 +9,7 @@
     ".": "./api.ts",
     "./polyfill": "./src/internal/storage/polyfill.js",
     "./server": "./src/internal/storage/server.ts",
+    "./governed": "./src/internal/governed/server.ts",
     "./ai-ops": "./src/internal/ai-ops/summary.ts",
     "./ai-ops/exec-summary": "./src/internal/ai-ops/exec-summary.ts",
     "./assignees": "./src/internal/assignees/server.ts",
