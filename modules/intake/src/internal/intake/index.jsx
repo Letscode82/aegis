@@ -13,7 +13,7 @@ import { useAgentSettings } from "../hooks/use-agent-settings";
 import { useCockpitState } from "../hooks/use-cockpit-state";
 import { useAgentLog } from "../hooks/use-agent-log";
 import { useKeyboardShortcuts } from "../hooks/use-keyboard-shortcuts";
-import { TicketSummaryButton, AskAuroraChat } from "../ai-features";
+import { TicketSummaryButton } from "../ai-features";
 import { isAwaitingTriage } from "./triage-filter";
 import { splitTicketDescription } from "./ticket-desc";
 import { WorkflowsTab } from "./workflows-tab";
@@ -2499,8 +2499,26 @@ function SelfServeTab({onFileTicket}){
       </div>)}
     </div>
 
-    {/* Ask Aurora — AI chat above the FAQ list */}
-    <AskAuroraChat onFileTicket={onFileTicket}/>
+    {/* Quick legal questions now live in ONE Legal — the AI command bar at the
+        top of every screen — so there's a single AI front door instead of a
+        panel duplicated per module. */}
+    <div style={{
+      border: `1px solid ${C.cy}55`,
+      background: `linear-gradient(180deg, ${C.cy}0a, transparent)`,
+      borderRadius: 6, padding: "12px 16px", marginBottom: 14,
+      display: "flex", alignItems: "center", gap: 10,
+    }}>
+      <span style={{
+        fontSize: 8.5, fontFamily: M, letterSpacing: 1.5, color: C.cy,
+        padding: "2px 6px", border: `1px solid ${C.cy}55`, borderRadius: 3,
+        textTransform: "uppercase", fontWeight: 700, whiteSpace: "nowrap",
+      }}>◎ AI</span>
+      <span style={{ fontSize: 12.5, fontFamily: SR, color: C.t1, lineHeight: 1.5 }}>
+        Have a quick legal question? Ask <em style={{ color: C.cy, fontStyle: "italic" }}>ONE Legal</em> in
+        the command bar at the top of any screen — it answers from the same playbook and
+        can hand off to a ticket when an attorney should weigh in.
+      </span>
+    </div>
 
     <Card style={{marginBottom:14}}>
       <div style={{fontSize:11,fontWeight:600,color:C.tl,marginBottom:10,letterSpacing:1.2,fontFamily:M,textTransform:"uppercase"}}>◎ Ask Before You Ticket</div>

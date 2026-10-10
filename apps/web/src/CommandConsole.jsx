@@ -156,7 +156,7 @@ function StepRow({ step }) {
   );
 }
 
-function ResultCard({ result, onOpenTicket, onOpenCockpit, onFollowUp, onAsk }) {
+function ResultCard({ result, onOpenTicket, onOpenCockpit, onFollowUp }) {
   const c = result.classification;
   const matters = result.spawned?.matters || [];
   const contracts = result.spawned?.contracts || [];
@@ -188,7 +188,6 @@ function ResultCard({ result, onOpenTicket, onOpenCockpit, onFollowUp, onAsk }) 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12, alignItems: "center" }}>
         <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase" }}>Next</span>
         <button type="button" onClick={onFollowUp} style={chipBtn}>File a related request</button>
-        {onAsk && <button type="button" onClick={onAsk} style={chipBtn}>◎ Ask Aurora about this</button>}
       </div>
     </div>
   );
@@ -282,7 +281,7 @@ function CompoundCard({ turn, onOpenTicket, onOpenCockpit, onFollowUp, onApprove
                 <button type="button" onClick={() => onOpenNav(task.toolResult.navigate)} style={{ ...primaryBtn, marginLeft: "auto" }}>Open →</button>
               </div>
             )}
-            {task.result && <ResultCard result={task.result} onOpenTicket={onOpenTicket} onOpenCockpit={onOpenCockpit} onFollowUp={onFollowUp} onAsk={null} />}
+            {task.result && <ResultCard result={task.result} onOpenTicket={onOpenTicket} onOpenCockpit={onOpenCockpit} onFollowUp={onFollowUp} />}
           </div>
           );
         })}
@@ -349,7 +348,7 @@ function CitationWarnings({ citations }) {
   );
 }
 
-function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource, onResearch, onResearchLaw, onDeepReview }) {
+function AnswerCard({ turn, onExample, onFileInstead, onOpenSource, onResearch, onResearchLaw, onDeepReview }) {
   if (turn.capability) {
     return (
       <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16 }}>
@@ -386,7 +385,7 @@ function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource, onRes
       {turn.answerError ? (
         <div style={{ color: C.t2, fontSize: 13, lineHeight: 1.6 }}>
           <div style={{ color: C.am, fontFamily: M, fontSize: 11.5, marginBottom: 8 }}>⚠ {turn.answerError}</div>
-          I couldn&rsquo;t answer that just now — but I can still file it as a request, or hand it to Aurora for a deeper look.
+          I couldn&rsquo;t answer that just now — but I can still file it as a request, or run a deeper skill review on it.
         </div>
       ) : (
         <>
@@ -408,7 +407,6 @@ function AnswerCard({ turn, onExample, onFileInstead, onAsk, onOpenSource, onRes
         {!turn.answerError && onDeepReview && <button type="button" onClick={() => onDeepReview(turn.request)} style={chipBtn}>⚖ Deep skill review →</button>}
         {!turn.answerError && onResearch && <button type="button" onClick={() => onResearch(turn.request)} style={chipBtn}>🔎 Research across your documents →</button>}
         {!turn.answerError && onResearchLaw && <button type="button" onClick={() => onResearchLaw(turn.request)} style={chipBtn}>⚖ Research the law →</button>}
-        {onAsk && <button type="button" onClick={onAsk} style={chipBtn}>◎ Continue in Aurora</button>}
       </div>
     </div>
   );
@@ -1143,7 +1141,7 @@ function ClarifyCard({ turn, onFile }) {
   );
 }
 
-export function CommandConsole({ open, embedded, initialText, onClose, onNavigate, onAsk }) {
+export function CommandConsole({ open, embedded, initialText, onClose, onNavigate }) {
   const [turns, setTurns] = useState([]);
   const [input, setInput] = useState("");
   const [me, setMe] = useState(null);
@@ -1829,7 +1827,6 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     if (onClose) onClose();
     if (onNavigate) onNavigate(view);
   }, [onClose, onNavigate]);
-  const handleAsk = onAsk ? () => { if (onClose) onClose(); onAsk(); } : null;
 
   // OL-5: reopen a past task from the Recent list, read-only (ChatGPT/Claude-
   // style). Fetches the saved answer body and appends it as an ask-shaped turn
@@ -2001,7 +1998,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
                       {t.kind === "clarify" ? (
                         <ClarifyCard turn={t} onFile={fileRequest} />
                       ) : t.kind === "ask" ? (
-                        <AnswerCard turn={t} onExample={startTurn} onFileInstead={fileRequest} onAsk={handleAsk} onOpenSource={goModule} onResearch={startResearch} onResearchLaw={startLegalResearch} onDeepReview={runSkillReview} />
+                        <AnswerCard turn={t} onExample={startTurn} onFileInstead={fileRequest} onOpenSource={goModule} onResearch={startResearch} onResearchLaw={startLegalResearch} onDeepReview={runSkillReview} />
                       ) : t.kind === "research" ? (
                         <ResearchCard turn={t} onFollowUp={focusComposer} onFileInstead={fileRequest} onOpenSource={goModule} />
                       ) : t.kind === "legal-research" ? (
@@ -2024,7 +2021,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
                           </div>
                           {t.error && <div style={{ marginTop: 10, color: C.rd, fontFamily: M, fontSize: 12, background: C.rdG, border: `1px solid ${C.rd}44`, borderRadius: 8, padding: "9px 11px" }}>⚠ {t.error}</div>}
                           {t.result && (
-                            <ResultCard result={t.result} onOpenTicket={goIntake} onOpenCockpit={() => goIntake(null)} onFollowUp={focusComposer} onAsk={handleAsk} />
+                            <ResultCard result={t.result} onOpenTicket={goIntake} onOpenCockpit={() => goIntake(null)} onFollowUp={focusComposer} />
                           )}
                         </>
                       )}
@@ -2039,11 +2036,6 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
           <div style={{ borderTop: `1px solid ${C.br}`, padding: "12px 20px", flexShrink: 0 }}>
             <div style={{ maxWidth: 760, margin: "0 auto" }}>
               {composer(false)}
-              {handleAsk && (
-                <div style={{ textAlign: "center", marginTop: 8 }}>
-                  <button type="button" onClick={handleAsk} style={{ background: "transparent", border: "none", color: C.t4, fontFamily: M, fontSize: 9.5, letterSpacing: 0.5, textTransform: "uppercase", cursor: "pointer" }}>◎ Open Aurora copilot</button>
-                </div>
-              )}
             </div>
           </div>
         </>

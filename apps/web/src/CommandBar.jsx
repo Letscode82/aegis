@@ -10,7 +10,7 @@ import { CommandConsole } from "./CommandConsole.jsx";
 // "one front door" always lands you on the same complete screen, à la
 // Harvey / Legora / Claude.
 
-export function CommandBar({ onNavigate, onAsk }) {
+export function CommandBar({ onNavigate }) {
   const [consoleOpen, setConsoleOpen] = useState(false);
 
   const openConsole = () => setConsoleOpen(true);
@@ -37,7 +37,7 @@ export function CommandBar({ onNavigate, onAsk }) {
         <span style={{ background: C.em, color: C.bg, borderRadius: 5, padding: "3px 10px", fontFamily: M, fontSize: 9, letterSpacing: 1, textTransform: "uppercase", fontWeight: 700, flexShrink: 0 }}>Open ⏎</span>
       </button>
 
-      <CommandConsole open={consoleOpen} initialText="" onClose={() => setConsoleOpen(false)} onNavigate={onNavigate} onAsk={onAsk} />
+      <CommandConsole open={consoleOpen} initialText="" onClose={() => setConsoleOpen(false)} onNavigate={onNavigate} />
     </div>
   );
 }
