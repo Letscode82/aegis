@@ -526,7 +526,8 @@
     "version": "1.0.0",
     "jurisdictions": [
      "global",
-     "IN"
+     "IN",
+     "US"
     ],
     "risk_tier": "self-serve",
     "inputs": [
@@ -1028,7 +1029,8 @@
     "module": "contracts",
     "version": "1.0.0",
     "jurisdictions": [
-     "global"
+     "global",
+     "US"
     ],
     "risk_tier": "review-required",
     "inputs": [
@@ -1343,7 +1345,8 @@
     "jurisdictions": [
      "global",
      "IN",
-     "EU"
+     "EU",
+     "US"
     ],
     "risk_tier": "review-required",
     "inputs": [
@@ -1995,7 +1998,8 @@
     "jurisdictions": [
      "EU",
      "UK",
-     "IN"
+     "IN",
+     "US"
     ],
     "risk_tier": "review-required",
     "inputs": [
@@ -2065,7 +2069,8 @@
     "jurisdictions": [
      "EU",
      "UK",
-     "IN"
+     "IN",
+     "US"
     ],
     "risk_tier": "review-required",
     "inputs": [

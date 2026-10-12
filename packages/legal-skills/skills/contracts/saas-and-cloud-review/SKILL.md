@@ -8,7 +8,7 @@ description: >-
   not for vendor security posture diligence → contracts/vendor-due-diligence.
 module: contracts
 version: 1.0.0
-jurisdictions: [global]
+jurisdictions: [global, US]
 risk_tier: review-required
 inputs:
   - name: document

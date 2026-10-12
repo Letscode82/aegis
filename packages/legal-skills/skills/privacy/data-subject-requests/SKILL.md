@@ -8,7 +8,7 @@ description: >-
   programme → privacy/gdpr-compliance; not for a live breach → privacy/breach-response.
 module: privacy
 version: 1.0.0
-jurisdictions: [EU, UK, IN]
+jurisdictions: [EU, UK, IN, US]
 risk_tier: review-required
 inputs:
   - name: mode

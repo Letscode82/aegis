@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { C, F, M, SR, ThinkingOrb, useTheme } from "@aegis/ui";
 import { friendlyAIError } from "@aegis/ai";
 import { SKILLS, SKILL_CATEGORIES, resolveSkillTarget } from "../lib/one-legal/skills";
+import { wantsQuickDraft, contractCreationType } from "../lib/one-legal/creation-routing";
 
 // ConsoleOrb — the thinking-orbs "thinking" indicator wired to the live
 // Aurora theme (the toggle mutates tokens in place rather than setting a
@@ -168,6 +169,17 @@ const EXAMPLES = [
   { icon: "✎", text: "Draft a memo summarizing our data-retention policy" },
 ];
 
+// US-first jurisdiction options for the review toggle (US first; kept in sync
+// with REVIEW_JURISDICTIONS in lib/one-legal/review-playbook.ts, the server
+// side that turns the code into a US/EU/UK/IN baseline directive).
+const JURISDICTIONS = [
+  { code: "US", label: "United States" },
+  { code: "EU", label: "European Union" },
+  { code: "UK", label: "United Kingdom" },
+  { code: "IN", label: "India" },
+  { code: "GLOBAL", label: "Jurisdiction-neutral" },
+];
+
 // Rotating one-liner shown as a pinned tip above the composer on the landing.
 const TIPS = [
   "Describe a whole situation — “we’re being sued by Acme” — and I’ll break it into tasks.",
@@ -230,6 +242,12 @@ function looksLikeCanvasDraft(text) {
   const t = text.trim();
   return CANVAS_DRAFT_RE.test(t) && !CONTRACT_NOUN_RE.test(t);
 }
+
+// The hybrid creation model (what Harsha chose): a real contract/NDA that
+// needs an approval ladder + tracking files through Intake (Tracked); a
+// throwaway draft stays a quick canvas draft that files nothing (Assistance).
+// The routing decision lives in lib/one-legal/creation-routing.ts so it's
+// unit-tested; see that file for wantsQuickDraft + contractCreationType.
 
 // Conservative check for whether a request might contain several asks — used
 // to decide when to pay the /plan round-trip. Simple requests skip it.
@@ -294,10 +312,13 @@ function ResultCard({ result, onOpenTicket, onOpenCockpit, onFollowUp }) {
   );
   return (
     <div style={{ marginTop: 12, border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16, boxShadow: "0 1px 2px rgba(16,24,40,.04)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
         <span style={{ fontSize: 15, fontFamily: SR }}>Filed {result.ticketId}</span>
-        <span style={{ fontSize: 9, fontFamily: M, color: C.gn, border: `1px solid ${C.gn}`, borderRadius: 4, padding: "1px 7px", letterSpacing: 0.5, textTransform: "uppercase" }}>Routed</span>
+        <span style={{ fontSize: 9, fontFamily: M, color: C.gn, border: `1px solid ${C.gn}`, borderRadius: 4, padding: "1px 7px", letterSpacing: 0.5, textTransform: "uppercase" }}>Tracked · routed</span>
       </div>
+      {/* Phase 7 — the Tracked mode signal, symmetric with the Assistance draft's
+          "not filed" banner: this one IS on the record. */}
+      <div style={{ fontSize: 11.5, color: C.t3, lineHeight: 1.45, marginBottom: 12 }}>On the record with a REQ number and an approval trail — track it in the Cockpit.</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 12, marginBottom: 14 }}>
         <Field l="Category" v={c.category} />
         <Field l="Routed to" v={c.team} />
@@ -535,7 +556,7 @@ function AnswerCard({ turn, onExample, onFileInstead, onOpenSource, onResearch, 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14, alignItems: "center" }}>
         <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase" }}>Next</span>
         <button type="button" onClick={() => onFileInstead(turn.request)} style={chipBtn}>File this as a request →</button>
-        {!turn.answerError && onDeepReview && <button type="button" onClick={() => onDeepReview(turn.request)} style={chipBtn}>⚖ Deep skill review →</button>}
+        {!turn.answerError && onDeepReview && <button type="button" onClick={() => onDeepReview(turn.request)} style={chipBtn}>⚖ Review against playbook →</button>}
         {!turn.answerError && onResearch && <button type="button" onClick={() => onResearch(turn.request)} style={chipBtn}>🔎 Research across your documents →</button>}
         {!turn.answerError && onResearchLaw && <button type="button" onClick={() => onResearchLaw(turn.request)} style={chipBtn}>⚖ Research the law →</button>}
       </div>
@@ -572,7 +593,7 @@ function AnalyzeCard({ turn, onFollowUp, onFileInstead, onDeepReview }) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14, alignItems: "center" }}>
           <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase" }}>Next</span>
           {turn.analysis && onFollowUp && <button type="button" onClick={onFollowUp} style={chipBtn}>Ask a follow-up →</button>}
-          {turn.analysis && onDeepReview && <button type="button" onClick={() => onDeepReview(`Review this document (${turn.fileName}) against the right legal playbook.`, { documents: [{ name: `${turn.fileName} (OneLegal analysis)`, text: turn.analysis }] })} style={chipBtn}>⚖ Deep skill review →</button>}
+          {turn.analysis && turn.documentId && onDeepReview && <button type="button" onClick={() => onDeepReview(`Review this document (${turn.fileName}) against the right legal playbook.`, { documentId: turn.documentId })} style={chipBtn}>⚖ Review against playbook →</button>}
           {onFileInstead && <button type="button" onClick={() => onFileInstead(`Review the attached document: ${turn.fileName}`)} style={chipBtn}>File as a request →</button>}
         </div>
       )}
@@ -855,11 +876,20 @@ function ArtifactCard({ turn, onSave, onRegenerate, onFileInstead }) {
       setDownloading(false);
     }
   };
+  const isContract = !!turn.createType;
   return (
     <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 14 }}>
+      {/* Phase 7 — unmissable mode signal. This is ASSISTANCE: an editable draft
+          that files nothing. No REQ number, no approval trail — contrast with the
+          Tracked ResultCard's "Filed REQ · Routed". */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10, padding: "8px 10px", background: C.amG, border: `1px solid ${C.am}55`, borderRadius: 9 }}>
+        <span style={{ fontSize: 9, fontFamily: M, color: C.am, border: `1px solid ${C.am}`, borderRadius: 4, padding: "1px 7px", letterSpacing: 0.6, textTransform: "uppercase", flexShrink: 0 }}>Assistance · draft not filed</span>
+        <span style={{ fontSize: 11.5, color: C.t2, lineHeight: 1.45, flex: 1, minWidth: 180 }}>Working draft — no REQ number and no approval trail. File it for approval when it&rsquo;s ready to be tracked.</span>
+      </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <span style={{ fontSize: 14 }} aria-hidden="true">✎</span>
         <input value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Draft title" style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: C.t1, fontFamily: SR, fontSize: 15 }} />
+        {turn.playbookApplied && <span title="Seeded from your organization's Contracts Playbook" style={{ fontSize: 9, fontFamily: M, color: C.tl, border: `1px solid ${C.tl}66`, borderRadius: 4, padding: "1px 7px", letterSpacing: 0.4, textTransform: "uppercase", flexShrink: 0 }}>Playbook-seeded</span>}
         <span style={{ fontSize: 9, fontFamily: M, color: C.t4, flexShrink: 0 }}>editable draft</span>
       </div>
       <textarea
@@ -887,7 +917,14 @@ function ArtifactCard({ turn, onSave, onRegenerate, onFileInstead }) {
         </select>
         <button type="button" onClick={copy} style={chipBtn}>{copied ? "Copied ✓" : "Copy"}</button>
         <button type="button" onClick={downloadDocx} disabled={downloading || !content.trim()} style={{ ...chipBtn, opacity: downloading || !content.trim() ? 0.5 : 1 }}>{downloading ? "Preparing…" : "⬇ Word (.docx)"}</button>
-        {onFileInstead && <button type="button" onClick={() => onFileInstead(`Review this draft: ${title}`)} style={chipBtn}>File as a request →</button>}
+        {onFileInstead && (
+          <button
+            type="button"
+            onClick={() => onFileInstead(turn.request || `Review this draft: ${title}`, turn.createType)}
+            title={isContract ? "File through Intake — gets a REQ number, rides the approval ladder, and spawns the linked Contract on approval." : "File this through Intake so it's tracked with a REQ number and an approval trail."}
+            style={{ background: C.blG, color: C.bl, border: `1px solid ${C.bl}`, borderRadius: 8, padding: "9px 14px", fontFamily: M, fontSize: 10, letterSpacing: 0.7, textTransform: "uppercase", fontWeight: 700, cursor: "pointer" }}
+          >File for approval →</button>
+        )}
       </div>
       {turn.degraded && <div style={{ marginTop: 8, fontSize: 10.5, fontFamily: M, color: C.t4 }}>AI drafting was offline — edited from a skeleton.</div>}
     </div>
@@ -1345,6 +1382,17 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   // this id so /ask grounds on the WHOLE document, not a keyword sliver of it —
   // and so re-uploads of the same file don't fan out into duplicate excerpts.
   const activeDocRef = useRef(null);
+  // Live mirror of the active document for the UI: a ref doesn't re-render, but
+  // the persistent "working document" pill has to react when a doc attaches or
+  // detaches. Kept in lock-step with activeDocRef everywhere it changes.
+  const [activeDoc, setActiveDoc] = useState(null);
+  // US-first: the review jurisdiction. Defaults to the US baseline so the
+  // review reads native to a US GC (the skills themselves are India-anchored).
+  // The toggle under the composer flips it; a ref mirror lets runSkillReview
+  // read the current choice without re-binding its callback.
+  const [jurisdiction, setJurisdiction] = useState("US");
+  const jurisdictionRef = useRef("US");
+  useEffect(() => { jurisdictionRef.current = jurisdiction; }, [jurisdiction]);
   // Live mirror of `turns` so a follow-up can read the conversation so far
   // without the callback closing over a stale array — the basis for threading
   // prior context (the deep review just produced, earlier answers) into the
@@ -1392,8 +1440,8 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
 
   // Deterministic sync fallback — mirrors the streamed plan over the one-shot
   // route, driven into whatever "sink" the caller provides.
-  const execRequestSync = useCallback(async (text, on) => {
-    const p = fetch("/api/intake/request", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) })
+  const execRequestSync = useCallback(async (text, on, type) => {
+    const p = fetch("/api/intake/request", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, ...(type ? { type } : {}) }) })
       .then((r) => r.json().then((d) => ({ ok: r.ok, d })));
     on.step("read", "active"); await wait(450); on.step("read", "done");
     on.step("classify", "active"); await wait(600);
@@ -1412,11 +1460,11 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
 
   // One request → the governed intake pipeline (SSE), driven into a sink (a
   // top-level turn, or one task of a compound turn). Falls back to sync.
-  const execRequest = useCallback(async (text, on) => {
+  const execRequest = useCallback(async (text, on, type) => {
     let response;
     try {
-      response = await fetch("/api/intake/request-stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
-    } catch { return execRequestSync(text, on); }
+      response = await fetch("/api/intake/request-stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, ...(type ? { type } : {}) }) });
+    } catch { return execRequestSync(text, on, type); }
     const ctype = response.headers.get("content-type") || "";
     if (!response.ok || !response.body || !ctype.includes("text/event-stream")) {
       if (!response.ok) {
@@ -1424,7 +1472,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
         try { const j = await response.json(); msg = j.error || msg; } catch { /* ignore */ }
         on.step("classify", "error"); on.error(msg); return;
       }
-      return execRequestSync(text, on);
+      return execRequestSync(text, on, type);
     }
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -1450,7 +1498,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
         }
       }
     } catch (e) {
-      if (!sawFrame) return execRequestSync(text, on);
+      if (!sawFrame) return execRequestSync(text, on, type);
       on.error(String(e.message || e));
     }
   }, [execRequestSync]);
@@ -1468,7 +1516,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     error: (m) => patchTask(turnId, taskId, { error: m }),
   }), [patchTaskStep, ensureTaskDispatch, patchTask]);
 
-  const runFile = useCallback((turnId, text) => execRequest(text, sinkTurn(turnId)), [execRequest, sinkTurn]);
+  const runFile = useCallback((turnId, text, type) => execRequest(text, sinkTurn(turnId), type), [execRequest, sinkTurn]);
 
   // Compound: run each task into its own slot. Tasks with a governed tool
   // proposal WAIT for the human Approve keystroke; the rest run the intake
@@ -1571,14 +1619,17 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     }
   }, [patchTurn, buildConversation]);
 
-  // Force-file text as a request (used by "File this as a request →").
-  const fileRequest = useCallback((text) => {
+  // Force-file text as a request (used by "File this as a request →" and by the
+  // Tracked creation path). An optional `type` files the ticket under a specific
+  // Intake request type ("NDA Request" / "Contract Review") so the spawn-on-
+  // approval contract pipeline recognises it; omitted, the classifier decides.
+  const fileRequest = useCallback((text, type) => {
     const t = text.trim();
     if (t.length < 3) return;
     const id = ++TURN_SEQ;
-    setTurns((ts) => [...ts, { id, kind: "file", request: t, steps: baseSteps(), result: null, error: null }]);
+    setTurns((ts) => [...ts, { id, kind: "file", request: t, type: type || null, steps: baseSteps(), result: null, error: null }]);
     setInput("");
-    runFile(id, t);
+    runFile(id, t, type);
   }, [runFile]);
 
   // CW-1 — clarify-before-file. Ask /api/intake/clarify whether key facts for
@@ -1630,6 +1681,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       // Remember it as the conversation's active document so later follow-ups
       // ground on its full text (survives analyze → deep-review → follow-up).
       activeDocRef.current = { documentId: up.documentId, name: file.name };
+      setActiveDoc({ documentId: up.documentId, name: file.name });
       setTimeout(() => inputRef.current?.focus(), 30);
     } catch {
       setStaging(false);
@@ -1731,7 +1783,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       const resp = await fetch("/api/one-legal/skill-review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, jurisdiction: opts?.jurisdiction, documents: opts?.documents, skillId: opts?.skillId }),
+        body: JSON.stringify({ text, jurisdiction: opts?.jurisdiction, documents: opts?.documents, documentId: opts?.documentId, skillId: opts?.skillId }),
       });
       const d = await resp.json().catch(() => ({}));
       if (d && d.ok) {
@@ -1756,7 +1808,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       const resp = await fetch("/api/one-legal/skill-review-stream", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-        body: JSON.stringify({ text, jurisdiction: opts?.jurisdiction, documents: opts?.documents, skillId: opts?.skillId }),
+        body: JSON.stringify({ text, jurisdiction: opts?.jurisdiction, documents: opts?.documents, documentId: opts?.documentId, skillId: opts?.skillId }),
         signal: ctrl.signal,
       });
       const ctype = resp.headers.get("content-type") || "";
@@ -1838,9 +1890,20 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   const runSkillReview = useCallback((text, opts) => {
     const t = (text || "").trim();
     if (t.length < 3) return;
+    // When the caller supplied no document at all (e.g. the "Deep skill review"
+    // chip on an answer card), fall back to the conversation's active document
+    // so the review reads its real text instead of just the filename in the
+    // prompt. A caller that pinned a documentId or pasted documents is left as-is.
+    const hasDoc = opts?.documentId || (Array.isArray(opts?.documents) && opts.documents.length > 0);
+    const base = hasDoc || !activeDocRef.current?.documentId
+      ? opts
+      : { ...opts, documentId: activeDocRef.current.documentId };
+    // Carry the selected jurisdiction (US by default) on every review so the
+    // output is anchored to the right market. A caller that pinned one wins.
+    const withDoc = { ...base, jurisdiction: base?.jurisdiction || jurisdictionRef.current };
     const id = ++TURN_SEQ;
     setTurns((ts) => [...ts, { id, kind: "skill-review", request: t, reviewLoading: true, matched: null, answer: null, degraded: false, note: null, error: null, aiError: null }]);
-    runSkillReviewTurn(id, t, opts);
+    runSkillReviewTurn(id, t, withDoc);
   }, [runSkillReviewTurn]);
 
   // C1 — generate an editable draft into the artifact canvas. Not a formal
@@ -1852,7 +1915,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       const resp = await fetch("/api/one-legal/draft", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instruction, language }) });
       const d = await resp.json().catch(() => ({}));
       if (d && d.ok && (d.content || "").trim()) {
-        patchTurn(turnId, { draftLoading: false, title: d.title || "Draft", content: d.content, degraded: !!d.degraded, language: d.language || language || "English", draftNonce: Date.now() });
+        patchTurn(turnId, { draftLoading: false, title: d.title || "Draft", content: d.content, degraded: !!d.degraded, playbookApplied: !!d.playbookApplied, language: d.language || language || "English", draftNonce: Date.now() });
       } else {
         patchTurn(turnId, { draftLoading: false, error: (d && d.error) || "Draft failed." });
       }
@@ -1861,11 +1924,13 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     }
   }, [patchTurn]);
 
-  const startArtifact = useCallback((instruction) => {
+  // `createType` (when the draft is a contract/NDA) is remembered on the turn so
+  // the "File for approval" promote files it as the right Tracked request type.
+  const startArtifact = useCallback((instruction, createType) => {
     const t = (instruction || "").trim();
     if (t.length < 3) return;
     const id = ++TURN_SEQ;
-    setTurns((ts) => [...ts, { id, kind: "artifact", request: t, draftLoading: true, title: "", content: "", degraded: false, error: null, saving: false, savedDocumentId: null, draftNonce: 0 }]);
+    setTurns((ts) => [...ts, { id, kind: "artifact", request: t, createType: createType || null, draftLoading: true, title: "", content: "", degraded: false, playbookApplied: false, error: null, saving: false, savedDocumentId: null, draftNonce: 0 }]);
     setInput("");
     runArtifactDraft(id, t);
   }, [runArtifactDraft]);
@@ -1942,12 +2007,27 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     runCompound(id, taskObjs);
   }, [fileRequest, runCompound, planViaRun]);
 
-  // Route a submission by intent: question → answer; compound request → plan
-  // into tasks; single request → file.
-  const startTurn = useCallback((text) => {
+  // Route a submission by intent. Phase 7 — the hybrid Assistance/Tracked model:
+  //  • Assistance (quick draft): the "Quick draft" affordance (opts.mode="assist")
+  //    or explicit quick/rough/"don't file" phrasing → the editable canvas,
+  //    which files NOTHING (no REQ, no approval trail).
+  //  • Tracked: a real contract/NDA *creation* files through Intake with its
+  //    request TYPE, so it gets a REQ id, rides the approval ladder in the
+  //    Cockpit, and spawns the linked Contract on approval. This is the default
+  //    for a contract/NDA so governance is the path of least resistance.
+  // Everything else keeps its existing routing: question → answer; compound /
+  // tool-y request → plan into tasks; single request → file.
+  const startTurn = useCallback((text, opts) => {
     const t = text.trim();
     if (t.length < 3) return;
-    if (looksLikeCanvasDraft(t)) { startArtifact(t); return; }
+    // Assistance override first — a forced quick draft (or quick-draft phrasing)
+    // sends even a contract to the ungoverned canvas.
+    if (opts?.mode === "assist" || wantsQuickDraft(t)) { startArtifact(t, contractCreationType(t)); return; }
+    if (looksLikeCanvasDraft(t)) { startArtifact(t, null); return; }
+    // Tracked: file a contract/NDA creation through Intake under its request
+    // type so it is tracked end-to-end (REQ → approval → spawned Contract).
+    const createType = contractCreationType(t);
+    if (createType) { setInput(""); fileRequest(t, createType); return; }
     const intent = classifyIntent(t);
     setInput("");
     if (intent === "file") { if (looksCompound(t) || looksToolish(t)) planAndRun(t); else clarifyThenFile(t); return; }
@@ -1955,7 +2035,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     const capability = intent === "capability";
     setTurns((ts) => [...ts, { id, kind: "ask", request: t, answer: null, answerLoading: !capability, answerError: null, capability }]);
     runAsk(id, t, capability);
-  }, [clarifyThenFile, planAndRun, runAsk, startArtifact]);
+  }, [clarifyThenFile, planAndRun, runAsk, startArtifact, fileRequest]);
 
   // Dispatch a submitted composer value to the surface that matches the armed
   // skill. A `prefill` skill that still carries its prompt prefix (the user only
@@ -1974,13 +2054,30 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     // OL-6: if a document is staged, the submit runs it — quick analysis over
     // the staged doc, answering the typed question when one was given. This is
     // the single explicit trigger; attaching never ran anything on its own.
-    const doc = stagedDoc && stagedDoc.documentId ? stagedDoc : null;
+    // One Run, document-aware. With a document in play, an empty Run reviews it
+    // against the auto-picked playbook (the dominant intent for an attached
+    // legal document); a typed question is answered against the document
+    // instead. This is the single action — no separate "deep review" step.
+    const staged = stagedDoc && stagedDoc.documentId ? stagedDoc : null;
+    const doc = staged || (activeDoc && activeDoc.documentId ? activeDoc : null);
     if (doc) {
-      setStagedDoc(null);
-      setInput("");
-      pendingSkillRef.current = null;
-      analyzeStaged(doc, t);
-      return;
+      const docName = staged ? staged.fileName : activeDoc?.name || "the document";
+      if (t.length < 3) {
+        setStagedDoc(null);
+        pendingSkillRef.current = null;
+        runSkillReview(`Review this document (${docName}) against the right legal playbook.`, { documentId: doc.documentId });
+        return;
+      }
+      if (staged) {
+        // A question about a freshly staged doc → read it and answer that.
+        setStagedDoc(null);
+        setInput("");
+        pendingSkillRef.current = null;
+        analyzeStaged(staged, t);
+        return;
+      }
+      // An already-read (active) doc + a typed question falls through to
+      // startTurn below, which grounds the answer on the active document.
     }
     if (t.length < 3) return;
     const sk = pendingSkillRef.current;
@@ -2003,7 +2100,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       pendingSkillRef.current = null; // user replaced the prompt — treat as typed input
     }
     startTurn(t);
-  }, [input, stagedDoc, analyzeStaged, startArtifact, startResearch, runSkillReview, startTurn]);
+  }, [input, stagedDoc, activeDoc, analyzeStaged, startArtifact, startResearch, runSkillReview, startTurn]);
 
   // OL-6 — start a governance ladder (a GOVERNANCE_LIBRARY skill) from the
   // console. POSTs to the governed /run-ladder route, which begins a tracked
@@ -2045,7 +2142,17 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     setStagedDoc(null);
     pendingSkillRef.current = null;
     activeDocRef.current = null;
+    setActiveDoc(null);
     setTimeout(() => inputRef.current?.focus(), 0);
+  }, []);
+
+  // Detach the conversation's working document: clears the sticky pill, the ref
+  // every ground/review path reads, and any not-yet-submitted staged file. After
+  // this, asks and reviews run over the corpus again, not a pinned document.
+  const detachActiveDoc = useCallback(() => {
+    activeDocRef.current = null;
+    setActiveDoc(null);
+    setStagedDoc(null);
   }, []);
 
   // Auto-run a seeded request once when opened from the omnibox.
@@ -2200,6 +2307,11 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   // waiting to be run. Attaching alone never submits.
   const hasStagedDoc = !!(stagedDoc && stagedDoc.documentId);
   const canSubmit = input.trim().length >= 3 || hasStagedDoc;
+  // Phase 7 — the Assistance shortcut, always visible next to Route so the
+  // choice is frictionless: Route is the tracked path (files a real request /
+  // contract); Quick draft opens an ungoverned, nothing-filed canvas. Only
+  // meaningful for typed text (a staged document always goes to review).
+  const canQuickDraft = input.trim().length >= 3 && !hasStagedDoc && !staging;
   const composer = (big) => (
     <div>
       {/* OL-6: staged-document chip — the file is uploaded but nothing runs
@@ -2211,11 +2323,25 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
             <strong style={{ color: C.t1 }}>{(staging ? null : stagedDoc?.fileName) || (staging ? "Uploading…" : "Document")}</strong>
             {staging ? <span style={{ color: C.t3 }}> uploading…</span>
               : stagedDoc?.error ? <span style={{ color: C.rd }}> — {stagedDoc.error}</span>
-              : <span style={{ color: C.t3 }}> ready — type a question or just hit Route to analyze it.</span>}
+              : <span style={{ color: C.t3 }}> ready — ask a question, or hit Route to review it against the right playbook.</span>}
           </span>
           {!staging && (
-            <button type="button" onClick={() => setStagedDoc(null)} aria-label="Remove attached document" title="Remove" style={{ background: "transparent", border: "none", color: C.t3, cursor: "pointer", fontSize: 13, flexShrink: 0, lineHeight: 1 }}>✕</button>
+            <button type="button" onClick={detachActiveDoc} aria-label="Remove attached document" title="Remove" style={{ background: "transparent", border: "none", color: C.t3, cursor: "pointer", fontSize: 13, flexShrink: 0, lineHeight: 1 }}>✕</button>
           )}
+        </div>
+      )}
+      {/* Phase 1 — sticky document. Once a file is analyzed, it stays pinned to
+          the conversation: the staged chip is consumed on submit, but this pill
+          persists so the user always sees what every ask / review runs against,
+          with a one-click detach. */}
+      {activeDoc && !stagedDoc && !staging && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, padding: "6px 10px", background: C.blG, border: `1px solid ${C.bl}44`, borderRadius: 10, fontSize: 12 }}>
+          <span aria-hidden="true" style={{ flexShrink: 0 }}>📎</span>
+          <span style={{ minWidth: 0, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: C.t2 }}>
+            Working document: <strong style={{ color: C.t1 }}>{activeDoc.name}</strong>
+            <span style={{ color: C.t3 }}> — asks and reviews use it</span>
+          </span>
+          <button type="button" onClick={detachActiveDoc} aria-label="Detach working document" title="Detach — go back to searching all documents" style={{ background: "transparent", border: "none", color: C.t3, cursor: "pointer", fontSize: 13, flexShrink: 0, lineHeight: 1 }}>✕</button>
         </div>
       )}
       <div style={{ display: "flex", gap: 8, alignItems: "center", background: C.cd, border: `1px solid ${C.brL}`, borderRadius: 12, padding: big ? "6px 6px 6px 16px" : "5px 5px 5px 14px", boxShadow: big ? "0 2px 14px rgba(16,24,40,.06)" : "none" }}>
@@ -2232,10 +2358,18 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
           value={input}
           onChange={(e) => { const v = e.target.value; if (pendingSkillRef.current && !v.startsWith(pendingSkillRef.current.prompt)) pendingSkillRef.current = null; setInput(v); }}
           onKeyDown={(e) => { if (e.key === "Enter" && canSubmit) submitComposer(input); }}
-          placeholder={hasStagedDoc ? "Ask something about this document, or hit Route to analyze it…" : turns.length === 0 ? "Describe a request, ask a question, or attach a document…" : "Ask, file a request, or attach a document…"}
+          placeholder={hasStagedDoc ? "Ask about this document, or hit Route to review it against the playbook…" : activeDoc ? `Ask about ${activeDoc.name}, review it, or file a request…` : turns.length === 0 ? "Describe a request, ask a question, or attach a document…" : "Ask, file a request, or attach a document…"}
           aria-label="Ask OneLegal or file a legal request"
           style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: C.t1, fontFamily: F, fontSize: big ? 15 : 13, padding: "8px 0" }}
         />
+        {canQuickDraft && (
+          <button
+            type="button"
+            onClick={() => { pendingSkillRef.current = null; startTurn(input, { mode: "assist" }); }}
+            title="Open a quick, editable draft — files nothing (no REQ, no approval trail). Use Route to file it for tracking."
+            style={{ background: "transparent", color: C.t2, border: `1px solid ${C.br}`, borderRadius: 8, padding: "8px 12px", fontFamily: M, fontSize: 10, letterSpacing: 0.6, textTransform: "uppercase", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}
+          >Quick draft</button>
+        )}
         <button type="button" onClick={() => { if (canSubmit) submitComposer(input); }} disabled={!canSubmit} style={{ ...primaryBtn, opacity: canSubmit ? 1 : 0.5, flexShrink: 0 }}>Route ⏎</button>
       </div>
     </div>
@@ -2282,17 +2416,43 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
               <span style={{ fontSize: 12.5, color: C.t3, lineHeight: 1.5, flex: 1 }}>{TIPS[new Date().getHours() % TIPS.length]}</span>
             </div>
             {composer(true)}
-            {/* Deep skill review (step 2) — run the typed task through the
-                best-matching @aegis/legal-skills playbook instead of routing it. */}
-            <div style={{ marginTop: 8, textAlign: "center" }}>
-              <button
-                type="button"
-                onClick={() => { if (input.trim().length >= 3) { runSkillReview(input); setInput(""); } }}
-                disabled={input.trim().length < 3}
-                title="Run your task through the best-matching legal playbook (shared standards + output contract). Read-only — files nothing."
-                style={{ background: "transparent", border: "none", color: input.trim().length < 3 ? C.t4 : C.em, fontFamily: M, fontSize: 10, letterSpacing: 0.6, textTransform: "uppercase", cursor: input.trim().length < 3 ? "default" : "pointer", opacity: input.trim().length < 3 ? 0.6 : 1 }}
-              >⚖ Deep skill review</button>
-            </div>
+            {/* One Run, document-aware. With a document attached, this reviews it
+                against the auto-picked playbook; with a typed task and no doc, it
+                runs that task through the matching playbook. Same single action —
+                no separate "skill vs deep review" step. */}
+            {(() => {
+              const canReview = !!activeDoc?.documentId || input.trim().length >= 3;
+              return (
+                <div style={{ marginTop: 8, textAlign: "center" }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (activeDoc?.documentId) { runSkillReview(`Review this document (${activeDoc.name}) against the right legal playbook.`, { documentId: activeDoc.documentId }); setInput(""); }
+                      else if (input.trim().length >= 3) { runSkillReview(input); setInput(""); }
+                    }}
+                    disabled={!canReview}
+                    title="Review against the right playbook — picks the standard for your document or task, scores every clause, and files nothing."
+                    style={{ background: "transparent", border: "none", color: canReview ? C.em : C.t4, fontFamily: M, fontSize: 10, letterSpacing: 0.6, textTransform: "uppercase", cursor: canReview ? "pointer" : "default", opacity: canReview ? 1 : 0.6 }}
+                  >⚖ Review against playbook{activeDoc?.documentId ? " →" : ""}</button>
+                  {/* US-first jurisdiction toggle — the review is anchored to the
+                      chosen market (US by default). Sits with the Run action so
+                      it's obvious which standard a review will apply. */}
+                  <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontFamily: M, fontSize: 9.5, letterSpacing: 0.6, textTransform: "uppercase", color: C.t4 }}>Jurisdiction</span>
+                    <select
+                      value={jurisdiction}
+                      onChange={(e) => setJurisdiction(e.target.value)}
+                      title="The legal standard a review applies. US is the default."
+                      style={{ background: C.s2, color: C.t2, border: `1px solid ${C.br}`, borderRadius: 999, padding: "3px 10px", fontSize: 11.5, fontFamily: M, cursor: "pointer" }}
+                    >
+                      {JURISDICTIONS.map((j) => (
+                        <option key={j.code} value={j.code}>{j.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              );
+            })()}
             {/* OL-7: a few suggestions, not the whole catalogue (Harvey/Legora/
                 Claude pattern). The full list lives behind "Browse all skills". */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 18, justifyContent: "center" }}>
@@ -2302,14 +2462,14 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
                 </button>
               ))}
             </div>
-            {/* One entry to the full catalogue + a one-line explainer of Skills
-                vs Deep review, instead of two walls of chips. */}
+            {/* One entry to the full catalogue + a single-model one-liner (the
+                "skill vs deep review" distinction is retired). */}
             <div style={{ marginTop: 16, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
               <button type="button" onClick={() => setSkillsOpen(true)} style={{ ...chipBtn, display: "inline-flex", alignItems: "center", gap: 7 }}>
                 <span aria-hidden="true" style={{ color: C.em }}>⚡</span>Browse all skills<span aria-hidden="true" style={{ color: C.t4 }}>&nbsp;· {SKILLS.length}</span>
               </button>
               <div style={{ fontSize: 11, color: C.t4, lineHeight: 1.5, maxWidth: 460 }}>
-                A <strong style={{ color: C.t3 }}>skill</strong> runs one specific playbook. <strong style={{ color: C.t3 }}>Deep skill review</strong> picks the right playbook for a document or task and runs it for you.
+                Attach a document or describe a task — Run picks the right playbook and reviews it against your standards. Skills are shortcuts to the same thing.
               </div>
             </div>
           </div>
