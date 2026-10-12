@@ -27,6 +27,7 @@ import { loadRegistryFromData, route, buildSystemPrompt, wrapDocuments, getSkill
 // The built registry is imported (bundled) rather than read from disk, so this
 // works inside the Next serverless bundle — see loadRegistryFromData.
 import registryData from "@aegis/legal-skills/registry.json";
+import { getContractPlaybookText } from "@aegis/contracts";
 import { loadReviewDocument } from "../../../lib/one-legal/review-docs";
 import {
   preferredReviewSkill,
@@ -34,6 +35,8 @@ import {
   playbookDirective,
   jurisdictionDirective,
   normalizeJurisdiction,
+  orgPlaybookPromptBlock,
+  ORG_PLAYBOOK_LABEL,
 } from "../../../lib/one-legal/review-playbook";
 
 // maxDuration: the deep skill review carries a large playbook system prompt
@@ -105,10 +108,26 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ ok: true, matched, answer: "", degraded: true, note: "This skill is catalogued but not yet built." });
     }
 
-    const system = buildSystemPrompt(REGISTRY, [chosen.id], {
-      includeReferences: true,
-      matter: { requestedBy: user.name || null, organizationId: user.organizationId },
-    });
+    // For a contract review, pull the org's OWN configured Contracts Playbook
+    // (the editable `contract-clauses` knowledge pack) and make it the
+    // authoritative source — so an admin's edits to the Contracts Playbook
+    // screen actually change the review. Empty → fall back to the skill's
+    // built-in positions. Best-effort: a lookup failure never blocks the review.
+    let orgPlaybookText = "";
+    if (chosen.module === "contracts") {
+      try {
+        orgPlaybookText = await getContractPlaybookText(user.organizationId);
+      } catch (e) {
+        console.error("[one-legal:skill-review] org playbook lookup failed:", (e as Error)?.message || e);
+      }
+    }
+    const usingOrgPlaybook = orgPlaybookText.trim().length > 0;
+
+    const system =
+      buildSystemPrompt(REGISTRY, [chosen.id], {
+        includeReferences: true,
+        matter: { requestedBy: user.name || null, organizationId: user.organizationId },
+      }) + orgPlaybookPromptBlock(orgPlaybookText);
     // Keep the review complete but BOUNDED. An unbounded playbook review on
     // sonnet can generate past the serverless function's time limit — which
     // surfaced as both a mid-sentence cut-off (token cap) and a hard timeout
@@ -117,13 +136,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Ask for human-readable Markdown — the output contract's DEFAULT. (`json`
     // made the model emit a raw JSON object that rendered as an ugly code block.)
     // Playbook-first: name the applied playbook and forbid the "no playbook
-    // provided" hedge (the skill's positions ARE it).
-    const playbookLabel = playbookLabelFor(chosen.id, chosen.title);
+    // provided" hedge (the org playbook, or the skill's positions, ARE it).
+    const playbookLabel = usingOrgPlaybook ? ORG_PLAYBOOK_LABEL : playbookLabelFor(chosen.id, chosen.title);
     const outputGuide =
       "Produce a COMPLETE but CONCISE review in clean Markdown (NOT JSON, no code fences): a short Bottom line, " +
       "then Findings highest-severity first — for each, the clause, its severity, the issue in one line, and a " +
       "one-line recommendation — then Actions. Do not repeat the document back or pad; finish the whole review.\n\n" +
-      playbookDirective(playbookLabel) +
+      playbookDirective(playbookLabel, { orgConfigured: usingOrgPlaybook }) +
       "\n\n" +
       jurisdictionDirective(jurisdiction);
     const userMsg =

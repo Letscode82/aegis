@@ -7,6 +7,8 @@ import {
   jurisdictionLabel,
   jurisdictionDirective,
   DEFAULT_JURISDICTION,
+  orgPlaybookPromptBlock,
+  ORG_PLAYBOOK_LABEL,
 } from "../lib/one-legal/review-playbook";
 
 // Playbook-first review: an NDA must be scored against the NDA playbook (not the
@@ -61,6 +63,31 @@ describe("playbookDirective", () => {
     expect(d).toContain("AEGIS Standard NDA Playbook");
     expect(d).toContain("AUTHORITATIVE");
     expect(d.toLowerCase()).toContain("do not say that a playbook");
+  });
+  it("points at the skill's checks by default", () => {
+    expect(playbookDirective("X").toLowerCase()).toContain("position checks in the skill above");
+  });
+  it("points at the Organization Contract Playbook when org-configured", () => {
+    const d = playbookDirective(ORG_PLAYBOOK_LABEL, { orgConfigured: true });
+    expect(d).toContain("Organization Contract Playbook included above");
+    expect(d).toContain(ORG_PLAYBOOK_LABEL);
+  });
+});
+
+// #2 — the review scores against the org's OWN editable Contracts Playbook (the
+// contract-clauses knowledge pack) when it has one; empty falls back to the
+// skill's built-in positions.
+describe("orgPlaybookPromptBlock", () => {
+  it("returns empty for a blank/absent org playbook (falls back to skill positions)", () => {
+    expect(orgPlaybookPromptBlock(undefined)).toBe("");
+    expect(orgPlaybookPromptBlock("")).toBe("");
+    expect(orgPlaybookPromptBlock("   \n  ")).toBe("");
+  });
+  it("wraps a configured playbook as an authoritative, overriding block", () => {
+    const block = orgPlaybookPromptBlock("- Liability cap (LIAB): 12 months fees.");
+    expect(block).toContain("Organization Contract Playbook");
+    expect(block).toContain("AUTHORITATIVE");
+    expect(block).toContain("Liability cap (LIAB): 12 months fees.");
   });
 });
 

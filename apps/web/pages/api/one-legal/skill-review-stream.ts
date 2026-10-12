@@ -29,6 +29,7 @@ import { streamAnthropicMessages } from "@aegis/ai/server";
 import { recordSpan } from "@aegis/observability";
 import { loadRegistryFromData, route, buildSystemPrompt, wrapDocuments, getSkill } from "@aegis/legal-skills";
 import registryData from "@aegis/legal-skills/registry.json";
+import { getContractPlaybookText } from "@aegis/contracts";
 import { loadReviewDocument } from "../../../lib/one-legal/review-docs";
 import {
   preferredReviewSkill,
@@ -36,6 +37,8 @@ import {
   playbookDirective,
   jurisdictionDirective,
   normalizeJurisdiction,
+  orgPlaybookPromptBlock,
+  ORG_PLAYBOOK_LABEL,
 } from "../../../lib/one-legal/review-playbook";
 
 // Same budget rationale as the buffered route: give the stream the full ~60s
@@ -108,21 +111,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     matched = { id: chosen.id, title: chosen.title, module: chosen.module, risk_tier: chosen.risk_tier, status: chosen.status };
     built = chosen.status === "built";
 
-    system = buildSystemPrompt(REGISTRY, [chosen.id], {
-      includeReferences: true,
-      matter: { requestedBy: user.name || null, organizationId: user.organizationId },
-    });
+    // For a contract review, pull the org's OWN configured Contracts Playbook
+    // (the editable `contract-clauses` knowledge pack) and make it authoritative
+    // so admin edits to the Contracts Playbook screen change the review. Empty →
+    // the skill's built-in positions. Best-effort: a failure never blocks.
+    let orgPlaybookText = "";
+    if (chosen.module === "contracts") {
+      try {
+        orgPlaybookText = await getContractPlaybookText(user.organizationId);
+      } catch (e) {
+        console.error("[one-legal:skill-review-stream] org playbook lookup failed:", (e as Error)?.message || e);
+      }
+    }
+    const usingOrgPlaybook = orgPlaybookText.trim().length > 0;
+
+    system =
+      buildSystemPrompt(REGISTRY, [chosen.id], {
+        includeReferences: true,
+        matter: { requestedBy: user.name || null, organizationId: user.organizationId },
+      }) + orgPlaybookPromptBlock(orgPlaybookText);
     // Ask for human-readable Markdown — the output contract's DEFAULT. (Asking
     // for `json` made the model stream a raw JSON object, which rendered as an
     // ugly code block in the console.) A tight, ranked Markdown review reads
     // well and streams naturally. Playbook-first: name the applied playbook and
-    // forbid the "no playbook provided" hedge (the skill's positions ARE it).
-    const playbookLabel = playbookLabelFor(chosen.id, chosen.title);
+    // forbid the "no playbook provided" hedge (the org playbook, or the skill's
+    // positions, ARE it).
+    const playbookLabel = usingOrgPlaybook ? ORG_PLAYBOOK_LABEL : playbookLabelFor(chosen.id, chosen.title);
     const outputGuide =
       "Produce a COMPLETE but CONCISE review in clean Markdown (NOT JSON, no code fences): a short Bottom line, " +
       "then Findings highest-severity first — for each, the clause, its severity, the issue in one line, and a " +
       "one-line recommendation — then Actions. Do not repeat the document back or pad; finish the whole review.\n\n" +
-      playbookDirective(playbookLabel) +
+      playbookDirective(playbookLabel, { orgConfigured: usingOrgPlaybook }) +
       "\n\n" +
       jurisdictionDirective(jurisdiction);
     userMsg = (docs.length ? wrapDocuments(docs) + "\n\n" : "") + `Task: ${text}\n\n${outputGuide}\n\nReturn format: markdown`;

@@ -64,14 +64,42 @@ export function playbookLabelFor(skillId: string, skillTitle?: string | null): s
  * so the model treats the skill's standard positions as the authoritative
  * playbook, scores each clause against it, and never hedges that one is missing.
  */
-export function playbookDirective(playbookLabel: string): string {
+export function playbookDirective(playbookLabel: string, opts?: { orgConfigured?: boolean }): string {
+  // When the org has configured its own Contracts Playbook, the authoritative
+  // positions live in the injected "Organization Contract Playbook" block, with
+  // the skill's built-in checks as backup where the org playbook is silent.
+  const positionsSource = opts?.orgConfigured
+    ? `the Organization Contract Playbook included above (fall back to the skill's position checks only ` +
+      `where the org playbook is silent)`
+    : `the position checks in the skill above`;
   return (
-    `You are reviewing against the ${playbookLabel} — the organization's standard positions are the ` +
-    `position checks in the skill above. Treat them as the AUTHORITATIVE playbook: for each reviewed ` +
+    `You are reviewing against the ${playbookLabel} — the organization's standard positions are ` +
+    `${positionsSource}. Treat them as the AUTHORITATIVE playbook: for each reviewed ` +
     `clause, state whether it is Within standard or a Deviation, and name the standard position it is ` +
     `measured against. Do NOT say that a playbook or standard was not provided, and do NOT ask for one — ` +
     `the ${playbookLabel} above IS the playbook. A single closing line that a qualified lawyer should ` +
     `confirm before signature is fine; a disclaimer that no playbook was supplied is not.`
+  );
+}
+
+/** Label for a review scored against the org's own configured playbook. */
+export const ORG_PLAYBOOK_LABEL = "your organization's configured Contracts Playbook";
+
+/**
+ * Wrap the org's configured Contracts Playbook (from the editable
+ * `contract-clauses` knowledge pack, via `@aegis/contracts.getContractPlaybookText`)
+ * as an authoritative block for the system prompt. Returns "" when the org has
+ * configured nothing, so the caller falls back to the skill's built-in
+ * positions. This is what makes an admin's edits to the Contracts Playbook
+ * screen actually change the review.
+ */
+export function orgPlaybookPromptBlock(orgPlaybookText: string | undefined | null): string {
+  const t = String(orgPlaybookText || "").trim();
+  if (!t) return "";
+  return (
+    `\n\n# Organization Contract Playbook (AUTHORITATIVE — overrides the skill's default positions)\n` +
+    `These are the organization's own configured standard positions. Score every reviewed clause ` +
+    `against them first.\n\n${t}`
   );
 }
 
