@@ -572,7 +572,7 @@ function AnalyzeCard({ turn, onFollowUp, onFileInstead, onDeepReview }) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14, alignItems: "center" }}>
           <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase" }}>Next</span>
           {turn.analysis && onFollowUp && <button type="button" onClick={onFollowUp} style={chipBtn}>Ask a follow-up →</button>}
-          {turn.analysis && onDeepReview && <button type="button" onClick={() => onDeepReview(`Review this document (${turn.fileName}) against the right legal playbook.`, { documents: [{ name: `${turn.fileName} (OneLegal analysis)`, text: turn.analysis }] })} style={chipBtn}>⚖ Deep skill review →</button>}
+          {turn.analysis && turn.documentId && onDeepReview && <button type="button" onClick={() => onDeepReview(`Review this document (${turn.fileName}) against the right legal playbook.`, { documentId: turn.documentId })} style={chipBtn}>⚖ Deep skill review →</button>}
           {onFileInstead && <button type="button" onClick={() => onFileInstead(`Review the attached document: ${turn.fileName}`)} style={chipBtn}>File as a request →</button>}
         </div>
       )}
@@ -1731,7 +1731,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       const resp = await fetch("/api/one-legal/skill-review", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, jurisdiction: opts?.jurisdiction, documents: opts?.documents, skillId: opts?.skillId }),
+        body: JSON.stringify({ text, jurisdiction: opts?.jurisdiction, documents: opts?.documents, documentId: opts?.documentId, skillId: opts?.skillId }),
       });
       const d = await resp.json().catch(() => ({}));
       if (d && d.ok) {
@@ -1756,7 +1756,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       const resp = await fetch("/api/one-legal/skill-review-stream", {
         method: "POST",
         headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
-        body: JSON.stringify({ text, jurisdiction: opts?.jurisdiction, documents: opts?.documents, skillId: opts?.skillId }),
+        body: JSON.stringify({ text, jurisdiction: opts?.jurisdiction, documents: opts?.documents, documentId: opts?.documentId, skillId: opts?.skillId }),
         signal: ctrl.signal,
       });
       const ctype = resp.headers.get("content-type") || "";
@@ -1838,9 +1838,17 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   const runSkillReview = useCallback((text, opts) => {
     const t = (text || "").trim();
     if (t.length < 3) return;
+    // When the caller supplied no document at all (e.g. the "Deep skill review"
+    // chip on an answer card), fall back to the conversation's active document
+    // so the review reads its real text instead of just the filename in the
+    // prompt. A caller that pinned a documentId or pasted documents is left as-is.
+    const hasDoc = opts?.documentId || (Array.isArray(opts?.documents) && opts.documents.length > 0);
+    const withDoc = hasDoc || !activeDocRef.current?.documentId
+      ? opts
+      : { ...opts, documentId: activeDocRef.current.documentId };
     const id = ++TURN_SEQ;
     setTurns((ts) => [...ts, { id, kind: "skill-review", request: t, reviewLoading: true, matched: null, answer: null, degraded: false, note: null, error: null, aiError: null }]);
-    runSkillReviewTurn(id, t, opts);
+    runSkillReviewTurn(id, t, withDoc);
   }, [runSkillReviewTurn]);
 
   // C1 — generate an editable draft into the artifact canvas. Not a formal

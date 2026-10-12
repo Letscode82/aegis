@@ -27,6 +27,8 @@ import { loadRegistryFromData, route, buildSystemPrompt, wrapDocuments, getSkill
 // The built registry is imported (bundled) rather than read from disk, so this
 // works inside the Next serverless bundle — see loadRegistryFromData.
 import registryData from "@aegis/legal-skills/registry.json";
+import { loadReviewDocument } from "../../../lib/one-legal/review-docs";
+import { preferredReviewSkill, playbookLabelFor, playbookDirective } from "../../../lib/one-legal/review-playbook";
 
 // maxDuration: the deep skill review carries a large playbook system prompt
 // (~13K tokens), so the model call runs longer than the light routes. Without
@@ -54,14 +56,32 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       text?: string;
       jurisdiction?: string;
       skillId?: string;
+      documentId?: string;
       documents?: Array<{ name?: string; text?: string }>;
     };
     const text = String(body.text || "").trim();
     if (text.length < 3) return res.status(400).json({ ok: false, error: "Describe the task in a few words." });
     const jurisdiction = String(body.jurisdiction || "").trim() || undefined;
 
-    // Pick the skill: explicit skillId wins, else route by the text.
+    const docs = Array.isArray(body.documents)
+      ? body.documents.filter((d) => d && String(d.text || "").trim()).map((d) => ({ name: String(d.name || "document"), text: String(d.text) }))
+      : [];
+    // When launched from an analyzed upload, the client sends the document's id
+    // so the review reads its FULL extracted text (the real clauses) rather than
+    // a summary. Load it server-side, org-scoped, and put it first.
+    const loadedDoc = await loadReviewDocument(user.organizationId, body.documentId);
+    if (loadedDoc) docs.unshift(loadedDoc);
+    const firstDoc = docs[0];
+
+    // Pick the playbook: explicit skillId wins; otherwise prefer the playbook the
+    // document's TYPE calls for (an NDA → nda-triage, not the generic contract
+    // playbook), then fall back to text routing.
     let chosen = body.skillId ? getSkill(REGISTRY, String(body.skillId)) : null;
+    if (!chosen) {
+      const preferId = preferredReviewSkill(firstDoc?.name, firstDoc?.text, text);
+      const preferred = preferId ? getSkill(REGISTRY, preferId) : null;
+      if (preferred && preferred.status === "built") chosen = preferred;
+    }
     if (!chosen) {
       const [best] = route(REGISTRY, text, { jurisdiction });
       chosen = best ? getSkill(REGISTRY, best.id) : null;
@@ -76,10 +96,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       return res.status(200).json({ ok: true, matched, answer: "", degraded: true, note: "This skill is catalogued but not yet built." });
     }
 
-    const docs = Array.isArray(body.documents)
-      ? body.documents.filter((d) => d && String(d.text || "").trim()).map((d) => ({ name: String(d.name || "document"), text: String(d.text) }))
-      : [];
-
     const system = buildSystemPrompt(REGISTRY, [chosen.id], {
       includeReferences: true,
       matter: { requestedBy: user.name || null, organizationId: user.organizationId },
@@ -91,10 +107,14 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // deviation list keeps the whole review inside the budget.
     // Ask for human-readable Markdown — the output contract's DEFAULT. (`json`
     // made the model emit a raw JSON object that rendered as an ugly code block.)
+    // Playbook-first: name the applied playbook and forbid the "no playbook
+    // provided" hedge (the skill's positions ARE it).
+    const playbookLabel = playbookLabelFor(chosen.id, chosen.title);
     const outputGuide =
       "Produce a COMPLETE but CONCISE review in clean Markdown (NOT JSON, no code fences): a short Bottom line, " +
       "then Findings highest-severity first — for each, the clause, its severity, the issue in one line, and a " +
-      "one-line recommendation — then Actions. Do not repeat the document back or pad; finish the whole review.";
+      "one-line recommendation — then Actions. Do not repeat the document back or pad; finish the whole review.\n\n" +
+      playbookDirective(playbookLabel);
     const userMsg =
       (docs.length ? wrapDocuments(docs) + "\n\n" : "") + `Task: ${text}\n\n${outputGuide}\n\nReturn format: markdown`;
 
