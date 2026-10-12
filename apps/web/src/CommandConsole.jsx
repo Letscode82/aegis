@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { C, F, M, SR, ThinkingOrb, useTheme } from "@aegis/ui";
 import { friendlyAIError } from "@aegis/ai";
 import { SKILLS, SKILL_CATEGORIES, resolveSkillTarget } from "../lib/one-legal/skills";
+import { wantsQuickDraft, contractCreationType } from "../lib/one-legal/creation-routing";
 
 // ConsoleOrb — the thinking-orbs "thinking" indicator wired to the live
 // Aurora theme (the toggle mutates tokens in place rather than setting a
@@ -243,29 +244,10 @@ function looksLikeCanvasDraft(text) {
 }
 
 // The hybrid creation model (what Harsha chose): a real contract/NDA that
-// needs an approval ladder + tracking files through Intake; a throwaway draft
-// stays a quick canvas draft that files nothing.
-//
-// Quick-draft override: explicit "quick/rough draft", "don't file", "no ticket"
-// phrasing sends even a contract to the ungoverned canvas.
-const QUICK_DRAFT_RE = /\b(quick|rough|throwaway|scratch)[ -]?draft\b|\bdon'?t\s+file\b|\bno\s+ticket\b|\bjust\s+a\s+draft\b/i;
-function wantsQuickDraft(text) {
-  return QUICK_DRAFT_RE.test(String(text || ""));
-}
-
-// A contract/NDA *creation* request → the Intake request type to file it under,
-// so it gets a REQ id, rides the approval ladder in the Cockpit, and (on
-// approval) spawns the linked Contract. Returns null when it's not a creation
-// request (so normal routing decides). Mirrors the server spawn types
-// (`intake/src/internal/contract-spawn`): "NDA Request" | "Contract Review".
-const CREATE_VERB_RE = /\b(draft|create|prepare|author|generate|write|new|set\s*up|put\s+together|build)\b/i;
-function contractCreationType(text) {
-  const t = String(text || "");
-  if (!CREATE_VERB_RE.test(t)) return null;
-  if (/\bnda\b|non[-\s]?disclosure|nondisclosure|confidential(?:ity)?\s+(?:agreement|undertaking)/i.test(t)) return "NDA Request";
-  if (/\b(msa|sow|dpa|contract|agreement|licen[cs]e|master\s+services|statement\s+of\s+work|data\s+processing)\b/i.test(t)) return "Contract Review";
-  return null;
-}
+// needs an approval ladder + tracking files through Intake (Tracked); a
+// throwaway draft stays a quick canvas draft that files nothing (Assistance).
+// The routing decision lives in lib/one-legal/creation-routing.ts so it's
+// unit-tested; see that file for wantsQuickDraft + contractCreationType.
 
 // Conservative check for whether a request might contain several asks — used
 // to decide when to pay the /plan round-trip. Simple requests skip it.
@@ -330,10 +312,13 @@ function ResultCard({ result, onOpenTicket, onOpenCockpit, onFollowUp }) {
   );
   return (
     <div style={{ marginTop: 12, border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 16, boxShadow: "0 1px 2px rgba(16,24,40,.04)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 4 }}>
         <span style={{ fontSize: 15, fontFamily: SR }}>Filed {result.ticketId}</span>
-        <span style={{ fontSize: 9, fontFamily: M, color: C.gn, border: `1px solid ${C.gn}`, borderRadius: 4, padding: "1px 7px", letterSpacing: 0.5, textTransform: "uppercase" }}>Routed</span>
+        <span style={{ fontSize: 9, fontFamily: M, color: C.gn, border: `1px solid ${C.gn}`, borderRadius: 4, padding: "1px 7px", letterSpacing: 0.5, textTransform: "uppercase" }}>Tracked · routed</span>
       </div>
+      {/* Phase 7 — the Tracked mode signal, symmetric with the Assistance draft's
+          "not filed" banner: this one IS on the record. */}
+      <div style={{ fontSize: 11.5, color: C.t3, lineHeight: 1.45, marginBottom: 12 }}>On the record with a REQ number and an approval trail — track it in the Cockpit.</div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(110px, 1fr))", gap: 12, marginBottom: 14 }}>
         <Field l="Category" v={c.category} />
         <Field l="Routed to" v={c.team} />
@@ -891,11 +876,20 @@ function ArtifactCard({ turn, onSave, onRegenerate, onFileInstead }) {
       setDownloading(false);
     }
   };
+  const isContract = !!turn.createType;
   return (
     <div style={{ border: `1px solid ${C.br}`, borderRadius: 12, background: C.cd, padding: 14 }}>
+      {/* Phase 7 — unmissable mode signal. This is ASSISTANCE: an editable draft
+          that files nothing. No REQ number, no approval trail — contrast with the
+          Tracked ResultCard's "Filed REQ · Routed". */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10, padding: "8px 10px", background: C.amG, border: `1px solid ${C.am}55`, borderRadius: 9 }}>
+        <span style={{ fontSize: 9, fontFamily: M, color: C.am, border: `1px solid ${C.am}`, borderRadius: 4, padding: "1px 7px", letterSpacing: 0.6, textTransform: "uppercase", flexShrink: 0 }}>Assistance · draft not filed</span>
+        <span style={{ fontSize: 11.5, color: C.t2, lineHeight: 1.45, flex: 1, minWidth: 180 }}>Working draft — no REQ number and no approval trail. File it for approval when it&rsquo;s ready to be tracked.</span>
+      </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
         <span style={{ fontSize: 14 }} aria-hidden="true">✎</span>
         <input value={title} onChange={(e) => setTitle(e.target.value)} aria-label="Draft title" style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: C.t1, fontFamily: SR, fontSize: 15 }} />
+        {turn.playbookApplied && <span title="Seeded from your organization's Contracts Playbook" style={{ fontSize: 9, fontFamily: M, color: C.tl, border: `1px solid ${C.tl}66`, borderRadius: 4, padding: "1px 7px", letterSpacing: 0.4, textTransform: "uppercase", flexShrink: 0 }}>Playbook-seeded</span>}
         <span style={{ fontSize: 9, fontFamily: M, color: C.t4, flexShrink: 0 }}>editable draft</span>
       </div>
       <textarea
@@ -923,7 +917,14 @@ function ArtifactCard({ turn, onSave, onRegenerate, onFileInstead }) {
         </select>
         <button type="button" onClick={copy} style={chipBtn}>{copied ? "Copied ✓" : "Copy"}</button>
         <button type="button" onClick={downloadDocx} disabled={downloading || !content.trim()} style={{ ...chipBtn, opacity: downloading || !content.trim() ? 0.5 : 1 }}>{downloading ? "Preparing…" : "⬇ Word (.docx)"}</button>
-        {onFileInstead && <button type="button" onClick={() => onFileInstead(`Review this draft: ${title}`)} style={chipBtn}>File as a request →</button>}
+        {onFileInstead && (
+          <button
+            type="button"
+            onClick={() => onFileInstead(turn.request || `Review this draft: ${title}`, turn.createType)}
+            title={isContract ? "File through Intake — gets a REQ number, rides the approval ladder, and spawns the linked Contract on approval." : "File this through Intake so it's tracked with a REQ number and an approval trail."}
+            style={{ background: C.blG, color: C.bl, border: `1px solid ${C.bl}`, borderRadius: 8, padding: "9px 14px", fontFamily: M, fontSize: 10, letterSpacing: 0.7, textTransform: "uppercase", fontWeight: 700, cursor: "pointer" }}
+          >File for approval →</button>
+        )}
       </div>
       {turn.degraded && <div style={{ marginTop: 8, fontSize: 10.5, fontFamily: M, color: C.t4 }}>AI drafting was offline — edited from a skeleton.</div>}
     </div>
@@ -1439,8 +1440,8 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
 
   // Deterministic sync fallback — mirrors the streamed plan over the one-shot
   // route, driven into whatever "sink" the caller provides.
-  const execRequestSync = useCallback(async (text, on) => {
-    const p = fetch("/api/intake/request", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) })
+  const execRequestSync = useCallback(async (text, on, type) => {
+    const p = fetch("/api/intake/request", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, ...(type ? { type } : {}) }) })
       .then((r) => r.json().then((d) => ({ ok: r.ok, d })));
     on.step("read", "active"); await wait(450); on.step("read", "done");
     on.step("classify", "active"); await wait(600);
@@ -1459,11 +1460,11 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
 
   // One request → the governed intake pipeline (SSE), driven into a sink (a
   // top-level turn, or one task of a compound turn). Falls back to sync.
-  const execRequest = useCallback(async (text, on) => {
+  const execRequest = useCallback(async (text, on, type) => {
     let response;
     try {
-      response = await fetch("/api/intake/request-stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
-    } catch { return execRequestSync(text, on); }
+      response = await fetch("/api/intake/request-stream", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text, ...(type ? { type } : {}) }) });
+    } catch { return execRequestSync(text, on, type); }
     const ctype = response.headers.get("content-type") || "";
     if (!response.ok || !response.body || !ctype.includes("text/event-stream")) {
       if (!response.ok) {
@@ -1471,7 +1472,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
         try { const j = await response.json(); msg = j.error || msg; } catch { /* ignore */ }
         on.step("classify", "error"); on.error(msg); return;
       }
-      return execRequestSync(text, on);
+      return execRequestSync(text, on, type);
     }
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -1497,7 +1498,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
         }
       }
     } catch (e) {
-      if (!sawFrame) return execRequestSync(text, on);
+      if (!sawFrame) return execRequestSync(text, on, type);
       on.error(String(e.message || e));
     }
   }, [execRequestSync]);
@@ -1515,7 +1516,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     error: (m) => patchTask(turnId, taskId, { error: m }),
   }), [patchTaskStep, ensureTaskDispatch, patchTask]);
 
-  const runFile = useCallback((turnId, text) => execRequest(text, sinkTurn(turnId)), [execRequest, sinkTurn]);
+  const runFile = useCallback((turnId, text, type) => execRequest(text, sinkTurn(turnId), type), [execRequest, sinkTurn]);
 
   // Compound: run each task into its own slot. Tasks with a governed tool
   // proposal WAIT for the human Approve keystroke; the rest run the intake
@@ -1618,14 +1619,17 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     }
   }, [patchTurn, buildConversation]);
 
-  // Force-file text as a request (used by "File this as a request →").
-  const fileRequest = useCallback((text) => {
+  // Force-file text as a request (used by "File this as a request →" and by the
+  // Tracked creation path). An optional `type` files the ticket under a specific
+  // Intake request type ("NDA Request" / "Contract Review") so the spawn-on-
+  // approval contract pipeline recognises it; omitted, the classifier decides.
+  const fileRequest = useCallback((text, type) => {
     const t = text.trim();
     if (t.length < 3) return;
     const id = ++TURN_SEQ;
-    setTurns((ts) => [...ts, { id, kind: "file", request: t, steps: baseSteps(), result: null, error: null }]);
+    setTurns((ts) => [...ts, { id, kind: "file", request: t, type: type || null, steps: baseSteps(), result: null, error: null }]);
     setInput("");
-    runFile(id, t);
+    runFile(id, t, type);
   }, [runFile]);
 
   // CW-1 — clarify-before-file. Ask /api/intake/clarify whether key facts for
@@ -1911,7 +1915,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       const resp = await fetch("/api/one-legal/draft", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instruction, language }) });
       const d = await resp.json().catch(() => ({}));
       if (d && d.ok && (d.content || "").trim()) {
-        patchTurn(turnId, { draftLoading: false, title: d.title || "Draft", content: d.content, degraded: !!d.degraded, language: d.language || language || "English", draftNonce: Date.now() });
+        patchTurn(turnId, { draftLoading: false, title: d.title || "Draft", content: d.content, degraded: !!d.degraded, playbookApplied: !!d.playbookApplied, language: d.language || language || "English", draftNonce: Date.now() });
       } else {
         patchTurn(turnId, { draftLoading: false, error: (d && d.error) || "Draft failed." });
       }
@@ -1920,11 +1924,13 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     }
   }, [patchTurn]);
 
-  const startArtifact = useCallback((instruction) => {
+  // `createType` (when the draft is a contract/NDA) is remembered on the turn so
+  // the "File for approval" promote files it as the right Tracked request type.
+  const startArtifact = useCallback((instruction, createType) => {
     const t = (instruction || "").trim();
     if (t.length < 3) return;
     const id = ++TURN_SEQ;
-    setTurns((ts) => [...ts, { id, kind: "artifact", request: t, draftLoading: true, title: "", content: "", degraded: false, error: null, saving: false, savedDocumentId: null, draftNonce: 0 }]);
+    setTurns((ts) => [...ts, { id, kind: "artifact", request: t, createType: createType || null, draftLoading: true, title: "", content: "", degraded: false, playbookApplied: false, error: null, saving: false, savedDocumentId: null, draftNonce: 0 }]);
     setInput("");
     runArtifactDraft(id, t);
   }, [runArtifactDraft]);
@@ -2001,12 +2007,27 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     runCompound(id, taskObjs);
   }, [fileRequest, runCompound, planViaRun]);
 
-  // Route a submission by intent: question → answer; compound request → plan
-  // into tasks; single request → file.
-  const startTurn = useCallback((text) => {
+  // Route a submission by intent. Phase 7 — the hybrid Assistance/Tracked model:
+  //  • Assistance (quick draft): the "Quick draft" affordance (opts.mode="assist")
+  //    or explicit quick/rough/"don't file" phrasing → the editable canvas,
+  //    which files NOTHING (no REQ, no approval trail).
+  //  • Tracked: a real contract/NDA *creation* files through Intake with its
+  //    request TYPE, so it gets a REQ id, rides the approval ladder in the
+  //    Cockpit, and spawns the linked Contract on approval. This is the default
+  //    for a contract/NDA so governance is the path of least resistance.
+  // Everything else keeps its existing routing: question → answer; compound /
+  // tool-y request → plan into tasks; single request → file.
+  const startTurn = useCallback((text, opts) => {
     const t = text.trim();
     if (t.length < 3) return;
-    if (looksLikeCanvasDraft(t)) { startArtifact(t); return; }
+    // Assistance override first — a forced quick draft (or quick-draft phrasing)
+    // sends even a contract to the ungoverned canvas.
+    if (opts?.mode === "assist" || wantsQuickDraft(t)) { startArtifact(t, contractCreationType(t)); return; }
+    if (looksLikeCanvasDraft(t)) { startArtifact(t, null); return; }
+    // Tracked: file a contract/NDA creation through Intake under its request
+    // type so it is tracked end-to-end (REQ → approval → spawned Contract).
+    const createType = contractCreationType(t);
+    if (createType) { setInput(""); fileRequest(t, createType); return; }
     const intent = classifyIntent(t);
     setInput("");
     if (intent === "file") { if (looksCompound(t) || looksToolish(t)) planAndRun(t); else clarifyThenFile(t); return; }
@@ -2014,7 +2035,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     const capability = intent === "capability";
     setTurns((ts) => [...ts, { id, kind: "ask", request: t, answer: null, answerLoading: !capability, answerError: null, capability }]);
     runAsk(id, t, capability);
-  }, [clarifyThenFile, planAndRun, runAsk, startArtifact]);
+  }, [clarifyThenFile, planAndRun, runAsk, startArtifact, fileRequest]);
 
   // Dispatch a submitted composer value to the surface that matches the armed
   // skill. A `prefill` skill that still carries its prompt prefix (the user only
@@ -2286,6 +2307,11 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   // waiting to be run. Attaching alone never submits.
   const hasStagedDoc = !!(stagedDoc && stagedDoc.documentId);
   const canSubmit = input.trim().length >= 3 || hasStagedDoc;
+  // Phase 7 — the Assistance shortcut, always visible next to Route so the
+  // choice is frictionless: Route is the tracked path (files a real request /
+  // contract); Quick draft opens an ungoverned, nothing-filed canvas. Only
+  // meaningful for typed text (a staged document always goes to review).
+  const canQuickDraft = input.trim().length >= 3 && !hasStagedDoc && !staging;
   const composer = (big) => (
     <div>
       {/* OL-6: staged-document chip — the file is uploaded but nothing runs
@@ -2336,6 +2362,14 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
           aria-label="Ask OneLegal or file a legal request"
           style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: C.t1, fontFamily: F, fontSize: big ? 15 : 13, padding: "8px 0" }}
         />
+        {canQuickDraft && (
+          <button
+            type="button"
+            onClick={() => { pendingSkillRef.current = null; startTurn(input, { mode: "assist" }); }}
+            title="Open a quick, editable draft — files nothing (no REQ, no approval trail). Use Route to file it for tracking."
+            style={{ background: "transparent", color: C.t2, border: `1px solid ${C.br}`, borderRadius: 8, padding: "8px 12px", fontFamily: M, fontSize: 10, letterSpacing: 0.6, textTransform: "uppercase", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}
+          >Quick draft</button>
+        )}
         <button type="button" onClick={() => { if (canSubmit) submitComposer(input); }} disabled={!canSubmit} style={{ ...primaryBtn, opacity: canSubmit ? 1 : 0.5, flexShrink: 0 }}>Route ⏎</button>
       </div>
     </div>
