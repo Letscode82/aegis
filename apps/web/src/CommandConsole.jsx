@@ -242,6 +242,31 @@ function looksLikeCanvasDraft(text) {
   return CANVAS_DRAFT_RE.test(t) && !CONTRACT_NOUN_RE.test(t);
 }
 
+// The hybrid creation model (what Harsha chose): a real contract/NDA that
+// needs an approval ladder + tracking files through Intake; a throwaway draft
+// stays a quick canvas draft that files nothing.
+//
+// Quick-draft override: explicit "quick/rough draft", "don't file", "no ticket"
+// phrasing sends even a contract to the ungoverned canvas.
+const QUICK_DRAFT_RE = /\b(quick|rough|throwaway|scratch)[ -]?draft\b|\bdon'?t\s+file\b|\bno\s+ticket\b|\bjust\s+a\s+draft\b/i;
+function wantsQuickDraft(text) {
+  return QUICK_DRAFT_RE.test(String(text || ""));
+}
+
+// A contract/NDA *creation* request → the Intake request type to file it under,
+// so it gets a REQ id, rides the approval ladder in the Cockpit, and (on
+// approval) spawns the linked Contract. Returns null when it's not a creation
+// request (so normal routing decides). Mirrors the server spawn types
+// (`intake/src/internal/contract-spawn`): "NDA Request" | "Contract Review".
+const CREATE_VERB_RE = /\b(draft|create|prepare|author|generate|write|new|set\s*up|put\s+together|build)\b/i;
+function contractCreationType(text) {
+  const t = String(text || "");
+  if (!CREATE_VERB_RE.test(t)) return null;
+  if (/\bnda\b|non[-\s]?disclosure|nondisclosure|confidential(?:ity)?\s+(?:agreement|undertaking)/i.test(t)) return "NDA Request";
+  if (/\b(msa|sow|dpa|contract|agreement|licen[cs]e|master\s+services|statement\s+of\s+work|data\s+processing)\b/i.test(t)) return "Contract Review";
+  return null;
+}
+
 // Conservative check for whether a request might contain several asks — used
 // to decide when to pay the /plan round-trip. Simple requests skip it.
 function looksCompound(text) {
