@@ -7,7 +7,7 @@ description: >-
   contracts/contract-review.
 module: contracts
 version: 1.0.0
-jurisdictions: [global, IN]
+jurisdictions: [global, IN, US]
 risk_tier: self-serve
 inputs:
   - name: document
