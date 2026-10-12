@@ -15,6 +15,14 @@ import { getResolvedUser } from "@aegis/auth/server";
 import { assertAndAudit } from "../../../lib/authz";
 import { callClaude } from "@aegis/ai";
 import { ensureServerClaudeTransport } from "@aegis/ai/server";
+import { getContractPlaybookText } from "@aegis/contracts";
+
+// A draft that is itself a contract/NDA — those are seeded from the org's
+// own Contracts Playbook (Phase 7, refinement 1, extending #558) so a
+// quick-draft contract reflects the org's standard positions, not generic
+// boilerplate. Memos / letters / emails draft as before.
+const CONTRACT_DRAFT_RE =
+  /\b(nda|non-?disclosure|confidential(?:ity)?\s+(?:agreement|undertaking)|msa|sow|dpa|contract|agreement|licen[cs]e|master\s+services|statement\s+of\s+work|data\s+processing|terms\s+of\s+service|tos)\b/i;
 
 function titleFrom(instruction: string): string {
   const words = instruction.replace(/^(draft|write|compose|prepare|create|make)\s+(a|an|the)?\s*/i, "").replace(/\s+/g, " ").trim();
@@ -60,15 +68,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const title = titleFrom(instruction);
     const language = resolveLanguage((req.body || {}).language);
 
+    // Refinement 1 (Phase 7): a quick-draft contract/NDA is seeded from the
+    // org's OWN editable Contracts Playbook (the `contract-clauses` knowledge
+    // pack — reuses #558's getContractPlaybookText) so the draft opens on the
+    // org's standard positions instead of generic boilerplate. Empty playbook
+    // or a non-contract draft → the generic drafting prompt, unchanged.
+    // Best-effort: a lookup failure never blocks the draft.
+    let playbookText = "";
+    if (CONTRACT_DRAFT_RE.test(instruction)) {
+      try {
+        playbookText = await getContractPlaybookText(user.organizationId);
+      } catch (e) {
+        console.error("[one-legal:draft] org playbook lookup failed:", (e as Error)?.message || e);
+      }
+    }
+    const playbookApplied = playbookText.trim().length > 0;
+
     let content = "";
     let degraded = false;
     try {
       ensureServerClaudeTransport();
       const system =
         "You are OneLegal, drafting for a corporate legal-operations team. Produce a clean, well-structured Markdown draft that " +
-        "the user will edit — a memo, email, clause, summary, outline, or similar as the instruction implies. Use clear headings " +
+        "the user will edit — a memo, email, clause, summary, outline, contract, or similar as the instruction implies. Use clear headings " +
         "and lists. Keep placeholders like [Party], [Date], [Amount] where specifics are unknown — never invent facts, names, or " +
         "numbers. End with a one-line note that a qualified lawyer should review. Output ONLY the Markdown, no preamble." +
+        (playbookApplied
+          ? "\n\nThe following is your organization's AUTHORITATIVE Contracts Playbook. When the draft is a contract or NDA, draft every" +
+            " applicable clause to these standard positions (fall back to the fallback language only where noted), and do not substitute" +
+            " generic market boilerplate for a position the playbook sets.\n\n" +
+            playbookText
+          : "") +
         (language !== "English"
           ? ` Write the entire draft — headings, body, and the closing review note — in ${language}. Keep the bracketed placeholders in their original form.`
           : "");
@@ -79,7 +109,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       content = skeleton(instruction, title);
     }
 
-    return res.status(200).json({ ok: true, title, content, degraded, language });
+    return res.status(200).json({ ok: true, title, content, degraded, language, playbookApplied });
   } catch (err) {
     if (err instanceof AccessDeniedError) return res.status(403).json({ ok: false, error: err.decision.message });
     return res.status(400).json({ ok: false, error: String((err as Error).message || err) });

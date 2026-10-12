@@ -9,7 +9,7 @@ description: >-
   privacy/privacy-notice-drafter.
 module: contracts
 version: 1.0.0
-jurisdictions: [global, IN, EU]
+jurisdictions: [global, IN, EU, US]
 risk_tier: review-required
 inputs:
   - name: mode

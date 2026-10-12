@@ -8,7 +8,7 @@ description: >-
   contract's terms → privacy/dpa-review.
 module: privacy
 version: 1.0.0
-jurisdictions: [EU, UK, IN]
+jurisdictions: [EU, UK, IN, US]
 risk_tier: review-required
 inputs:
   - name: transfer
