@@ -35,7 +35,18 @@ describe("preferredReviewSkill", () => {
     expect(preferredReviewSkill("", "", "review this NDA against the playbook")).toBe("contracts/nda-triage");
   });
 
-  it("returns null for a non-NDA document, leaving normal routing to decide", () => {
+  it("routes DPAs, ToS and SaaS agreements to their specific playbooks", () => {
+    expect(preferredReviewSkill("DPA_acme.docx", "DATA PROCESSING AGREEMENT", "")).toBe("privacy/dpa-review");
+    expect(preferredReviewSkill("", "TERMS OF SERVICE", "")).toBe("contracts/terms-of-service-audit");
+    expect(preferredReviewSkill("", "This Software-as-a-Service Agreement…", "")).toBe("contracts/saas-and-cloud-review");
+    expect(preferredReviewSkill("eula.txt", "END USER LICENSE AGREEMENT", "")).toBe("contracts/terms-of-service-audit");
+  });
+
+  it("matches a DPA to the DPA playbook even when it mentions confidentiality", () => {
+    expect(preferredReviewSkill("DPA.docx", "Data Processing Agreement. The parties will keep data confidential.", "")).toBe("privacy/dpa-review");
+  });
+
+  it("returns null for a generic MSA, leaving normal routing to decide", () => {
     expect(preferredReviewSkill("MSA_vortex.docx", "MASTER SERVICES AGREEMENT", "review this services agreement")).toBeNull();
   });
 
@@ -51,8 +62,14 @@ describe("playbookLabelFor", () => {
     expect(playbookLabelFor("contracts/contract-review")).toBe("AEGIS Standard Contract Playbook");
   });
 
+  it("names the DPA, SaaS and ToS playbooks", () => {
+    expect(playbookLabelFor("privacy/dpa-review")).toBe("AEGIS Standard DPA Playbook");
+    expect(playbookLabelFor("contracts/saas-and-cloud-review")).toBe("AEGIS Standard SaaS / Cloud Playbook");
+    expect(playbookLabelFor("contracts/terms-of-service-audit")).toBe("AEGIS Standard Terms-of-Service Playbook");
+  });
+
   it("falls back to the skill title for other skills", () => {
-    expect(playbookLabelFor("privacy/dpa-review", "DPA Review")).toBe("AEGIS DPA Review Playbook");
+    expect(playbookLabelFor("research/citation-verification", "Citation Verification")).toBe("AEGIS Citation Verification Playbook");
     expect(playbookLabelFor("x/y")).toBe("AEGIS Standard Playbook");
   });
 });
