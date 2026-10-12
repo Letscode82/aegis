@@ -1345,6 +1345,10 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   // this id so /ask grounds on the WHOLE document, not a keyword sliver of it —
   // and so re-uploads of the same file don't fan out into duplicate excerpts.
   const activeDocRef = useRef(null);
+  // Live mirror of the active document for the UI: a ref doesn't re-render, but
+  // the persistent "working document" pill has to react when a doc attaches or
+  // detaches. Kept in lock-step with activeDocRef everywhere it changes.
+  const [activeDoc, setActiveDoc] = useState(null);
   // Live mirror of `turns` so a follow-up can read the conversation so far
   // without the callback closing over a stale array — the basis for threading
   // prior context (the deep review just produced, earlier answers) into the
@@ -1630,6 +1634,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       // Remember it as the conversation's active document so later follow-ups
       // ground on its full text (survives analyze → deep-review → follow-up).
       activeDocRef.current = { documentId: up.documentId, name: file.name };
+      setActiveDoc({ documentId: up.documentId, name: file.name });
       setTimeout(() => inputRef.current?.focus(), 30);
     } catch {
       setStaging(false);
@@ -2053,7 +2058,17 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     setStagedDoc(null);
     pendingSkillRef.current = null;
     activeDocRef.current = null;
+    setActiveDoc(null);
     setTimeout(() => inputRef.current?.focus(), 0);
+  }, []);
+
+  // Detach the conversation's working document: clears the sticky pill, the ref
+  // every ground/review path reads, and any not-yet-submitted staged file. After
+  // this, asks and reviews run over the corpus again, not a pinned document.
+  const detachActiveDoc = useCallback(() => {
+    activeDocRef.current = null;
+    setActiveDoc(null);
+    setStagedDoc(null);
   }, []);
 
   // Auto-run a seeded request once when opened from the omnibox.
@@ -2222,8 +2237,22 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
               : <span style={{ color: C.t3 }}> ready — type a question or just hit Route to analyze it.</span>}
           </span>
           {!staging && (
-            <button type="button" onClick={() => setStagedDoc(null)} aria-label="Remove attached document" title="Remove" style={{ background: "transparent", border: "none", color: C.t3, cursor: "pointer", fontSize: 13, flexShrink: 0, lineHeight: 1 }}>✕</button>
+            <button type="button" onClick={detachActiveDoc} aria-label="Remove attached document" title="Remove" style={{ background: "transparent", border: "none", color: C.t3, cursor: "pointer", fontSize: 13, flexShrink: 0, lineHeight: 1 }}>✕</button>
           )}
+        </div>
+      )}
+      {/* Phase 1 — sticky document. Once a file is analyzed, it stays pinned to
+          the conversation: the staged chip is consumed on submit, but this pill
+          persists so the user always sees what every ask / review runs against,
+          with a one-click detach. */}
+      {activeDoc && !stagedDoc && !staging && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, padding: "6px 10px", background: C.blG, border: `1px solid ${C.bl}44`, borderRadius: 10, fontSize: 12 }}>
+          <span aria-hidden="true" style={{ flexShrink: 0 }}>📎</span>
+          <span style={{ minWidth: 0, flex: 1, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", color: C.t2 }}>
+            Working document: <strong style={{ color: C.t1 }}>{activeDoc.name}</strong>
+            <span style={{ color: C.t3 }}> — asks and reviews use it</span>
+          </span>
+          <button type="button" onClick={detachActiveDoc} aria-label="Detach working document" title="Detach — go back to searching all documents" style={{ background: "transparent", border: "none", color: C.t3, cursor: "pointer", fontSize: 13, flexShrink: 0, lineHeight: 1 }}>✕</button>
         </div>
       )}
       <div style={{ display: "flex", gap: 8, alignItems: "center", background: C.cd, border: `1px solid ${C.brL}`, borderRadius: 12, padding: big ? "6px 6px 6px 16px" : "5px 5px 5px 14px", boxShadow: big ? "0 2px 14px rgba(16,24,40,.06)" : "none" }}>
@@ -2240,7 +2269,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
           value={input}
           onChange={(e) => { const v = e.target.value; if (pendingSkillRef.current && !v.startsWith(pendingSkillRef.current.prompt)) pendingSkillRef.current = null; setInput(v); }}
           onKeyDown={(e) => { if (e.key === "Enter" && canSubmit) submitComposer(input); }}
-          placeholder={hasStagedDoc ? "Ask something about this document, or hit Route to analyze it…" : turns.length === 0 ? "Describe a request, ask a question, or attach a document…" : "Ask, file a request, or attach a document…"}
+          placeholder={hasStagedDoc ? "Ask something about this document, or hit Route to analyze it…" : activeDoc ? `Ask about ${activeDoc.name}, review it, or file a request…` : turns.length === 0 ? "Describe a request, ask a question, or attach a document…" : "Ask, file a request, or attach a document…"}
           aria-label="Ask OneLegal or file a legal request"
           style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: C.t1, fontFamily: F, fontSize: big ? 15 : 13, padding: "8px 0" }}
         />
