@@ -22,19 +22,42 @@
  * the built-in positions behave like a configured playbook today.
  */
 
-/** Signals that a document is a stand-alone NDA rather than a full agreement. */
-const NDA_SIGNALS =
-  /\b(n\.?d\.?a\.?|non[-\s]?disclosure|nondisclosure|confidential(?:ity)?\s+(?:agreement|undertaking)|mutual\s+confidential|secrecy\s+agreement)\b/i;
+/**
+ * Document-type → review playbook, ordered most-specific first. The first rule
+ * whose signal appears in the document's name, the head of its body, or the task
+ * text wins. Every target is a built skill in the registry (the caller re-checks
+ * before using it, so a drifted id just falls through to text routing).
+ *
+ * Ordering matters: a DPA / ToS / SaaS agreement often contains a
+ * confidentiality clause, so those specific types are matched before the NDA
+ * rule. A generic MSA / services agreement matches nothing here and falls
+ * through to `contracts/contract-review` via the router — the correct default.
+ */
+const TYPE_RULES: Array<{ skillId: string; signal: RegExp }> = [
+  {
+    skillId: "privacy/dpa-review",
+    signal: /\b(data[-\s]processing\s+agreement|data[-\s]protection\s+addendum|\bdpa\b|processor\s+agreement)\b/i,
+  },
+  {
+    skillId: "contracts/terms-of-service-audit",
+    signal: /\b(terms\s+of\s+service|terms\s+of\s+use|terms\s+&\s+conditions|end[-\s]user\s+licen[cs]e|\beula\b)\b/i,
+  },
+  {
+    skillId: "contracts/saas-and-cloud-review",
+    signal: /\b(software[-\s]as[-\s]a[-\s]service|\bsaas\b|cloud\s+services?\s+agreement|subscription\s+(?:services?\s+)?agreement)\b/i,
+  },
+  {
+    skillId: "contracts/nda-triage",
+    signal:
+      /\b(n\.?d\.?a\.?|non[-\s]?disclosure|nondisclosure|confidential(?:ity)?\s+(?:agreement|undertaking)|mutual\s+confidential|secrecy\s+agreement)\b/i,
+  },
+];
 
 /**
  * Prefer a specific review playbook from the document itself, so the review
  * compares against the right standard. Returns a registry skill id, or null to
  * let normal text routing decide. The caller still confirms the id resolves to
  * a built skill before using it.
- *
- * Only the NDA ↔ generic-contract split is decided here — the highest-frequency
- * mis-route (an NDA scored against commercial-contract norms). Other types fall
- * through to the registry router.
  */
 export function preferredReviewSkill(
   docName: string | undefined | null,
@@ -46,16 +69,22 @@ export function preferredReviewSkill(
   // and scanning the whole text would let a stray mention flip the decision.
   const head = String(docText || "").slice(0, 2000);
   const task = String(taskText || "");
-  if (NDA_SIGNALS.test(name) || NDA_SIGNALS.test(head) || NDA_SIGNALS.test(task)) {
-    return "contracts/nda-triage";
+  for (const { skillId, signal } of TYPE_RULES) {
+    if (signal.test(name) || signal.test(head) || signal.test(task)) return skillId;
   }
   return null;
 }
 
 /** Human-readable name of the playbook a review is applying. */
 export function playbookLabelFor(skillId: string, skillTitle?: string | null): string {
-  if (skillId === "contracts/nda-triage") return "AEGIS Standard NDA Playbook";
-  if (skillId === "contracts/contract-review") return "AEGIS Standard Contract Playbook";
+  const LABELS: Record<string, string> = {
+    "contracts/nda-triage": "AEGIS Standard NDA Playbook",
+    "contracts/contract-review": "AEGIS Standard Contract Playbook",
+    "contracts/saas-and-cloud-review": "AEGIS Standard SaaS / Cloud Playbook",
+    "contracts/terms-of-service-audit": "AEGIS Standard Terms-of-Service Playbook",
+    "privacy/dpa-review": "AEGIS Standard DPA Playbook",
+  };
+  if (LABELS[skillId]) return LABELS[skillId];
   return skillTitle ? `AEGIS ${skillTitle} Playbook` : "AEGIS Standard Playbook";
 }
 
