@@ -30,7 +30,13 @@ import { recordSpan } from "@aegis/observability";
 import { loadRegistryFromData, route, buildSystemPrompt, wrapDocuments, getSkill } from "@aegis/legal-skills";
 import registryData from "@aegis/legal-skills/registry.json";
 import { loadReviewDocument } from "../../../lib/one-legal/review-docs";
-import { preferredReviewSkill, playbookLabelFor, playbookDirective } from "../../../lib/one-legal/review-playbook";
+import {
+  preferredReviewSkill,
+  playbookLabelFor,
+  playbookDirective,
+  jurisdictionDirective,
+  normalizeJurisdiction,
+} from "../../../lib/one-legal/review-playbook";
 
 // Same budget rationale as the buffered route: give the stream the full ~60s
 // function window. Because the answer streams, a cap only bounds worst-case
@@ -70,7 +76,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     };
     const text = String(body.text || "").trim();
     if (text.length < 3) return res.status(400).json({ ok: false, error: "Describe the task in a few words." });
-    const jurisdiction = String(body.jurisdiction || "").trim() || undefined;
+    // US-first default (see the buffered route) — the console toggle overrides.
+    const jurisdiction = normalizeJurisdiction(body.jurisdiction);
 
     const docs = Array.isArray(body.documents)
       ? body.documents.filter((d) => d && String(d.text || "").trim()).map((d) => ({ name: String(d.name || "document"), text: String(d.text) }))
@@ -115,7 +122,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       "Produce a COMPLETE but CONCISE review in clean Markdown (NOT JSON, no code fences): a short Bottom line, " +
       "then Findings highest-severity first — for each, the clause, its severity, the issue in one line, and a " +
       "one-line recommendation — then Actions. Do not repeat the document back or pad; finish the whole review.\n\n" +
-      playbookDirective(playbookLabel);
+      playbookDirective(playbookLabel) +
+      "\n\n" +
+      jurisdictionDirective(jurisdiction);
     userMsg = (docs.length ? wrapDocuments(docs) + "\n\n" : "") + `Task: ${text}\n\n${outputGuide}\n\nReturn format: markdown`;
   } catch (err) {
     if (err instanceof AccessDeniedError) return res.status(403).json({ ok: false, error: err.decision.message });

@@ -168,6 +168,17 @@ const EXAMPLES = [
   { icon: "✎", text: "Draft a memo summarizing our data-retention policy" },
 ];
 
+// US-first jurisdiction options for the review toggle (US first; kept in sync
+// with REVIEW_JURISDICTIONS in lib/one-legal/review-playbook.ts, the server
+// side that turns the code into a US/EU/UK/IN baseline directive).
+const JURISDICTIONS = [
+  { code: "US", label: "United States" },
+  { code: "EU", label: "European Union" },
+  { code: "UK", label: "United Kingdom" },
+  { code: "IN", label: "India" },
+  { code: "GLOBAL", label: "Jurisdiction-neutral" },
+];
+
 // Rotating one-liner shown as a pinned tip above the composer on the landing.
 const TIPS = [
   "Describe a whole situation — “we’re being sued by Acme” — and I’ll break it into tasks.",
@@ -1349,6 +1360,13 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   // the persistent "working document" pill has to react when a doc attaches or
   // detaches. Kept in lock-step with activeDocRef everywhere it changes.
   const [activeDoc, setActiveDoc] = useState(null);
+  // US-first: the review jurisdiction. Defaults to the US baseline so the
+  // review reads native to a US GC (the skills themselves are India-anchored).
+  // The toggle under the composer flips it; a ref mirror lets runSkillReview
+  // read the current choice without re-binding its callback.
+  const [jurisdiction, setJurisdiction] = useState("US");
+  const jurisdictionRef = useRef("US");
+  useEffect(() => { jurisdictionRef.current = jurisdiction; }, [jurisdiction]);
   // Live mirror of `turns` so a follow-up can read the conversation so far
   // without the callback closing over a stale array — the basis for threading
   // prior context (the deep review just produced, earlier answers) into the
@@ -1848,9 +1866,12 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     // so the review reads its real text instead of just the filename in the
     // prompt. A caller that pinned a documentId or pasted documents is left as-is.
     const hasDoc = opts?.documentId || (Array.isArray(opts?.documents) && opts.documents.length > 0);
-    const withDoc = hasDoc || !activeDocRef.current?.documentId
+    const base = hasDoc || !activeDocRef.current?.documentId
       ? opts
       : { ...opts, documentId: activeDocRef.current.documentId };
+    // Carry the selected jurisdiction (US by default) on every review so the
+    // output is anchored to the right market. A caller that pinned one wins.
+    const withDoc = { ...base, jurisdiction: base?.jurisdiction || jurisdictionRef.current };
     const id = ++TURN_SEQ;
     setTurns((ts) => [...ts, { id, kind: "skill-review", request: t, reviewLoading: true, matched: null, answer: null, degraded: false, note: null, error: null, aiError: null }]);
     runSkillReviewTurn(id, t, withDoc);
@@ -2354,6 +2375,22 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
                     title="Review against the right playbook — picks the standard for your document or task, scores every clause, and files nothing."
                     style={{ background: "transparent", border: "none", color: canReview ? C.em : C.t4, fontFamily: M, fontSize: 10, letterSpacing: 0.6, textTransform: "uppercase", cursor: canReview ? "pointer" : "default", opacity: canReview ? 1 : 0.6 }}
                   >⚖ Review against playbook{activeDoc?.documentId ? " →" : ""}</button>
+                  {/* US-first jurisdiction toggle — the review is anchored to the
+                      chosen market (US by default). Sits with the Run action so
+                      it's obvious which standard a review will apply. */}
+                  <div style={{ marginTop: 8, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span style={{ fontFamily: M, fontSize: 9.5, letterSpacing: 0.6, textTransform: "uppercase", color: C.t4 }}>Jurisdiction</span>
+                    <select
+                      value={jurisdiction}
+                      onChange={(e) => setJurisdiction(e.target.value)}
+                      title="The legal standard a review applies. US is the default."
+                      style={{ background: C.s2, color: C.t2, border: `1px solid ${C.br}`, borderRadius: 999, padding: "3px 10px", fontSize: 11.5, fontFamily: M, cursor: "pointer" }}
+                    >
+                      {JURISDICTIONS.map((j) => (
+                        <option key={j.code} value={j.code}>{j.label}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               );
             })()}

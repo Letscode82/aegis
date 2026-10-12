@@ -74,3 +74,89 @@ export function playbookDirective(playbookLabel: string): string {
     `confirm before signature is fine; a disclaimer that no playbook was supplied is not.`
   );
 }
+
+/**
+ * US-first jurisdiction support.
+ *
+ * The built-in skills are tagged `[global, IN]` (India-anchored) — a holdover
+ * from AEGIS's first market. A US in-house legal team expects a US baseline:
+ * governing law read as a US state (Delaware / New York unless the document
+ * says otherwise), US contract norms, and US *state* privacy deadlines (CCPA /
+ * CPRA and the state-law family) rather than GDPR's 30-day clock. This block
+ * anchors the review to a selected jurisdiction without rewriting every
+ * SKILL.md: the model is told to read the playbook's standard positions through
+ * the jurisdiction's lens and to flag where a position is jurisdiction-specific.
+ *
+ * `US` is the default. The per-jurisdiction toggle in the console sets it.
+ */
+export const DEFAULT_JURISDICTION = "US";
+
+/** Jurisdictions the console offers in its toggle, US first. */
+export const REVIEW_JURISDICTIONS: Array<{ code: string; label: string }> = [
+  { code: "US", label: "United States" },
+  { code: "EU", label: "European Union" },
+  { code: "UK", label: "United Kingdom" },
+  { code: "IN", label: "India" },
+  { code: "GLOBAL", label: "Jurisdiction-neutral" },
+];
+
+/** Normalize an incoming jurisdiction string to a known code, defaulting to US. */
+export function normalizeJurisdiction(input: string | undefined | null): string {
+  const raw = String(input || "").trim().toUpperCase();
+  if (!raw) return DEFAULT_JURISDICTION;
+  const hit = REVIEW_JURISDICTIONS.find((j) => j.code === raw);
+  return hit ? hit.code : raw;
+}
+
+/** Human label for a jurisdiction code. */
+export function jurisdictionLabel(code: string): string {
+  const hit = REVIEW_JURISDICTIONS.find((j) => j.code === normalizeJurisdiction(code));
+  return hit ? hit.label : code;
+}
+
+/**
+ * Jurisdiction anchor appended to the review task. Encodes the US baseline a
+ * US GC expects (and the EU/UK/IN equivalents) so the output reads native to
+ * the selected market rather than to the skill's India-anchored defaults.
+ */
+export function jurisdictionDirective(input: string | undefined | null): string {
+  const code = normalizeJurisdiction(input);
+  const label = jurisdictionLabel(code);
+  const base =
+    `Jurisdiction: ${label}. Read the playbook's standard positions through ${label} law and market ` +
+    `practice. Where the document is silent on governing law, assume the ${label} baseline below. Flag any ` +
+    `clause whose enforceability or standard turns on a different jurisdiction, and name which.`;
+  switch (code) {
+    case "US":
+      return (
+        base +
+        ` ${label} baseline: governing law defaults to a US state (Delaware or New York unless the document ` +
+        `says otherwise); use US contract norms (e.g. mutual indemnities, carve-outs to liability caps for ` +
+        `IP/confidentiality/willful misconduct, at-will where employment is in scope). For any personal-data ` +
+        `or privacy obligation, measure response deadlines against the US state-privacy family, NOT GDPR: ` +
+        `CCPA/CPRA (California) 45 days with a one-time 45-day extension, and the aligned state laws ` +
+        `(Virginia VCDPA, Colorado CPA, Connecticut CTDPA 45+45; Texas, Utah, Oregon, etc.). Call out ` +
+        `sector regimes (HIPAA, GLBA, state breach-notification clocks) where the subject matter triggers them.`
+      );
+    case "EU":
+      return (
+        base +
+        ` ${label} baseline: GDPR controls personal-data obligations — DSAR response within one month, ` +
+        `extendable by two further months for complex requests; measure data-processing clauses against ` +
+        `Art. 28 DPA requirements. Governing law reads as an EU member state unless stated.`
+      );
+    case "UK":
+      return (
+        base +
+        ` ${label} baseline: UK GDPR + Data Protection Act 2018 — DSAR response within one month, ` +
+        `extendable by two months. English law governing-law and jurisdiction defaults unless stated.`
+      );
+    case "IN":
+      return (
+        base +
+        ` ${label} baseline: Indian Contract Act norms; measure privacy obligations against the DPDP Act 2023.`
+      );
+    default:
+      return base + ` Keep the review jurisdiction-neutral and flag where an answer depends on local law.`;
+  }
+}

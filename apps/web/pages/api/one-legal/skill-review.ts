@@ -28,7 +28,13 @@ import { loadRegistryFromData, route, buildSystemPrompt, wrapDocuments, getSkill
 // works inside the Next serverless bundle — see loadRegistryFromData.
 import registryData from "@aegis/legal-skills/registry.json";
 import { loadReviewDocument } from "../../../lib/one-legal/review-docs";
-import { preferredReviewSkill, playbookLabelFor, playbookDirective } from "../../../lib/one-legal/review-playbook";
+import {
+  preferredReviewSkill,
+  playbookLabelFor,
+  playbookDirective,
+  jurisdictionDirective,
+  normalizeJurisdiction,
+} from "../../../lib/one-legal/review-playbook";
 
 // maxDuration: the deep skill review carries a large playbook system prompt
 // (~13K tokens), so the model call runs longer than the light routes. Without
@@ -61,7 +67,10 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     };
     const text = String(body.text || "").trim();
     if (text.length < 3) return res.status(400).json({ ok: false, error: "Describe the task in a few words." });
-    const jurisdiction = String(body.jurisdiction || "").trim() || undefined;
+    // US-first: default to the US baseline when the console doesn't send one,
+    // so the review reads native to a US GC instead of the skills' India-anchored
+    // defaults. The console's jurisdiction toggle overrides it.
+    const jurisdiction = normalizeJurisdiction(body.jurisdiction);
 
     const docs = Array.isArray(body.documents)
       ? body.documents.filter((d) => d && String(d.text || "").trim()).map((d) => ({ name: String(d.name || "document"), text: String(d.text) }))
@@ -114,7 +123,9 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       "Produce a COMPLETE but CONCISE review in clean Markdown (NOT JSON, no code fences): a short Bottom line, " +
       "then Findings highest-severity first — for each, the clause, its severity, the issue in one line, and a " +
       "one-line recommendation — then Actions. Do not repeat the document back or pad; finish the whole review.\n\n" +
-      playbookDirective(playbookLabel);
+      playbookDirective(playbookLabel) +
+      "\n\n" +
+      jurisdictionDirective(jurisdiction);
     const userMsg =
       (docs.length ? wrapDocuments(docs) + "\n\n" : "") + `Task: ${text}\n\n${outputGuide}\n\nReturn format: markdown`;
 
