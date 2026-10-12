@@ -535,7 +535,7 @@ function AnswerCard({ turn, onExample, onFileInstead, onOpenSource, onResearch, 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14, alignItems: "center" }}>
         <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase" }}>Next</span>
         <button type="button" onClick={() => onFileInstead(turn.request)} style={chipBtn}>File this as a request →</button>
-        {!turn.answerError && onDeepReview && <button type="button" onClick={() => onDeepReview(turn.request)} style={chipBtn}>⚖ Deep skill review →</button>}
+        {!turn.answerError && onDeepReview && <button type="button" onClick={() => onDeepReview(turn.request)} style={chipBtn}>⚖ Review against playbook →</button>}
         {!turn.answerError && onResearch && <button type="button" onClick={() => onResearch(turn.request)} style={chipBtn}>🔎 Research across your documents →</button>}
         {!turn.answerError && onResearchLaw && <button type="button" onClick={() => onResearchLaw(turn.request)} style={chipBtn}>⚖ Research the law →</button>}
       </div>
@@ -572,7 +572,7 @@ function AnalyzeCard({ turn, onFollowUp, onFileInstead, onDeepReview }) {
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14, alignItems: "center" }}>
           <span style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.8, textTransform: "uppercase" }}>Next</span>
           {turn.analysis && onFollowUp && <button type="button" onClick={onFollowUp} style={chipBtn}>Ask a follow-up →</button>}
-          {turn.analysis && turn.documentId && onDeepReview && <button type="button" onClick={() => onDeepReview(`Review this document (${turn.fileName}) against the right legal playbook.`, { documentId: turn.documentId })} style={chipBtn}>⚖ Deep skill review →</button>}
+          {turn.analysis && turn.documentId && onDeepReview && <button type="button" onClick={() => onDeepReview(`Review this document (${turn.fileName}) against the right legal playbook.`, { documentId: turn.documentId })} style={chipBtn}>⚖ Review against playbook →</button>}
           {onFileInstead && <button type="button" onClick={() => onFileInstead(`Review the attached document: ${turn.fileName}`)} style={chipBtn}>File as a request →</button>}
         </div>
       )}
@@ -1987,13 +1987,30 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     // OL-6: if a document is staged, the submit runs it — quick analysis over
     // the staged doc, answering the typed question when one was given. This is
     // the single explicit trigger; attaching never ran anything on its own.
-    const doc = stagedDoc && stagedDoc.documentId ? stagedDoc : null;
+    // One Run, document-aware. With a document in play, an empty Run reviews it
+    // against the auto-picked playbook (the dominant intent for an attached
+    // legal document); a typed question is answered against the document
+    // instead. This is the single action — no separate "deep review" step.
+    const staged = stagedDoc && stagedDoc.documentId ? stagedDoc : null;
+    const doc = staged || (activeDoc && activeDoc.documentId ? activeDoc : null);
     if (doc) {
-      setStagedDoc(null);
-      setInput("");
-      pendingSkillRef.current = null;
-      analyzeStaged(doc, t);
-      return;
+      const docName = staged ? staged.fileName : activeDoc?.name || "the document";
+      if (t.length < 3) {
+        setStagedDoc(null);
+        pendingSkillRef.current = null;
+        runSkillReview(`Review this document (${docName}) against the right legal playbook.`, { documentId: doc.documentId });
+        return;
+      }
+      if (staged) {
+        // A question about a freshly staged doc → read it and answer that.
+        setStagedDoc(null);
+        setInput("");
+        pendingSkillRef.current = null;
+        analyzeStaged(staged, t);
+        return;
+      }
+      // An already-read (active) doc + a typed question falls through to
+      // startTurn below, which grounds the answer on the active document.
     }
     if (t.length < 3) return;
     const sk = pendingSkillRef.current;
@@ -2016,7 +2033,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
       pendingSkillRef.current = null; // user replaced the prompt — treat as typed input
     }
     startTurn(t);
-  }, [input, stagedDoc, analyzeStaged, startArtifact, startResearch, runSkillReview, startTurn]);
+  }, [input, stagedDoc, activeDoc, analyzeStaged, startArtifact, startResearch, runSkillReview, startTurn]);
 
   // OL-6 — start a governance ladder (a GOVERNANCE_LIBRARY skill) from the
   // console. POSTs to the governed /run-ladder route, which begins a tracked
@@ -2234,7 +2251,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
             <strong style={{ color: C.t1 }}>{(staging ? null : stagedDoc?.fileName) || (staging ? "Uploading…" : "Document")}</strong>
             {staging ? <span style={{ color: C.t3 }}> uploading…</span>
               : stagedDoc?.error ? <span style={{ color: C.rd }}> — {stagedDoc.error}</span>
-              : <span style={{ color: C.t3 }}> ready — type a question or just hit Route to analyze it.</span>}
+              : <span style={{ color: C.t3 }}> ready — ask a question, or hit Route to review it against the right playbook.</span>}
           </span>
           {!staging && (
             <button type="button" onClick={detachActiveDoc} aria-label="Remove attached document" title="Remove" style={{ background: "transparent", border: "none", color: C.t3, cursor: "pointer", fontSize: 13, flexShrink: 0, lineHeight: 1 }}>✕</button>
@@ -2269,7 +2286,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
           value={input}
           onChange={(e) => { const v = e.target.value; if (pendingSkillRef.current && !v.startsWith(pendingSkillRef.current.prompt)) pendingSkillRef.current = null; setInput(v); }}
           onKeyDown={(e) => { if (e.key === "Enter" && canSubmit) submitComposer(input); }}
-          placeholder={hasStagedDoc ? "Ask something about this document, or hit Route to analyze it…" : activeDoc ? `Ask about ${activeDoc.name}, review it, or file a request…` : turns.length === 0 ? "Describe a request, ask a question, or attach a document…" : "Ask, file a request, or attach a document…"}
+          placeholder={hasStagedDoc ? "Ask about this document, or hit Route to review it against the playbook…" : activeDoc ? `Ask about ${activeDoc.name}, review it, or file a request…` : turns.length === 0 ? "Describe a request, ask a question, or attach a document…" : "Ask, file a request, or attach a document…"}
           aria-label="Ask OneLegal or file a legal request"
           style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: C.t1, fontFamily: F, fontSize: big ? 15 : 13, padding: "8px 0" }}
         />
@@ -2319,17 +2336,27 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
               <span style={{ fontSize: 12.5, color: C.t3, lineHeight: 1.5, flex: 1 }}>{TIPS[new Date().getHours() % TIPS.length]}</span>
             </div>
             {composer(true)}
-            {/* Deep skill review (step 2) — run the typed task through the
-                best-matching @aegis/legal-skills playbook instead of routing it. */}
-            <div style={{ marginTop: 8, textAlign: "center" }}>
-              <button
-                type="button"
-                onClick={() => { if (input.trim().length >= 3) { runSkillReview(input); setInput(""); } }}
-                disabled={input.trim().length < 3}
-                title="Run your task through the best-matching legal playbook (shared standards + output contract). Read-only — files nothing."
-                style={{ background: "transparent", border: "none", color: input.trim().length < 3 ? C.t4 : C.em, fontFamily: M, fontSize: 10, letterSpacing: 0.6, textTransform: "uppercase", cursor: input.trim().length < 3 ? "default" : "pointer", opacity: input.trim().length < 3 ? 0.6 : 1 }}
-              >⚖ Deep skill review</button>
-            </div>
+            {/* One Run, document-aware. With a document attached, this reviews it
+                against the auto-picked playbook; with a typed task and no doc, it
+                runs that task through the matching playbook. Same single action —
+                no separate "skill vs deep review" step. */}
+            {(() => {
+              const canReview = !!activeDoc?.documentId || input.trim().length >= 3;
+              return (
+                <div style={{ marginTop: 8, textAlign: "center" }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (activeDoc?.documentId) { runSkillReview(`Review this document (${activeDoc.name}) against the right legal playbook.`, { documentId: activeDoc.documentId }); setInput(""); }
+                      else if (input.trim().length >= 3) { runSkillReview(input); setInput(""); }
+                    }}
+                    disabled={!canReview}
+                    title="Review against the right playbook — picks the standard for your document or task, scores every clause, and files nothing."
+                    style={{ background: "transparent", border: "none", color: canReview ? C.em : C.t4, fontFamily: M, fontSize: 10, letterSpacing: 0.6, textTransform: "uppercase", cursor: canReview ? "pointer" : "default", opacity: canReview ? 1 : 0.6 }}
+                  >⚖ Review against playbook{activeDoc?.documentId ? " →" : ""}</button>
+                </div>
+              );
+            })()}
             {/* OL-7: a few suggestions, not the whole catalogue (Harvey/Legora/
                 Claude pattern). The full list lives behind "Browse all skills". */}
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 18, justifyContent: "center" }}>
@@ -2339,14 +2366,14 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
                 </button>
               ))}
             </div>
-            {/* One entry to the full catalogue + a one-line explainer of Skills
-                vs Deep review, instead of two walls of chips. */}
+            {/* One entry to the full catalogue + a single-model one-liner (the
+                "skill vs deep review" distinction is retired). */}
             <div style={{ marginTop: 16, display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
               <button type="button" onClick={() => setSkillsOpen(true)} style={{ ...chipBtn, display: "inline-flex", alignItems: "center", gap: 7 }}>
                 <span aria-hidden="true" style={{ color: C.em }}>⚡</span>Browse all skills<span aria-hidden="true" style={{ color: C.t4 }}>&nbsp;· {SKILLS.length}</span>
               </button>
               <div style={{ fontSize: 11, color: C.t4, lineHeight: 1.5, maxWidth: 460 }}>
-                A <strong style={{ color: C.t3 }}>skill</strong> runs one specific playbook. <strong style={{ color: C.t3 }}>Deep skill review</strong> picks the right playbook for a document or task and runs it for you.
+                Attach a document or describe a task — Run picks the right playbook and reviews it against your standards. Skills are shortcuts to the same thing.
               </div>
             </div>
           </div>
