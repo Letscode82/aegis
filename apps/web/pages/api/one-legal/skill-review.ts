@@ -27,6 +27,7 @@ import { loadRegistryFromData, route, buildSystemPrompt, wrapDocuments, getSkill
 // The built registry is imported (bundled) rather than read from disk, so this
 // works inside the Next serverless bundle — see loadRegistryFromData.
 import registryData from "@aegis/legal-skills/registry.json";
+import { loadReviewDocument } from "../../../lib/one-legal/review-docs";
 
 // maxDuration: the deep skill review carries a large playbook system prompt
 // (~13K tokens), so the model call runs longer than the light routes. Without
@@ -54,6 +55,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       text?: string;
       jurisdiction?: string;
       skillId?: string;
+      documentId?: string;
       documents?: Array<{ name?: string; text?: string }>;
     };
     const text = String(body.text || "").trim();
@@ -79,6 +81,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const docs = Array.isArray(body.documents)
       ? body.documents.filter((d) => d && String(d.text || "").trim()).map((d) => ({ name: String(d.name || "document"), text: String(d.text) }))
       : [];
+    // When launched from an analyzed upload, the client sends the document's id
+    // so the review reads its FULL extracted text (the real clauses) rather than
+    // a summary. Load it server-side, org-scoped, and put it first.
+    const loadedDoc = await loadReviewDocument(user.organizationId, body.documentId);
+    if (loadedDoc) docs.unshift(loadedDoc);
 
     const system = buildSystemPrompt(REGISTRY, [chosen.id], {
       includeReferences: true,
