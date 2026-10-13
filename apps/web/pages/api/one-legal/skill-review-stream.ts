@@ -14,7 +14,6 @@
  *   { type: "matched", matched }            — the resolved playbook (first)
  *   { type: "delta",   text }               — a chunk of the answer
  *   { type: "done",    degraded, aiError? } — stream finished
- *   { type: "note",    matched, note }      — skill matched but nothing to run
  *   { type: "error",   error }              — fatal before any delta
  *
  * The console degrades to the buffered /skill-review route when streaming is
@@ -27,12 +26,12 @@ import { assertAndAudit } from "../../../lib/authz";
 import { CLAUDE_MODEL, friendlyAIError } from "@aegis/ai";
 import { streamAnthropicMessages } from "@aegis/ai/server";
 import { recordSpan } from "@aegis/observability";
-import { loadRegistryFromData, route, buildSystemPrompt, wrapDocuments, getSkill } from "@aegis/legal-skills";
+import { loadRegistryFromData, buildSystemPrompt, wrapDocuments } from "@aegis/legal-skills";
 import registryData from "@aegis/legal-skills/registry.json";
 import { getContractPlaybookText } from "@aegis/contracts";
 import { loadReviewDocument } from "../../../lib/one-legal/review-docs";
+import { selectBuiltReviewSkill } from "../../../lib/one-legal/review-select";
 import {
-  preferredReviewSkill,
   playbookLabelFor,
   playbookDirective,
   jurisdictionDirective,
@@ -67,7 +66,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
   let matched: { id: string; title: string; module: string; risk_tier: string; status: string };
   let system: string;
   let userMsg: string;
-  let built = true;
   try {
     await assertAndAudit(user, Permission.IntakeCreateTicket, { route: "one-legal.skill-review-stream" });
     const body = (req.body || {}) as {
@@ -92,24 +90,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (loadedDoc) docs.unshift(loadedDoc);
     const firstDoc = docs[0];
 
-    // Pick the playbook: an explicit skillId wins; otherwise prefer the playbook
-    // the document's TYPE calls for (an NDA → nda-triage, not the generic
-    // contract playbook), then fall back to text routing.
-    let chosen = body.skillId ? getSkill(REGISTRY, String(body.skillId)) : null;
-    if (!chosen) {
-      const preferId = preferredReviewSkill(firstDoc?.name, firstDoc?.text, text);
-      const preferred = preferId ? getSkill(REGISTRY, preferId) : null;
-      if (preferred && preferred.status === "built") chosen = preferred;
-    }
-    if (!chosen) {
-      const [best] = route(REGISTRY, text, { jurisdiction });
-      chosen = best ? getSkill(REGISTRY, best.id) : null;
-    }
-    if (!chosen) return res.status(200).json({ ok: true, matched: null, answer: "", note: "No matching skill." });
+    // Pick the playbook, never dead-ending on an unbuilt skill: an explicit
+    // (built) skillId wins, else the document-type playbook, else the best BUILT
+    // text-route match (shared with the buffered route; see review-select).
+    const chosen = selectBuiltReviewSkill(REGISTRY, {
+      skillId: body.skillId,
+      docName: firstDoc?.name,
+      docText: firstDoc?.text,
+      text,
+      jurisdiction,
+    });
+    if (!chosen) return res.status(200).json({ ok: true, matched: null, answer: "", note: "No playbook is available for this yet — you can file it as a request and I’ll route it." });
 
     chosenId = chosen.id;
     matched = { id: chosen.id, title: chosen.title, module: chosen.module, risk_tier: chosen.risk_tier, status: chosen.status };
-    built = chosen.status === "built";
 
     // For a contract review, pull the org's OWN configured Contracts Playbook
     // (the editable `contract-clauses` knowledge pack) and make it authoritative
@@ -161,7 +155,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     | { type: "matched"; matched: typeof matched }
     | { type: "delta"; text: string }
     | { type: "done"; degraded: boolean; aiError?: string | null }
-    | { type: "note"; matched: typeof matched; note: string }
     | { type: "error"; error: string };
   const send = (f: Frame): void => {
     res.write(`data: ${JSON.stringify(f)}\n\n`);
@@ -169,14 +162,6 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const t0 = Date.now();
   send({ type: "matched", matched });
-
-  // A catalogued-but-not-yet-built skill has no body to run.
-  if (!built) {
-    send({ type: "note", matched, note: "This skill is catalogued but not yet built." });
-    send({ type: "done", degraded: true });
-    recordSpan("one_legal.skill_review_stream", Date.now() - t0, { skill: chosenId, built: false });
-    return res.end();
-  }
 
   const controller = new AbortController();
   const deadline = setTimeout(() => controller.abort(), STREAM_DEADLINE_MS);

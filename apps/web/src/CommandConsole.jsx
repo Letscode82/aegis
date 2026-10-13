@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { C, F, M, SR, ThinkingOrb, useTheme } from "@aegis/ui";
+import { C, F, M, SR, ThinkingOrb, useTheme, useToast } from "@aegis/ui";
 import { friendlyAIError } from "@aegis/ai";
 import { SKILLS, SKILL_CATEGORIES, resolveSkillTarget } from "../lib/one-legal/skills";
 import { wantsQuickDraft, contractCreationType } from "../lib/one-legal/creation-routing";
@@ -832,6 +832,7 @@ function SkillReviewCard({ turn, onFollowUp, onFileInstead, onStop }) {
 // Artifact canvas (C1) — an editable draft (memo/email/clause/…) the user edits
 // in place and can save. Saving persists + indexes the doc (citable later).
 function ArtifactCard({ turn, onSave, onRegenerate, onFileInstead }) {
+  const toast = useToast();
   const [title, setTitle] = useState(turn.title || "");
   const [content, setContent] = useState(turn.content || "");
   // Reset the editor when a fresh draft arrives (initial draft / regenerate).
@@ -873,7 +874,12 @@ function ArtifactCard({ turn, onSave, onRegenerate, onFileInstead }) {
       a.download = `${slug}.docx`;
       document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch { /* ignore — download is best-effort */ } finally {
+      toast.success("Word document downloaded.");
+    } catch {
+      // The download silently did nothing before — a failed export looked
+      // identical to a slow one. Tell the user so they can retry or copy.
+      toast.error("Couldn’t export the Word file — retry, or use Copy.");
+    } finally {
       setDownloading(false);
     }
   };
@@ -1348,6 +1354,7 @@ function ClarifyCard({ turn, onFile }) {
 }
 
 export function CommandConsole({ open, embedded, initialText, onClose, onNavigate }) {
+  const toast = useToast();
   const [turns, setTurns] = useState([]);
   const [input, setInput] = useState("");
   const [me, setMe] = useState(null);
@@ -1941,12 +1948,21 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     try {
       const resp = await fetch("/api/one-legal/artifact", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title, content, sessionId }) });
       const d = await resp.json().catch(() => ({}));
-      if (d && d.ok && d.documentId) patchTurn(turnId, { saving: false, savedDocumentId: d.documentId, title: d.title || title });
-      else patchTurn(turnId, { saving: false, error: (d && d.error) || "Save failed." });
+      if (d && d.ok && d.documentId) {
+        patchTurn(turnId, { saving: false, savedDocumentId: d.documentId, title: d.title || title });
+        toast.success("Draft saved to your workspace.");
+      } else {
+        // Don't write `error` onto the turn — that swaps the ArtifactCard for the
+        // draft-error view and discards the user's edits. Keep the editor intact
+        // and surface the failure as a toast so the save can be retried.
+        patchTurn(turnId, { saving: false });
+        toast.error((d && d.error) || "Couldn’t save the draft — retry.");
+      }
     } catch (e) {
-      patchTurn(turnId, { saving: false, error: friendlyAIError(e) });
+      patchTurn(turnId, { saving: false });
+      toast.error(friendlyAIError(e) || "Couldn’t save the draft — retry.");
     }
-  }, [patchTurn, sessionId]);
+  }, [patchTurn, sessionId, toast]);
 
   // Stream the plan from the unified /api/one-legal/run SSE route (OL-2′), so
   // tasks appear as they resolve. Returns the task list, or null to signal the

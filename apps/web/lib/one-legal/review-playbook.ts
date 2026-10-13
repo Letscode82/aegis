@@ -18,8 +18,11 @@
  *
  * Pure + dependency-light so both review routes (buffered + streamed) share one
  * source of truth. The org's *editable* playbook (the `contract-clauses`
- * knowledge pack) is wired in a follow-up; this is the framing layer that makes
- * the built-in positions behave like a configured playbook today.
+ * knowledge pack) is now wired in: both routes pull it via
+ * `getContractPlaybookText` and make it authoritative through
+ * `orgPlaybookPromptBlock` / `ORG_PLAYBOOK_LABEL`. When the org has configured
+ * no positions, this framing layer makes each skill's built-in positions behave
+ * like a configured playbook so the review is never a "no playbook" hedge.
  */
 
 /**
