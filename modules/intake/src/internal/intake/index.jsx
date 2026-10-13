@@ -644,6 +644,18 @@ function AgentRecommendationPanel({ticket,rec,agent,agentRunning,agentElapsed,ed
     // running its pass server-side right now. Show a live working state that
     // resolves itself (the Cockpit polls until the recommendation lands).
     if(agentRunning){
+      // Terminal "stalled" state: once polling has capped (~60s) with no
+      // recommendation, stop showing a live spinner that spins forever — the
+      // agent run did not land a result. Present a clear, non-spinning state
+      // with the next step so the Cockpit never looks perpetually "running".
+      if(agentElapsed>=60){
+        return <Card style={{background:C.cd,borderLeft:`3px solid ${C.am}`}}>
+          <SH icon="⚠" title="AGENT DIDN'T RESPOND" sub="The AI step didn't return a recommendation in time" c={C.am}/>
+          <div style={{fontSize:11,color:C.t2,lineHeight:1.6,marginTop:12}}>
+            No recommendation landed for this run. Re-dispatch the ladder&apos;s AI step from the workflow card below to run the agent again, or route the ticket manually. Nothing was sent and the human approval gate is unchanged.
+          </div>
+        </Card>;
+      }
       return <Card style={{background:C.cd,borderLeft:`3px solid ${C.pp}`}}>
         <SH icon="🤖" title="AGENT RUNNING" sub="The AI step is processing this request — its recommendation will appear here" c={C.pp}/>
         <div style={{display:"flex",alignItems:"center",gap:10,marginTop:12}}>
@@ -654,11 +666,9 @@ function AgentRecommendationPanel({ticket,rec,agent,agentRunning,agentElapsed,ed
           <div style={{height:"100%",width:`${Math.min(95,(agentElapsed/45)*100)}%`,background:C.pp,transition:"width 1s linear"}}/>
         </div>
         <div style={{fontSize:10.5,color:C.t3,lineHeight:1.6,marginTop:12}}>
-          {agentElapsed>=60
-            ?<>The agent hasn&apos;t responded yet. Re-select this ticket to check again, or review the ladder below. The human approval gate is unchanged.</>
-            :agentElapsed>=20
-              ?<>Taking a little longer than usual — still processing. This updates automatically; no need to refresh.</>
-              :<>This updates automatically — no need to refresh. When the agent finishes, its recommendation and deliverable appear here for your approval. The human approval gate is unchanged.</>}
+          {agentElapsed>=20
+            ?<>Taking a little longer than usual — still processing. This updates automatically; no need to refresh.</>
+            :<>This updates automatically — no need to refresh. When the agent finishes, its recommendation and deliverable appear here for your approval. The human approval gate is unchanged.</>}
         </div>
       </Card>;
     }

@@ -47,7 +47,14 @@ const TICKETS: Record<string, object> = {
 
 beforeEach(() => {
   callClaudeJSONMock.mockReset().mockResolvedValue({
+    // NDA agent now drafts the actual instrument (reads `draftedDocument`);
+    // the other agents read `draftedResponse`. Provide both so one mock
+    // serves every agent. The document must be ≥200 chars (the NDA agent
+    // rejects a too-short draft and degrades).
+    draftedDocument:
+      "MUTUAL NON-DISCLOSURE AGREEMENT\n\nThis Mutual Non-Disclosure Agreement is entered into between the Company and Acme Robotics. 1. PURPOSE. 2. CONFIDENTIAL INFORMATION. 3. OBLIGATIONS. 4. TERM. 5. GOVERNING LAW. IN WITNESS WHEREOF the parties have executed this Agreement.",
     draftedResponse: "Drafted response text.",
+    summary: "Drafted a Mutual NDA with Acme Robotics; no prior NDA on record.",
     alternativeTone: "Short version.",
     confidence: 0.9,
     reasoning: "test",
