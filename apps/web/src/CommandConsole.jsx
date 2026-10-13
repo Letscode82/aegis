@@ -3,6 +3,7 @@ import { C, F, M, SR, ThinkingOrb, useTheme } from "@aegis/ui";
 import { friendlyAIError } from "@aegis/ai";
 import { SKILLS, SKILL_CATEGORIES, resolveSkillTarget } from "../lib/one-legal/skills";
 import { wantsQuickDraft, contractCreationType } from "../lib/one-legal/creation-routing";
+import { describeIntent } from "../lib/one-legal/intent";
 
 // ConsoleOrb — the thinking-orbs "thinking" indicator wired to the live
 // Aurora theme (the toggle mutates tokens in place rather than setting a
@@ -2307,11 +2308,20 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
   // waiting to be run. Attaching alone never submits.
   const hasStagedDoc = !!(stagedDoc && stagedDoc.documentId);
   const canSubmit = input.trim().length >= 3 || hasStagedDoc;
-  // Phase 7 — the Assistance shortcut, always visible next to Route so the
-  // choice is frictionless: Route is the tracked path (files a real request /
-  // contract); Quick draft opens an ungoverned, nothing-filed canvas. Only
-  // meaningful for typed text (a staged document always goes to review).
-  const canQuickDraft = input.trim().length >= 3 && !hasStagedDoc && !staging;
+  // Live intent preview — what Run/Enter will do, shown under the composer so
+  // the outcome is visible before committing (Harvey/Legora). Driven by the
+  // SAME predicates startTurn/submitComposer route on, so it can't disagree
+  // with what actually happens. A contract/NDA creation (kind "create") gets an
+  // explicit File & track / Quick draft fork instead of silently filing.
+  const intentDocInPlay = hasStagedDoc || !!(activeDoc && activeDoc.documentId && !staging);
+  const intentPreview = describeIntent({
+    hasText: input.trim().length >= 3,
+    hasDoc: intentDocInPlay,
+    wantsQuick: wantsQuickDraft(input),
+    isCanvasDraft: looksLikeCanvasDraft(input),
+    createType: contractCreationType(input),
+    classified: classifyIntent(input),
+  });
   const composer = (big) => (
     <div>
       {/* OL-6: staged-document chip — the file is uploaded but nothing runs
@@ -2362,16 +2372,38 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
           aria-label="Ask OneLegal or file a legal request"
           style={{ flex: 1, minWidth: 0, background: "transparent", border: "none", outline: "none", color: C.t1, fontFamily: F, fontSize: big ? 15 : 13, padding: "8px 0" }}
         />
-        {canQuickDraft && (
-          <button
-            type="button"
-            onClick={() => { pendingSkillRef.current = null; startTurn(input, { mode: "assist" }); }}
-            title="Open a quick, editable draft — files nothing (no REQ, no approval trail). Use Route to file it for tracking."
-            style={{ background: "transparent", color: C.t2, border: `1px solid ${C.br}`, borderRadius: 8, padding: "8px 12px", fontFamily: M, fontSize: 10, letterSpacing: 0.6, textTransform: "uppercase", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}
-          >Quick draft</button>
-        )}
         <button type="button" onClick={() => { if (canSubmit) submitComposer(input); }} disabled={!canSubmit} style={{ ...primaryBtn, opacity: canSubmit ? 1 : 0.5, flexShrink: 0 }}>Route ⏎</button>
       </div>
+      {/* Live intent bar — previews what Run/Enter will do, and for a contract/NDA
+          creation surfaces the mode choice upfront (File & track vs Quick draft)
+          instead of burying the fast path. Colours mirror the result cards:
+          green = Tracked (on the record), amber = Assistance (nothing filed). */}
+      {intentPreview.kind !== "empty" && (
+        <div style={{ marginTop: 7, paddingLeft: 2, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: 12, lineHeight: 1.4 }}>
+          <span aria-hidden="true" style={{ color: C.t4, flexShrink: 0 }}>→</span>
+          {intentPreview.kind === "create" ? (
+            <>
+              <span style={{ color: C.t3 }}>This is a contract — choose how to create it:</span>
+              <button
+                type="button"
+                onClick={() => { if (canSubmit) { pendingSkillRef.current = null; submitComposer(input); } }}
+                title="Files through Intake: a REQ number, the approval ladder, and a linked Contract you can track in the Cockpit."
+                style={{ background: C.gnG, color: C.gn, border: `1px solid ${C.gn}`, borderRadius: 8, padding: "5px 11px", fontFamily: M, fontSize: 10, fontWeight: 600, letterSpacing: 0.5, textTransform: "uppercase", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}
+              >File &amp; track →</button>
+              <button
+                type="button"
+                onClick={() => { pendingSkillRef.current = null; startTurn(input, { mode: "assist" }); }}
+                title="Opens an editable draft now — nothing filed, no REQ, no approval trail. Promote it later with “File for approval”."
+                style={{ background: C.amG, color: C.am, border: `1px solid ${C.am}`, borderRadius: 8, padding: "5px 11px", fontFamily: M, fontSize: 10, letterSpacing: 0.5, textTransform: "uppercase", cursor: "pointer", flexShrink: 0, whiteSpace: "nowrap" }}
+              >Quick draft</button>
+            </>
+          ) : (
+            <span style={{ color: C.t3 }}>
+              <strong style={{ color: C.t2, fontWeight: 600 }}>{intentPreview.lead}</strong> {intentPreview.tail}
+            </span>
+          )}
+        </div>
+      )}
     </div>
   );
 
