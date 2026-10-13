@@ -11,7 +11,12 @@
  *
  * Pure + dependency-light so it unit-tests without a model or a DOM.
  */
-import { diffWords, type WordDiffSegment } from "@aegis/contracts";
+// Import the pure word-diff engine from its narrow client-safe subpath, NOT the
+// `@aegis/contracts` barrel — the barrel pulls server-only modules (node:crypto,
+// node:zlib via review-token / documents) that webpack can't bundle for the
+// client, and this module runs in the ONE Legal console. `word-diff.ts` is
+// dependency-free.
+import { diffWords, type WordDiffSegment } from "@aegis/contracts/word-diff";
 
 export type RedlineOp =
   /** Unchanged text, shown as context between changes. */
