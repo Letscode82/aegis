@@ -74,8 +74,15 @@ describe("NDA agent — degraded fallback on Claude failure", () => {
     expect(rec.suggestedAction).toBe("flag-for-review");
     expect(rec.confidence).toBeLessThanOrEqual(0.4);
     expect(rec.mock).toBe(true);
-    // Still surfaces a usable template draft for the attorney.
-    expect(rec.draftedResponse).toMatch(/NDA/i);
+    // Degrade-safe: still delivers a REAL, complete NDA instrument (not a
+    // 3-bullet summary) for the attorney to edit — a titled document with
+    // the standard sections and a signature block.
+    expect(rec.draftedResponse).toMatch(/NON-DISCLOSURE AGREEMENT/i);
+    expect(rec.draftedResponse).toMatch(/CONFIDENTIAL INFORMATION/i);
+    expect(rec.draftedResponse).toMatch(/GOVERNING LAW/i);
+    expect(rec.draftedResponse).toMatch(/IN WITNESS WHEREOF/i);
+    // Counterparty extracted from the ticket flows into the drafted paper.
+    expect(rec.draftedResponse).toMatch(/Acme Robotics/i);
     expect(rec.concerns[0]).toMatch(/AI review unavailable/i);
   });
 });
