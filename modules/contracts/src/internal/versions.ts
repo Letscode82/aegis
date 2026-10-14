@@ -10,6 +10,7 @@
 import { prisma, logAudit } from "@aegis/db";
 import type { ContractVersionSource } from "@aegis/db";
 import { diffWords, type WordDiffSegment } from "./word-diff";
+import { resolveRedlineReview, type RedlineReviewDecisions, type ReviewClause } from "./redline-review";
 
 export interface SnapshotClause {
   type: string;
@@ -176,4 +177,94 @@ export async function diffContractVersions(
   if (!from || !to) return null;
   const changes = diffClauseSets(from, to);
   return { fromVersion, toVersion, changes, counts: diffCounts(changes, from.length) };
+}
+
+export interface ApplyRedlineReviewResult {
+  /** The resulting MANUAL version, or null if the merge changed nothing. */
+  newVersion: number | null;
+  clauseCount: number;
+  /** How many clauses the reviewer moved off the `to` state (reverted toward
+   *  `from`, kept a removal they rejected, or dropped an addition). */
+  revertedClauses: number;
+}
+
+/**
+ * Apply a reviewer's accept/reject decisions over the `from → to` redline and
+ * persist the merged clause set as a new MANUAL version. The accept/reject IS
+ * the human gate (no AI recommendation to approve — the diff is deterministic),
+ * so this writes a single chain-sealed `contract.redline.review_applied` audit
+ * row rather than going through `AgentDecision`.
+ *
+ * Guarded so the merge stays coherent: `toVersion` must be the contract's
+ * LATEST version (the current state the live clauses reflect). The resolved set
+ * is composed from the immutable snapshots, then it replaces the live clause
+ * rows and a new version is snapshotted — the same replace-set + snapshot
+ * pattern re-extraction uses.
+ */
+export async function applyVersionRedlineReview(
+  organizationId: string,
+  contractId: string,
+  input: { fromVersion: number; toVersion: number; decisions: RedlineReviewDecisions; label?: string },
+  actor: Actor = { id: null, type: "USER" },
+): Promise<ApplyRedlineReviewResult> {
+  const contract = await prisma.contract.findFirst({ where: { id: contractId, organizationId }, select: { id: true } });
+  if (!contract) throw new Error("Contract not found");
+
+  const latest = await prisma.contractVersion.findFirst({ where: { contractId }, orderBy: { version: "desc" }, select: { version: true } });
+  if (!latest) throw new Error("No versions to review");
+  if (latest.version !== input.toVersion) {
+    throw new Error(`Apply the review against the latest version (v${latest.version}). Re-compare v${input.fromVersion} → v${latest.version} first.`);
+  }
+
+  const [from, to] = await Promise.all([
+    loadVersion(organizationId, contractId, input.fromVersion),
+    loadVersion(organizationId, contractId, input.toVersion),
+  ]);
+  if (!from || !to) throw new Error("One or both versions not found");
+
+  const resolved = resolveRedlineReview(from as ReviewClause[], to as ReviewClause[], input.decisions || {});
+  const revertedClauses = diffClauseSets(to, resolved as SnapshotClause[]).length;
+
+  // Nothing accepted away from current state — don't churn a no-op version.
+  if (revertedClauses === 0) {
+    return { newVersion: null, clauseCount: to.length, revertedClauses: 0 };
+  }
+
+  // Replace the live clause set with the merged result (same pattern as
+  // re-extraction), then snapshot. Create rows directly — this is one reviewed
+  // action, summarised by a single audit row below, not N clause extractions.
+  await prisma.contractClause.deleteMany({ where: { contractId } });
+  if (resolved.length) {
+    await prisma.contractClause.createMany({
+      data: resolved.map((c) => ({
+        contractId,
+        type: c.type,
+        text: c.text,
+        summary: c.summary ?? null,
+        risk: c.risk,
+        deviation: c.deviation,
+      })),
+    });
+  }
+
+  await logAudit({
+    organizationId,
+    actorId: actor.id,
+    actorType: actor.type ?? (actor.id ? "USER" : "SYSTEM"),
+    action: "contract.redline.review_applied",
+    resourceType: "Contract",
+    resourceId: contractId,
+    beforeJson: { fromVersion: input.fromVersion, toVersion: input.toVersion, clauseCount: to.length } as never,
+    afterJson: { clauseCount: resolved.length, revertedClauses } as never,
+    metadata: { source: "contracts" } as never,
+  });
+
+  const snap = await snapshotContractVersion(
+    organizationId,
+    contractId,
+    { label: input.label?.trim() || `Redline review applied (v${input.fromVersion}→v${input.toVersion})`, source: "MANUAL" },
+    actor,
+  );
+
+  return { newVersion: snap?.version ?? null, clauseCount: resolved.length, revertedClauses };
 }
