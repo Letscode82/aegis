@@ -8,6 +8,7 @@ import { ReviewAssessmentPanel } from "./review-assessment-panel.jsx";
 import { ESignaturePanel } from "./esignature-panel.jsx";
 import { ContractGuidePanel } from "./contract-guide-panel.jsx";
 import { NegotiationIntelligencePanel } from "./negotiation-intelligence-panel.jsx";
+import { groupSegments } from "../internal/redline-review";
 
 // ── Contract drill-in (CTR-1) ────────────────────────────────────────
 //
@@ -1129,6 +1130,16 @@ const CHANGE_COLOR = { added: C.gn, removed: C.rd, changed: C.am };
 const NAR_RISK_COLOR = { HIGHER: C.rd, LOWER: C.gn, MIXED: C.am, UNCHANGED: C.t3 };
 const NAR_RISK_LABEL = { HIGHER: "↑ higher risk", LOWER: "↓ lower risk", MIXED: "↕ mixed", UNCHANGED: "= unchanged" };
 
+// Inline accept/reject control for a single track-changes edit.
+const miniBtn = (c, active) => ({
+  fontSize: 9, lineHeight: 1, padding: "1px 4px", borderRadius: 3, cursor: "pointer", fontFamily: M,
+  border: `1px solid ${active ? c : C.br}`, background: active ? c + "22" : "transparent", color: active ? c : C.t4,
+});
+// Whole-clause verdict chip (added / removed / metadata-only change).
+function ReviewBtn({ active, c, label, onClick }) {
+  return <button onClick={onClick} style={{ fontSize: 8.5, fontFamily: M, letterSpacing: .4, textTransform: "uppercase", padding: "1px 6px", borderRadius: 3, cursor: "pointer", border: `1px solid ${active ? c : C.br}`, background: active ? c + "22" : "transparent", color: active ? c : C.t4 }}>{label}</button>;
+}
+
 function VersionsPanel({ contractId, canManage }) {
   const [versions, setVersions] = useState(null);
   const [err, setErr] = useState(null);
@@ -1138,6 +1149,10 @@ function VersionsPanel({ contractId, canManage }) {
   const [diff, setDiff] = useState(null);
   const [nar, setNar] = useState(null);      // AI change-narrative (Phase 3b)
   const [narBusy, setNarBusy] = useState(false);
+  // Governed redline review (Stage 2) — per-change accept/reject over the diff.
+  const [decisions, setDecisions] = useState({}); // { [clauseKey]: { textOps:{id:"accept"|"reject"}, clause:"accept"|"reject" } }
+  const [applying, setApplying] = useState(false);
+  const [notice, setNotice] = useState(null);
 
   const load = useCallback(() => {
     fetch(`/api/contracts/${contractId}/versions`)
@@ -1163,7 +1178,7 @@ function VersionsPanel({ contractId, canManage }) {
 
   const runDiff = async () => {
     if (!from || !to || from === to) return;
-    setBusy(true); setErr(null); setDiff(null); setNar(null);
+    setBusy(true); setErr(null); setDiff(null); setNar(null); setDecisions({}); setNotice(null);
     try {
       const r = await fetch(`/api/contracts/${contractId}/versions/diff?from=${from}&to=${to}`);
       const d = await r.json();
@@ -1208,6 +1223,52 @@ function VersionsPanel({ contractId, canManage }) {
     } catch (e) { setErr(String(e.message || e)); } finally { setNarBusy(false); }
   };
 
+  // ── Redline review (Stage 2) — decisions default to ACCEPT (keep the `to`
+  // state); the reviewer rejects the edits they want reverted to `from`.
+  const opDecision = (key, id) => decisions[key]?.textOps?.[id] ?? "accept";
+  const clauseDecision = (key) => decisions[key]?.clause ?? "accept";
+  const setOpDecision = (key, id, d) => setDecisions((prev) => ({ ...prev, [key]: { ...prev[key], textOps: { ...(prev[key]?.textOps || {}), [id]: d } } }));
+  const setClauseDecision = (key, d) => setDecisions((prev) => ({ ...prev, [key]: { ...prev[key], clause: d } }));
+  const acceptAll = () => setDecisions({});
+  const rejectAll = () => {
+    if (!diff) return;
+    const next = {};
+    for (const c of diff.changes) {
+      if (c.kind === "changed" && c.textDiff) {
+        const ops = groupSegments(c.textDiff).filter((o) => o.kind === "change");
+        if (ops.length) next[c.key] = { textOps: Object.fromEntries(ops.map((o) => [o.id, "reject"])) };
+        else next[c.key] = { clause: "reject" }; // meta-only change
+      } else {
+        next[c.key] = { clause: "reject" };
+      }
+    }
+    setDecisions(next);
+  };
+
+  // `to` must be the latest version to apply — the live clauses reflect it.
+  const isLatestTo = !!(versions && versions.length && String(versions[0].version) === String(to));
+
+  const applyReview = async () => {
+    if (!diff || !isLatestTo) return;
+    setApplying(true); setErr(null); setNotice(null);
+    try {
+      const r = await fetch(`/api/contracts/${contractId}/versions/apply-redline`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fromVersion: diff.fromVersion, toVersion: diff.toVersion, decisions }),
+      });
+      const d = await r.json();
+      if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
+      if (d.newVersion == null) {
+        setNotice("Accepted every change as-is — nothing to merge (current version already reflects it).");
+      } else {
+        setNotice(`Merged to v${d.newVersion} · ${d.revertedClauses} clause${d.revertedClauses === 1 ? "" : "s"} reverted, ${d.clauseCount} total. Chain-sealed.`);
+        setDiff(null); setDecisions({});
+        load();
+        onChanged?.();
+      }
+    } catch (e) { setErr(String(e.message || e)); } finally { setApplying(false); }
+  };
+
   const sel = { background: C.bg, border: `1px solid ${C.br}`, borderRadius: 4, color: C.t1, fontFamily: M, fontSize: 10.5, padding: "5px 7px" };
 
   return (
@@ -1245,24 +1306,42 @@ function VersionsPanel({ contractId, canManage }) {
                 v{diff.fromVersion} → v{diff.toVersion} · <span style={{ color: C.gn }}>+{diff.counts.added}</span> <span style={{ color: C.rd }}>−{diff.counts.removed}</span> <span style={{ color: C.am }}>~{diff.counts.changed}</span> · {diff.counts.unchanged} unchanged
               </div>
               {diff.changes.length === 0 ? <div style={{ fontSize: 10.5, color: C.gn, fontFamily: M }}>✓ No clause differences.</div>
-                : diff.changes.map((c, i) => (
+                : diff.changes.map((c, i) => {
+                  const ops = c.kind === "changed" && c.textDiff ? groupSegments(c.textDiff) : null;
+                  const hasTextOps = !!(ops && ops.some((o) => o.kind === "change"));
+                  const metaOnly = c.kind === "changed" && !hasTextOps; // risk/deviation/summary moved, text identical
+                  const wholeClause = c.kind === "added" || c.kind === "removed" || metaOnly;
+                  return (
                   <div key={i} style={{ padding: "6px 0", borderBottom: `1px solid ${C.br}22` }}>
-                    <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 2 }}>
+                    <div style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 2, flexWrap: "wrap" }}>
                       <span style={{ fontSize: 8.5, fontFamily: M, letterSpacing: .6, textTransform: "uppercase", color: CHANGE_COLOR[c.kind] }}>{c.kind}</span>
                       <span style={{ fontSize: 10.5, fontWeight: 600, color: C.t1 }}>{c.type.replace(/_/g, " ")}</span>
                       {c.kind === "changed" && <span style={{ fontSize: 9, fontFamily: M, color: C.t4 }}>{c.fields.join(", ")}</span>}
+                      {canManage && wholeClause && (
+                        <span style={{ display: "inline-flex", gap: 4, marginLeft: "auto" }}>
+                          <ReviewBtn active={clauseDecision(c.key) === "accept"} c={C.gn} label={c.kind === "removed" ? "remove" : "keep"} onClick={() => setClauseDecision(c.key, "accept")} />
+                          <ReviewBtn active={clauseDecision(c.key) === "reject"} c={C.rd} label={c.kind === "removed" ? "keep ours" : "drop"} onClick={() => setClauseDecision(c.key, "reject")} />
+                        </span>
+                      )}
                     </div>
-                    {c.kind === "added" && <div style={{ fontSize: 10, color: C.gn, lineHeight: 1.5 }}>+ {c.to.text}</div>}
-                    {c.kind === "removed" && <div style={{ fontSize: 10, color: C.rd, lineHeight: 1.5, textDecoration: "line-through", opacity: .8 }}>− {c.from.text}</div>}
-                    {c.kind === "changed" && c.textDiff && c.textDiff.length > 0 && (
-                      <div style={{ fontSize: 10.5, lineHeight: 1.6, marginTop: 3, padding: "6px 8px", background: C.bg, border: `1px solid ${C.br}`, borderRadius: 4 }}>
+                    {c.kind === "added" && <div style={{ fontSize: 10, color: C.gn, lineHeight: 1.5, textDecoration: clauseDecision(c.key) === "reject" ? "line-through" : "none", opacity: clauseDecision(c.key) === "reject" ? .45 : 1 }}>+ {c.to.text}</div>}
+                    {c.kind === "removed" && <div style={{ fontSize: 10, color: C.rd, lineHeight: 1.5, textDecoration: clauseDecision(c.key) === "reject" ? "none" : "line-through", opacity: clauseDecision(c.key) === "reject" ? 1 : .6 }}>− {c.from.text}</div>}
+                    {ops && ops.length > 0 && (
+                      <div style={{ fontSize: 10.5, lineHeight: 2, marginTop: 3, padding: "6px 8px", background: C.bg, border: `1px solid ${C.br}`, borderRadius: 4 }}>
                         <span style={{ fontSize: 8, fontFamily: M, color: C.t4, letterSpacing: .5, textTransform: "uppercase" }}>track changes </span>
-                        {c.textDiff.map((seg, si) => (
-                          <span key={si} style={
-                            seg.type === "insert" ? { color: C.gn, textDecoration: "underline", textDecorationColor: C.gn }
-                              : seg.type === "delete" ? { color: C.rd, textDecoration: "line-through", opacity: .85 }
-                              : { color: C.t2 }
-                          }>{seg.text}</span>
+                        {ops.map((op, oi) => op.kind === "equal" ? (
+                          <span key={oi} style={{ color: C.t2 }}>{op.text}</span>
+                        ) : (
+                          <span key={oi} style={{ whiteSpace: "pre-wrap" }}>
+                            {op.del && <span style={{ color: C.rd, textDecoration: "line-through", opacity: opDecision(c.key, op.id) === "reject" ? 1 : .45 }}>{op.del}</span>}
+                            {op.ins && <span style={{ color: C.gn, textDecoration: "underline", textDecorationColor: C.gn, opacity: opDecision(c.key, op.id) === "accept" ? 1 : .4 }}>{op.ins}</span>}
+                            {canManage && (
+                              <span style={{ display: "inline-flex", gap: 2, margin: "0 4px", verticalAlign: "middle" }}>
+                                <button onClick={() => setOpDecision(c.key, op.id, "accept")} title="Accept — keep the new text" style={miniBtn(C.gn, opDecision(c.key, op.id) === "accept")}>✓</button>
+                                <button onClick={() => setOpDecision(c.key, op.id, "reject")} title="Reject — keep the original text" style={miniBtn(C.rd, opDecision(c.key, op.id) === "reject")}>✕</button>
+                              </span>
+                            )}
+                          </span>
                         ))}
                       </div>
                     )}
@@ -1276,7 +1355,24 @@ function VersionsPanel({ contractId, canManage }) {
                       </details>
                     )}
                   </div>
-                ))}
+                  );
+                })}
+
+              {/* Governed redline review (Stage 2) — accept/reject → merged version */}
+              {canManage && diff.changes.length > 0 && (
+                <>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginTop: 10, paddingTop: 10, borderTop: `1px solid ${C.br}44` }}>
+                    <span style={{ fontSize: 8.5, fontFamily: M, color: C.t4, textTransform: "uppercase", letterSpacing: .8 }}>Redline review</span>
+                    <button onClick={acceptAll} style={btn(C.gn)}>Accept all</button>
+                    <button onClick={rejectAll} style={btn(C.rd)}>Reject all</button>
+                    <button disabled={applying || !isLatestTo} onClick={applyReview} title={isLatestTo ? "Write the merged clause set as a new, chain-sealed version" : `Apply only against the latest version (v${versions?.[0]?.version})`} style={{ ...btn(C.tl), opacity: (applying || !isLatestTo) ? .5 : 1, marginLeft: "auto" }}>
+                      {applying ? "Applying…" : "Apply accepted changes → new version"}
+                    </button>
+                  </div>
+                  {!isLatestTo && <div style={{ fontSize: 9, fontFamily: M, color: C.t4, marginTop: 4 }}>Merge applies against the latest version — compare v{diff.fromVersion} → v{versions?.[0]?.version} to enable Apply.</div>}
+                  {notice && <div style={{ fontSize: 10, fontFamily: M, color: C.gn, marginTop: 6 }}>✓ {notice}</div>}
+                </>
+              )}
 
               {/* AI change-narrative (Phase 3b) — human-gated via AgentDecision */}
               <div style={{ marginTop: 12, paddingTop: 10, borderTop: `1px solid ${C.br}44` }}>

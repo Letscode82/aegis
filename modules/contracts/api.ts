@@ -298,12 +298,29 @@ export {
   diffContractVersions,
   diffClauseSets,
   diffCounts,
+  applyVersionRedlineReview,
   type ContractVersionSummary,
   type ContractVersionDetail,
   type ContractDiff,
   type ClauseChange,
   type SnapshotClause,
+  type ApplyRedlineReviewResult,
 } from "./src/internal/versions";
+
+// Governed redline review (CLM Stage 2) — inline accept/reject over a version
+// diff, resolved into a merged clause set. Pure model; safe for UI + server.
+export {
+  groupSegments,
+  buildRedline,
+  applyRedline,
+  countChanges,
+  resolveRedlineReview,
+  type RedlineOp,
+  type RedlineDecision,
+  type ClauseReviewDecision,
+  type RedlineReviewDecisions,
+  type ReviewClause,
+} from "./src/internal/redline-review";
 
 // Word-level track-changes diff (CTR-16) — intra-clause insertions/deletions.
 export {
