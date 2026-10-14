@@ -7,7 +7,8 @@
   "types": "./api.ts",
   "exports": {
     ".": "./api.ts",
-    "./ui": "./src/ui/index.ts"
+    "./ui": "./src/ui/index.ts",
+    "./word-diff": "./src/internal/word-diff.ts"
   },
   "files": ["api.ts", "src"],
   "scripts": {

@@ -3,6 +3,7 @@ import { C, F, M, SR, ThinkingOrb, useTheme, useToast } from "@aegis/ui";
 import { friendlyAIError } from "@aegis/ai";
 import { SKILLS, SKILL_CATEGORIES, resolveSkillTarget } from "../lib/one-legal/skills";
 import { wantsQuickDraft, contractCreationType } from "../lib/one-legal/creation-routing";
+import { buildRedline, applyRedline, countChanges } from "../lib/one-legal/redline";
 import { describeIntent } from "../lib/one-legal/intent";
 
 // ConsoleOrb — the thinking-orbs "thinking" indicator wired to the live
@@ -829,6 +830,48 @@ function SkillReviewCard({ turn, onFollowUp, onFileInstead, onStop }) {
   );
 }
 
+// Redline review surface (work editor, Stage 1) — renders the document with
+// AI-proposed changes as inline track-changes (insertion = teal underline,
+// deletion = red strike-through), each independently accept/reject. Reuses the
+// @aegis/contracts word-diff via buildRedline; applying rebuilds the draft.
+function RedlineReview({ redline, onDecision, onAll, onApply, onDiscard }) {
+  const { ops, decisions, summary, degraded } = redline;
+  const changes = ops.filter((o) => o.kind === "change");
+  const accepted = changes.filter((o) => (decisions[o.id] ?? "accept") === "accept").length;
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8, padding: "7px 10px", background: C.tlG || C.s1, border: `1px solid ${C.tl}55`, borderRadius: 8 }}>
+        <span style={{ fontSize: 9, fontFamily: M, color: C.tl, border: `1px solid ${C.tl}`, borderRadius: 4, padding: "1px 7px", letterSpacing: 0.6, textTransform: "uppercase", flexShrink: 0 }}>Redline · against playbook</span>
+        <span style={{ fontSize: 11.5, color: C.t2, lineHeight: 1.45, flex: 1, minWidth: 180 }}>{summary || "Review each proposed change below — accept or reject, then apply to the draft."}{degraded ? " (AI offline — limited suggestions.)" : ""}</span>
+        <span style={{ fontSize: 9.5, fontFamily: M, color: C.t4, flexShrink: 0 }}>{accepted}/{changes.length} accepted</span>
+      </div>
+      <div style={{ width: "100%", maxHeight: 360, overflowY: "auto", background: C.s1, border: `1px solid ${C.br}`, borderRadius: 8, color: C.t1, fontFamily: SR, fontSize: 13, lineHeight: 1.7, padding: "12px 14px", boxSizing: "border-box", whiteSpace: "pre-wrap" }}>
+        {ops.map((op, i) => {
+          if (op.kind === "equal") return <span key={i} style={{ color: C.t2 }}>{op.text}</span>;
+          const d = decisions[op.id] ?? "accept";
+          return (
+            <span key={i} style={{ position: "relative", background: C.cd, border: `1px solid ${C.br}`, borderRadius: 4, padding: "0 3px", margin: "0 1px" }}>
+              {op.del && <span style={{ color: C.rd, textDecoration: "line-through", opacity: d === "reject" ? 1 : 0.55 }}>{op.del}</span>}
+              {op.del && op.ins ? " " : ""}
+              {op.ins && <span style={{ color: C.tl, textDecoration: "underline", textDecorationColor: C.tl, opacity: d === "accept" ? 1 : 0.4 }}>{op.ins}</span>}
+              <span style={{ display: "inline-flex", gap: 2, marginLeft: 3, verticalAlign: "middle" }}>
+                <button type="button" onClick={() => onDecision(op.id, "accept")} title="Accept this change" aria-label="Accept change" style={{ cursor: "pointer", border: `1px solid ${d === "accept" ? C.gn : C.br}`, background: d === "accept" ? C.gn : "transparent", color: d === "accept" ? C.bg : C.t3, borderRadius: 3, fontSize: 9, lineHeight: 1, padding: "2px 4px", fontFamily: M }}>✓</button>
+                <button type="button" onClick={() => onDecision(op.id, "reject")} title="Reject this change" aria-label="Reject change" style={{ cursor: "pointer", border: `1px solid ${d === "reject" ? C.rd : C.br}`, background: d === "reject" ? C.rd : "transparent", color: d === "reject" ? C.bone || "#fff" : C.t3, borderRadius: 3, fontSize: 9, lineHeight: 1, padding: "2px 4px", fontFamily: M }}>✕</button>
+              </span>
+            </span>
+          );
+        })}
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10, alignItems: "center" }}>
+        <button type="button" onClick={onApply} style={primaryBtn}>Apply to draft</button>
+        <button type="button" onClick={() => onAll("accept")} style={chipBtn}>Accept all</button>
+        <button type="button" onClick={() => onAll("reject")} style={chipBtn}>Reject all</button>
+        <button type="button" onClick={onDiscard} style={{ ...chipBtn, color: C.t3 }}>Discard redlines</button>
+      </div>
+    </div>
+  );
+}
+
 // Artifact canvas (C1) — an editable draft (memo/email/clause/…) the user edits
 // in place and can save. Saving persists + indexes the doc (citable later).
 function ArtifactCard({ turn, onSave, onRegenerate, onFileInstead }) {
@@ -839,6 +882,43 @@ function ArtifactCard({ turn, onSave, onRegenerate, onFileInstead }) {
   useEffect(() => { setTitle(turn.title || ""); setContent(turn.content || ""); }, [turn.draftNonce]); // eslint-disable-line react-hooks/exhaustive-deps
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  // Redline review mode (Stage 1 of the work editor). `redline` holds the op
+  // list + per-change decisions while the user reviews AI-proposed changes;
+  // null = plain edit mode.
+  const [redline, setRedline] = useState(null); // { ops, decisions, summary, degraded }
+  const [redlining, setRedlining] = useState(false);
+
+  const suggestRedlines = async () => {
+    if (!content.trim() || redlining) return;
+    setRedlining(true);
+    try {
+      const resp = await fetch("/api/one-legal/redline", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text: content, title }) });
+      const d = await resp.json().catch(() => ({}));
+      if (!d || !d.ok) { toast.error((d && d.error) || "Couldn’t generate redlines — retry."); return; }
+      const ops = buildRedline(d.base || content, d.revised || content);
+      const changes = countChanges(ops);
+      if (changes === 0) { toast.info(d.degraded ? "AI was offline — no redlines suggested." : "No redlines — the draft already matches the playbook."); return; }
+      setRedline({ ops, decisions: {}, summary: d.summary || "", degraded: !!d.degraded });
+      toast.success(`${changes} suggested change${changes === 1 ? "" : "s"} — accept or reject each.`);
+    } catch (e) {
+      toast.error(friendlyAIError(e) || "Couldn’t generate redlines — retry.");
+    } finally {
+      setRedlining(false);
+    }
+  };
+  const setDecision = (id, d) => setRedline((r) => (r ? { ...r, decisions: { ...r.decisions, [id]: d } } : r));
+  const setAllDecisions = (d) => setRedline((r) => {
+    if (!r) return r;
+    const decisions = {};
+    for (const op of r.ops) if (op.kind === "change") decisions[op.id] = d;
+    return { ...r, decisions };
+  });
+  const applyRedlines = () => {
+    if (!redline) return;
+    setContent(applyRedline(redline.ops, redline.decisions));
+    setRedline(null);
+    toast.success("Redlines applied to the draft — review and save.");
+  };
 
   if (turn.draftLoading) {
     return (
@@ -899,41 +979,50 @@ function ArtifactCard({ turn, onSave, onRegenerate, onFileInstead }) {
         {turn.playbookApplied && <span title="Seeded from your organization's Contracts Playbook" style={{ fontSize: 9, fontFamily: M, color: C.tl, border: `1px solid ${C.tl}66`, borderRadius: 4, padding: "1px 7px", letterSpacing: 0.4, textTransform: "uppercase", flexShrink: 0 }}>Playbook-seeded</span>}
         <span style={{ fontSize: 9, fontFamily: M, color: C.t4, flexShrink: 0 }}>editable draft</span>
       </div>
-      <textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        aria-label="Draft content"
-        spellCheck
-        style={{ width: "100%", minHeight: 260, resize: "vertical", background: C.s1, border: `1px solid ${C.br}`, borderRadius: 8, color: C.t1, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12.5, lineHeight: 1.6, padding: "10px 12px", outline: "none", boxSizing: "border-box" }}
-      />
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10, alignItems: "center" }}>
-        <button type="button" onClick={() => onSave(turn.id, title, content)} disabled={turn.saving || !content.trim()} style={{ ...primaryBtn, opacity: turn.saving || !content.trim() ? 0.5 : 1 }}>{turn.saving ? "Saving…" : saved ? "Save new version" : "Save to workspace"}</button>
-        {saved && <span style={{ fontSize: 9.5, fontFamily: M, color: C.gn, border: `1px solid ${C.gn}`, borderRadius: 4, padding: "2px 7px", letterSpacing: 0.5, textTransform: "uppercase" }}>Saved ✓</span>}
-        <button type="button" onClick={() => onRegenerate(turn.id, turn.request, turn.language || "English")} style={chipBtn}>↻ Regenerate</button>
-        {/* C-11 — regenerate the draft in another language (fixed allowlist, mirrors the /draft route). */}
-        <select
-          aria-label="Draft language"
-          value={turn.language || "English"}
-          onChange={(e) => onRegenerate(turn.id, turn.request, e.target.value)}
-          style={{ ...chipBtn, cursor: "pointer", paddingRight: 6 }}
-          title="Regenerate this draft in another language"
-        >
-          {["English", "Spanish", "French", "German", "Portuguese", "Italian", "Dutch", "Hindi", "Japanese", "Chinese (Simplified)", "Korean", "Arabic"].map((lng) => (
-            <option key={lng} value={lng}>🌐 {lng}</option>
-          ))}
-        </select>
-        <button type="button" onClick={copy} style={chipBtn}>{copied ? "Copied ✓" : "Copy"}</button>
-        <button type="button" onClick={downloadDocx} disabled={downloading || !content.trim()} style={{ ...chipBtn, opacity: downloading || !content.trim() ? 0.5 : 1 }}>{downloading ? "Preparing…" : "⬇ Word (.docx)"}</button>
-        {onFileInstead && (
-          <button
-            type="button"
-            onClick={() => onFileInstead(turn.request || `Review this draft: ${title}`, turn.createType)}
-            title={isContract ? "File through Intake — gets a REQ number, rides the approval ladder, and spawns the linked Contract on approval." : "File this through Intake so it's tracked with a REQ number and an approval trail."}
-            style={{ background: C.blG, color: C.bl, border: `1px solid ${C.bl}`, borderRadius: 8, padding: "9px 14px", fontFamily: M, fontSize: 10, letterSpacing: 0.7, textTransform: "uppercase", fontWeight: 700, cursor: "pointer" }}
-          >File for approval →</button>
-        )}
-      </div>
-      {turn.degraded && <div style={{ marginTop: 8, fontSize: 10.5, fontFamily: M, color: C.t4 }}>AI drafting was offline — edited from a skeleton.</div>}
+      {redline ? (
+        <RedlineReview redline={redline} onDecision={setDecision} onAll={setAllDecisions} onApply={applyRedlines} onDiscard={() => setRedline(null)} />
+      ) : (
+        <>
+          <textarea
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            aria-label="Draft content"
+            spellCheck
+            style={{ width: "100%", minHeight: 260, resize: "vertical", background: C.s1, border: `1px solid ${C.br}`, borderRadius: 8, color: C.t1, fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", fontSize: 12.5, lineHeight: 1.6, padding: "10px 12px", outline: "none", boxSizing: "border-box" }}
+          />
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 10, alignItems: "center" }}>
+            <button type="button" onClick={() => onSave(turn.id, title, content)} disabled={turn.saving || !content.trim()} style={{ ...primaryBtn, opacity: turn.saving || !content.trim() ? 0.5 : 1 }}>{turn.saving ? "Saving…" : saved ? "Save new version" : "Save to workspace"}</button>
+            {saved && <span style={{ fontSize: 9.5, fontFamily: M, color: C.gn, border: `1px solid ${C.gn}`, borderRadius: 4, padding: "2px 7px", letterSpacing: 0.5, textTransform: "uppercase" }}>Saved ✓</span>}
+            {/* Stage 1 work editor — AI redlines the draft against the playbook; the
+                user accepts/rejects each change inline before it touches the text. */}
+            <button type="button" onClick={suggestRedlines} disabled={redlining || !content.trim()} title="Mark up this draft against your playbook — review each change as a tracked insertion or deletion" style={{ ...chipBtn, borderColor: C.tl, color: C.tl, opacity: redlining || !content.trim() ? 0.5 : 1 }}>{redlining ? "Redlining…" : "⟐ Suggest redlines"}</button>
+            <button type="button" onClick={() => onRegenerate(turn.id, turn.request, turn.language || "English")} style={chipBtn}>↻ Regenerate</button>
+            {/* C-11 — regenerate the draft in another language (fixed allowlist, mirrors the /draft route). */}
+            <select
+              aria-label="Draft language"
+              value={turn.language || "English"}
+              onChange={(e) => onRegenerate(turn.id, turn.request, e.target.value)}
+              style={{ ...chipBtn, cursor: "pointer", paddingRight: 6 }}
+              title="Regenerate this draft in another language"
+            >
+              {["English", "Spanish", "French", "German", "Portuguese", "Italian", "Dutch", "Hindi", "Japanese", "Chinese (Simplified)", "Korean", "Arabic"].map((lng) => (
+                <option key={lng} value={lng}>🌐 {lng}</option>
+              ))}
+            </select>
+            <button type="button" onClick={copy} style={chipBtn}>{copied ? "Copied ✓" : "Copy"}</button>
+            <button type="button" onClick={downloadDocx} disabled={downloading || !content.trim()} style={{ ...chipBtn, opacity: downloading || !content.trim() ? 0.5 : 1 }}>{downloading ? "Preparing…" : "⬇ Word (.docx)"}</button>
+            {onFileInstead && (
+              <button
+                type="button"
+                onClick={() => onFileInstead(turn.request || `Review this draft: ${title}`, turn.createType)}
+                title={isContract ? "File through Intake — gets a REQ number, rides the approval ladder, and spawns the linked Contract on approval." : "File this through Intake so it's tracked with a REQ number and an approval trail."}
+                style={{ background: C.blG, color: C.bl, border: `1px solid ${C.bl}`, borderRadius: 8, padding: "9px 14px", fontFamily: M, fontSize: 10, letterSpacing: 0.7, textTransform: "uppercase", fontWeight: 700, cursor: "pointer" }}
+              >File for approval →</button>
+            )}
+          </div>
+          {turn.degraded && <div style={{ marginTop: 8, fontSize: 10.5, fontFamily: M, color: C.t4 }}>AI drafting was offline — edited from a skeleton.</div>}
+        </>
+      )}
     </div>
   );
 }
