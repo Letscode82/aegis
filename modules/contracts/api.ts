@@ -80,7 +80,8 @@ export {
 } from "./src/internal/key-dates";
 
 // Contract Word (.docx) generation (CTR-11) — a real downloadable document.
-export { generateContractDocx } from "./src/internal/document";
+// Plus the version-redline export (CLM Stage 3) — a tracked-changes .docx.
+export { generateContractDocx, generateContractRedlineDocx } from "./src/internal/document";
 
 // Third-party paper review workflow (CTR-12) — intake inbound counterparty
 // paper straight into the governance review + signing ladder.

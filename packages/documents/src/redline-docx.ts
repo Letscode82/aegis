@@ -93,10 +93,9 @@ function runFor(seg: RedlineSegmentType, text: string, id: number, author: strin
  * paragraph and starts a new one, so multi-paragraph redlines keep their shape
  * while insertions/deletions remain tracked revisions.
  */
-function segmentsToParagraphs(segments: RedlineSegment[], author: string, date: string): Paragraph[] {
+function segmentsToParagraphs(segments: RedlineSegment[], author: string, date: string, idRef: { next: number } = { next: 1 }): Paragraph[] {
   const paras: Paragraph[] = [];
   let current: ParagraphChild[] = [];
-  let revisionId = 1;
 
   const flush = () => {
     paras.push(new Paragraph({ spacing: { after: 120 }, children: current }));
@@ -108,7 +107,7 @@ function segmentsToParagraphs(segments: RedlineSegment[], author: string, date: 
     const lines = segment.text.split("\n");
     for (let i = 0; i < lines.length; i++) {
       const chunk = lines[i] ?? "";
-      if (chunk) current.push(runFor(segment.type, chunk, revisionId++, author, date));
+      if (chunk) current.push(runFor(segment.type, chunk, idRef.next++, author, date));
       // A newline between chunks closes the current paragraph.
       if (i < lines.length - 1) flush();
     }
@@ -149,6 +148,81 @@ export function renderRedlineDocx(input: RedlineDocInput): Promise<Buffer> {
 
   const doc = new Document({ sections: [{ children }] });
   return Packer.toBuffer(doc);
+}
+
+// ── Whole-contract version redline (CLM Stage 3) ──────────────────────
+//
+// A contract version diff spans many clauses (added / removed / changed). This
+// renders ALL of them into ONE track-changes .docx: a clause heading per change
+// and its tracked insertions/deletions beneath, reusing the same real `<w:ins>`/
+// `<w:del>` revision machinery as the single-clause renderer above. Revision ids
+// are threaded across clauses so every revision in the document is unique.
+
+export type ContractRedlineClauseStatus = "added" | "removed" | "changed";
+
+export interface ContractRedlineClause {
+  /** Human label for the clause (e.g. "Liability cap"). */
+  label: string;
+  status: ContractRedlineClauseStatus;
+  /** Ordered track-changes segments for this clause. */
+  segments: RedlineSegment[];
+  /** Optional one-line note (e.g. a non-text field change like "risk MEDIUM → HIGH"). */
+  note?: string | null;
+}
+
+export interface ContractRedlineDocInput {
+  /** Contract title. */
+  title: string;
+  fromVersion: number;
+  toVersion: number;
+  counts: { added: number; removed: number; changed: number; unchanged: number };
+  clauses: ContractRedlineClause[];
+  author?: string | null;
+  generatedAt: string;
+  generatedBy?: string | null;
+}
+
+const STATUS_TAG: Record<ContractRedlineClauseStatus, string> = { added: "ADDED", removed: "REMOVED", changed: "CHANGED" };
+
+/**
+ * Render a whole-contract version redline as a single tracked-changes `.docx`.
+ * Returns a Node `Buffer` the caller streams as a download.
+ */
+export function renderContractRedlineDocx(input: ContractRedlineDocInput): Promise<Buffer> {
+  const author = (input.author || DEFAULT_AUTHOR).trim() || DEFAULT_AUTHOR;
+  const date = input.generatedAt;
+  const idRef = { next: 1 }; // one monotonic revision counter for the whole doc
+
+  const children: Paragraph[] = [heading1(`${input.title || "Contract"} — Redline`)];
+  const { added, removed, changed, unchanged } = input.counts;
+  children.push(note(`v${input.fromVersion} → v${input.toVersion}  ·  +${added} added  −${removed} removed  ~${changed} changed  ·  ${unchanged} unchanged`, GREY));
+  children.push(note("Proposed redline — open in Word and accept or reject each tracked change. Human review is the gate.", AMBER));
+
+  if (!input.clauses.length) {
+    children.push(note("No clause differences between these versions.", GREY));
+  }
+  for (const clause of input.clauses) {
+    children.push(heading2(`${STATUS_TAG[clause.status]} · ${clause.label}`));
+    if (clause.note && clause.note.trim()) children.push(note(clause.note, GREY));
+    children.push(...segmentsToParagraphs(clause.segments || [], author, date, idRef));
+  }
+
+  const footer = [`Redline generated ${input.generatedAt}`, `by ${author}`];
+  if (input.generatedBy) footer.push(`· requested by ${input.generatedBy}`);
+  children.push(note(footer.join(" "), GREY));
+
+  const doc = new Document({ sections: [{ children }] });
+  return Packer.toBuffer(doc);
+}
+
+/** A safe download filename for a whole-contract version redline. */
+export function contractRedlineDocxFilename(title: string, fromVersion: number, toVersion: number): string {
+  const slug = String(title || "contract")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 50);
+  return `${slug || "contract"}-redline-v${fromVersion}-v${toVersion}.docx`;
 }
 
 /** A safe download filename for a redline doc. */
