@@ -29,9 +29,14 @@ export {
 export {
   renderRedlineDocx,
   redlineDocxFilename,
+  renderContractRedlineDocx,
+  contractRedlineDocxFilename,
   type RedlineDocInput,
   type RedlineSegment,
   type RedlineSegmentType,
+  type ContractRedlineClause,
+  type ContractRedlineClauseStatus,
+  type ContractRedlineDocInput,
 } from "./redline-docx";
 
 // Document text extraction (.txt / .docx / .pdf → text). Dependency-free.

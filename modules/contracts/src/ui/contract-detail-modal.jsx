@@ -1302,8 +1302,13 @@ function VersionsPanel({ contractId, canManage }) {
           )}
           {diff && (
             <div style={{ marginTop: 12, padding: "10px 12px", background: C.s1, borderRadius: 6 }}>
-              <div style={{ fontSize: 10, fontFamily: M, color: C.t3, marginBottom: 8 }}>
-                v{diff.fromVersion} → v{diff.toVersion} · <span style={{ color: C.gn }}>+{diff.counts.added}</span> <span style={{ color: C.rd }}>−{diff.counts.removed}</span> <span style={{ color: C.am }}>~{diff.counts.changed}</span> · {diff.counts.unchanged} unchanged
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+                <div style={{ fontSize: 10, fontFamily: M, color: C.t3 }}>
+                  v{diff.fromVersion} → v{diff.toVersion} · <span style={{ color: C.gn }}>+{diff.counts.added}</span> <span style={{ color: C.rd }}>−{diff.counts.removed}</span> <span style={{ color: C.am }}>~{diff.counts.changed}</span> · {diff.counts.unchanged} unchanged
+                </div>
+                {diff.changes.length > 0 && (
+                  <a href={`/api/contracts/${contractId}/redline-docx?from=${diff.fromVersion}&to=${diff.toVersion}`} style={{ ...btn(C.bl), textDecoration: "none" }} title="Download this redline as a tracked-changes Word document">⬇ Redline .docx</a>
+                )}
               </div>
               {diff.changes.length === 0 ? <div style={{ fontSize: 10.5, color: C.gn, fontFamily: M }}>✓ No clause differences.</div>
                 : diff.changes.map((c, i) => {
