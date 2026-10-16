@@ -91,6 +91,31 @@ export {
   type ReviewThirdPartyResult,
 } from "./src/internal/third-party";
 
+// Graded redline on their paper (PR C — the flagship). Grade each clause
+// against the Playbook (Standard/Fallback/Escalate/MISSING), draft our-position
+// replacement/insertion language, persist findings + the three-field gap card,
+// gate each on a PENDING AgentDecision, and apply accepted findings into a new
+// chain-sealed version. Pure grading core is unit-tested.
+export {
+  // pure core
+  buildReviewFindings,
+  summarizeFindings,
+  // DB service
+  startContractReview,
+  getContractReview,
+  listContractReviews,
+  decideFinding,
+  applyContractReview,
+  type BuiltFinding,
+  type ReviewSummary,
+  type ReviewClauseInput,
+  type ReviewFindingDTO,
+  type ContractReviewDTO,
+  type ReviewGradeT,
+  type EditKindT,
+  type DecisionT,
+} from "./src/internal/review";
+
 // Contract execution guide (CTR-17) — a live "what to do next to execute" checklist.
 export {
   getContractGuide,

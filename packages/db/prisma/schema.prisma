@@ -2206,6 +2206,7 @@ model Contract {
   clauses           ContractClause[]
   reviewTokens      ContractReviewToken[]
   versions          ContractVersion[]
+  reviews           ContractReview[]
   signatures        ContractSignature[]
   signatureRequests ContractSignatureRequest[]
   comments          ContractComment[]
@@ -2333,6 +2334,11 @@ model ContractSignature {
 
 model ContractClause {
   id         String       @id @default(cuid())
+  /// Stable clause anchor (PR C) — survives re-extraction so a review finding,
+  /// a human decision, and an applied edit all refer to the same clause across
+  /// re-parses and negotiation rounds. Backfilled to the row id for existing
+  /// clauses; new rows get their own cuid. Additive.
+  anchorId   String       @default(cuid())
   contractId String
   /// "LIABILITY_CAP" | "INDEMNITY" | "GOVERNING_LAW" | "TERMINATION" |
   /// "PAYMENT" | "AUTO_RENEWAL" | "IP" | "CONFIDENTIALITY" |
@@ -2351,6 +2357,7 @@ model ContractClause {
 
   @@index([contractId])
   @@index([contractId, type])
+  @@index([anchorId])
 }
 
 /// Scoped, login-less access grant for external counterparty review of a
@@ -2587,6 +2594,117 @@ model PlaybookVersion {
 
   @@unique([playbookId, version])
   @@index([organizationId, playbookId])
+}
+
+/// Which document a review is run against (PR C). THEIR_PAPER = the
+/// counterparty's draft; OUR_PAPER_THEIR_MARKS = our paper returned with their
+/// redlines (grade the deltas vs our baseline).
+enum ReviewPaperType {
+  THEIR_PAPER
+  OUR_PAPER_THEIR_MARKS
+}
+
+/// Lifecycle of a graded review (PR C).
+enum ContractReviewStatus {
+  IN_PROGRESS // findings being generated / decided
+  READY // findings decided, ready to apply
+  APPLIED // accepted findings applied into a new version
+  EXPORTED // marked-up .docx exported
+}
+
+/// Per-clause grade against the playbook (PR C). MISSING = a required clause
+/// the document omits entirely (no text to grade).
+enum ReviewGrade {
+  STANDARD
+  FALLBACK
+  ESCALATE
+  MISSING
+}
+
+/// What a finding's suggested edit does to the document (PR C).
+enum FindingEditKind {
+  REPLACEMENT // swap their clause text for our language
+  INSERTION // add a missing required clause
+  DELETION // strike an unwanted clause
+  NONE // informational — no edit (e.g. a STANDARD clause)
+}
+
+/// Human verdict on a finding (PR C). The AI never finalises — a human
+/// ACCEPTs / REJECTs / EDITs each finding before it enters the marked-up doc.
+enum FindingDecision {
+  PENDING
+  ACCEPTED
+  REJECTED
+  EDITED
+}
+
+/// A graded review pass over a contract's paper (PR C) — the "session" the
+/// derived model couldn't represent. Durable, queryable, resumable: it carries
+/// the verdict, risk band, and severity roll-up, and owns the findings. Scoped
+/// to the contract; organizationId is a plain scalar (cascade flows through the
+/// contract FK), matching the Privacy DSAR precedent.
+model ContractReview {
+  id                 String               @id @default(cuid())
+  organizationId     String
+  contractId         String
+  /// The published playbook graded against + the version snapshot used.
+  playbookId         String?
+  playbookVersion    Int?
+  paperType          ReviewPaperType      @default(THEIR_PAPER)
+  perspective        ContractPerspective?
+  status             ContractReviewStatus @default(IN_PROGRESS)
+  /// Overall verdict + risk band (derived from the findings).
+  verdict            String?
+  riskBand           String?
+  /// {standard,fallback,escalate,missing,total} counts + weighted score.
+  severitySummaryJson Json?
+  /// The version produced when accepted findings were applied.
+  appliedVersionId   String?
+  createdById        String?
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+
+  contract Contract        @relation(fields: [contractId], references: [id], onDelete: Cascade)
+  findings ReviewFinding[]
+
+  @@index([organizationId, contractId])
+  @@index([contractId, status])
+}
+
+/// One graded finding inside a review (PR C). MISSING clauses, the three-field
+/// gap card (ourPosition / theirPosition / rationale), the suggested edit, and
+/// the human decision all live here — none of which the derived
+/// snapshot+audit model could hold. `clauseAnchorId` is null for a MISSING
+/// finding (no clause exists yet). `agentDecisionId` links the PENDING gate.
+model ReviewFinding {
+  id             String          @id @default(cuid())
+  organizationId String
+  reviewId       String
+  /// Stable anchor of the graded clause (null when grade = MISSING).
+  clauseAnchorId String?
+  clauseType     String
+  grade          ReviewGrade
+  editKind       FindingEditKind @default(NONE)
+  /// Three-field gap card.
+  ourPosition    String?
+  theirPosition  String?
+  rationale      String?
+  /// AI-drafted replacement / insertion language (tracked-change target).
+  suggestedText  String?
+  playbookRuleId String?
+  severity       Int             @default(0)
+  decision       FindingDecision @default(PENDING)
+  decidedById    String?
+  decidedAt      DateTime?
+  /// The PENDING AgentDecision gating this finding.
+  agentDecisionId String?
+  orderIndex     Int             @default(0)
+  createdAt      DateTime        @default(now())
+
+  review ContractReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+
+  @@index([reviewId, decision])
+  @@index([organizationId, grade])
 }
 
 // ════════════════════════════════════════════════════════════════════
