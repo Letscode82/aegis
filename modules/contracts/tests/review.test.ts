@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { buildReviewFindings, summarizeFindings } from "../src/internal/review";
+import { buildReviewFindings, buildDeltaReviewFindings, summarizeFindings } from "../src/internal/review";
 import type { PlaybookRuleDTO } from "../src/internal/playbook";
 
 function rule(partial: Partial<PlaybookRuleDTO> & { clauseType: string; preferredText: string }): PlaybookRuleDTO {
@@ -95,6 +95,82 @@ describe("buildReviewFindings (PR C — graded redline)", () => {
     const f = findings.find((x) => x.clauseType === "EXOTIC_CLAUSE")!;
     expect(f.grade).toBe("STANDARD");
     expect(f.playbookRuleId).toBeNull();
+  });
+});
+
+describe("buildDeltaReviewFindings (PR C2 — our paper, their marks)", () => {
+  const sent = [
+    { clauseType: "LIABILITY_CAP", text: rules[0].preferredText },
+    { clauseType: "GOVERNING_LAW", text: rules[1].preferredText },
+  ];
+
+  it("stays silent on clauses they left as we drafted them", () => {
+    const findings = buildDeltaReviewFindings(
+      sent,
+      [
+        { anchorId: "a1", clauseType: "LIABILITY_CAP", text: rules[0].preferredText },
+        { anchorId: "a2", clauseType: "GOVERNING_LAW", text: rules[1].preferredText },
+      ],
+      rules,
+    );
+    // Only whitespace-identical clauses — nothing actionable.
+    expect(findings.filter((f) => f.grade !== "STANDARD")).toHaveLength(0);
+  });
+
+  it("flags a clause they edited off-playbook and reverts to our sent text", () => {
+    const findings = buildDeltaReviewFindings(
+      sent,
+      [
+        { anchorId: "a1", clauseType: "LIABILITY_CAP", text: "There is no cap on liability; each party is liable for all damages including indirect and punitive." },
+        { anchorId: "a2", clauseType: "GOVERNING_LAW", text: rules[1].preferredText },
+      ],
+      rules,
+    );
+    const liab = findings.find((f) => f.clauseType === "LIABILITY_CAP")!;
+    expect(liab.grade).toBe("ESCALATE");
+    expect(liab.editKind).toBe("REPLACEMENT");
+    expect(liab.clauseAnchorId).toBe("a1");
+    expect(liab.suggestedText).toBe(rules[0].preferredText); // revert to our sent language
+    expect(liab.ourPosition).toBe(rules[0].preferredText);
+    expect(liab.theirPosition).toContain("no cap");
+  });
+
+  it("re-inserts a required clause they deleted (MISSING → insertion)", () => {
+    const findings = buildDeltaReviewFindings(
+      sent,
+      [{ anchorId: "a1", clauseType: "LIABILITY_CAP", text: rules[0].preferredText }],
+      rules,
+    );
+    const gone = findings.find((f) => f.clauseType === "GOVERNING_LAW")!;
+    expect(gone.grade).toBe("MISSING");
+    expect(gone.editKind).toBe("INSERTION");
+    expect(gone.clauseAnchorId).toBeNull();
+    expect(gone.suggestedText).toContain("Delaware");
+  });
+
+  it("strikes a unilateral addition with no playbook position", () => {
+    const findings = buildDeltaReviewFindings(
+      sent,
+      [
+        { anchorId: "a1", clauseType: "LIABILITY_CAP", text: rules[0].preferredText },
+        { anchorId: "a2", clauseType: "GOVERNING_LAW", text: rules[1].preferredText },
+        { anchorId: "a3", clauseType: "EXCLUSIVITY", text: "Supplier grants buyer exclusive rights for five years." },
+      ],
+      rules,
+    );
+    const added = findings.find((f) => f.clauseType === "EXCLUSIVITY")!;
+    expect(added.grade).toBe("ESCALATE");
+    expect(added.editKind).toBe("DELETION");
+    expect(added.clauseAnchorId).toBe("a3");
+  });
+
+  it("ignores cosmetic whitespace-only edits", () => {
+    const findings = buildDeltaReviewFindings(
+      [{ clauseType: "GOVERNING_LAW", text: rules[1].preferredText }],
+      [{ anchorId: "a1", clauseType: "GOVERNING_LAW", text: `  ${rules[1].preferredText}\n ` }],
+      rules,
+    );
+    expect(findings.filter((f) => f.grade !== "STANDARD")).toHaveLength(0);
   });
 });
 

@@ -71,8 +71,12 @@ export function GradedReviewPanel({ contractId }) {
     <div style={{ fontFamily: F, color: C.t1 }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
         <div>
-          <div style={{ fontSize: 14, fontFamily: SR }}>Review their paper</div>
-          <div style={{ fontSize: 11, color: C.t3 }}>Grade each clause against the playbook and redline it back on their document.</div>
+          <div style={{ fontSize: 14, fontFamily: SR }}>{review?.paperType === "OUR_PAPER_THEIR_MARKS" ? "Review their marks on our paper" : "Review their paper"}</div>
+          <div style={{ fontSize: 11, color: C.t3 }}>
+            {review?.paperType === "OUR_PAPER_THEIR_MARKS"
+              ? "Grade only what they changed from the version we sent — revert or counter each mark."
+              : "Grade each clause against the playbook and redline it back on their document."}
+          </div>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
           <select value={paperType} onChange={(e) => setPaperType(e.target.value)} style={{ ...btn("transparent", C.t2), cursor: "pointer", textTransform: "none", letterSpacing: 0 }}>
@@ -103,6 +107,11 @@ export function GradedReviewPanel({ contractId }) {
           </div>
           <div style={{ flex: 1, minWidth: 220 }}>
             <div style={{ fontSize: 12, color: C.t1, marginBottom: 4 }}>{s.verdict}</div>
+            {review.paperType === "OUR_PAPER_THEIR_MARKS" && (
+              <div style={{ fontSize: 9.5, fontFamily: M, color: C.t4, letterSpacing: 0.3, marginBottom: 4 }}>
+                {s.baselineVersion != null ? `△ Diffed against our sent version v${s.baselineVersion}` : "△ No sent baseline on file — graded each clause in isolation"}
+              </div>
+            )}
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", fontSize: 10.5, fontFamily: M }}>
               <span style={{ color: C.gn }}>{s.standard} standard</span>
               <span style={{ color: C.am }}>{s.fallback} fallback</span>
@@ -123,7 +132,7 @@ export function GradedReviewPanel({ contractId }) {
       )}
 
       {review && actionable.length === 0 && s && (
-        <div style={{ ...card, fontSize: 12, color: C.gn }}>✓ Every clause is on our positions — nothing to redline.</div>
+        <div style={{ ...card, fontSize: 12, color: C.gn }}>{review.paperType === "OUR_PAPER_THEIR_MARKS" ? "✓ Their marks stay on our positions — nothing to counter." : "✓ Every clause is on our positions — nothing to redline."}</div>
       )}
 
       {actionable.map((f) => {

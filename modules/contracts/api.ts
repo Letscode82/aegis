@@ -99,6 +99,7 @@ export {
 export {
   // pure core
   buildReviewFindings,
+  buildDeltaReviewFindings,
   summarizeFindings,
   // DB service
   startContractReview,
@@ -109,6 +110,7 @@ export {
   type BuiltFinding,
   type ReviewSummary,
   type ReviewClauseInput,
+  type BaselineClauseInput,
   type ReviewFindingDTO,
   type ContractReviewDTO,
   type ReviewGradeT,

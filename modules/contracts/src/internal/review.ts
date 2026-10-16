@@ -67,6 +67,8 @@ export interface ReviewSummary {
   weightedScore: number;
   verdict: string;
   riskBand: "LOW" | "MEDIUM" | "HIGH";
+  /** OUR_PAPER_THEIR_MARKS only — the version their marks were diffed against. */
+  baselineVersion?: number | null;
 }
 
 // ── Pure core (no DB, no AI — unit-tested) ────────────────────────────
@@ -140,6 +142,148 @@ export function buildReviewFindings(clauses: ReviewClauseInput[], rules: Playboo
       rationale: `Required clause is missing from their paper. ${rule.guidance ?? ""}`.trim(),
       suggestedText: rule.requiredLanguage || rule.preferredText, playbookRuleId: rule.id,
       severity: gradeSeverity("MISSING", rule.severityWeight), orderIndex: order++,
+    });
+  }
+
+  return findings;
+}
+
+export interface BaselineClauseInput {
+  clauseType: string;
+  text: string;
+}
+
+/** Occurrence-stable key so clauses of the same type line up across the two
+ *  sides of the diff (LIABILITY_CAP#0 ↔ LIABILITY_CAP#0). */
+function occurrenceKeyed<T extends { clauseType: string }>(items: T[]): Map<string, T> {
+  const seen: Record<string, number> = {};
+  const m = new Map<string, T>();
+  for (const it of items) {
+    const i = seen[it.clauseType] ?? 0;
+    seen[it.clauseType] = i + 1;
+    m.set(`${it.clauseType}#${i}`, it);
+  }
+  return m;
+}
+
+const norm = (s: string): string => s.replace(/\s+/g, " ").trim().toLowerCase();
+
+/**
+ * Delta-grade the counterparty's marks on OUR paper (PR C2).
+ *
+ * The baseline is our last-authored clause set (the version we sent); `current`
+ * is the document as they returned it. Only clauses THEY touched produce
+ * findings — a clause they left as we drafted it is our language and is silent.
+ *
+ *   • they modified our clause  → grade their new text; off-playbook → REPLACEMENT
+ *                                 (revert to our sent language as the target)
+ *   • they deleted our clause   → required → MISSING/INSERTION (re-insert ours);
+ *                                 otherwise an advisory re-insert
+ *   • they added a new clause   → grade it; off-playbook or unanchored to our
+ *                                 paper → REPLACEMENT to our position, or a
+ *                                 DELETION to strike their unilateral addition
+ */
+export function buildDeltaReviewFindings(
+  baseline: BaselineClauseInput[],
+  current: ReviewClauseInput[],
+  rules: PlaybookRuleDTO[],
+): BuiltFinding[] {
+  const rulesByType = new Map<string, PlaybookRuleDTO>();
+  for (const r of rules) if (!rulesByType.has(r.clauseType)) rulesByType.set(r.clauseType, r);
+
+  const base = occurrenceKeyed(baseline);
+  const cur = occurrenceKeyed(current);
+  const findings: BuiltFinding[] = [];
+  let order = 0;
+
+  for (const [key, clause] of cur) {
+    const rule = rulesByType.get(clause.clauseType);
+    const b = base.get(key);
+
+    // ── They added a clause not in our paper ──────────────────────────
+    if (!b) {
+      if (rule) {
+        const g = gradeClauseAgainstRule(clause.text, rule);
+        if (g.grade === "STANDARD") {
+          findings.push({
+            clauseAnchorId: clause.anchorId, clauseType: clause.clauseType, grade: "STANDARD", editKind: "NONE",
+            ourPosition: rule.preferredText, theirPosition: clause.text,
+            rationale: "Counterparty added a clause that matches our standard position.",
+            suggestedText: null, playbookRuleId: rule.id, severity: 0, orderIndex: order++,
+          });
+          continue;
+        }
+        const fb = g.fallbackIndex != null ? rule.fallbackTexts[g.fallbackIndex] : undefined;
+        findings.push({
+          clauseAnchorId: clause.anchorId, clauseType: clause.clauseType, grade: g.grade, editKind: "REPLACEMENT",
+          ourPosition: rule.preferredText, theirPosition: clause.text,
+          rationale: `Counterparty added this clause — ${g.grade === "ESCALATE" ? "off our positions" : "acceptable but not preferred"}. ${rule.guidance ?? ""}`.trim(),
+          suggestedText: g.grade === "FALLBACK" && fb ? fb : rule.preferredText, playbookRuleId: rule.id,
+          severity: gradeSeverity(g.grade, rule.severityWeight), orderIndex: order++,
+        });
+      } else {
+        // Their unilateral addition with no playbook position — strike it.
+        findings.push({
+          clauseAnchorId: clause.anchorId, clauseType: clause.clauseType, grade: "ESCALATE", editKind: "DELETION",
+          ourPosition: null, theirPosition: clause.text,
+          rationale: "Counterparty added a clause that is not in our paper and has no playbook position — strike or escalate.",
+          suggestedText: null, playbookRuleId: null, severity: gradeSeverity("ESCALATE", 1), orderIndex: order++,
+        });
+      }
+      continue;
+    }
+
+    // ── They left our clause as drafted — our language, silent ─────────
+    if (norm(b.text) === norm(clause.text)) continue;
+
+    // ── They modified our clause ──────────────────────────────────────
+    if (!rule) {
+      findings.push({
+        clauseAnchorId: clause.anchorId, clauseType: clause.clauseType, grade: "FALLBACK", editKind: "REPLACEMENT",
+        ourPosition: b.text, theirPosition: clause.text,
+        rationale: "Counterparty edited our clause; no playbook position on file — revert to our sent language suggested.",
+        suggestedText: b.text, playbookRuleId: null, severity: gradeSeverity("FALLBACK", 1), orderIndex: order++,
+      });
+      continue;
+    }
+    const g = gradeClauseAgainstRule(clause.text, rule);
+    if (g.grade === "STANDARD") {
+      // Their edit stayed on our standard position — informational, no action.
+      findings.push({
+        clauseAnchorId: clause.anchorId, clauseType: clause.clauseType, grade: "STANDARD", editKind: "NONE",
+        ourPosition: b.text, theirPosition: clause.text,
+        rationale: "Counterparty edited our clause but it remains on our standard position.",
+        suggestedText: null, playbookRuleId: rule.id, severity: 0, orderIndex: order++,
+      });
+      continue;
+    }
+    const fb = g.fallbackIndex != null ? rule.fallbackTexts[g.fallbackIndex] : undefined;
+    findings.push({
+      clauseAnchorId: clause.anchorId, clauseType: clause.clauseType, grade: g.grade, editKind: "REPLACEMENT",
+      ourPosition: b.text, theirPosition: clause.text,
+      rationale: g.grade === "ESCALATE"
+        ? `Counterparty's edit moves our clause off-playbook. ${rule.escalationTrigger ?? rule.guidance ?? ""}`.trim()
+        : `Counterparty's edit lands at an acceptable fallback, not our sent language. ${rule.guidance ?? ""}`.trim(),
+      // In our-paper mode the natural counter is to revert to what we sent (or
+      // our fallback if theirs is an acceptable landing zone).
+      suggestedText: g.grade === "FALLBACK" && fb ? fb : b.text, playbookRuleId: rule.id,
+      severity: gradeSeverity(g.grade, rule.severityWeight), orderIndex: order++,
+    });
+  }
+
+  // ── They deleted a clause we had in our paper ───────────────────────
+  for (const [key, b] of base) {
+    if (cur.has(key)) continue;
+    const rule = rulesByType.get(b.clauseType);
+    const required = rule?.required ?? false;
+    findings.push({
+      clauseAnchorId: null, clauseType: b.clauseType, grade: required ? "MISSING" : "FALLBACK", editKind: "INSERTION",
+      ourPosition: b.text, theirPosition: null,
+      rationale: required
+        ? `Counterparty deleted a required clause from our paper. ${rule?.guidance ?? ""}`.trim()
+        : "Counterparty deleted our clause — re-insert our sent language unless the deletion is agreed.",
+      suggestedText: b.text, playbookRuleId: rule?.id ?? null,
+      severity: gradeSeverity(required ? "MISSING" : "FALLBACK", rule?.severityWeight ?? 1), orderIndex: order++,
     });
   }
 
@@ -243,18 +387,37 @@ export async function startContractReview(
   let playbook: ContractPlaybookDTO | null = await getPlaybookForContract(organizationId, { contractType: contract.type, perspective });
   if (!playbook) playbook = await ensureDefaultPlaybook(organizationId, actor);
   const rules = playbook?.rules ?? [];
+  const paperType: ReviewPaperType = opts.paperType ?? "THEIR_PAPER";
+  const liveClauses = contract.clauses.map((c) => ({ anchorId: c.anchorId, clauseType: c.type, text: c.text }));
 
-  const built = buildReviewFindings(
-    contract.clauses.map((c) => ({ anchorId: c.anchorId, clauseType: c.type, text: c.text })),
-    rules,
-  );
-  const summary = summarizeFindings(built);
+  let built: BuiltFinding[];
+  let baselineVersion: number | null = null;
+  if (paperType === "OUR_PAPER_THEIR_MARKS") {
+    // Our last-authored version is the baseline their marks are diffed against.
+    const baseVer = await prisma.contractVersion.findFirst({
+      where: { contractId, organizationId, source: { not: "COUNTERPARTY" } },
+      orderBy: { version: "desc" },
+      select: { version: true, clausesJson: true },
+    });
+    if (baseVer) {
+      baselineVersion = baseVer.version;
+      const baseline = ((baseVer.clausesJson as unknown as { type: string; text: string }[]) ?? [])
+        .map((c) => ({ clauseType: c.type, text: c.text }));
+      built = buildDeltaReviewFindings(baseline, liveClauses, rules);
+    } else {
+      // No sent baseline on file — fall back to grading each clause in isolation.
+      built = buildReviewFindings(liveClauses, rules);
+    }
+  } else {
+    built = buildReviewFindings(liveClauses, rules);
+  }
+  const summary = { ...summarizeFindings(built), baselineVersion };
 
   const review = await prisma.contractReview.create({
     data: {
       organizationId, contractId,
       playbookId: playbook?.id ?? null, playbookVersion: playbook?.version ?? null,
-      paperType: opts.paperType ?? "THEIR_PAPER", perspective,
+      paperType, perspective,
       status: "IN_PROGRESS", verdict: summary.verdict, riskBand: summary.riskBand,
       severitySummaryJson: summary as never, createdById: actor.id,
     },
