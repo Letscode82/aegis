@@ -2111,6 +2111,18 @@ enum ContractOrigin {
   THIRD_PARTY
 }
 
+/// Which side a contract is drafted / negotiated for. Distinct from `origin`
+/// (whose template it started on): a OUR_PAPER contract can still be drafted
+/// MUTUAL (an even-handed NDA) or OUR_SIDE (protective of us). Drives guided
+/// drafting defaults, playbook selection, and third-party review grading.
+/// Nullable + additive — existing rows keep a null perspective.
+enum ContractPerspective {
+  OUR_SIDE // protective of us; our standard positions
+  THEIR_SIDE // drafting/representing the counterparty's side
+  MUTUAL // even-handed (e.g. a mutual NDA)
+  NEUTRAL // no side bias (e.g. a joint agreement)
+}
+
 /// Lifecycle of a login-less counterparty review link (CTR-3).
 enum ContractReviewTokenStatus {
   ACTIVE // link is live; counterparty can view + respond
@@ -2130,6 +2142,9 @@ model Contract {
   /// Whose paper this is — OUR_PAPER (templated) or THIRD_PARTY (inbound paper
   /// under review). Drives the 3rd-party review workflow + workspace badge.
   origin               ContractOrigin @default(OUR_PAPER)
+  /// Which side the contract is drafted/negotiated for (guided-draft PR A).
+  /// Null = unspecified (all pre-existing rows). Additive.
+  perspective          ContractPerspective?
   risk                 ContractRisk   @default(MEDIUM)
   value                Float?
   currency             String         @default("USD")

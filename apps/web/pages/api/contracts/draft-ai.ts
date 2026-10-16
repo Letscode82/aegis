@@ -9,6 +9,13 @@ import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
 import { draftContractWithAI } from "@aegis/contracts";
 
+const PERSPECTIVES = ["OUR_SIDE", "THEIR_SIDE", "MUTUAL", "NEUTRAL"] as const;
+type Perspective = (typeof PERSPECTIVES)[number];
+function coercePerspective(v: unknown): Perspective | null {
+  const s = String(v ?? "").toUpperCase();
+  return (PERSPECTIVES as readonly string[]).includes(s) ? (s as Perspective) : null;
+}
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -33,6 +40,8 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
         governingLaw: b.governingLaw || null,
         paymentTerms: b.paymentTerms || null,
         termMonths: b.termMonths != null && Number.isFinite(Number(b.termMonths)) ? Number(b.termMonths) : null,
+        perspective: coercePerspective(b.perspective),
+        specialTerms: b.specialTerms ? String(b.specialTerms) : null,
       },
       { id: user.id, type: "USER" },
     );

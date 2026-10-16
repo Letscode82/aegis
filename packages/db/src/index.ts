@@ -91,6 +91,7 @@ export {
   ContractRisk,
   RenewalDecision,
   ContractOrigin,
+  ContractPerspective,
   ContractSignatureRequestStatus,
   SignatureParty,
   ContractReviewTokenStatus,

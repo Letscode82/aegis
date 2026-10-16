@@ -118,8 +118,11 @@ export {
 // brief; degrades to a deterministic skeleton offline.
 export {
   draftContractWithAI,
+  draftFromPrecedent,
   type AiDraftInput,
   type AiDraftResult,
+  type DraftFromPrecedentInput,
+  type DraftFromPrecedentResult,
 } from "./src/internal/ai-draft";
 
 // AI clause redline (C-1) — the Word add-in's brain: rewrite a clause per a
