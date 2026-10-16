@@ -138,6 +138,7 @@ export const PERMISSION_GROUPS: PermissionGroup[] = [
       Permission.AdminLegalHoldTemplatesManage,
       Permission.AdminM365Manage,
       Permission.AdminAgentsManage,
+      Permission.AdminContractsPlaybooksManage,
     ],
   },
 ];
@@ -187,6 +188,7 @@ export const PERMISSION_LABELS: Partial<Record<Permission, string>> = {
   [Permission.AdminManageRoles]: "Edit role permission sets",
   [Permission.AdminLegalHoldTemplatesManage]: "Manage hold scope templates",
   [Permission.AdminM365Manage]: "Manage M365 connection (app-only + eDiscovery delegated)",
+  [Permission.AdminContractsPlaybooksManage]: "Edit / publish contract playbooks",
 };
 
 export function permissionLabel(p: Permission): string {
