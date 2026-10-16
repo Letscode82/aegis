@@ -994,8 +994,14 @@ function ArtifactCard({ turn, onSave, onRegenerate, onFileInstead }) {
             <button type="button" onClick={() => onSave(turn.id, title, content)} disabled={turn.saving || !content.trim()} style={{ ...primaryBtn, opacity: turn.saving || !content.trim() ? 0.5 : 1 }}>{turn.saving ? "Saving…" : saved ? "Save new version" : "Save to workspace"}</button>
             {saved && <span style={{ fontSize: 9.5, fontFamily: M, color: C.gn, border: `1px solid ${C.gn}`, borderRadius: 4, padding: "2px 7px", letterSpacing: 0.5, textTransform: "uppercase" }}>Saved ✓</span>}
             {/* Stage 1 work editor — AI redlines the draft against the playbook; the
-                user accepts/rejects each change inline before it touches the text. */}
-            <button type="button" onClick={suggestRedlines} disabled={redlining || !content.trim()} title="Mark up this draft against your playbook — review each change as a tracked insertion or deletion" style={{ ...chipBtn, borderColor: C.tl, color: C.tl, opacity: redlining || !content.trim() ? 0.5 : 1 }}>{redlining ? "Redlining…" : "⟐ Suggest redlines"}</button>
+                user accepts/rejects each change inline before it touches the text.
+                NOT shown on a first-party contract/NDA draft: redlining your own
+                fresh paper against your own playbook is the Create/Review mix-up —
+                that draft is already on our positions. Reviewing THEIR paper is a
+                separate surface. (See Contract Workflows design, PR A/C.) */}
+            {!isContract && (
+              <button type="button" onClick={suggestRedlines} disabled={redlining || !content.trim()} title="Mark up this draft against your playbook — review each change as a tracked insertion or deletion" style={{ ...chipBtn, borderColor: C.tl, color: C.tl, opacity: redlining || !content.trim() ? 0.5 : 1 }}>{redlining ? "Redlining…" : "⟐ Suggest redlines"}</button>
+            )}
             <button type="button" onClick={() => onRegenerate(turn.id, turn.request, turn.language || "English")} style={chipBtn}>↻ Regenerate</button>
             {/* C-11 — regenerate the draft in another language (fixed allowlist, mirrors the /draft route). */}
             <select

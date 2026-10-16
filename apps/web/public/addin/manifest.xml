@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<!--
+  ONE Legal — Microsoft Word add-in manifest (PR E).
+
+  Before sideloading, replace every https://ONELEGAL_BASE_URL occurrence with
+  the deployment's own HTTPS origin (e.g. https://app.onelegal.example). Office
+  requires absolute HTTPS URLs; the task pane itself is served by Next at
+  /addin and talks to /api/addin/* on the same origin (so the user's session
+  cookie authenticates the Review/Redline calls).
+
+  Sideload: Word → Home → Add-ins → More Add-ins → My Add-ins → Upload My
+  Add-in → pick this manifest. See docs/word-addin.md.
+-->
+<OfficeApp
+  xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0"
+  xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides"
+  xsi:type="TaskPaneApp">
+
+  <Id>7f3b9c2e-6a4d-4e1b-9c5a-0e2f1a8d4b60</Id>
+  <Version>1.0.0.0</Version>
+  <ProviderName>ONE Legal</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="ONE Legal" />
+  <Description DefaultValue="Grade the selected text against your playbook and redline it in place — Review and Negotiate inside Word." />
+  <IconUrl DefaultValue="https://ONELEGAL_BASE_URL/addin/icon-32.png" />
+  <HighResolutionIconUrl DefaultValue="https://ONELEGAL_BASE_URL/addin/icon-80.png" />
+  <SupportUrl DefaultValue="https://ONELEGAL_BASE_URL" />
+
+  <AppDomains>
+    <AppDomain>https://ONELEGAL_BASE_URL</AppDomain>
+  </AppDomains>
+
+  <Hosts>
+    <Host Name="Document" />
+  </Hosts>
+
+  <DefaultSettings>
+    <SourceLocation DefaultValue="https://ONELEGAL_BASE_URL/addin" />
+  </DefaultSettings>
+
+  <Permissions>ReadWriteDocument</Permissions>
+
+  <VersionOverrides xmlns="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="VersionOverridesV1_0">
+    <Hosts>
+      <Host xsi:type="Document">
+        <DesktopFormFactor>
+          <GetStarted>
+            <Title resid="GetStarted.Title" />
+            <Description resid="GetStarted.Description" />
+            <LearnMoreUrl resid="GetStarted.LearnMoreUrl" />
+          </GetStarted>
+          <ExtensionPoint xsi:type="PrimaryCommandSurface">
+            <OfficeTab id="TabHome">
+              <Group id="ONELegalGroup">
+                <Label resid="ONELegalGroup.Label" />
+                <Icon>
+                  <bt:Image size="16" resid="Icon.16" />
+                  <bt:Image size="32" resid="Icon.32" />
+                  <bt:Image size="80" resid="Icon.80" />
+                </Icon>
+                <Control xsi:type="Button" id="ONELegalOpenPane">
+                  <Label resid="ONELegalButton.Label" />
+                  <Supertip>
+                    <Title resid="ONELegalButton.Label" />
+                    <Description resid="ONELegalButton.Tooltip" />
+                  </Supertip>
+                  <Icon>
+                    <bt:Image size="16" resid="Icon.16" />
+                    <bt:Image size="32" resid="Icon.32" />
+                    <bt:Image size="80" resid="Icon.80" />
+                  </Icon>
+                  <Action xsi:type="ShowTaskpane">
+                    <TaskpaneId>ONELegalPane</TaskpaneId>
+                    <SourceLocation resid="Taskpane.Url" />
+                  </Action>
+                </Control>
+              </Group>
+            </OfficeTab>
+          </ExtensionPoint>
+        </DesktopFormFactor>
+      </Host>
+    </Hosts>
+    <Resources>
+      <bt:Images>
+        <bt:Image id="Icon.16" DefaultValue="https://ONELEGAL_BASE_URL/addin/icon-32.png" />
+        <bt:Image id="Icon.32" DefaultValue="https://ONELEGAL_BASE_URL/addin/icon-32.png" />
+        <bt:Image id="Icon.80" DefaultValue="https://ONELEGAL_BASE_URL/addin/icon-80.png" />
+      </bt:Images>
+      <bt:Urls>
+        <bt:Url id="Taskpane.Url" DefaultValue="https://ONELEGAL_BASE_URL/addin" />
+        <bt:Url id="GetStarted.LearnMoreUrl" DefaultValue="https://ONELEGAL_BASE_URL" />
+      </bt:Urls>
+      <bt:ShortStrings>
+        <bt:String id="GetStarted.Title" DefaultValue="ONE Legal is ready." />
+        <bt:String id="ONELegalGroup.Label" DefaultValue="ONE Legal" />
+        <bt:String id="ONELegalButton.Label" DefaultValue="Review" />
+      </bt:ShortStrings>
+      <bt:LongStrings>
+        <bt:String id="GetStarted.Description" DefaultValue="Open the ONE Legal pane to grade the selection against your playbook and redline it in place." />
+        <bt:String id="ONELegalButton.Tooltip" DefaultValue="Grade the selected text against your playbook and redline it in place." />
+      </bt:LongStrings>
+    </Resources>
+  </VersionOverrides>
+</OfficeApp>

@@ -91,6 +91,33 @@ export {
   type ReviewThirdPartyResult,
 } from "./src/internal/third-party";
 
+// Graded redline on their paper (PR C — the flagship). Grade each clause
+// against the Playbook (Standard/Fallback/Escalate/MISSING), draft our-position
+// replacement/insertion language, persist findings + the three-field gap card,
+// gate each on a PENDING AgentDecision, and apply accepted findings into a new
+// chain-sealed version. Pure grading core is unit-tested.
+export {
+  // pure core
+  buildReviewFindings,
+  buildDeltaReviewFindings,
+  summarizeFindings,
+  // DB service
+  startContractReview,
+  getContractReview,
+  listContractReviews,
+  decideFinding,
+  applyContractReview,
+  type BuiltFinding,
+  type ReviewSummary,
+  type ReviewClauseInput,
+  type BaselineClauseInput,
+  type ReviewFindingDTO,
+  type ContractReviewDTO,
+  type ReviewGradeT,
+  type EditKindT,
+  type DecisionT,
+} from "./src/internal/review";
+
 // Contract execution guide (CTR-17) — a live "what to do next to execute" checklist.
 export {
   getContractGuide,
@@ -118,8 +145,11 @@ export {
 // brief; degrades to a deterministic skeleton offline.
 export {
   draftContractWithAI,
+  draftFromPrecedent,
   type AiDraftInput,
   type AiDraftResult,
+  type DraftFromPrecedentInput,
+  type DraftFromPrecedentResult,
 } from "./src/internal/ai-draft";
 
 // AI clause redline (C-1) — the Word add-in's brain: rewrite a clause per a
@@ -131,6 +161,18 @@ export {
   type RedlineResult,
   type RedlineRunner,
 } from "./src/internal/redline";
+
+// Word add-in surface (PR E) — the stateless API an Office.js task pane calls
+// to bring Review + Negotiate into Word: grade selected document text against
+// the playbook and redline one clause per instruction. Wraps existing
+// services; pure composition (buildAddinReview) is unit-tested.
+export {
+  buildAddinReview,
+  reviewDocumentForAddin,
+  redlineForAddin,
+  type AddinReview,
+  type AddinReviewItem,
+} from "./src/internal/addin";
 
 // Third-party review assessment (CTR-13) — "what to sign / which clauses are we
 // not comfortable with", deterministic baseline + robust AI deep read.
@@ -276,6 +318,44 @@ export {
   type ClauseLibraryEntryDTO,
   type UpsertClauseLibraryInput,
 } from "./src/internal/clause-library";
+
+// Structured contract Playbook (PR B) — typed, versioned Preferred / Fallback
+// / Walk-away positions. The gradeable position store (replaces free-form
+// clause-library dataJson for grading); seeds Create defaults + powers Review
+// grading + Negotiate counters. generate-from-precedent is human-gated via
+// AgentDecision. Pure grading helpers are unit-tested.
+export {
+  // pure helpers
+  gradeClauseAgainstRule,
+  proposeRulesFromClauses,
+  textSimilarity,
+  tokenize,
+  containsRequiredLanguage,
+  STANDARD_THRESHOLD,
+  FALLBACK_THRESHOLD,
+  // CRUD + lifecycle
+  listPlaybooks,
+  getPlaybook,
+  getPlaybookForContract,
+  createPlaybook,
+  upsertPlaybookRule,
+  deletePlaybookRule,
+  publishPlaybook,
+  ensureDefaultPlaybook,
+  // generate-from-precedent (human-gated)
+  generatePlaybookFromPrecedent,
+  listGeneratedRuleDecisions,
+  resolveGeneratedRule,
+  type ClauseGrade,
+  type GradeResult,
+  type PlaybookRuleDTO,
+  type ContractPlaybookDTO,
+  type ProposedRule,
+  type PrecedentRef,
+  type CreatePlaybookInput,
+  type UpsertPlaybookRuleInput,
+  type GeneratedRuleDecisionDTO,
+} from "./src/internal/playbook";
 
 export {
   listTemplates,
@@ -439,6 +519,28 @@ export {
   type NegotiationRedline,
   type CurrentClause,
 } from "./src/internal/negotiation-intelligence";
+
+// Playbook-driven Negotiate (PR D) — per-clause counters off the preferred →
+// fallback → walk-away ladder, trajectory across counterparty turns (toward /
+// away / stalled), and advisory human-gated flags for stalled contested
+// clauses. Deterministic; pure core unit-tested.
+export {
+  // pure core
+  positionLadder,
+  buildCounterProposal,
+  describeMovement,
+  movedHeadline,
+  // DB service
+  getNegotiationPlan,
+  resolveNegotiationFlag,
+  type NegotiationPlan,
+  type CounterProposal,
+  type CounterAction,
+  type LadderRung,
+  type ClauseMovement,
+  type MovementDir,
+  type NegotiationFlagDTO,
+} from "./src/internal/negotiate";
 
 // Human-owned clause editing (Phase 6c) — add / edit / delete clauses by hand.
 export {

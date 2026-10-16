@@ -15,6 +15,7 @@ import type {
   ContractStatus,
   ContractRisk,
   ContractOrigin,
+  ContractPerspective,
   ObligationStatus,
   ObligationType,
 } from "@aegis/db";
@@ -39,6 +40,7 @@ export interface CreateContractInput {
   governingLaw?: string | null;
   sourceIntakeTicketId?: string | null;
   origin?: ContractOrigin;
+  perspective?: ContractPerspective | null;
   draftText?: string | null;
 }
 
@@ -85,6 +87,7 @@ export async function createContract(organizationId: string, input: CreateContra
       governingLaw: input.governingLaw ?? null,
       sourceIntakeTicketId: input.sourceIntakeTicketId ?? null,
       origin: input.origin ?? "OUR_PAPER",
+      perspective: input.perspective ?? null,
       draftText: input.draftText ?? null,
     },
   });

@@ -8,6 +8,8 @@ import { ReviewAssessmentPanel } from "./review-assessment-panel.jsx";
 import { ESignaturePanel } from "./esignature-panel.jsx";
 import { ContractGuidePanel } from "./contract-guide-panel.jsx";
 import { NegotiationIntelligencePanel } from "./negotiation-intelligence-panel.jsx";
+import { GradedReviewPanel } from "./graded-review.jsx";
+import { NegotiatePanel } from "./negotiate-panel.jsx";
 import { groupSegments } from "../internal/redline-review";
 
 // ── Contract drill-in (CTR-1) ────────────────────────────────────────
@@ -250,6 +252,22 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
 
             {/* Review assessment — what to sign / clauses we're not comfortable with (CTR-13) */}
             <ReviewAssessmentPanel contractId={contractId} isThirdParty={c.origin === "THIRD_PARTY"} />
+
+            {/* Graded redline on their paper (PR C) — grade each clause against the
+                playbook, draft our-position redlines, accept/reject, apply. */}
+            {canManage && (
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.br}` }}>
+                <GradedReviewPanel contractId={contractId} />
+              </div>
+            )}
+
+            {/* Playbook-driven Negotiate (PR D) — per-clause counters off the
+                concession ladder + what-moved banner + stall flags. */}
+            {canManage && (
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.br}` }}>
+                <NegotiatePanel contractId={contractId} />
+              </div>
+            )}
 
             {/* Clauses */}
             <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.br}` }}>
