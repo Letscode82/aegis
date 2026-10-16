@@ -7,3 +7,4 @@ export { ClauseLibraryModal } from "./clause-library-modal.jsx";
 export { TemplatesModal } from "./templates-modal.jsx";
 export { PlaybookEditor } from "./playbook-editor.jsx";
 export { GradedReviewPanel } from "./graded-review.jsx";
+export { NegotiatePanel } from "./negotiate-panel.jsx";

@@ -9,6 +9,7 @@ import { ESignaturePanel } from "./esignature-panel.jsx";
 import { ContractGuidePanel } from "./contract-guide-panel.jsx";
 import { NegotiationIntelligencePanel } from "./negotiation-intelligence-panel.jsx";
 import { GradedReviewPanel } from "./graded-review.jsx";
+import { NegotiatePanel } from "./negotiate-panel.jsx";
 import { groupSegments } from "../internal/redline-review";
 
 // ── Contract drill-in (CTR-1) ────────────────────────────────────────
@@ -257,6 +258,14 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
             {canManage && (
               <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.br}` }}>
                 <GradedReviewPanel contractId={contractId} />
+              </div>
+            )}
+
+            {/* Playbook-driven Negotiate (PR D) — per-clause counters off the
+                concession ladder + what-moved banner + stall flags. */}
+            {canManage && (
+              <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.br}` }}>
+                <NegotiatePanel contractId={contractId} />
               </div>
             )}
 

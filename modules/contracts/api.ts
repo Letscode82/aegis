@@ -508,6 +508,28 @@ export {
   type CurrentClause,
 } from "./src/internal/negotiation-intelligence";
 
+// Playbook-driven Negotiate (PR D) — per-clause counters off the preferred →
+// fallback → walk-away ladder, trajectory across counterparty turns (toward /
+// away / stalled), and advisory human-gated flags for stalled contested
+// clauses. Deterministic; pure core unit-tested.
+export {
+  // pure core
+  positionLadder,
+  buildCounterProposal,
+  describeMovement,
+  movedHeadline,
+  // DB service
+  getNegotiationPlan,
+  resolveNegotiationFlag,
+  type NegotiationPlan,
+  type CounterProposal,
+  type CounterAction,
+  type LadderRung,
+  type ClauseMovement,
+  type MovementDir,
+  type NegotiationFlagDTO,
+} from "./src/internal/negotiate";
+
 // Human-owned clause editing (Phase 6c) — add / edit / delete clauses by hand.
 export {
   addClauseManual,
