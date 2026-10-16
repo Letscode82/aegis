@@ -280,6 +280,44 @@ export {
   type UpsertClauseLibraryInput,
 } from "./src/internal/clause-library";
 
+// Structured contract Playbook (PR B) — typed, versioned Preferred / Fallback
+// / Walk-away positions. The gradeable position store (replaces free-form
+// clause-library dataJson for grading); seeds Create defaults + powers Review
+// grading + Negotiate counters. generate-from-precedent is human-gated via
+// AgentDecision. Pure grading helpers are unit-tested.
+export {
+  // pure helpers
+  gradeClauseAgainstRule,
+  proposeRulesFromClauses,
+  textSimilarity,
+  tokenize,
+  containsRequiredLanguage,
+  STANDARD_THRESHOLD,
+  FALLBACK_THRESHOLD,
+  // CRUD + lifecycle
+  listPlaybooks,
+  getPlaybook,
+  getPlaybookForContract,
+  createPlaybook,
+  upsertPlaybookRule,
+  deletePlaybookRule,
+  publishPlaybook,
+  ensureDefaultPlaybook,
+  // generate-from-precedent (human-gated)
+  generatePlaybookFromPrecedent,
+  listGeneratedRuleDecisions,
+  resolveGeneratedRule,
+  type ClauseGrade,
+  type GradeResult,
+  type PlaybookRuleDTO,
+  type ContractPlaybookDTO,
+  type ProposedRule,
+  type PrecedentRef,
+  type CreatePlaybookInput,
+  type UpsertPlaybookRuleInput,
+  type GeneratedRuleDecisionDTO,
+} from "./src/internal/playbook";
+
 export {
   listTemplates,
   getTemplateByKey,

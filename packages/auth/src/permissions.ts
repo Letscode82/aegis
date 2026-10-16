@@ -90,6 +90,9 @@ export enum Permission {
   /** oKF-2: Agent Designer — edit/publish agent definitions + knowledge
    *  packs (the Open Knowledge Format super-designer surface). */
   AdminAgentsManage            = "admin:agents:manage",
+  /** PR B: structured contract-playbook editor — CRUD rules, publish
+   *  versions, generate-from-precedent. */
+  AdminContractsPlaybooksManage = "admin:contracts:playbooks_manage",
 }
 
 /** Every permission value as a flat string array. Used by the seed and

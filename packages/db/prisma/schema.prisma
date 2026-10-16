@@ -79,6 +79,9 @@ model Organization {
   contractSignatures        ContractSignature[]
   contractSignatureRequests ContractSignatureRequest[]
   contractComments          ContractComment[]
+  contractPlaybooks         ContractPlaybook[]
+  playbookRules             PlaybookRule[]
+  playbookVersions          PlaybookVersion[]
   agentDefinitions        AgentDefinition[]
   agentDefinitionVersions AgentDefinitionVersion[]
   knowledgePacks          KnowledgePack[]
@@ -2486,6 +2489,104 @@ model ContractVersion {
 
   @@unique([contractId, version])
   @@index([contractId])
+}
+
+/// Lifecycle of a structured contract playbook (PR B). DRAFT = being edited;
+/// PUBLISHED = the live grading/drafting source (one per scope wins); ARCHIVED
+/// = retired. Publishing freezes a PlaybookVersion snapshot.
+enum PlaybookStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// Structured contract playbook (PR B) — the typed, versioned position store
+/// the incumbents model as a first-class object. Replaces free-form clause
+/// positions for GRADING + drafting defaults + negotiation counters. Scoped by
+/// (contractType, perspective, paperType) — any of which may be null to mean
+/// "applies to all". The KnowledgePack clause library stays for narrative
+/// guidance; this owns the gradeable positions.
+model ContractPlaybook {
+  id             String               @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  /// "NDA" | "MSA" | … or null = applies to every contract type.
+  contractType   String?
+  /// Which side this playbook's positions are written for; null = any.
+  perspective    ContractPerspective?
+  /// Reserved for review paper-type targeting ("THEIR_PAPER" | …); null = any.
+  paperType      String?
+  status         PlaybookStatus       @default(DRAFT)
+  version        Int                  @default(1)
+  publishedAt    DateTime?
+  publishedById  String?
+  createdById    String?
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+
+  organization Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  rules        PlaybookRule[]
+  versions     PlaybookVersion[]
+
+  @@index([organizationId, status])
+  @@index([organizationId, contractType])
+}
+
+/// One typed clause position inside a playbook (PR B). Preferred / Fallback(s)
+/// / Walk-away + required-language + guidance + escalation trigger + precedent
+/// refs — queryable columns the grader branches on (not a free-form JSON blob).
+/// `clauseCode` is a stable code within the playbook; `clauseType` matches
+/// `ContractClause.type` so a found clause resolves to its rule.
+model PlaybookRule {
+  id                String   @id @default(cuid())
+  organizationId    String
+  playbookId        String
+  clauseType        String
+  clauseCode        String
+  title             String
+  preferredText     String
+  /// string[] — acceptable fallback positions, best-first.
+  fallbackTexts     Json     @default("[]")
+  walkAwayText      String?
+  required          Boolean  @default(false)
+  requiredLanguage  String?
+  guidance          String?
+  escalationTrigger String?
+  /// [{contractId, clauseId?, note?}] — executed precedent this position came from.
+  precedentRefs     Json     @default("[]")
+  severityWeight    Int      @default(1)
+  orderIndex        Int      @default(0)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  playbook     ContractPlaybook @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+
+  @@unique([playbookId, clauseCode])
+  @@index([organizationId, clauseType])
+  @@index([playbookId, orderIndex])
+}
+
+/// Immutable snapshot of a playbook's rules at publish (PR B) — mirrors
+/// AgentDefinitionVersion. Enables revert + provenance; older contract reviews
+/// resolve against the (playbookId, version) they were graded under.
+model PlaybookVersion {
+  id             String   @id @default(cuid())
+  organizationId String
+  playbookId     String
+  version        Int
+  /// Frozen snapshot of every rule at publish time.
+  rulesJson      Json
+  note           String?
+  publishedById  String?
+  publishedAt    DateTime @default(now())
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  playbook     ContractPlaybook @relation(fields: [playbookId], references: [id], onDelete: Cascade)
+
+  @@unique([playbookId, version])
+  @@index([organizationId, playbookId])
 }
 
 // ════════════════════════════════════════════════════════════════════
