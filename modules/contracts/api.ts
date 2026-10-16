@@ -162,6 +162,18 @@ export {
   type RedlineRunner,
 } from "./src/internal/redline";
 
+// Word add-in surface (PR E) — the stateless API an Office.js task pane calls
+// to bring Review + Negotiate into Word: grade selected document text against
+// the playbook and redline one clause per instruction. Wraps existing
+// services; pure composition (buildAddinReview) is unit-tested.
+export {
+  buildAddinReview,
+  reviewDocumentForAddin,
+  redlineForAddin,
+  type AddinReview,
+  type AddinReviewItem,
+} from "./src/internal/addin";
+
 // Third-party review assessment (CTR-13) — "what to sign / which clauses are we
 // not comfortable with", deterministic baseline + robust AI deep read.
 export {
