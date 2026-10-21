@@ -29,6 +29,7 @@ import { loadRegistryFromData, buildSystemPrompt, wrapDocuments } from "@aegis/l
 import registryData from "@aegis/legal-skills/registry.json";
 import { getContractPlaybookText } from "@aegis/contracts";
 import { loadReviewDocument } from "../../../lib/one-legal/review-docs";
+import { runContractPlaybookReview } from "../../../lib/one-legal/contract-review";
 import { selectBuiltReviewSkill } from "../../../lib/one-legal/review-select";
 import {
   playbookLabelFor,
@@ -84,6 +85,25 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     const loadedDoc = await loadReviewDocument(user.organizationId, body.documentId);
     if (loadedDoc) docs.unshift(loadedDoc);
     const firstDoc = docs[0];
+
+    // Parity with the Contracts workspace: when there's a document to grade, run
+    // the SAME governed Contracts Playbook engine (reviewDocumentForAddin — the
+    // identical playbook + grading core as startContractReview). The console then
+    // returns the same graded verdict the workspace shows for that contract,
+    // instead of a divergent prose review. Deterministic, so it works offline
+    // too. Returns null for non-contract documents → fall through to the
+    // legal-skills prose review below (nothing regresses).
+    if (firstDoc?.text) {
+      const graded = await runContractPlaybookReview(
+        user.organizationId,
+        { text: firstDoc.text, docName: firstDoc.name },
+        { id: user.id, type: "USER" },
+      );
+      if (graded) {
+        recordSpan("one_legal.skill_review", Date.now() - t0, { skill: graded.matched.id, built: true, engine: "contracts" });
+        return res.status(200).json({ ok: true, matched: graded.matched, answer: graded.markdown, degraded: false, aiError: null });
+      }
+    }
 
     // Pick the playbook, never dead-ending on an unbuilt skill: an explicit
     // (built) skillId wins, else the document-type playbook, else the best BUILT
