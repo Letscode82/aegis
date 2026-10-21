@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { wantsQuickDraft, contractCreationType } from "../lib/one-legal/creation-routing";
+import { wantsQuickDraft, contractCreationType, looksLikeReviewCommand } from "../lib/one-legal/creation-routing";
 
 // Phase 7 — the Assistance vs Tracked routing decision. A mis-route either
 // sends a real contract to the ungoverned canvas (no REQ, no approval trail)
@@ -65,5 +65,42 @@ describe("contractCreationType", () => {
     expect(contractCreationType("prepare a summary of the board meeting")).toBeNull();
     expect(contractCreationType("")).toBeNull();
     expect(contractCreationType(undefined)).toBeNull();
+  });
+});
+
+describe("looksLikeReviewCommand", () => {
+  it("fires on a leading review / redline / vet / assess verb", () => {
+    for (const t of [
+      "review this",
+      "Review the attached contract against our playbook",
+      "re-review this NDA",
+      "redline this MSA",
+      "vet this agreement",
+      "assess the liability clause",
+    ]) {
+      expect(looksLikeReviewCommand(t), t).toBe(true);
+    }
+  });
+
+  it("fires on an explicit run/do-a-review phrasing", () => {
+    for (const t of [
+      "run a playbook review on this",
+      "do a redline",
+      "give me a review of this contract",
+    ]) {
+      expect(looksLikeReviewCommand(t), t).toBe(true);
+    }
+  });
+
+  it("does not fire on questions, drafts, or unrelated asks", () => {
+    for (const t of [
+      "what does this contract say about liability?",
+      "draft an NDA for Acme",
+      "summarize the attached document",
+      "file this as a request",
+      "",
+    ]) {
+      expect(looksLikeReviewCommand(t), t).toBe(false);
+    }
   });
 });

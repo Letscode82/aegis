@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { C, F, M, SR, ThinkingOrb, useTheme, useToast } from "@aegis/ui";
 import { friendlyAIError } from "@aegis/ai";
 import { SKILLS, SKILL_CATEGORIES, resolveSkillTarget } from "../lib/one-legal/skills";
-import { wantsQuickDraft, contractCreationType } from "../lib/one-legal/creation-routing";
+import { wantsQuickDraft, contractCreationType, looksLikeReviewCommand } from "../lib/one-legal/creation-routing";
 import { buildRedline, applyRedline, countChanges } from "../lib/one-legal/redline";
 import { describeIntent } from "../lib/one-legal/intent";
 
@@ -2180,6 +2180,16 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
         runSkillReview(`Review this document (${docName}) against the right legal playbook.`, { documentId: doc.documentId });
         return;
       }
+      // "review this" as a first-class command: an explicit review/redline ask
+      // runs the governed graded review on the document in play (the same engine
+      // the Contracts workspace uses), instead of being answered as a question.
+      if (looksLikeReviewCommand(t)) {
+        setStagedDoc(null);
+        setInput("");
+        pendingSkillRef.current = null;
+        runSkillReview(t, { documentId: doc.documentId });
+        return;
+      }
       if (staged) {
         // A question about a freshly staged doc → read it and answer that.
         setStagedDoc(null);
@@ -2432,6 +2442,7 @@ export function CommandConsole({ open, embedded, initialText, onClose, onNavigat
     isCanvasDraft: looksLikeCanvasDraft(input),
     createType: contractCreationType(input),
     classified: classifyIntent(input),
+    isReviewCommand: looksLikeReviewCommand(input),
   });
   const composer = (big) => (
     <div>

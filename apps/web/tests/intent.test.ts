@@ -84,3 +84,23 @@ describe("describeIntent", () => {
     expect(p.lead).toBe("File & route");
   });
 });
+
+describe("describeIntent — review command with a document in play", () => {
+  it("an explicit review command on an attached doc previews Review, not Answer", () => {
+    const p = describeIntent({ ...base, hasDoc: true, hasText: true, isReviewCommand: true });
+    expect(p.kind).toBe("review");
+    expect(p.filed).toBe(false);
+    expect(p.lead).toBe("Review");
+  });
+
+  it("a plain question on an attached doc still previews Answer", () => {
+    const p = describeIntent({ ...base, hasDoc: true, hasText: true, isReviewCommand: false });
+    expect(p.kind).toBe("review");
+    expect(p.lead).toBe("Answer");
+  });
+
+  it("an empty Run on an attached doc reviews it", () => {
+    const p = describeIntent({ ...base, hasDoc: true, hasText: false });
+    expect(p.lead).toBe("Review");
+  });
+});

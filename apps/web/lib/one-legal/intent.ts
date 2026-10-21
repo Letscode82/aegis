@@ -44,6 +44,8 @@ export interface IntentSignals {
   createType: ContractCreationType | null;
   /** `classifyIntent(input)` — the capability/ask/file verdict for everything else. */
   classified: "capability" | "ask" | "file";
+  /** `looksLikeReviewCommand(input)` — an explicit "review / redline this" ask. */
+  isReviewCommand?: boolean;
 }
 
 /**
@@ -58,16 +60,19 @@ export interface IntentSignals {
  *   7. anything else                 → filed & routed through intake
  */
 export function describeIntent(signals: IntentSignals): IntentPreview {
-  const { hasText, hasDoc, wantsQuick, isCanvasDraft, createType, classified } = signals;
+  const { hasText, hasDoc, wantsQuick, isCanvasDraft, createType, classified, isReviewCommand } = signals;
 
   if (!hasText && !hasDoc) return { kind: "empty", filed: false, lead: "", tail: "" };
 
   // A document always drives the action — a staged doc short-circuits the create
   // logic in submitComposer, so the create fork never applies while one is in play.
+  // An empty Run reviews; an explicit "review / redline this" command reviews too;
+  // any other typed text is answered against the document.
   if (hasDoc) {
-    return hasText
-      ? { kind: "review", filed: false, lead: "Answer", tail: "your question against the attached document." }
-      : { kind: "review", filed: false, lead: "Review", tail: "the attached document against the matching playbook." };
+    if (!hasText || isReviewCommand) {
+      return { kind: "review", filed: false, lead: "Review", tail: "the attached document against the matching playbook." };
+    }
+    return { kind: "review", filed: false, lead: "Answer", tail: "your question against the attached document." };
   }
 
   // Assistance override + plain canvas drafts both open the ungoverned canvas.
