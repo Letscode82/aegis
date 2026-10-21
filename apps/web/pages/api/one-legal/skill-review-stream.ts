@@ -30,6 +30,7 @@ import { loadRegistryFromData, buildSystemPrompt, wrapDocuments } from "@aegis/l
 import registryData from "@aegis/legal-skills/registry.json";
 import { getContractPlaybookText } from "@aegis/contracts";
 import { loadReviewDocument } from "../../../lib/one-legal/review-docs";
+import { runContractPlaybookReview } from "../../../lib/one-legal/contract-review";
 import { selectBuiltReviewSkill } from "../../../lib/one-legal/review-select";
 import {
   playbookLabelFor,
@@ -62,10 +63,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   // Auth + routing happen before the stream opens, so a failure here is still
   // a normal JSON status response the client can read.
-  let chosenId: string;
-  let matched: { id: string; title: string; module: string; risk_tier: string; status: string };
-  let system: string;
-  let userMsg: string;
+  let chosenId = "";
+  let matched: { id: string; title: string; module: string; risk_tier: string; status: string } = {
+    id: "",
+    title: "",
+    module: "",
+    risk_tier: "",
+    status: "",
+  };
+  let system = "";
+  let userMsg = "";
+  // When the document grades as a contract, this holds the governed Contracts
+  // Playbook review (Markdown). Set → emit it over the stream instead of a model
+  // call, so the console matches the workspace exactly.
+  let gradedMarkdown: string | null = null;
   try {
     await assertAndAudit(user, Permission.IntakeCreateTicket, { route: "one-legal.skill-review-stream" });
     const body = (req.body || {}) as {
@@ -90,55 +101,77 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     if (loadedDoc) docs.unshift(loadedDoc);
     const firstDoc = docs[0];
 
-    // Pick the playbook, never dead-ending on an unbuilt skill: an explicit
-    // (built) skillId wins, else the document-type playbook, else the best BUILT
-    // text-route match (shared with the buffered route; see review-select).
-    const chosen = selectBuiltReviewSkill(REGISTRY, {
-      skillId: body.skillId,
-      docName: firstDoc?.name,
-      docText: firstDoc?.text,
-      text,
-      jurisdiction,
-    });
-    if (!chosen) return res.status(200).json({ ok: true, matched: null, answer: "", note: "No playbook is available for this yet — you can file it as a request and I’ll route it." });
-
-    chosenId = chosen.id;
-    matched = { id: chosen.id, title: chosen.title, module: chosen.module, risk_tier: chosen.risk_tier, status: chosen.status };
-
-    // For a contract review, pull the org's OWN configured Contracts Playbook
-    // (the editable `contract-clauses` knowledge pack) and make it authoritative
-    // so admin edits to the Contracts Playbook screen change the review. Empty →
-    // the skill's built-in positions. Best-effort: a failure never blocks.
-    let orgPlaybookText = "";
-    if (chosen.module === "contracts") {
-      try {
-        orgPlaybookText = await getContractPlaybookText(user.organizationId);
-      } catch (e) {
-        console.error("[one-legal:skill-review-stream] org playbook lookup failed:", (e as Error)?.message || e);
+    // Parity with the Contracts workspace: when there's a document to grade, run
+    // the SAME governed Contracts Playbook engine (reviewDocumentForAddin) and
+    // emit its deterministic graded verdict over the stream — so the console and
+    // the workspace agree on the same contract. Returns null for non-contract
+    // documents → fall through to the legal-skills prose review (unchanged).
+    if (firstDoc?.text) {
+      const graded = await runContractPlaybookReview(
+        user.organizationId,
+        { text: firstDoc.text, docName: firstDoc.name },
+        { id: user.id, type: "USER" },
+      );
+      if (graded) {
+        matched = graded.matched;
+        chosenId = graded.matched.id;
+        gradedMarkdown = graded.markdown;
       }
     }
-    const usingOrgPlaybook = orgPlaybookText.trim().length > 0;
 
-    system =
-      buildSystemPrompt(REGISTRY, [chosen.id], {
-        includeReferences: true,
-        matter: { requestedBy: user.name || null, organizationId: user.organizationId },
-      }) + orgPlaybookPromptBlock(orgPlaybookText);
-    // Ask for human-readable Markdown — the output contract's DEFAULT. (Asking
-    // for `json` made the model stream a raw JSON object, which rendered as an
-    // ugly code block in the console.) A tight, ranked Markdown review reads
-    // well and streams naturally. Playbook-first: name the applied playbook and
-    // forbid the "no playbook provided" hedge (the org playbook, or the skill's
-    // positions, ARE it).
-    const playbookLabel = usingOrgPlaybook ? ORG_PLAYBOOK_LABEL : playbookLabelFor(chosen.id, chosen.title);
-    const outputGuide =
-      "Produce a COMPLETE but CONCISE review in clean Markdown (NOT JSON, no code fences): a short Bottom line, " +
-      "then Findings highest-severity first — for each, the clause, its severity, the issue in one line, and a " +
-      "one-line recommendation — then Actions. Do not repeat the document back or pad; finish the whole review.\n\n" +
-      playbookDirective(playbookLabel, { orgConfigured: usingOrgPlaybook }) +
-      "\n\n" +
-      jurisdictionDirective(jurisdiction);
-    userMsg = (docs.length ? wrapDocuments(docs) + "\n\n" : "") + `Task: ${text}\n\n${outputGuide}\n\nReturn format: markdown`;
+    // The legal-skills prose path only runs when the Contracts Playbook engine
+    // didn't already grade this as a contract (gradedMarkdown set above).
+    if (!gradedMarkdown) {
+      // Pick the playbook, never dead-ending on an unbuilt skill: an explicit
+      // (built) skillId wins, else the document-type playbook, else the best BUILT
+      // text-route match (shared with the buffered route; see review-select).
+      const chosen = selectBuiltReviewSkill(REGISTRY, {
+        skillId: body.skillId,
+        docName: firstDoc?.name,
+        docText: firstDoc?.text,
+        text,
+        jurisdiction,
+      });
+      if (!chosen) return res.status(200).json({ ok: true, matched: null, answer: "", note: "No playbook is available for this yet — you can file it as a request and I’ll route it." });
+
+      chosenId = chosen.id;
+      matched = { id: chosen.id, title: chosen.title, module: chosen.module, risk_tier: chosen.risk_tier, status: chosen.status };
+
+      // For a contract review, pull the org's OWN configured Contracts Playbook
+      // (the editable `contract-clauses` knowledge pack) and make it authoritative
+      // so admin edits to the Contracts Playbook screen change the review. Empty →
+      // the skill's built-in positions. Best-effort: a failure never blocks.
+      let orgPlaybookText = "";
+      if (chosen.module === "contracts") {
+        try {
+          orgPlaybookText = await getContractPlaybookText(user.organizationId);
+        } catch (e) {
+          console.error("[one-legal:skill-review-stream] org playbook lookup failed:", (e as Error)?.message || e);
+        }
+      }
+      const usingOrgPlaybook = orgPlaybookText.trim().length > 0;
+
+      system =
+        buildSystemPrompt(REGISTRY, [chosen.id], {
+          includeReferences: true,
+          matter: { requestedBy: user.name || null, organizationId: user.organizationId },
+        }) + orgPlaybookPromptBlock(orgPlaybookText);
+      // Ask for human-readable Markdown — the output contract's DEFAULT. (Asking
+      // for `json` made the model stream a raw JSON object, which rendered as an
+      // ugly code block in the console.) A tight, ranked Markdown review reads
+      // well and streams naturally. Playbook-first: name the applied playbook and
+      // forbid the "no playbook provided" hedge (the org playbook, or the skill's
+      // positions, ARE it).
+      const playbookLabel = usingOrgPlaybook ? ORG_PLAYBOOK_LABEL : playbookLabelFor(chosen.id, chosen.title);
+      const outputGuide =
+        "Produce a COMPLETE but CONCISE review in clean Markdown (NOT JSON, no code fences): a short Bottom line, " +
+        "then Findings highest-severity first — for each, the clause, its severity, the issue in one line, and a " +
+        "one-line recommendation — then Actions. Do not repeat the document back or pad; finish the whole review.\n\n" +
+        playbookDirective(playbookLabel, { orgConfigured: usingOrgPlaybook }) +
+        "\n\n" +
+        jurisdictionDirective(jurisdiction);
+      userMsg = (docs.length ? wrapDocuments(docs) + "\n\n" : "") + `Task: ${text}\n\n${outputGuide}\n\nReturn format: markdown`;
+    }
   } catch (err) {
     if (err instanceof AccessDeniedError) return res.status(403).json({ ok: false, error: err.decision.message });
     return res.status(400).json({ ok: false, error: String((err as Error).message || err) });
@@ -162,6 +195,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
   const t0 = Date.now();
   send({ type: "matched", matched });
+
+  // Governed Contracts Playbook review: deterministic, already computed. Emit it
+  // as one delta and finish — no model call, so it can't time out or truncate,
+  // and the console shows the exact grades the workspace shows.
+  if (gradedMarkdown) {
+    send({ type: "delta", text: gradedMarkdown });
+    send({ type: "done", degraded: false, aiError: null });
+    recordSpan("one_legal.skill_review_stream", Date.now() - t0, { skill: chosenId, built: true, engine: "contracts", produced: true });
+    return res.end();
+  }
 
   const controller = new AbortController();
   const deadline = setTimeout(() => controller.abort(), STREAM_DEADLINE_MS);
