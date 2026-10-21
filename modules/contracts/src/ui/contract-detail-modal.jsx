@@ -4,7 +4,6 @@ import { ContractStageTracker } from "./contract-stage-tracker.jsx";
 import { ApprovalLadderPanel } from "./approval-ladder-panel.jsx";
 import { ApprovalWizard } from "./approval-wizard.jsx";
 import { ContractCommentsPanel } from "./contract-comments-panel.jsx";
-import { ReviewAssessmentPanel } from "./review-assessment-panel.jsx";
 import { ESignaturePanel } from "./esignature-panel.jsx";
 import { ContractGuidePanel } from "./contract-guide-panel.jsx";
 import { NegotiationIntelligencePanel } from "./negotiation-intelligence-panel.jsx";
@@ -244,22 +243,19 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
               )}
             </div>
 
+            {/* Unified guided review — the single review surface (replaces the
+                former separate "Review assessment" card). Leads the workspace;
+                graded against the playbook, accept / reject / apply is the human
+                gate. Visible to everyone; mutating actions gated by canManage. */}
+            <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.br}` }}>
+              <GradedReviewPanel contractId={contractId} isThirdParty={c.origin === "THIRD_PARTY"} canManage={canManage} />
+            </div>
+
             {/* Execution & signatures (Phase 5d) */}
             <SignaturesPanel contractId={contractId} canManage={canManage} counterpartyName={c.counterpartyName} onChanged={load} />
 
             {/* Native e-signature requests (CTR-15) */}
             <ESignaturePanel contractId={contractId} canManage={canManage} />
-
-            {/* Review assessment — what to sign / clauses we're not comfortable with (CTR-13) */}
-            <ReviewAssessmentPanel contractId={contractId} isThirdParty={c.origin === "THIRD_PARTY"} />
-
-            {/* Graded redline on their paper (PR C) — grade each clause against the
-                playbook, draft our-position redlines, accept/reject, apply. */}
-            {canManage && (
-              <div style={{ marginTop: 14, paddingTop: 14, borderTop: `1px solid ${C.br}` }}>
-                <GradedReviewPanel contractId={contractId} />
-              </div>
-            )}
 
             {/* Playbook-driven Negotiate (PR D) — per-clause counters off the
                 concession ladder + what-moved banner + stall flags. */}

@@ -1,13 +1,16 @@
 import { useState, useEffect, useCallback } from "react";
 import { C, F, M, SR } from "@aegis/ui";
 
-// ── Graded redline on their paper (PR C) ──────────────────────────────
+// ── Guided contract review — the single review surface (PR C + unified) ───
 //
-// The flagship review surface. Start a review against the playbook → each
-// clause is graded Standard / Fallback / Escalate / MISSING, with our-position
-// replacement language drafted as the tracked-change target and a three-field
-// gap card (our position / their position / why). Accept / reject / edit each
-// finding (the human gate), then apply the accepted ones into a new version.
+// The one review surface on a contract (replaces the former separate "Review
+// assessment" card — one playbook, one source of truth). Start a review against
+// the playbook → each clause is graded Standard / Fallback / Escalate / MISSING,
+// with our-position replacement language drafted as the tracked-change target
+// and a three-field gap card (our position / their position / why). Accept /
+// reject / edit each finding (the human gate), then apply the accepted ones into
+// a new chain-sealed version. Visible to everyone; mutating actions are gated by
+// `canManage` so non-managers still see the review posture read-only.
 
 const card = { background: C.cd, border: `1px solid ${C.br}`, borderRadius: 10, padding: 14 };
 const btn = (fill, fg) => ({ padding: "6px 11px", background: fill, color: fg, border: `1px solid ${fill === "transparent" ? C.br : fill}`, borderRadius: 5, fontFamily: M, fontSize: 9.5, letterSpacing: 0.5, textTransform: "uppercase", fontWeight: 700, cursor: "pointer" });
@@ -25,7 +28,7 @@ async function api(url, opts) {
   return d;
 }
 
-export function GradedReviewPanel({ contractId }) {
+export function GradedReviewPanel({ contractId, isThirdParty = false, canManage = true }) {
   const [reviews, setReviews] = useState([]);
   const [review, setReview] = useState(null);
   const [paperType, setPaperType] = useState("THEIR_PAPER");
@@ -78,16 +81,26 @@ export function GradedReviewPanel({ contractId }) {
               : "Grade each clause against the playbook and redline it back on their document."}
           </div>
         </div>
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          <select value={paperType} onChange={(e) => setPaperType(e.target.value)} style={{ ...btn("transparent", C.t2), cursor: "pointer", textTransform: "none", letterSpacing: 0 }}>
-            <option value="THEIR_PAPER">Their paper</option>
-            <option value="OUR_PAPER_THEIR_MARKS">Our paper, their marks</option>
-          </select>
-          <button style={btn(C.bl, "#fff")} disabled={busy} onClick={start}>⟐ Review against playbook</button>
-        </div>
+        {canManage && (
+          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+            <select value={paperType} onChange={(e) => setPaperType(e.target.value)} style={{ ...btn("transparent", C.t2), cursor: "pointer", textTransform: "none", letterSpacing: 0 }}>
+              <option value="THEIR_PAPER">Their paper</option>
+              <option value="OUR_PAPER_THEIR_MARKS">Our paper, their marks</option>
+            </select>
+            <button style={btn(C.bl, "#fff")} disabled={busy} onClick={start}>{review ? "↻ Re-review" : "⟐ Review against playbook"}</button>
+          </div>
+        )}
       </div>
 
       {err && <div style={{ color: C.rd, fontFamily: M, fontSize: 11, marginBottom: 10 }}>⚠ {err}</div>}
+
+      {!review && !busy && (
+        <div style={{ ...card, marginBottom: 12, fontSize: 12, color: C.t2, lineHeight: 1.5 }}>
+          {canManage
+            ? `Not reviewed yet. Run the playbook review to grade every clause Standard / Fallback / Escalate, draft our-position redlines, and accept, edit, or reject each one${isThirdParty ? " on this third-party paper" : ""}.`
+            : "No playbook review has been run on this contract yet."}
+        </div>
+      )}
 
       {reviews.length > 1 && (
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 10 }}>
@@ -119,7 +132,7 @@ export function GradedReviewPanel({ contractId }) {
               <span style={{ color: C.rd }}>{s.missing} missing</span>
             </div>
           </div>
-          {review.status !== "APPLIED" && review.status !== "EXPORTED" && (
+          {canManage && review.status !== "APPLIED" && review.status !== "EXPORTED" && (
             <div style={{ display: "flex", gap: 6 }}>
               <button style={btn("transparent", C.am)} disabled={busy} onClick={acceptAllSafe} title="Accept all fallback-level clauses">Accept all safe</button>
               <button style={btn(C.gn, "#fff")} disabled={busy || accepted === 0} onClick={apply} title="Apply accepted redlines into a new version">Apply {accepted || ""} redline{accepted === 1 ? "" : "s"}</button>
@@ -148,7 +161,7 @@ export function GradedReviewPanel({ contractId }) {
               </div>
               {decided ? (
                 <span style={{ fontSize: 9.5, fontFamily: M, color: f.decision === "REJECTED" ? C.t4 : C.gn, border: `1px solid ${f.decision === "REJECTED" ? C.t4 : C.gn}`, borderRadius: 4, padding: "2px 7px" }}>{f.decision}</span>
-              ) : (review?.status === "IN_PROGRESS" || review?.status === "READY") && (
+              ) : canManage && (review?.status === "IN_PROGRESS" || review?.status === "READY") && (
                 <div style={{ display: "flex", gap: 5 }}>
                   <button style={btn(C.gn, "#fff")} disabled={busy} onClick={() => decide(f.id, "accept")}>Accept</button>
                   <button style={btn("transparent", C.bl)} disabled={busy} onClick={() => setEditing({ id: f.id, text: f.suggestedText || "" })}>Edit</button>
