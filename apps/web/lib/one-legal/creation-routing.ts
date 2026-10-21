@@ -50,3 +50,19 @@ export function contractCreationType(text: string | null | undefined): ContractC
   if (CONTRACT_NOUN_RE.test(t)) return "Contract Review";
   return null;
 }
+
+// "review this" as a first-class command. A leading review verb — or an
+// explicit "run a (playbook) review / redline" phrasing — is a request to GRADE
+// the document in play against the playbook, not a question to answer or a
+// ticket to file. The console routes it to the governed graded review (the same
+// engine the Contracts workspace uses) when a document is attached. Kept here,
+// unit-tested, alongside the other console routing predicates.
+const REVIEW_VERB_RE = /^\s*(please\s+)?(review|re-?review|redline|vet|assess)\b/i;
+const REVIEW_PHRASE_RE = /\b(run|do|give\s+me)\s+(a|an|the)?\s*(playbook\s+)?(review|redline|assessment)\b/i;
+
+/** True when the user is explicitly asking to review / redline the document. */
+export function looksLikeReviewCommand(text: string | null | undefined): boolean {
+  const t = String(text || "").trim();
+  if (!t) return false;
+  return REVIEW_VERB_RE.test(t) || REVIEW_PHRASE_RE.test(t);
+}
