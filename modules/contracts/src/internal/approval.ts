@@ -37,6 +37,12 @@ import {
 } from "@aegis/workflow";
 import { transitionContractStatus } from "./service";
 import { scoreContractClauses, type RiskLevel, type ClauseRiskScore } from "./risk-score";
+import {
+  loadEnabledContractRoutingRules,
+  matchContractRoutingRule,
+  recordContractRoutingRuleFired,
+} from "./routing-rules";
+import type { ContractPerspective } from "@aegis/db";
 
 const ENTITY_TYPE = "Contract";
 const SUBMITTABLE = new Set(["DRAFT", "IN_NEGOTIATION"]);
@@ -61,6 +67,8 @@ const NDA_RE = /\bnda\b|non.?disclosure|nondisclosure|confidential/i;
 export interface LadderSelection {
   key: string;
   reason: string;
+  /** Set when an admin-configured ContractRoutingRule drove the choice. */
+  ruleId?: string;
 }
 
 /**
@@ -91,15 +99,36 @@ async function ladderExists(organizationId: string, key: string): Promise<boolea
 }
 
 /**
- * Resolve the ladder to start for a contract: the request-driven choice when
- * it's seeded for the org, else the commercial default (so an org that never
- * seeded the fast-track ladder still gets a working approval path rather than a
- * 404). `startWorkflow` still throws cleanly if even the default is absent.
+ * Resolve the ladder to start for a contract, most specific first:
+ *   1. an admin-configured ContractRoutingRule that matches (and whose ladder
+ *      is seeded) — the org's own value/type/perspective routing;
+ *   2. else the request-driven code choice (NDA fast-track vs full ladder)
+ *      when it's seeded;
+ *   3. else the commercial default, so an org that never seeded the fast-track
+ *      ladder still gets a working approval path rather than a 404.
+ * `startWorkflow` still throws cleanly if even the default is absent.
  */
 async function resolveLadderForContract(
   organizationId: string,
-  contract: { type?: string | null; value?: number | null },
+  contract: { type?: string | null; value?: number | null; perspective?: ContractPerspective | null },
 ): Promise<LadderSelection> {
+  // 1. Admin-configured rules win when one matches and its ladder is seeded.
+  //    Best-effort: a lookup failure never blocks submission — fall through.
+  try {
+    const rules = await loadEnabledContractRoutingRules(organizationId);
+    const hit = matchContractRoutingRule(rules, {
+      type: contract.type,
+      perspective: contract.perspective ?? null,
+      value: contract.value == null ? null : Number(contract.value),
+    });
+    if (hit && (await ladderExists(organizationId, hit.setLadderKey))) {
+      return { key: hit.setLadderKey, reason: `Matched routing rule "${hit.name}" → ${hit.setLadderKey}.`, ruleId: hit.id };
+    }
+  } catch {
+    /* rules are best-effort; fall through to the code default */
+  }
+
+  // 2 + 3. Request-driven code default, guarded by what's seeded.
   const picked = selectApprovalLadder(contract);
   if (picked.key === DEFAULT_CONTRACT_LADDER) return picked;
   if (await ladderExists(organizationId, picked.key)) return picked;
@@ -353,9 +382,14 @@ export async function submitContractForApproval(
     throw new Error("An approval ladder is already running for this contract.");
   }
 
-  // Choose the ladder from the request itself (NDA fast-track vs the full
-  // commercial ladder), guarded by what's actually seeded for this org.
-  const ladder = await resolveLadderForContract(organizationId, { type: contract.type, value: contract.value });
+  // Choose the ladder: an admin routing rule if one matches, else the request-
+  // driven default (NDA fast-track vs the full commercial ladder), guarded by
+  // what's actually seeded for this org.
+  const ladder = await resolveLadderForContract(organizationId, {
+    type: contract.type,
+    value: contract.value,
+    perspective: contract.perspective,
+  });
 
   const instance = await startWorkflow({
     organizationId,
@@ -384,6 +418,9 @@ export async function submitContractForApproval(
     /* first step stays current; the panel can advance it */
   }
 
+  // Bump the effectiveness counter when an admin rule drove the choice.
+  if (ladder.ruleId) await recordContractRoutingRuleFired(ladder.ruleId);
+
   // The ladder now sits on the "AI Risk Review" AGENT rung — run it so its
   // advisory findings are ready the moment the reviewer opens the workspace.
   await autoRunApprovalAgent(instance.id);
@@ -401,7 +438,7 @@ export async function submitContractForApproval(
     resourceType: "Contract",
     resourceId: contractId,
     afterJson: { instanceId: instance.id, definitionKey: ladder.key } as never,
-    metadata: { source: "guided-wizard", ladderKey: ladder.key, ladderReason: ladder.reason },
+    metadata: { source: "guided-wizard", ladderKey: ladder.key, ladderReason: ladder.reason, ladderRuleId: ladder.ruleId ?? null },
   });
 
   return getContractApprovalState(organizationId, contractId);

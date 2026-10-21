@@ -2126,6 +2126,45 @@ enum ContractPerspective {
   NEUTRAL // no side bias (e.g. a joint agreement)
 }
 
+/// Admin-configurable contract approval routing (redesign PR 5). Each rule
+/// maps a condition on the contract (type substring / perspective / value
+/// range) to the approval ladder to run (`setLadderKey`, a WorkflowDefinition
+/// key). `submitContractForApproval` evaluates enabled rules in `evalOrder`;
+/// the first match whose ladder is seeded wins, else the code default
+/// (`selectApprovalLadder`). `organizationId` is a plain scalar (no relation)
+/// so the migration stays localized; `setLadderKey` is a string, not an FK,
+/// so a rule can't be orphaned by a ladder edit — resolution re-checks that the
+/// ladder exists at fire time.
+model ContractRoutingRule {
+  id             String  @id @default(cuid())
+  organizationId String
+  name           String
+  description    String?
+  enabled        Boolean @default(true)
+  /// Evaluation order, ascending. First matching enabled rule wins.
+  evalOrder      Int     @default(100)
+
+  // ── Conditions (null = no constraint; non-null AND together) ──
+  /// Case-insensitive substring on the contract's free-text `type`.
+  matchType       String?
+  matchPerspective ContractPerspective?
+  /// Inclusive lower / upper bound on `Contract.value` (null = unbounded).
+  minValue        Float?
+  maxValue        Float?
+
+  // ── Action ──
+  /// The WorkflowDefinition key to run for a matched contract.
+  setLadderKey String
+
+  /// Effectiveness counters, mirroring IntakeRoutingRule.
+  timesFired  Int       @default(0)
+  lastFiredAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@index([organizationId, enabled, evalOrder])
+}
+
 /// Lifecycle of a login-less counterparty review link (CTR-3).
 enum ContractReviewTokenStatus {
   ACTIVE // link is live; counterparty can view + respond
