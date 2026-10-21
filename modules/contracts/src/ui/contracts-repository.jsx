@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import { C, F, M, SR } from "@aegis/ui";
 import { ContractDetailModal } from "./contract-detail-modal.jsx";
 import { ClauseLibraryModal } from "./clause-library-modal.jsx";
+import { PlaybookEditor } from "./playbook-editor.jsx";
 import { TemplatesModal } from "./templates-modal.jsx";
 import { ObligationsDashboard } from "./obligations-dashboard.jsx";
 import { RenewalsCommandCenter } from "./renewals-command-center.jsx";
@@ -58,6 +59,7 @@ export function ContractsRepository() {
   const [stageFilter, setStageFilter] = useState(null); // null = all stages (CTR-7 pipeline strip)
   const [canManage, setCanManage] = useState(false);
   const [showPlaybook, setShowPlaybook] = useState(false);
+  const [showPlaybookEditor, setShowPlaybookEditor] = useState(false);
   const [showTemplates, setShowTemplates] = useState(false);
   const [showAuthor, setShowAuthor] = useState(false);
   const [showReview, setShowReview] = useState(false);
@@ -156,7 +158,8 @@ export function ContractsRepository() {
         </div>
         <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
           {canManage && <button onClick={() => setReviewCockpit(true)} style={{ padding: "7px 13px", background: "transparent", color: C.gn, border: `1px solid ${C.gn}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" }}>▶ Review queue</button>}
-          <button onClick={() => setShowPlaybook(true)} style={{ padding: "7px 13px", background: "transparent", color: C.bl, border: `1px solid ${C.bl}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" }}>📖 Playbook</button>
+          <button onClick={() => setShowPlaybookEditor(true)} style={{ padding: "7px 13px", background: "transparent", color: C.bl, border: `1px solid ${C.bl}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" }}>📖 Playbook</button>
+          <button onClick={() => setShowPlaybook(true)} style={{ padding: "7px 13px", background: "transparent", color: C.t2, border: `1px solid ${C.br}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" }}>🗂 Clause library</button>
           <button onClick={() => setShowTemplates(true)} style={{ padding: "7px 13px", background: "transparent", color: C.tl, border: `1px solid ${C.tl}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" }}>📄 Templates</button>
           {canManage && <button onClick={() => setShowAiDraft(true)} style={{ padding: "7px 13px", background: "transparent", color: C.pp || C.bl, border: `1px solid ${C.pp || C.bl}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" }}>✨ Draft with AI</button>}
           {canManage && <button onClick={() => setShowReview(true)} style={{ padding: "7px 13px", background: "transparent", color: C.am, border: `1px solid ${C.am}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" }}>⇤ Review 3rd-party</button>}
@@ -284,6 +287,25 @@ export function ContractsRepository() {
       )}
 
       {showPlaybook && <ClauseLibraryModal canManage={canManage} onClose={() => setShowPlaybook(false)} />}
+      {showPlaybookEditor && (
+        <div
+          onClick={() => setShowPlaybookEditor(false)}
+          style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "flex-start", justifyContent: "center", overflowY: "auto", padding: "24px 16px" }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ position: "relative", width: "100%", maxWidth: 1160, background: C.bg, border: `1px solid ${C.br}`, borderRadius: 12, boxShadow: "0 24px 64px rgba(0,0,0,0.45)" }}
+          >
+            <button
+              onClick={() => setShowPlaybookEditor(false)}
+              style={{ position: "absolute", top: 14, right: 16, zIndex: 1, padding: "5px 11px", background: "transparent", color: C.t3, border: `1px solid ${C.br}`, borderRadius: 5, fontFamily: M, fontSize: 10, letterSpacing: 1, fontWeight: 600, textTransform: "uppercase", cursor: "pointer" }}
+            >
+              ✕ Close
+            </button>
+            <PlaybookEditor />
+          </div>
+        </div>
+      )}
       {showTemplates && <TemplatesModal canManage={canManage} onClose={() => setShowTemplates(false)} />}
       {showAuthor && (
         <AuthorContractModal
