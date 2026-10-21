@@ -33,6 +33,23 @@ export {
   type LadderSelection,
 } from "./src/internal/approval";
 
+// Configurable approval routing (redesign PR 5) — admin-set rules mapping a
+// contract condition (type / perspective / value range) to the ladder to run.
+export {
+  listContractRoutingRules,
+  createContractRoutingRule,
+  updateContractRoutingRule,
+  deleteContractRoutingRule,
+  setContractRoutingRuleEnabled,
+  matchContractRoutingRule,
+  ruleMatchesContract,
+  ContractRoutingRuleNotFoundError,
+  ContractRoutingRuleValidationError,
+  type ContractRoutingRuleDTO,
+  type ContractRoutingRuleInput,
+  type ContractMatchInput,
+} from "./src/internal/routing-rules";
+
 // Deterministic clause-derived contract risk score (Phase 3c).
 export {
   scoreContractClauses,
