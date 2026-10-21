@@ -17,16 +17,20 @@
  * + obligations, feeding Company Brain.
  */
 // Live contract approval ladder (CTR-8) — drives the shared @aegis/workflow
-// `clm_contract_approval` governance ladder and gates IN_REVIEW → APPROVED.
+// governance ladder (request-driven: NDA fast-track vs the full
+// `clm_contract_approval` ladder) and gates IN_REVIEW → APPROVED.
 export {
   submitContractForApproval,
   getContractApprovalState,
   actOnContractApproval,
   runContractApprovalAgent,
+  selectApprovalLadder,
+  DEFAULT_CONTRACT_LADDER,
   type ContractApprovalStateDTO,
   type ApprovalStepDTO,
   type ApprovalStepFindingsDTO,
   type ContractApprovalActor,
+  type LadderSelection,
 } from "./src/internal/approval";
 
 // Deterministic clause-derived contract risk score (Phase 3c).

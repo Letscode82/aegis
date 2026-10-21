@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { mapSteps, findingsFromRisk } from "../src/internal/approval";
+import { mapSteps, findingsFromRisk, selectApprovalLadder, DEFAULT_CONTRACT_LADDER } from "../src/internal/approval";
 import { scoreContractClauses } from "../src/internal/risk-score";
 
 // The clm_contract_approval ladder shape (packages/workflow/src/library.ts).
@@ -95,5 +95,39 @@ describe("findingsFromRisk — advisory AI Risk Review output", () => {
     const f = findingsFromRisk(risk);
     expect(f.confidence).toBeGreaterThanOrEqual(0);
     expect(f.confidence).toBeLessThanOrEqual(1);
+  });
+});
+
+describe("selectApprovalLadder — request-driven ladder selection", () => {
+  it("routes an NDA to the fast-track ladder", () => {
+    for (const type of ["NDA", "nda", "Mutual NDA", "Non-Disclosure Agreement", "Confidentiality Agreement"]) {
+      const sel = selectApprovalLadder({ type });
+      expect(sel.key, `type=${type}`).toBe("nda_fasttrack");
+      expect(sel.reason).toMatch(/fast-track/i);
+    }
+  });
+
+  it("routes a commercial contract to the full ladder", () => {
+    for (const type of ["MSA", "Supply", "License", "Services Agreement", ""]) {
+      const sel = selectApprovalLadder({ type });
+      expect(sel.key, `type=${type}`).toBe(DEFAULT_CONTRACT_LADDER);
+    }
+  });
+
+  it("does not mistake a non-NDA type that merely contains letters for an NDA", () => {
+    // "Vendor" / "Amendment" must not trip the NDA matcher.
+    expect(selectApprovalLadder({ type: "Vendor Agreement" }).key).toBe(DEFAULT_CONTRACT_LADDER);
+    expect(selectApprovalLadder({ type: "Amendment" }).key).toBe(DEFAULT_CONTRACT_LADDER);
+  });
+
+  it("notes the Finance Review rung for a high-value commercial contract", () => {
+    const sel = selectApprovalLadder({ type: "Supply", value: 250000 });
+    expect(sel.key).toBe(DEFAULT_CONTRACT_LADDER);
+    expect(sel.reason).toMatch(/Finance Review/);
+  });
+
+  it("defaults a missing type to the full ladder", () => {
+    expect(selectApprovalLadder({}).key).toBe(DEFAULT_CONTRACT_LADDER);
+    expect(selectApprovalLadder({ type: null }).key).toBe(DEFAULT_CONTRACT_LADDER);
   });
 });

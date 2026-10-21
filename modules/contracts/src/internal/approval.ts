@@ -6,10 +6,11 @@
  * it for real, driving the shared `@aegis/workflow` engine instead of
  * inventing a contract-local approval table (the "one brain" rule):
  *
- *   - submitContractForApproval() starts the seeded `clm_contract_approval`
- *     ladder against entityType="Contract", auto-completes its opening
- *     "Draft & Submit" human step (submitting the wizard *is* that step),
- *     and moves the contract DRAFT/IN_NEGOTIATION → IN_REVIEW.
+ *   - submitContractForApproval() starts the ladder the request calls for
+ *     (selectApprovalLadder: an NDA fast-tracks, everything else takes the
+ *     full `clm_contract_approval` ladder) against entityType="Contract",
+ *     auto-completes its opening human step (submitting the wizard *is* that
+ *     step), and moves the contract DRAFT/IN_NEGOTIATION → IN_REVIEW.
  *   - getContractApprovalState() maps the live WorkflowInstance onto step
  *     DTOs the workspace panel renders.
  *   - actOnContractApproval() wraps actOnWorkflow (approve / send_back /
@@ -37,9 +38,76 @@ import {
 import { transitionContractStatus } from "./service";
 import { scoreContractClauses, type RiskLevel, type ClauseRiskScore } from "./risk-score";
 
-const DEFINITION_KEY = "clm_contract_approval";
 const ENTITY_TYPE = "Contract";
 const SUBMITTABLE = new Set(["DRAFT", "IN_NEGOTIATION"]);
+
+// ── Request-driven ladder selection (redesign PR 3) ──────────────────
+//
+// The approval path used to be one fixed ladder — `clm_contract_approval`,
+// its full 6-step commercial path — for EVERY contract, so a routine NDA
+// waited behind the same Finance / GC gate as a multi-million-dollar supply
+// deal. Selection is now driven by the request itself: an NDA fast-tracks
+// (nda_fasttrack — AI template review + one legal sign-off + e-signature),
+// everything else takes the full Contract Approval Ladder, which already
+// value-gates its Finance Review rung (skipped under $10k). This mirrors the
+// intake-side `defaultLadderKeyForType` so request type drives governance the
+// same way across the platform — the "one brain" rule. Each selection is
+// recorded on the chain-sealed `contract.approval.submitted` audit row.
+
+/** Commercial default — the full ladder when nothing more specific matches. */
+export const DEFAULT_CONTRACT_LADDER = "clm_contract_approval";
+const NDA_RE = /\bnda\b|non.?disclosure|nondisclosure|confidential/i;
+
+export interface LadderSelection {
+  key: string;
+  reason: string;
+}
+
+/**
+ * Pick the approval ladder from the contract's own attributes. Pure — the
+ * existence guard (is the ladder actually seeded for this org?) lives in
+ * `resolveLadderForContract`. Exported for unit testing.
+ */
+export function selectApprovalLadder(contract: { type?: string | null; value?: number | null }): LadderSelection {
+  const type = String(contract.type || "").trim();
+  if (NDA_RE.test(type)) {
+    return { key: "nda_fasttrack", reason: `NDA (type "${type}") → NDA fast-track ladder.` };
+  }
+  const value = Number(contract.value ?? 0);
+  const valueNote = value >= 10000 ? ` Value $${value} includes the Finance Review rung.` : "";
+  return {
+    key: DEFAULT_CONTRACT_LADDER,
+    reason: `Contract (type "${type || "unspecified"}") → full Contract Approval Ladder.${valueNote}`,
+  };
+}
+
+/** True when an active workflow definition with this key exists for the org. */
+async function ladderExists(organizationId: string, key: string): Promise<boolean> {
+  const def = await prisma.workflowDefinition.findUnique({
+    where: { organizationId_key: { organizationId, key } },
+    select: { isActive: true },
+  });
+  return !!def?.isActive;
+}
+
+/**
+ * Resolve the ladder to start for a contract: the request-driven choice when
+ * it's seeded for the org, else the commercial default (so an org that never
+ * seeded the fast-track ladder still gets a working approval path rather than a
+ * 404). `startWorkflow` still throws cleanly if even the default is absent.
+ */
+async function resolveLadderForContract(
+  organizationId: string,
+  contract: { type?: string | null; value?: number | null },
+): Promise<LadderSelection> {
+  const picked = selectApprovalLadder(contract);
+  if (picked.key === DEFAULT_CONTRACT_LADDER) return picked;
+  if (await ladderExists(organizationId, picked.key)) return picked;
+  return {
+    key: DEFAULT_CONTRACT_LADDER,
+    reason: `${picked.reason} (fast-track ladder not seeded for this org — using the standard ladder.)`,
+  };
+}
 
 // ── AI Risk Review agent step (CTR-8b) ───────────────────────────────
 //
@@ -285,9 +353,13 @@ export async function submitContractForApproval(
     throw new Error("An approval ladder is already running for this contract.");
   }
 
+  // Choose the ladder from the request itself (NDA fast-track vs the full
+  // commercial ladder), guarded by what's actually seeded for this org.
+  const ladder = await resolveLadderForContract(organizationId, { type: contract.type, value: contract.value });
+
   const instance = await startWorkflow({
     organizationId,
-    definitionKey: DEFINITION_KEY,
+    definitionKey: ladder.key,
     entityType: ENTITY_TYPE,
     entityId: contractId,
     startedById: actor.id,
@@ -328,8 +400,8 @@ export async function submitContractForApproval(
     action: "contract.approval.submitted",
     resourceType: "Contract",
     resourceId: contractId,
-    afterJson: { instanceId: instance.id, definitionKey: DEFINITION_KEY } as never,
-    metadata: { source: "guided-wizard" },
+    afterJson: { instanceId: instance.id, definitionKey: ladder.key } as never,
+    metadata: { source: "guided-wizard", ladderKey: ladder.key, ladderReason: ladder.reason },
   });
 
   return getContractApprovalState(organizationId, contractId);
