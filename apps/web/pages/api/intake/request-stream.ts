@@ -28,6 +28,10 @@ type Frame =
   | { type: "result"; result: unknown }
   | { type: "error"; error: string };
 
+// Vercel: AI generation (Claude calls) can run 20-40s; the default ~10s
+// function timeout truncates it into a degraded fallback. Give it room.
+export const config = { maxDuration: 60 };
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");

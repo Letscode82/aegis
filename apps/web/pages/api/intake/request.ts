@@ -17,6 +17,10 @@ import { getResolvedUser } from "@aegis/auth/server";
 import { classifyIntakeRegex, classifyIntakeLaya } from "@aegis/ai";
 import { fileIntakeTicket } from "@aegis/intake/create";
 
+// Vercel: AI generation (Claude calls) can run 20-40s; the default ~10s
+// function timeout truncates it into a degraded fallback. Give it room.
+export const config = { maxDuration: 60 };
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
