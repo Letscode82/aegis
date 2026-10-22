@@ -16,7 +16,7 @@ import { assertAndAudit } from "../../../lib/authz";
 import { prisma, logAudit, DocumentOwnerType } from "@aegis/db";
 import { indexResource } from "@aegis/search";
 
-export const config = { api: { bodyParser: { sizeLimit: "2mb" } } };
+export const config = { api: { bodyParser: { sizeLimit: "2mb" } }, maxDuration: 60 };
 const MAX_CHARS = 200000;
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {

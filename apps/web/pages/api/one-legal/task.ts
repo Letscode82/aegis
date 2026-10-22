@@ -14,6 +14,10 @@ import { getResolvedUser } from "@aegis/auth/server";
 import { assertAndAudit } from "../../../lib/authz";
 import { prisma } from "@aegis/db";
 
+// Vercel: AI generation (Claude calls) can run 20-40s; the default ~10s
+// function timeout truncates it into a degraded fallback. Give it room.
+export const config = { maxDuration: 60 };
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "GET") {
     res.setHeader("Allow", "GET");

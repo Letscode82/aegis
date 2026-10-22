@@ -13,7 +13,7 @@ import { Permission, assertUserCanDo, AccessDeniedError } from "@aegis/auth";
 import { getResolvedUser } from "@aegis/auth/server";
 import { renderMarkdownDocx, markdownDocxFilename } from "@aegis/documents";
 
-export const config = { api: { bodyParser: { sizeLimit: "2mb" } } };
+export const config = { api: { bodyParser: { sizeLimit: "2mb" } }, maxDuration: 60 };
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {

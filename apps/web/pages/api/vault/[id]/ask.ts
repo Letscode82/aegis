@@ -25,6 +25,10 @@ const GROUNDED_SYSTEM =
   "do not contain the answer, say so plainly — do NOT invent facts, names, or numbers. 2-4 short paragraphs or a tight list. " +
   "This is not definitive legal advice; note when a qualified lawyer should review.";
 
+// Vercel: AI generation (Claude calls) can run 20-40s; the default ~10s
+// function timeout truncates it into a degraded fallback. Give it room.
+export const config = { maxDuration: 60 };
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");

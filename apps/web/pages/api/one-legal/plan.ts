@@ -20,6 +20,10 @@ import { planTasks } from "../../../lib/one-legal/plan-tasks";
 import { toolProposalFor, proposalForTool } from "../../../lib/one-legal/tools";
 import { detectSpine } from "../../../lib/one-legal/spine";
 
+// Vercel: AI generation (Claude calls) can run 20-40s; the default ~10s
+// function timeout truncates it into a degraded fallback. Give it room.
+export const config = { maxDuration: 60 };
+
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
