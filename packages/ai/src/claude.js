@@ -2,7 +2,16 @@
 // model — every call 404'd upstream and the agents degraded to their
 // "AI unavailable" fallback even with a valid ANTHROPIC_API_KEY set. The
 // server proxy can override this per-deployment via ANTHROPIC_MODEL.
-export const CLAUDE_MODEL="claude-sonnet-5";
+// A per-deployment override (ANTHROPIC_MODEL) wins so ops can correct a
+// dead/renamed model id without a code change. Crucially this makes BOTH
+// transports honour it: the browser proxy (proxy.js) already read
+// ANTHROPIC_MODEL, but the server-side transport (server.js, used by the
+// contract drafting + extraction paths) sent this constant verbatim and so
+// ignored the override — an env fix never reached those routes. Reading it
+// here closes that asymmetry. The `typeof process` guard keeps it browser-safe.
+export const CLAUDE_MODEL=
+  (typeof process!=="undefined"&&process.env&&process.env.ANTHROPIC_MODEL)||
+  "claude-sonnet-5";
 // Client-side calls go through our serverless proxy (api/claude.js) so the
 // Anthropic API key stays on the server and CORS is avoided.
 export const CLAUDE_ENDPOINT="/api/claude";
