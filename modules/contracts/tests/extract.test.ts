@@ -70,4 +70,48 @@ describe("extractContractKnowledge", () => {
     expect(clauses).toHaveLength(0);
     expect(obligations.length).toBeGreaterThanOrEqual(1);
   });
+
+  // 2a — the real off-playbook terms a regex-only pass used to miss (NDA-02).
+  it("flags a foreign governing law (named country), not just \"foreign\"", () => {
+    const { clauses } = extractContractKnowledge("This Agreement is governed by the laws of Germany.", "NDA");
+    const law = clauses.find((c) => c.type === "GOVERNING_LAW");
+    expect(law?.deviation).toBe(true);
+  });
+
+  it("keeps Delaware / NY / CA as non-deviating governing law", () => {
+    for (const j of ["Delaware", "New York", "California"]) {
+      const { clauses } = extractContractKnowledge(`Governing law is ${j}.`, "NDA");
+      expect(clauses.find((c) => c.type === "GOVERNING_LAW")?.deviation, j).toBe(false);
+    }
+  });
+
+  it("flags confidentiality that survives in perpetuity (not just \"perpetual\")", () => {
+    const { clauses } = extractContractKnowledge("Confidentiality obligations survive in perpetuity.", "NDA");
+    expect(clauses.find((c) => c.type === "CONFIDENTIALITY")?.deviation).toBe(true);
+  });
+
+  it("flags one-sided IP assignment to the disclosing party", () => {
+    const { clauses } = extractContractKnowledge("All intellectual property is assigned to the Disclosing Party.", "NDA");
+    const ip = clauses.find((c) => c.type === "IP");
+    expect(ip?.deviation).toBe(true);
+  });
+
+  it("surfaces and flags a residuals clause", () => {
+    const { clauses } = extractContractKnowledge("The Receiving Party may use Residuals retained in unaided memory.", "NDA");
+    const res = clauses.find((c) => c.type === "RESIDUALS");
+    expect(res).toBeTruthy();
+    expect(res?.deviation).toBe(true);
+  });
+
+  it("a toxic NDA no longer extracts clean — multiple deviations surface", () => {
+    const toxic = [
+      "This Mutual NDA is governed by the laws of Germany.",
+      "Confidentiality obligations shall survive in perpetuity.",
+      "All intellectual property is assigned to the Disclosing Party.",
+      "The Receiving Party may exploit Residuals retained in unaided memory.",
+    ].join(" ");
+    const { clauses } = extractContractKnowledge(toxic, "NDA");
+    const deviations = clauses.filter((c) => c.deviation);
+    expect(deviations.length).toBeGreaterThanOrEqual(3);
+  });
 });

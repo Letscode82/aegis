@@ -202,5 +202,48 @@ describe("summarizeFindings", () => {
     expect(s.missing).toBe(0);
     expect(s.riskBand).toBe("LOW");
     expect(s.weightedScore).toBe(100);
+    expect(s.scored).toBe(true);
+    expect(s.confidence).toBe("high");
+  });
+
+  // 2a — the false-100 guard. A document that barely parsed must NOT read as a
+  // confident clean bill of health.
+  it("nothing gradeable → not scored, not a confident 100, not low-risk", () => {
+    const findings = buildReviewFindings([{ anchorId: "a1", clauseType: "MYSTERY_TYPE", text: "Some clause with no playbook position." }], []);
+    const s = summarizeFindings(findings);
+    expect(s.scored).toBe(false);
+    expect(s.confidence).toBe("low");
+    expect(s.riskBand).not.toBe("LOW");
+    expect(s.verdict).toMatch(/could not confidently grade|review manually/i);
+  });
+
+  it("thin parse of a long document → low confidence, non-LOW risk", () => {
+    // 2 clauses graded STANDARD, but the source doc was long → likely missed terms.
+    const s = summarizeFindings(
+      buildReviewFindings(
+        [
+          { anchorId: "a1", clauseType: "LIABILITY_CAP", text: rules[0].preferredText },
+          { anchorId: "a2", clauseType: "GOVERNING_LAW", text: rules[1].preferredText },
+        ],
+        rules,
+      ),
+      { clausesParsed: 2, docChars: 8000 },
+    );
+    expect(s.confidence).toBe("low");
+    expect(s.riskBand).not.toBe("LOW");
+  });
+
+  it("good coverage keeps high confidence", () => {
+    const s = summarizeFindings(
+      buildReviewFindings(
+        [
+          { anchorId: "a1", clauseType: "LIABILITY_CAP", text: rules[0].preferredText },
+          { anchorId: "a2", clauseType: "GOVERNING_LAW", text: rules[1].preferredText },
+        ],
+        rules,
+      ),
+      { clausesParsed: 9, docChars: 8000 },
+    );
+    expect(s.confidence).toBe("high");
   });
 });

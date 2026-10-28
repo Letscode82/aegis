@@ -69,6 +69,28 @@ export interface ReviewSummary {
   riskBand: "LOW" | "MEDIUM" | "HIGH";
   /** OUR_PAPER_THEIR_MARKS only — the version their marks were diffed against. */
   baselineVersion?: number | null;
+  /**
+   * False when nothing gradeable was found (no playbook-matched clause), so the
+   * `weightedScore` is not a real score — the UI should render "—", not 100.
+   */
+  scored?: boolean;
+  /**
+   * "low" when the document was barely parsed (few clauses out of a long doc)
+   * or nothing was gradeable — the deterministic extractor likely missed real
+   * terms, so the score must NOT read as a clean bill of health. Drives an
+   * honest verdict + a non-LOW risk band instead of a false 100/low-risk.
+   */
+  confidence?: "high" | "low";
+}
+
+/**
+ * Coverage hint for confidence scoring: how much of the document the
+ * deterministic extractor actually turned into gradeable clauses. Passed only
+ * for full-document grading (THEIR_PAPER); omitted for delta grading.
+ */
+export interface ReviewCoverage {
+  clausesParsed: number;
+  docChars: number;
 }
 
 // ── Pure core (no DB, no AI — unit-tested) ────────────────────────────
@@ -290,7 +312,7 @@ export function buildDeltaReviewFindings(
   return findings;
 }
 
-export function summarizeFindings(findings: BuiltFinding[]): ReviewSummary {
+export function summarizeFindings(findings: BuiltFinding[], coverage?: ReviewCoverage): ReviewSummary {
   const counts = { standard: 0, fallback: 0, escalate: 0, missing: 0 };
   let totalWeight = 0;
   let acceptableWeight = 0;
@@ -307,14 +329,33 @@ export function summarizeFindings(findings: BuiltFinding[]): ReviewSummary {
     }
   }
   const total = findings.length;
-  const weightedScore = totalWeight === 0 ? 100 : Math.round((acceptableWeight / totalWeight) * 100);
-  const riskBand: ReviewSummary["riskBand"] = counts.escalate + counts.missing > 0 ? "HIGH" : counts.fallback > 0 ? "MEDIUM" : "LOW";
-  const verdict = counts.escalate + counts.missing > 0
-    ? `${counts.escalate + counts.missing} issue(s) off-playbook or missing — redline before signing`
-    : counts.fallback > 0
-    ? `${counts.fallback} clause(s) at fallback — acceptable with review`
-    : "On our positions — low risk";
-  return { ...counts, total, weightedScore, verdict, riskBand };
+  const scored = totalWeight > 0;
+  const weightedScore = scored ? Math.round((acceptableWeight / totalWeight) * 100) : 0;
+
+  // Low confidence when nothing was gradeable, OR when a long document yielded
+  // only a handful of clauses — the deterministic extractor likely missed real
+  // terms, so a clean score here would be false confidence (the toxic-NDA-looks-
+  // perfect failure). A low-confidence review is NEVER "low risk".
+  const thinParse = !!coverage && coverage.docChars >= 1200 && coverage.clausesParsed < 4;
+  const lowConfidence = !scored || thinParse;
+
+  const baseRisk: ReviewSummary["riskBand"] = counts.escalate + counts.missing > 0 ? "HIGH" : counts.fallback > 0 ? "MEDIUM" : "LOW";
+  const riskBand: ReviewSummary["riskBand"] = lowConfidence && baseRisk === "LOW" ? "MEDIUM" : baseRisk;
+
+  let verdict: string;
+  if (lowConfidence && counts.escalate + counts.missing === 0) {
+    verdict = !scored
+      ? `Could not confidently grade this document — ${coverage ? `only ${coverage.clausesParsed} clause(s) parsed` : "no gradeable clauses found"}. Review manually; do not rely on the score.`
+      : `Low confidence — only ${coverage?.clausesParsed ?? 0} clause(s) parsed from a long document. Likely missed terms; review manually.`;
+  } else if (counts.escalate + counts.missing > 0) {
+    verdict = `${counts.escalate + counts.missing} issue(s) off-playbook or missing — redline before signing`;
+  } else if (counts.fallback > 0) {
+    verdict = `${counts.fallback} clause(s) at fallback — acceptable with review`;
+  } else {
+    verdict = "On our positions — low risk";
+  }
+
+  return { ...counts, total, weightedScore, verdict, riskBand, scored, confidence: lowConfidence ? "low" : "high" };
 }
 
 // ── DTOs ──────────────────────────────────────────────────────────────
@@ -378,7 +419,7 @@ export async function startContractReview(
 ): Promise<ContractReviewDTO> {
   const contract = await prisma.contract.findFirst({
     where: { id: contractId, organizationId },
-    select: { id: true, type: true, perspective: true, clauses: { select: { anchorId: true, type: true, text: true } } },
+    select: { id: true, type: true, perspective: true, draftText: true, clauses: { select: { anchorId: true, type: true, text: true } } },
   });
   if (!contract) throw new Error("Contract not found");
   if (contract.clauses.length === 0) throw new Error("No extracted clauses to review — extract the contract first");
@@ -411,7 +452,12 @@ export async function startContractReview(
   } else {
     built = buildReviewFindings(liveClauses, rules);
   }
-  const summary = { ...summarizeFindings(built), baselineVersion };
+  // Coverage confidence applies to full-document grading (inbound paper), not
+  // the delta mode (where silence on untouched clauses is expected).
+  const coverage: ReviewCoverage | undefined = paperType === "OUR_PAPER_THEIR_MARKS"
+    ? undefined
+    : { clausesParsed: liveClauses.length, docChars: (contract.draftText ?? "").length };
+  const summary = { ...summarizeFindings(built, coverage), baselineVersion };
 
   const review = await prisma.contractReview.create({
     data: {

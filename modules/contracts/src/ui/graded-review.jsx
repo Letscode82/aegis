@@ -115,8 +115,8 @@ export function GradedReviewPanel({ contractId, isThirdParty = false, canManage 
       {s && (
         <div style={{ ...card, marginBottom: 12, display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center", borderColor: s.riskBand === "HIGH" ? C.rd : s.riskBand === "MEDIUM" ? C.am : C.gn }}>
           <div>
-            <div style={{ fontSize: 22, fontFamily: SR, color: s.riskBand === "HIGH" ? C.rd : s.riskBand === "MEDIUM" ? C.am : C.gn }}>{s.weightedScore}<span style={{ fontSize: 12, color: C.t3 }}>/100</span></div>
-            <div style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.5 }}>ON-PLAYBOOK</div>
+            <div style={{ fontSize: 22, fontFamily: SR, color: s.riskBand === "HIGH" ? C.rd : s.riskBand === "MEDIUM" ? C.am : C.gn }}>{s.scored === false ? "—" : <>{s.weightedScore}<span style={{ fontSize: 12, color: C.t3 }}>/100</span></>}</div>
+            <div style={{ fontSize: 9, fontFamily: M, color: C.t4, letterSpacing: 0.5 }}>{s.scored === false ? "NOT SCORED" : s.confidence === "low" ? "ON-PLAYBOOK · LOW CONFIDENCE" : "ON-PLAYBOOK"}</div>
           </div>
           <div style={{ flex: 1, minWidth: 220 }}>
             <div style={{ fontSize: 12, color: C.t1, marginBottom: 4 }}>{s.verdict}</div>
