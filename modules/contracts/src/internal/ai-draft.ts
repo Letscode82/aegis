@@ -8,7 +8,7 @@
  * Degrades to a deterministic skeleton when the model is unavailable, so the
  * flow never dead-ends.
  */
-import { callClaudeJSON, parseJSONLoose } from "@aegis/ai";
+import { callClaude, parseJSONLoose } from "@aegis/ai";
 import { ensureServerClaudeTransport } from "@aegis/ai/server";
 import { prisma } from "@aegis/db";
 import type { ContractPerspective } from "@aegis/db";
@@ -45,6 +45,31 @@ export interface AiDraftResult {
   contractId: string;
   degraded: boolean;
   clauseCount: number;
+  /** When degraded, a short reason for diagnosis (surfaced to the caller). */
+  degradedReason?: string | null;
+}
+
+/**
+ * Salvage the full draft text whether the model returned PLAIN TEXT (the
+ * instruction we now give), an older JSON envelope (`{"draftText":"…"}`), or a
+ * fenced block. Asking for the whole contract as a JSON string field was the
+ * fragile pattern that silently broke "Draft with AI" — a body full of quotes
+ * and newlines routinely broke `JSON.parse`, so the feature fell back to the
+ * skeleton. Plain text can't break that way; this unwrap keeps back-compat for
+ * a model that still answers in the old shape.
+ */
+export function unwrapDraftText(raw: string): string {
+  let s = (raw || "").trim();
+  if (!s) return "";
+  const fence = s.match(/^```(?:json|markdown|md|text)?\s*\n([\s\S]*?)\n```$/i);
+  if (fence && fence[1]) s = fence[1].trim();
+  if (/^\{[\s\S]*"draftText"[\s\S]*\}$/.test(s)) {
+    try {
+      const obj = parseJSONLoose(s) as Record<string, unknown>;
+      if (obj && typeof obj.draftText === "string" && obj.draftText.trim()) return obj.draftText.trim();
+    } catch { /* not valid JSON — fall through and use the raw text */ }
+  }
+  return s;
 }
 
 /** One line describing the drafting posture for a given perspective. */
@@ -82,7 +107,7 @@ export function buildDraftPrompt(input: AiDraftInput, playbook: Record<string, {
     standards ? `Use OUR standard clause positions where they apply:\n${standards}` : "",
     "",
     "Write a full, well-structured agreement with numbered sections and standard protective clauses (parties, term, payment, confidentiality, IP, liability cap, indemnity, termination, governing law, etc.) as appropriate for the type.",
-    "Return STRICT JSON only: {\"draftText\":\"the full contract text with \\n line breaks\"}",
+    "Return ONLY the agreement text itself — begin at the title and end at the signature block. No preamble, no commentary, no JSON, no markdown code fences. Separate sections with blank lines.",
   ].filter(Boolean).join("\n");
 }
 
@@ -122,15 +147,17 @@ export async function draftContractWithAI(
 
   let draftText = "";
   let degraded = true;
+  let degradedReason: string | null = null;
   try {
     ensureServerClaudeTransport();
     const prompt = buildDraftPrompt(input, playbook);
-    const raw = (await callClaudeJSON(prompt, { maxTokens: 4000, timeout: 90000 })) as Record<string, unknown>;
-    const parsed = (typeof raw === "string" ? parseJSONLoose(raw) : raw) as Record<string, unknown>;
-    const t = typeof parsed.draftText === "string" ? parsed.draftText : "";
+    const raw = await callClaude(prompt, { maxTokens: 4000, timeout: 90000 });
+    const t = unwrapDraftText(String(raw || ""));
     if (t.trim().length > 120) { draftText = t; degraded = false; }
+    else { degradedReason = "The model returned too little text to be a usable draft."; }
   } catch (e) {
-    console.error("[contract-ai-draft] callClaudeJSON failed, using deterministic skeleton:", e);
+    degradedReason = e instanceof Error ? e.message : String(e);
+    console.error("[contract-ai-draft] draft failed, using deterministic skeleton:", e);
   }
   if (!draftText) draftText = fallbackSkeleton(input);
 
@@ -160,7 +187,7 @@ export async function draftContractWithAI(
     { initialSnapshotLabel: degraded ? "AI draft (fallback skeleton)" : "AI-generated draft" },
   );
 
-  return { contractId: contract.id, degraded, clauseCount: extraction.clauses };
+  return { contractId: contract.id, degraded, clauseCount: extraction.clauses, degradedReason };
 }
 
 /** Input for drafting a new contract modeled on an executed precedent. */
@@ -203,7 +230,7 @@ export function buildPrecedentPrompt(
     "PRECEDENT (model the new agreement on this):",
     precedent.body.slice(0, 9000),
     "",
-    "Return STRICT JSON only: {\"draftText\":\"the full new contract text with \\n line breaks\"}",
+    "Return ONLY the new agreement text itself — begin at the title and end at the signature block. No preamble, no commentary, no JSON, no markdown code fences. Separate sections with blank lines.",
   ].filter(Boolean).join("\n");
 }
 
@@ -244,18 +271,20 @@ export async function draftFromPrecedent(
 
   let draftText = "";
   let degraded = true;
+  let degradedReason: string | null = null;
   try {
     ensureServerClaudeTransport();
     const prompt = buildPrecedentPrompt(
       { title: precedent.title, type: precedent.type, body, perspective: precedent.perspective },
       input,
     );
-    const raw = (await callClaudeJSON(prompt, { maxTokens: 4000, timeout: 90000 })) as Record<string, unknown>;
-    const parsed = (typeof raw === "string" ? parseJSONLoose(raw) : raw) as Record<string, unknown>;
-    const t = typeof parsed.draftText === "string" ? parsed.draftText : "";
+    const raw = await callClaude(prompt, { maxTokens: 4000, timeout: 90000 });
+    const t = unwrapDraftText(String(raw || ""));
     if (t.trim().length > 120) { draftText = t; degraded = false; }
+    else { degradedReason = "The model returned too little text to be a usable draft."; }
   } catch (e) {
-    console.error("[contract-ai-draft] draftFromPrecedent callClaudeJSON failed, copying precedent:", e);
+    degradedReason = e instanceof Error ? e.message : String(e);
+    console.error("[contract-ai-draft] draftFromPrecedent failed, copying precedent:", e);
   }
   if (!draftText) {
     draftText = `${title.toUpperCase()}\n\n[Modeled on precedent "${precedent.title}" — AI adaptation was unavailable; this is a copy for the attorney to adapt per the brief.]\n\n${body}`;
@@ -285,5 +314,5 @@ export async function draftFromPrecedent(
     { initialSnapshotLabel: degraded ? `Drafted from precedent (fallback copy)` : `Drafted from precedent "${precedent.title}"` },
   );
 
-  return { contractId: contract.id, degraded, clauseCount: extraction.clauses, precedentContractId: precedent.id };
+  return { contractId: contract.id, degraded, clauseCount: extraction.clauses, degradedReason, precedentContractId: precedent.id };
 }

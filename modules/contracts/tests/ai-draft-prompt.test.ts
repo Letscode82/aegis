@@ -1,5 +1,37 @@
 import { describe, it, expect } from "vitest";
-import { postureLine, buildDraftPrompt, buildPrecedentPrompt } from "../src/internal/ai-draft";
+import { postureLine, buildDraftPrompt, buildPrecedentPrompt, unwrapDraftText } from "../src/internal/ai-draft";
+
+describe("unwrapDraftText — plain-text draft with JSON-envelope back-compat", () => {
+  it("returns plain text unchanged", () => {
+    const body = "MUTUAL NDA\n\n1. TERM. This Agreement...\n\n2. CONFIDENTIALITY. Each party...";
+    expect(unwrapDraftText(body)).toBe(body);
+  });
+  it("salvages an older {\"draftText\":...} JSON envelope", () => {
+    const body = "MUTUAL NDA\n\n1. TERM...";
+    expect(unwrapDraftText(JSON.stringify({ draftText: body }))).toBe(body);
+  });
+  it("strips a fenced block", () => {
+    const body = "MUTUAL NDA\n\n1. TERM...";
+    expect(unwrapDraftText("```text\n" + body + "\n```")).toBe(body);
+  });
+  it("does NOT mangle prose that merely contains braces/quotes", () => {
+    const body = 'Section 4 defines "Confidential Information" as {broadly scoped} materials.';
+    expect(unwrapDraftText(body)).toBe(body);
+  });
+  it("empty in, empty out", () => {
+    expect(unwrapDraftText("")).toBe("");
+  });
+});
+
+describe("ai-draft prompt asks for plain text, not JSON", () => {
+  it("draft + precedent prompts do not demand STRICT JSON", () => {
+    const d = buildDraftPrompt({ title: "NDA", type: "NDA", brief: "x" }, {});
+    const p = buildPrecedentPrompt({ title: "X", type: "NDA", body: "long enough body text here", perspective: "OUR_SIDE" }, { precedentContractId: "c1", brief: "y" });
+    expect(d).not.toMatch(/STRICT JSON/i);
+    expect(p).not.toMatch(/STRICT JSON/i);
+    expect(d).toMatch(/ONLY the agreement text/i);
+  });
+});
 
 describe("ai-draft posture (PR A — guided draft)", () => {
   it("postureLine reflects perspective", () => {
