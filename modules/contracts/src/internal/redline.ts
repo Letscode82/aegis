@@ -15,7 +15,7 @@
  * audit row records that OneLegal proposed a change (no `before`/`after` — nothing
  * was applied).
  */
-import { callClaudeJSON } from "@aegis/ai";
+import { callClaude, parseJSONLoose } from "@aegis/ai";
 import { ensureServerClaudeTransport } from "@aegis/ai/server";
 import { logAudit } from "@aegis/db";
 import { diffWords, wordDiffStats, type WordDiffSegment } from "./word-diff";
@@ -54,10 +54,15 @@ export interface RedlineResult {
   stats: { added: number; removed: number };
   /** True when Claude was unavailable and no automated redline was produced. */
   degraded: boolean;
+  /** When degraded, a short reason for diagnosis (surfaced to the caller). */
+  degradedReason?: string | null;
 }
 
 /** Injectable Claude runner so the diff assembly is unit-testable offline. */
 export type RedlineRunner = (prompt: string) => Promise<{ revised?: unknown; rationale?: unknown }>;
+
+/** Delimiter separating the rewritten clause from its rationale in the reply. */
+const RATIONALE_DELIM = "---RATIONALE---";
 
 function buildPrompt(input: RedlineClauseInput, standard?: string): string {
   return [
@@ -72,18 +77,45 @@ function buildPrompt(input: RedlineClauseInput, standard?: string): string {
     input.instruction.slice(0, 2000),
     "",
     standard ? `OUR STANDARD POSITION for this clause type:\n${standard.slice(0, 1500)}\n` : "",
-    'Return STRICT JSON only: {"revised":"the full rewritten clause text","rationale":"one or two sentences on what changed and why"}',
+    `Return ONLY the rewritten clause text, then a line containing exactly ${RATIONALE_DELIM}, then one or two sentences on what changed and why. No JSON, no code fences.`,
   ]
     .filter(Boolean)
     .join("\n");
 }
 
+/**
+ * Parse the model's reply into { revised, rationale }. Primary format is plain
+ * text — the clause, then a `---RATIONALE---` line, then the rationale — which
+ * (unlike the old "whole clause inside a JSON string field" envelope) cannot be
+ * broken by quotes/newlines in the clause. Still salvages an older
+ * `{"revised":…,"rationale":…}` envelope for back-compat. Pure.
+ */
+export function parseRedlineReply(raw: string): { revised?: string; rationale?: string } {
+  let s = (raw || "").trim();
+  if (!s) return {};
+  const fence = s.match(/^```(?:json|markdown|md|text)?\s*\n([\s\S]*?)\n```$/i);
+  if (fence && fence[1]) s = fence[1].trim();
+  if (/^\{[\s\S]*"revised"[\s\S]*\}$/.test(s)) {
+    try {
+      const obj = parseJSONLoose(s) as Record<string, unknown>;
+      const revised = typeof obj.revised === "string" ? obj.revised.trim() : undefined;
+      const rationale = typeof obj.rationale === "string" ? obj.rationale.trim() : undefined;
+      if (revised) return { revised, rationale };
+    } catch { /* not valid JSON — fall through to the plain-text parse */ }
+  }
+  const idx = s.indexOf(RATIONALE_DELIM);
+  if (idx >= 0) {
+    const revised = s.slice(0, idx).trim();
+    const rationale = s.slice(idx + RATIONALE_DELIM.length).trim();
+    return { revised: revised || undefined, rationale: rationale || undefined };
+  }
+  return { revised: s };
+}
+
 const defaultRunner: RedlineRunner = async (prompt) => {
   ensureServerClaudeTransport();
-  return (await callClaudeJSON(prompt, { maxTokens: 2000, timeout: 60000 })) as {
-    revised?: unknown;
-    rationale?: unknown;
-  };
+  const text = await callClaude(prompt, { maxTokens: 2000, timeout: 60000 });
+  return parseRedlineReply(String(text || ""));
 };
 
 /**
@@ -113,6 +145,7 @@ export async function redlineClause(
   let revised = original;
   let rationale = "AI was unavailable, so no automated redline was proposed — attorney to draft the change.";
   let degraded = true;
+  let degradedReason: string | null = null;
   try {
     const raw = await runner(buildPrompt(input, standard));
     const r = typeof raw?.revised === "string" ? raw.revised.trim() : "";
@@ -123,8 +156,11 @@ export async function redlineClause(
           ? raw.rationale.trim()
           : "Clause rewritten to satisfy the instruction.";
       degraded = false;
+    } else {
+      degradedReason = "The model did not return a usable rewrite.";
     }
   } catch (e) {
+    degradedReason = e instanceof Error ? e.message : String(e);
     console.error("[contract-redline] redline runner failed, returning no-op redline:", e);
   }
 
@@ -146,9 +182,10 @@ export async function redlineClause(
         added: stats.added,
         removed: stats.removed,
         degraded,
+        degradedReason,
       },
     });
   }
 
-  return { revised, rationale, segments, stats, degraded };
+  return { revised, rationale, segments, stats, degraded, degradedReason };
 }

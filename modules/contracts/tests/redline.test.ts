@@ -7,10 +7,36 @@ import { describe, expect, it } from "vitest";
 import {
   redlineClause,
   RedlineValidationError,
+  parseRedlineReply,
   type RedlineRunner,
 } from "../src/internal/redline";
 
 const ACTOR = { id: "u-1", type: "USER" as const };
+
+describe("parseRedlineReply — plain text with JSON-envelope back-compat", () => {
+  it("splits clause and rationale on the delimiter", () => {
+    const reply = "The term shall be one (1) year.\n---RATIONALE---\nShortened the term per our standard.";
+    const { revised, rationale } = parseRedlineReply(reply);
+    expect(revised).toBe("The term shall be one (1) year.");
+    expect(rationale).toBe("Shortened the term per our standard.");
+  });
+  it("handles a clause full of quotes/newlines that would break JSON", () => {
+    const clause = 'Section 8 ("Liability"): each party\'s liability is capped at fees paid.\n\nNo indirect damages.';
+    const { revised } = parseRedlineReply(`${clause}\n---RATIONALE---\nCapped liability.`);
+    expect(revised).toBe(clause);
+  });
+  it("salvages an older {revised,rationale} JSON envelope", () => {
+    const { revised, rationale } = parseRedlineReply(JSON.stringify({ revised: "New clause.", rationale: "Why." }));
+    expect(revised).toBe("New clause.");
+    expect(rationale).toBe("Why.");
+  });
+  it("no delimiter → whole reply is the revised clause", () => {
+    expect(parseRedlineReply("Just the rewritten clause.").revised).toBe("Just the rewritten clause.");
+  });
+  it("empty reply → empty object", () => {
+    expect(parseRedlineReply("")).toEqual({});
+  });
+});
 
 describe("redlineClause", () => {
   it("rewrites the clause and returns word-level track-changes segments", async () => {
