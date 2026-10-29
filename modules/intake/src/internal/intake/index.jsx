@@ -413,6 +413,10 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,goToMyRequests
   const[docs,setDocs]=useState([]);
   const[docBusy,setDocBusy]=useState(false);
   const[docErr,setDocErr]=useState(null);
+  // Task 10 — structured fields the server detected from an attached document
+  // (type / counterparty / value / governing law / summary). Advisory: shown as
+  // a suggestion the user Applies; never auto-written, never blocks the flow.
+  const[prefill,setPrefill]=useState(null);
 
   // Item-1 wiring — ACTIVE configured request types (admin-defined
   // workstreams). They merge into the type grid below; picking one
@@ -468,6 +472,16 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,goToMyRequests
         if(!resp.ok||!data.ok) throw new Error(data.error||`Upload failed (HTTP ${resp.status}).`);
       }
       setDocs(d=>[...d,{documentId:data.documentId,name:data.name,charCount:data.charCount,text:data.text||"",format:data.format}]);
+      // Task 10 — document-first pre-fill: ask the server for structured intake
+      // fields from the extracted text and offer them as a suggestion. Isolated
+      // try/catch + degrade-safe endpoint → a failure here never affects the
+      // upload or the form.
+      if(data.text){
+        try{
+          const pf=await fetch("/api/intake/documents/prefill",{method:"POST",headers:{"content-type":"application/json"},body:JSON.stringify({text:data.text})}).then(r=>r.json()).catch(()=>null);
+          if(pf&&pf.ok&&pf.fields) setPrefill(pf.fields);
+        }catch{/* advisory only — ignore */}
+      }
     }catch(err){ setDocErr(String(err.message||err)); }
     finally{ setDocBusy(false); }
   };
@@ -535,6 +549,27 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,goToMyRequests
     setCreatedTicket({...saved,_agent:null,_rec:null});
     setSubmitted(true);
     setBusy(false);
+  };
+
+  // Task 10 — apply the detected fields into the form. Non-destructive: sets the
+  // request type (when it's a known one) and, only when the description is still
+  // empty, seeds it from the detected summary + a structured one-liner. Never
+  // overwrites anything the user already typed.
+  const applyPrefill=()=>{
+    if(!prefill) return;
+    setForm(f=>{
+      const next={...f};
+      if(prefill.type&&prefill.type!=="Other") next.type=prefill.type;
+      if(!f.desc.trim()){
+        const parts=[];
+        if(prefill.counterparty) parts.push(`Counterparty: ${prefill.counterparty}`);
+        if(prefill.value!=null) parts.push(`Value: ${prefill.currency?prefill.currency+" ":""}${Number(prefill.value).toLocaleString()}`);
+        if(prefill.governingLaw) parts.push(`Governing law: ${prefill.governingLaw}`);
+        next.desc=[prefill.summary||"",parts.join(" · ")].filter(Boolean).join("\n\n");
+      }
+      return next;
+    });
+    setPrefill(null);
   };
 
   if(submitted&&createdTicket) return <div style={{maxWidth:780,margin:"0 auto"}}>
@@ -615,6 +650,26 @@ function LegacyFormInner({store,initialType,initialDesc,goToInbox,goToMyRequests
           </div>)}
         </div>}
       </FormField>
+
+      {/* Task 10 — document-first pre-fill: structured fields the server detected
+          from an attached document. Advisory; the user Applies them (never
+          auto-written), and it only appears when extraction succeeded. */}
+      {prefill&&<div style={{marginTop:4,marginBottom:4,padding:12,background:C.s1,border:`1px solid ${C.em}`,borderRadius:6}}>
+        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:8}}>
+          <span style={{fontSize:10,fontFamily:M,letterSpacing:1,textTransform:"uppercase",color:C.em}}>✨ Detected from document · review before filing</span>
+          <span onClick={()=>setPrefill(null)} style={{fontSize:12,color:C.t4,cursor:"pointer",padding:"0 4px"}}>✕</span>
+        </div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:prefill.summary?8:10}}>
+          {[["Type",prefill.type],["Counterparty",prefill.counterparty],["Value",prefill.value!=null?`${prefill.currency?prefill.currency+" ":""}${Number(prefill.value).toLocaleString()}`:null],["Governing law",prefill.governingLaw]].filter(([,v])=>v).map(([k,v])=>(
+            <span key={k} style={{fontSize:10,fontFamily:M,color:C.t2,background:C.s2,border:`1px solid ${C.br}`,borderRadius:3,padding:"3px 8px"}}><span style={{color:C.t4}}>{k}:</span> {v}</span>
+          ))}
+        </div>
+        {prefill.summary&&<div style={{fontSize:11,color:C.t2,lineHeight:1.5,marginBottom:10}}>{prefill.summary}</div>}
+        <div style={{display:"flex",gap:8}}>
+          <div {...pressable(applyPrefill,"Apply detected fields to the form")} style={{padding:"6px 12px",background:C.em,color:C.bg,fontSize:10,fontFamily:M,letterSpacing:1,textTransform:"uppercase",cursor:"pointer",fontWeight:600}}>Apply to form</div>
+          <div {...pressable(()=>setPrefill(null),"Dismiss suggestions")} style={{padding:"6px 12px",border:`1px solid ${C.br}`,color:C.t2,fontSize:10,fontFamily:M,letterSpacing:1,textTransform:"uppercase",cursor:"pointer"}}>Dismiss</div>
+        </div>
+      </div>}
 
       <div style={{display:"flex",gap:10,marginTop:16,flexWrap:"wrap"}}>
         <div {...(canSubmit?pressable(submit,"Submit request"):{"aria-disabled":true,role:"button",tabIndex:0})} style={{padding:"11px 22px",background:canSubmit?C.cy:C.br,color:canSubmit?C.bg:C.t4,fontSize:11,fontFamily:M,letterSpacing:1.8,cursor:canSubmit?"pointer":"not-allowed",textTransform:"uppercase",fontWeight:600}}>{busy?"◎ Filing…":"→ Submit to Triage"}</div>
