@@ -27,6 +27,7 @@ import {
 import { CLAUDE_MODEL } from "@aegis/ai";
 import { getPlaybookForContract, ensureDefaultPlaybook, gradeClauseAgainstRule, type PlaybookRuleDTO, type ContractPlaybookDTO } from "./playbook";
 import { snapshotContractVersion } from "./versions";
+import { aiGradeReview } from "./review-ai";
 
 type Actor = { id: string | null; type?: "USER" | "AGENT" | "SYSTEM" };
 
@@ -81,6 +82,8 @@ export interface ReviewSummary {
    * honest verdict + a non-LOW risk band instead of a false 100/low-risk.
    */
   confidence?: "high" | "low";
+  /** Which grader produced the findings: AI semantic pass, or the regex fallback. */
+  engine?: "ai" | "deterministic";
 }
 
 /**
@@ -433,6 +436,7 @@ export async function startContractReview(
 
   let built: BuiltFinding[];
   let baselineVersion: number | null = null;
+  let engine: "ai" | "deterministic" = "deterministic";
   if (paperType === "OUR_PAPER_THEIR_MARKS") {
     // Our last-authored version is the baseline their marks are diffed against.
     const baseVer = await prisma.contractVersion.findFirst({
@@ -450,14 +454,26 @@ export async function startContractReview(
       built = buildReviewFindings(liveClauses, rules);
     }
   } else {
-    built = buildReviewFindings(liveClauses, rules);
+    // Task 2b — inbound third-party paper. Try the AI semantic grading pass
+    // (reads the whole document, catches reworded/novel off-playbook terms the
+    // regex extractor misses); fall back to deterministic playbook grading on
+    // any failure (no model, timeout, unparseable, empty). Governance is
+    // identical either way — every actionable finding is a PENDING AgentDecision.
+    try {
+      built = await aiGradeReview(contract.draftText ?? "", liveClauses, rules, { contractType: contract.type, perspective });
+      engine = "ai";
+    } catch (e) {
+      console.error("[contract-review] AI grading unavailable, using deterministic playbook:", e);
+      built = buildReviewFindings(liveClauses, rules);
+    }
   }
-  // Coverage confidence applies to full-document grading (inbound paper), not
-  // the delta mode (where silence on untouched clauses is expected).
-  const coverage: ReviewCoverage | undefined = paperType === "OUR_PAPER_THEIR_MARKS"
+  // Coverage confidence is for the deterministic full-document path (a thin
+  // regex parse must not read as a clean score). The AI pass read the whole
+  // document, so coverage isn't a meaningful signal there.
+  const coverage: ReviewCoverage | undefined = (paperType === "OUR_PAPER_THEIR_MARKS" || engine === "ai")
     ? undefined
     : { clausesParsed: liveClauses.length, docChars: (contract.draftText ?? "").length };
-  const summary = { ...summarizeFindings(built, coverage), baselineVersion };
+  const summary = { ...summarizeFindings(built, coverage), baselineVersion, engine };
 
   const review = await prisma.contractReview.create({
     data: {
@@ -477,7 +493,7 @@ export async function startContractReview(
       const d = await prisma.agentDecision.create({
         data: {
           organizationId, resourceType: RESOURCE_TYPE, resourceId: review.id,
-          agentName: AGENT_NAME, modelId: CLAUDE_MODEL, modelVersion: "deterministic-playbook",
+          agentName: AGENT_NAME, modelId: CLAUDE_MODEL, modelVersion: engine === "ai" ? "ai-review" : "deterministic-playbook",
           promptHash, recommendationJson: { reviewId: review.id, clauseType: f.clauseType, grade: f.grade, suggestedText: f.suggestedText } as never,
           confidence: null, approvalStatus: AgentApprovalStatus.PENDING,
         },
