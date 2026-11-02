@@ -19,6 +19,8 @@ export {
   callClaudeJSON,
   friendlyAIError,
   setClaudeTransport,
+  WEB_SEARCH_TOOL_TYPE,
+  extractWebSearchResult,
 } from "./claude.js";
 
 export { classifyIntakeRegex } from "./classify-regex.js";

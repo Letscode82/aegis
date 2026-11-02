@@ -11,7 +11,7 @@
  *
  * NEVER import this from browser code — it reads ANTHROPIC_API_KEY.
  */
-import { setClaudeTransport } from "./claude.js";
+import { setClaudeTransport, CLAUDE_MODEL, WEB_SEARCH_TOOL_TYPE, extractWebSearchResult } from "./claude.js";
 import { fetchWithRetry } from "./retry.js";
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
@@ -168,6 +168,59 @@ export async function streamAnthropicMessages(body, opts = {}) {
     }
   }
   return full;
+}
+
+/**
+ * Draft/answer with Anthropic's server-side WEB SEARCH tool (server-only).
+ *
+ * Grounds generation in CURRENT official sources (the model searches the web on
+ * Anthropic's infra and cites what it used) instead of relying on training-cut
+ * knowledge — the "right fix" for drafting a regulated agreement whose mandatory
+ * requirements must reflect the law as it stands today. Handles the server
+ * tool's `pause_turn` (re-send to continue) and returns the parsed result via
+ * the pure `extractWebSearchResult`.
+ *
+ * THROWS on a transport failure (no key, web-search not enabled on the account →
+ * 400, network) so callers fall back to an ungrounded draft with an explicit
+ * "not verified" warning. A per-search error (e.g. max_uses_exceeded) does NOT
+ * throw — it comes back as `result.searchError` with whatever text was produced.
+ *
+ * @param {string} prompt
+ * @param {{ system?: string, model?: string, maxTokens?: number, timeout?: number, maxUses?: number, allowedDomains?: string[], maxPauseLoops?: number }} [opts]
+ */
+export async function callClaudeWithWebSearch(prompt, opts = {}) {
+  const {
+    system,
+    model = CLAUDE_MODEL,
+    maxTokens = 6000,
+    timeout = 170000,
+    maxUses = 6,
+    allowedDomains,
+    maxPauseLoops = 3,
+  } = opts;
+  const tool = { type: WEB_SEARCH_TOOL_TYPE, name: "web_search", max_uses: maxUses };
+  if (Array.isArray(allowedDomains) && allowedDomains.length) tool.allowed_domains = allowedDomains.slice(0, 64);
+
+  const ctrl = typeof AbortController !== "undefined" ? new AbortController() : null;
+  const timer = ctrl ? setTimeout(() => ctrl.abort(), timeout) : null;
+  try {
+    const messages = [{ role: "user", content: prompt }];
+    let data;
+    for (let loops = 0; ; loops++) {
+      const body = { model, max_tokens: maxTokens, messages, tools: [tool] };
+      if (system) body.system = system;
+      data = await callAnthropicMessages(body, ctrl ? { signal: ctrl.signal } : undefined);
+      // Server tools can pause a long turn; re-send with the assistant content to continue.
+      if (data && data.stop_reason === "pause_turn" && loops < maxPauseLoops) {
+        messages.push({ role: "assistant", content: data.content });
+        continue;
+      }
+      break;
+    }
+    return extractWebSearchResult(data);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 let _installed = false;
