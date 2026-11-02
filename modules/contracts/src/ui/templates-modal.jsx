@@ -28,6 +28,7 @@ export function TemplatesModal({ canManage, onClose }) {
   const [expanded, setExpanded] = useState(null);
   const [aiInstr, setAiInstr] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
+  const [aiMeta, setAiMeta] = useState(null); // { grounded, sources[], degradedReason, searchError }
   const [seedBusy, setSeedBusy] = useState(false);
   const [notice, setNotice] = useState(null);
 
@@ -43,7 +44,7 @@ export function TemplatesModal({ canManage, onClose }) {
   };
 
   const generate = async () => {
-    setAiBusy(true); setError(null);
+    setAiBusy(true); setError(null); setAiMeta(null);
     try {
       const r = await fetch("/api/contracts/templates/generate", {
         method: "POST", headers: { "Content-Type": "application/json" },
@@ -52,6 +53,7 @@ export function TemplatesModal({ canManage, onClose }) {
       const d = await r.json();
       if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
       setForm((f) => ({ ...f, body: d.body }));
+      setAiMeta({ grounded: !!d.grounded, sources: Array.isArray(d.sources) ? d.sources : [], degradedReason: d.degradedReason || null, searchError: d.searchError || null });
     } catch (e) { setError(String(e.message || e)); } finally { setAiBusy(false); }
   };
 
@@ -121,7 +123,23 @@ export function TemplatesModal({ canManage, onClose }) {
                     <input value={aiInstr} onChange={(e) => setAiInstr(e.target.value)} placeholder="e.g. mutual NDA, 3-year term, California law, no residuals clause" style={{ ...input, flex: 1 }} />
                     <button disabled={aiBusy} onClick={generate} style={{ padding: "6px 12px", background: C.pp, color: C.bg, border: "none", borderRadius: 4, fontFamily: M, fontSize: 9.5, letterSpacing: 1, fontWeight: 700, textTransform: "uppercase", cursor: "pointer", whiteSpace: "nowrap", opacity: aiBusy ? .6 : 1 }}>{aiBusy ? "Drafting…" : "Generate"}</button>
                   </div>
-                  <div style={{ fontSize: 9, color: C.t4, fontFamily: M, marginTop: 4 }}>AI drafts the body below — review and edit before saving. Nothing is saved until you click Save.</div>
+                  <div style={{ fontSize: 9, color: C.t4, fontFamily: M, marginTop: 4 }}>Drafts from the <b style={{ color: C.t3 }}>current official sources</b> (live search) and cites them — review and edit before saving. Nothing is saved until you click Save.</div>
+                  {aiMeta && (
+                    <div style={{ marginTop: 7, paddingTop: 7, borderTop: `1px solid ${C.br}` }}>
+                      {aiMeta.grounded ? (
+                        <div style={{ fontSize: 9, fontFamily: M, color: C.gn, letterSpacing: 0.5, textTransform: "uppercase" }}>✓ Grounded in {aiMeta.sources.length} official source{aiMeta.sources.length === 1 ? "" : "s"}{aiMeta.searchError ? " (partial)" : ""}</div>
+                      ) : (
+                        <div style={{ fontSize: 9, fontFamily: M, color: C.am, letterSpacing: 0.5, textTransform: "uppercase" }}>⚠ Not verified against official sources — lawyer must confirm</div>
+                      )}
+                      {aiMeta.sources.length > 0 && (
+                        <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 5 }}>
+                          {aiMeta.sources.slice(0, 8).map((s, i) => (
+                            <a key={s.url || i} href={s.url} target="_blank" rel="noreferrer" style={{ fontSize: 10, color: C.bl, textDecoration: "none", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={s.url}>[{i + 1}] {s.title || s.url}</a>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
               <div style={{ marginBottom: 10 }}><div style={lbl}>Body (markdown / text with {"{{variables}}"})</div><textarea value={form.body} onChange={upd("body")} rows={8} style={{ ...mono, resize: "vertical" }} /></div>

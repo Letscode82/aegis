@@ -116,6 +116,54 @@ export async function callClaudeJSON(prompt,opts={}){
   }
 }
 
+// ── Web search server tool ───────────────────────────────────────────
+// Anthropic server-side web search. The model runs the search on Anthropic's
+// infra and returns the results + cited text inline — we never fetch anything
+// ourselves. Used to GROUND regulatory drafting in the current official text
+// (not the model's training memory). `_20260209` is the current variant
+// supported by our model (claude-sonnet-5); older models would need
+// `web_search_20250305`.
+export const WEB_SEARCH_TOOL_TYPE = "web_search_20260209";
+
+/**
+ * Parse a Messages API response that used the web_search server tool into a
+ * plain result. Pure — no network, no fs — so it is unit-testable with a
+ * mock response. Server-tool ERRORS do not throw: a web_search_tool_result
+ * whose `content` is an object (not a list) carries an `error_code`, which we
+ * surface as `searchError` rather than blowing up.
+ *
+ * @param {object} data the parsed Anthropic message (has `.content` blocks).
+ * @returns {{ text: string, citations: {url:string|null,title:string|null,cited_text:string|null}[], sources: {url:string,title:string}[], searchError: string|null }}
+ */
+export function extractWebSearchResult(data){
+  const blocks=(data&&Array.isArray(data.content)&&data.content)||[];
+  let text="";
+  const citations=[];
+  const sourceMap=new Map();
+  let searchError=null;
+  for(const b of blocks){
+    if(!b||typeof b!=="object") continue;
+    if(b.type==="text"){
+      text+=b.text||"";
+      for(const c of (Array.isArray(b.citations)?b.citations:[])){
+        if(c&&(c.url||c.title)) citations.push({url:c.url||null,title:c.title||null,cited_text:c.cited_text||null});
+      }
+    } else if(b.type==="web_search_tool_result"){
+      const content=b.content;
+      if(Array.isArray(content)){
+        for(const r of content){ if(r&&r.url&&!sourceMap.has(r.url)) sourceMap.set(r.url,{url:r.url,title:r.title||r.url}); }
+      } else if(content&&typeof content==="object"&&content.error_code){
+        searchError=content.error_code;
+      }
+    }
+  }
+  // Prefer the actually-cited URLs as the "sources used"; fall back to all search hits.
+  const citedUrls=new Set(citations.map((c)=>c.url).filter(Boolean));
+  const cited=[...sourceMap.values()].filter((s)=>citedUrls.has(s.url));
+  const sources=cited.length?cited:[...sourceMap.values()];
+  return { text:text.trim(), citations, sources, searchError };
+}
+
 // User-facing translation of an AI call failure. Callers should also
 // console.error the raw error for debugging.
 export function friendlyAIError(err){
