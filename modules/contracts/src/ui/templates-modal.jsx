@@ -45,16 +45,25 @@ export function TemplatesModal({ canManage, onClose }) {
 
   const generate = async () => {
     setAiBusy(true); setError(null); setAiMeta(null);
+    // Never let the spinner hang: abort after 3 min (grounded drafting can run
+    // 1–2 min; beyond that the deploy's function time limit is the real cap).
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 180000);
     try {
       const r = await fetch("/api/contracts/templates/generate", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ kind: form.kind, name: form.name, instructions: aiInstr }),
+        signal: ctrl.signal,
       });
       const d = await r.json();
       if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
       setForm((f) => ({ ...f, body: d.body }));
       setAiMeta({ grounded: !!d.grounded, sources: Array.isArray(d.sources) ? d.sources : [], degradedReason: d.degradedReason || null, searchError: d.searchError || null });
-    } catch (e) { setError(String(e.message || e)); } finally { setAiBusy(false); }
+    } catch (e) {
+      setError(e.name === "AbortError"
+        ? "Timed out drafting — grounded drafting of a long agreement needs a higher function time limit (Vercel Pro / maxDuration), or a shorter brief. The ungrounded draft should still complete."
+        : String(e.message || e));
+    } finally { clearTimeout(timer); setAiBusy(false); }
   };
 
   const load = useCallback(() => {
