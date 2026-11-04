@@ -91,7 +91,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       ].join("\n");
 
       try {
-        const r = await callClaudeWithWebSearch(prompt, { system, maxTokens: 7000, timeout: 240000, maxUses: 6, allowedDomains });
+        const r = await callClaudeWithWebSearch(prompt, { system, maxTokens: 6500, timeout: 100000, maxUses: 4, allowedDomains });
         const body = cleanBody(r.text);
         if (body) {
           return res.status(200).json({
@@ -120,7 +120,10 @@ Rules:
 - ${PLACEHOLDER_RULES}
 - Keep it professional and standard; favour balanced, playbook-aligned positions.
 - Return ONLY the template body text — no preamble, no explanation, no markdown fences.`;
-    const raw = await callClaude(prompt, { maxTokens: 6000, timeout: 55000 });
+    // Sized to RELIABLY complete within a ~60s function budget (a template is a
+    // placeholdered skeleton, not a 50-page document) so Generate always returns
+    // a usable draft even when live grounding is unavailable.
+    const raw = await callClaude(prompt, { maxTokens: 4500, timeout: 45000 });
     const body = cleanBody(raw || "");
     if (!body) throw new Error("Empty draft");
     const degradedReason = wantGrounded ? "Live source grounding was unavailable; drafted from general knowledge." : null;
