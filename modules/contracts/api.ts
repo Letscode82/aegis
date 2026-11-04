@@ -395,6 +395,11 @@ export {
 } from "./src/internal/sample-templates";
 
 export {
+  buildTemplateSkeleton,
+  type TemplateSkeletonInput,
+} from "./src/internal/template-skeleton";
+
+export {
   snapshotContractVersion,
   listContractVersions,
   diffContractVersions,

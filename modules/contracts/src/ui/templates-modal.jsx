@@ -28,7 +28,8 @@ export function TemplatesModal({ canManage, onClose }) {
   const [expanded, setExpanded] = useState(null);
   const [aiInstr, setAiInstr] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
-  const [aiMeta, setAiMeta] = useState(null); // { grounded, sources[], degradedReason, searchError }
+  const [aiGrounded, setAiGrounded] = useState(false); // opt-in: live web-search grounding (needs Vercel Pro)
+  const [aiMeta, setAiMeta] = useState(null); // { grounded, sources[], degradedReason, searchError, skeleton }
   const [seedBusy, setSeedBusy] = useState(false);
   const [notice, setNotice] = useState(null);
 
@@ -47,21 +48,23 @@ export function TemplatesModal({ canManage, onClose }) {
     setAiBusy(true); setError(null); setAiMeta(null);
     // Never let the spinner hang: abort after 3 min (grounded drafting can run
     // 1–2 min; beyond that the deploy's function time limit is the real cap).
+    // The server never errors on timeout — it returns a structured skeleton —
+    // so this abort only guards a stuck network, not a slow model.
     const ctrl = new AbortController();
     const timer = setTimeout(() => ctrl.abort(), 180000);
     try {
       const r = await fetch("/api/contracts/templates/generate", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ kind: form.kind, name: form.name, instructions: aiInstr }),
+        body: JSON.stringify({ kind: form.kind, name: form.name, instructions: aiInstr, grounded: aiGrounded }),
         signal: ctrl.signal,
       });
       const d = await r.json();
       if (!r.ok || !d.ok) throw new Error(d.error || `HTTP ${r.status}`);
       setForm((f) => ({ ...f, body: d.body }));
-      setAiMeta({ grounded: !!d.grounded, sources: Array.isArray(d.sources) ? d.sources : [], degradedReason: d.degradedReason || null, searchError: d.searchError || null });
+      setAiMeta({ grounded: !!d.grounded, sources: Array.isArray(d.sources) ? d.sources : [], degradedReason: d.degradedReason || null, searchError: d.searchError || null, skeleton: !!d.skeleton });
     } catch (e) {
       setError(e.name === "AbortError"
-        ? "Timed out drafting — grounded drafting of a long agreement needs a higher function time limit (Vercel Pro / maxDuration), or a shorter brief. The ungrounded draft should still complete."
+        ? "The draft request was taking too long and was cancelled. Turn off grounding for a fast draft, shorten the brief, or try again — you'll always get at least a structured skeleton to edit."
         : String(e.message || e));
     } finally { clearTimeout(timer); setAiBusy(false); }
   };
@@ -132,14 +135,21 @@ export function TemplatesModal({ canManage, onClose }) {
                     <input value={aiInstr} onChange={(e) => setAiInstr(e.target.value)} placeholder="e.g. mutual NDA, 3-year term, California law, no residuals clause" style={{ ...input, flex: 1 }} />
                     <button disabled={aiBusy} onClick={generate} style={{ padding: "6px 12px", background: C.pp, color: C.bg, border: "none", borderRadius: 4, fontFamily: M, fontSize: 9.5, letterSpacing: 1, fontWeight: 700, textTransform: "uppercase", cursor: "pointer", whiteSpace: "nowrap", opacity: aiBusy ? .6 : 1 }}>{aiBusy ? "Drafting…" : "Generate"}</button>
                   </div>
-                  <div style={{ fontSize: 9, color: C.t4, fontFamily: M, marginTop: 4 }}>Drafts from the <b style={{ color: C.t3 }}>current official sources</b> (live search) and cites them — review and edit before saving. Nothing is saved until you click Save.</div>
+                  <label style={{ display: "flex", gap: 6, alignItems: "center", marginTop: 6, cursor: "pointer" }}>
+                    <input type="checkbox" checked={aiGrounded} onChange={(e) => setAiGrounded(e.target.checked)} disabled={aiBusy} />
+                    <span style={{ fontSize: 9, fontFamily: M, color: C.t3 }}>Ground in <b style={{ color: C.t2 }}>live official sources</b> &amp; cite them (slower — needs Vercel Pro's higher time limit; otherwise it falls back to a fast draft or skeleton)</span>
+                  </label>
+                  <div style={{ fontSize: 9, color: C.t4, fontFamily: M, marginTop: 4 }}>{aiGrounded ? <>Searches the <b style={{ color: C.t3 }}>current official sources</b> and cites them.</> : <>Drafts a fast standard version — tick the box above to ground it in live sources.</>} Review and edit before saving — nothing is saved until you click Save. You'll always get at least a structured skeleton.</div>
                   {aiMeta && (
                     <div style={{ marginTop: 7, paddingTop: 7, borderTop: `1px solid ${C.br}` }}>
-                      {aiMeta.grounded ? (
+                      {aiMeta.skeleton ? (
+                        <div style={{ fontSize: 9, fontFamily: M, color: C.am, letterSpacing: 0.5, textTransform: "uppercase" }}>⚠ Structured skeleton — AI didn't finish in time; fill the placeholders &amp; have a lawyer confirm</div>
+                      ) : aiMeta.grounded ? (
                         <div style={{ fontSize: 9, fontFamily: M, color: C.gn, letterSpacing: 0.5, textTransform: "uppercase" }}>✓ Grounded in {aiMeta.sources.length} official source{aiMeta.sources.length === 1 ? "" : "s"}{aiMeta.searchError ? " (partial)" : ""}</div>
                       ) : (
                         <div style={{ fontSize: 9, fontFamily: M, color: C.am, letterSpacing: 0.5, textTransform: "uppercase" }}>⚠ Not verified against official sources — lawyer must confirm</div>
                       )}
+                      {aiMeta.degradedReason && <div style={{ fontSize: 9, fontFamily: M, color: C.t4, marginTop: 3 }}>{aiMeta.degradedReason}</div>}
                       {aiMeta.sources.length > 0 && (
                         <div style={{ display: "flex", flexDirection: "column", gap: 2, marginTop: 5 }}>
                           {aiMeta.sources.slice(0, 8).map((s, i) => (
