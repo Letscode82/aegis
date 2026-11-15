@@ -271,6 +271,23 @@ export {
   type DpaSummary,
 } from "./src/internal/reads";
 
+// Contract portfolio analytics (Phase 10) — read-only aggregation surface for
+// the GC analytics dashboard. Pure aggregators + one scalar-read service.
+export {
+  getContractAnalyticsService,
+  assembleContractAnalytics,
+  type ContractAnalytics,
+  type PortfolioTotals,
+  type DistributionBucket,
+  type CycleTimeStats,
+  type ValueAtRisk,
+  type RenewalForecast,
+  type RenewalBucket,
+  type ObligationCompliance,
+  type ClauseDeviationStat,
+  type CounterpartyConcentration,
+} from "./src/internal/analytics";
+
 // Obligation lifecycle state machine (Phase 2) — the guard + allowed
 // transitions the obligation routes and dashboard use.
 export {

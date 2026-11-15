@@ -14,6 +14,7 @@ import { ReviewThirdPartyModal } from "./review-third-party-modal.jsx";
 import { AiDraftModal } from "./ai-draft-modal.jsx";
 import { ContractStageDots, CONTRACT_STAGES, stageCounts, stageIndexForStatus } from "./contract-stage-tracker.jsx";
 import { ContractReviewCockpit } from "./contract-review-cockpit.jsx";
+import { ContractAnalyticsDashboard } from "./contract-analytics.jsx";
 
 // ── Contract repository (CTR-1) ──────────────────────────────────────
 //
@@ -169,7 +170,7 @@ export function ContractsRepository() {
 
       {/* Contracts | Obligations tab toggle (CLM Phase 2b) */}
       <div style={{ display: "flex", gap: 4, marginBottom: 16, borderBottom: `1px solid ${C.br}` }}>
-        {[["contracts", "▤ Contracts"], ["obligations", "◷ Obligations"], ["renewals", "⟳ Renewals"], ["keydates", "▦ Key Dates"], ["integrity", "🛡 Integrity"]].map(([id, label]) => {
+        {[["contracts", "▤ Contracts"], ["analytics", "📊 Analytics"], ["obligations", "◷ Obligations"], ["renewals", "⟳ Renewals"], ["keydates", "▦ Key Dates"], ["integrity", "🛡 Integrity"]].map(([id, label]) => {
           const active = tab === id;
           return (
             <span key={id} onClick={() => setTab(id)} style={{ cursor: "pointer", fontSize: 11, fontFamily: M, letterSpacing: .8, textTransform: "uppercase", fontWeight: 600, padding: "8px 14px", color: active ? C.bl : C.t3, borderBottom: `2px solid ${active ? C.bl : "transparent"}`, marginBottom: -1 }}>
@@ -179,7 +180,9 @@ export function ContractsRepository() {
         })}
       </div>
 
-      {tab === "obligations" ? (
+      {tab === "analytics" ? (
+        <ContractAnalyticsDashboard />
+      ) : tab === "obligations" ? (
         <ObligationsDashboard canManage={canManage} />
       ) : tab === "renewals" ? (
         <>
