@@ -162,6 +162,18 @@ export {
   type SigningContext,
 } from "./src/internal/signature-request";
 
+// Certificate of Completion (CLM Phase 5e) — court-grade execution evidence
+// assembled deterministically from the native signing ceremony + the sealed
+// audit chain. Read-only; no external provider.
+export {
+  getSigningCertificateService,
+  buildSigningCertificate,
+  renderSigningCertificateText,
+  SIGNING_CERTIFICATE_SCHEMA,
+  type SigningCertificate,
+  type CertificateSigner,
+} from "./src/internal/signing-certificate";
+
 // AI contract drafting (CTR-14) — draft a full contract from a plain-language
 // brief; degrades to a deterministic skeleton offline.
 export {

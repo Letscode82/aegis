@@ -59,11 +59,35 @@ export function ESignaturePanel({ contractId, canManage }) {
     } catch (e) { setError(String(e.message || e)); } finally { setBusy(false); }
   };
 
+  const downloadCertificate = async () => {
+    setBusy(true); setError(null);
+    try {
+      const r = await fetch(`/api/contracts/${contractId}/signing-certificate?format=text`);
+      if (!r.ok) { const d = await r.json().catch(() => ({})); throw new Error(d.error || `HTTP ${r.status}`); }
+      const text = await r.text();
+      const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url; a.download = `certificate-of-completion-${contractId}.txt`;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (e) { setError(String(e.message || e)); } finally { setBusy(false); }
+  };
+
   if (error && !requests) return null;
+  const hasSigned = (requests || []).some((r) => r.status === "SIGNED");
 
   return (
     <div style={{ marginTop: 14, padding: "12px 14px", background: C.s1, border: `1px solid ${C.br}`, borderRadius: 6 }}>
-      <div style={{ fontSize: 9.5, fontFamily: M, color: C.t3, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 600, marginBottom: 8 }}>E-signature requests</div>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+        <div style={{ fontSize: 9.5, fontFamily: M, color: C.t3, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 600 }}>E-signature requests</div>
+        {hasSigned && (
+          <button onClick={downloadCertificate} disabled={busy} title="Download the court-grade Certificate of Completion (signers, timestamps, IP, terms-hash binding, audit-chain anchors)"
+            style={{ marginLeft: "auto", padding: "4px 9px", background: "transparent", color: C.gn, border: `1px solid ${C.gn}`, borderRadius: 4, fontFamily: M, fontSize: 8.5, letterSpacing: .6, fontWeight: 700, textTransform: "uppercase", cursor: "pointer", opacity: busy ? .6 : 1 }}>
+            ⬇ Certificate of completion
+          </button>
+        )}
+      </div>
 
       {(requests || []).length > 0 && (
         <div style={{ marginBottom: 10 }}>
