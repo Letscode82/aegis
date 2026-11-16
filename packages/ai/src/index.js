@@ -25,8 +25,20 @@ export {
 
 export { classifyIntakeRegex } from "./classify-regex.js";
 
-// Evaluation harness (EVAL1) — score a classifier against labeled cases.
-export { evaluateClassifier } from "./eval.js";
+// Evaluation harness — EVAL1 (`evaluateClassifier`) scores a classifier against
+// labeled cases; EVAL2 is the general version: run any deterministic engine (or
+// a real Claude call) over a golden set and guard AI QUALITY in CI with
+// pluggable scoring (exact / set-overlap / ordinal-label) + threshold asserts.
+export {
+  evaluateClassifier,
+  runEvalSuite,
+  runEvalSuiteAsync,
+  exactScore,
+  setScore,
+  labelScore,
+  assertEvalThreshold,
+  formatEvalReport,
+} from "./eval.js";
 
 // PII guardrails (SEC1) — detect/redact common PII. Usable before an embedding
 // or external send; the /api/claude proxy applies redactPII when
