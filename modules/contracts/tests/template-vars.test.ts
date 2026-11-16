@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { extractTemplatePlaceholders, humanizePlaceholder } from "../src/internal/template-vars";
+import { extractTemplatePlaceholders, humanizePlaceholder, inferTemplateFieldSpec, inferTemplateFields } from "../src/internal/template-vars";
 
 describe("extractTemplatePlaceholders", () => {
   it("returns unique fillable tokens in first-seen order", () => {
@@ -33,5 +33,44 @@ describe("humanizePlaceholder", () => {
     expect(humanizePlaceholder("effectiveDate")).toBe("Effective Date");
     expect(humanizePlaceholder("org.address")).toBe("Org Address");
     expect(humanizePlaceholder("cooling_off_days")).toBe("Cooling Off Days");
+  });
+});
+
+describe("inferTemplateFieldSpec", () => {
+  it("infers date fields", () => {
+    expect(inferTemplateFieldSpec("effectiveDate").type).toBe("date");
+    expect(inferTemplateFieldSpec("expiryDate").type).toBe("date");
+    expect(inferTemplateFieldSpec("executionDate").type).toBe("date");
+  });
+  it("infers number fields for counts / amounts / rates", () => {
+    expect(inferTemplateFieldSpec("coolingOffPeriodDays").type).toBe("number");
+    expect(inferTemplateFieldSpec("contractValue").type).toBe("number");
+    expect(inferTemplateFieldSpec("interestRate").type).toBe("number");
+    expect(inferTemplateFieldSpec("liabilityCap").type).toBe("number");
+  });
+  it("infers a currency selector and email", () => {
+    expect(inferTemplateFieldSpec("currency").type).toBe("currency");
+    expect(inferTemplateFieldSpec("borrowerEmail").type).toBe("email");
+  });
+  it("falls back to text", () => {
+    expect(inferTemplateFieldSpec("jioEntityName").type).toBe("text");
+    expect(inferTemplateFieldSpec("reRegisteredAddress").type).toBe("text");
+  });
+  it("marks fields required by default, optional when the name says so", () => {
+    expect(inferTemplateFieldSpec("jioEntityName").required).toBe(true);
+    expect(inferTemplateFieldSpec("internalNotes").required).toBe(false);
+    expect(inferTemplateFieldSpec("optionalRider").required).toBe(false);
+  });
+  it("judges on the last dotted path segment and sets label", () => {
+    const s = inferTemplateFieldSpec("org.effectiveDate");
+    expect(s.type).toBe("date");
+    expect(s.label).toBe("Org Effective Date");
+  });
+});
+
+describe("inferTemplateFields", () => {
+  it("maps a token list preserving order", () => {
+    const specs = inferTemplateFields(["effectiveDate", "jioEntityName", "currency"]);
+    expect(specs.map((s) => s.type)).toEqual(["date", "text", "currency"]);
   });
 });

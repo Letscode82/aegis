@@ -55,3 +55,53 @@ export function humanizePlaceholder(token: string): string {
     .trim()
     .replace(/\b\w/g, (ch) => ch.toUpperCase());
 }
+
+// ── Typed guided fill (CLM authoring) ────────────────────────────────
+//
+// Without a per-template field schema (that lands next), the author form
+// infers a sensible input TYPE and whether a field is required from the
+// placeholder name — so dates get a date picker, amounts/counts get a number
+// input, currency gets a dropdown, and the template's fields block creation
+// until the required ones are filled (matching Conga/SpotDraft field behavior).
+
+export type TemplateFieldType = "text" | "date" | "number" | "currency" | "email";
+
+export interface TemplateFieldSpec {
+  token: string;
+  label: string;
+  type: TemplateFieldType;
+  required: boolean;
+}
+
+/** Currency codes offered when a field is inferred as a currency selector. */
+export const CURRENCY_OPTIONS = ["USD", "EUR", "GBP", "INR", "AUD", "CAD", "SGD", "JPY", "CHF"];
+
+const OPTIONAL_RE = /optional|notes?|comment|memo|internal|remark/i;
+const DATE_RE = /date|deadline|expiry|expiration|effective|commencement|execution|renewaldate/i;
+const NUMBER_RE = /days|months|years|count|number|qty|quantity|amount|value|fee|price|rate|\bapr\b|percent|percentage|\bcap\b|limit|threshold|principal|tenor/i;
+const CURRENCY_RE = /currency|\bccy\b/i;
+const EMAIL_RE = /email|e-?mail/i;
+
+/** Infer an input type + required flag for a single placeholder. Pure. */
+export function inferTemplateFieldSpec(token: string): TemplateFieldSpec {
+  const t = String(token || "");
+  const leaf = t.split(".").pop() || t; // judge on the last path segment
+  // Normalize camelCase / snake into spaced words so word-boundary matches
+  // (e.g. \bcap\b) fire inside "liabilityCap".
+  const norm = leaf.replace(/([a-z0-9])([A-Z])/g, "$1 $2").replace(/[_-]+/g, " ");
+  const type: TemplateFieldType = CURRENCY_RE.test(norm)
+    ? "currency"
+    : EMAIL_RE.test(norm)
+    ? "email"
+    : DATE_RE.test(norm)
+    ? "date"
+    : NUMBER_RE.test(norm)
+    ? "number"
+    : "text";
+  return { token: t, label: humanizePlaceholder(t), type, required: !OPTIONAL_RE.test(norm) };
+}
+
+/** Infer field specs for a list of placeholder tokens, in order. Pure. */
+export function inferTemplateFields(tokens: string[]): TemplateFieldSpec[] {
+  return (Array.isArray(tokens) ? tokens : []).map(inferTemplateFieldSpec);
+}

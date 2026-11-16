@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { C, F, M, SR } from "@aegis/ui";
-import { extractTemplatePlaceholders, humanizePlaceholder } from "../internal/template-vars";
+import { extractTemplatePlaceholders, inferTemplateFields, CURRENCY_OPTIONS } from "../internal/template-vars";
 
 // ── Author a new contract from a template (CLM Phase 4a) ─────────────
 //
@@ -30,7 +30,7 @@ export function AuthorContractModal({ onClose, onCreated }) {
   const [value, setValue] = useState("");
   const [currency, setCurrency] = useState("USD");
   const [governingLaw, setGoverningLaw] = useState("");
-  const [placeholders, setPlaceholders] = useState([]); // tokens the chosen template needs
+  const [fields, setFields] = useState([]); // TemplateFieldSpec[] the chosen template needs
   const [templateVars, setTemplateVars] = useState({}); // token -> value
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
@@ -63,7 +63,7 @@ export function AuthorContractModal({ onClose, onCreated }) {
   const pickTemplate = (key) => {
     setTemplateKey(key);
     const t = templates.find((x) => x.key === key);
-    setPlaceholders(t ? extractTemplatePlaceholders(t.body || "") : []);
+    setFields(t ? inferTemplateFields(extractTemplatePlaceholders(t.body || "")) : []);
     setTemplateVars({});
     if (t) {
       if (!title.trim()) setTitle(t.name);
@@ -73,11 +73,13 @@ export function AuthorContractModal({ onClose, onCreated }) {
     }
   };
   const setVar = (token, v) => setTemplateVars((prev) => ({ ...prev, [token]: v }));
-  const filledCount = placeholders.filter((p) => (templateVars[p] || "").trim()).length;
+  const filledCount = fields.filter((f) => (templateVars[f.token] || "").trim()).length;
+  const requiredRemaining = fields.filter((f) => f.required && !(templateVars[f.token] || "").trim()).length;
 
   const submit = async () => {
     if (!title.trim()) { setErr("Title is required."); return; }
     if (!type.trim()) { setErr("Type is required."); return; }
+    if (requiredRemaining > 0) { setErr(`Fill the ${requiredRemaining} required template field${requiredRemaining === 1 ? "" : "s"} first.`); return; }
     setBusy(true); setErr(null);
     try {
       const r = await fetch("/api/contracts/author", {
@@ -92,7 +94,7 @@ export function AuthorContractModal({ onClose, onCreated }) {
           // Only send filled template fields — unfilled tokens stay as {{...}}
           // in the draft so they can be completed later.
           variables: Object.fromEntries(
-            placeholders.map((p) => [p, (templateVars[p] || "").trim()]).filter(([, v]) => v !== ""),
+            fields.map((f) => [f.token, (templateVars[f.token] || "").trim()]).filter(([, v]) => v !== ""),
           ),
         }),
       });
@@ -159,23 +161,42 @@ export function AuthorContractModal({ onClose, onCreated }) {
             </div>
           </div>
 
-          {/* Guided template fill — the template's {{placeholders}} as fields */}
-          {placeholders.length > 0 && (
+          {/* Guided template fill — the template's {{placeholders}} as typed fields */}
+          {fields.length > 0 && (
             <div>
               <label style={lbl}>
                 Template fields
-                <span style={{ color: filledCount === placeholders.length ? C.gn : C.bl, marginLeft: 6 }}>· {filledCount}/{placeholders.length} filled</span>
+                <span style={{ color: filledCount === fields.length ? C.gn : C.bl, marginLeft: 6 }}>· {filledCount}/{fields.length} filled</span>
+                {requiredRemaining > 0 && <span style={{ color: C.am, marginLeft: 6 }}>· {requiredRemaining} required left</span>}
               </label>
-              <div style={{ border: `1px solid ${C.br}`, borderRadius: 5, maxHeight: 220, overflowY: "auto", background: C.bg, padding: "4px 0" }}>
-                {placeholders.map((p) => (
-                  <div key={p} style={{ display: "grid", gridTemplateColumns: "150px 1fr", gap: 8, alignItems: "center", padding: "4px 10px" }}>
-                    <label title={`{{${p}}}`} style={{ fontSize: 10, fontFamily: M, color: C.t3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{humanizePlaceholder(p)}</label>
-                    <input value={templateVars[p] || ""} onChange={(e) => setVar(p, e.target.value)} placeholder={`{{${p}}}`} style={{ ...field, padding: "6px 8px", fontSize: 11 }} />
-                  </div>
-                ))}
+              <div style={{ border: `1px solid ${C.br}`, borderRadius: 5, maxHeight: 240, overflowY: "auto", background: C.bg, padding: "4px 0" }}>
+                {fields.map((f) => {
+                  const val = templateVars[f.token] || "";
+                  const missing = f.required && !val.trim();
+                  const common = { value: val, onChange: (e) => setVar(f.token, e.target.value), style: { ...field, padding: "6px 8px", fontSize: 11, borderColor: missing ? `${C.am}99` : C.br } };
+                  return (
+                    <div key={f.token} style={{ display: "grid", gridTemplateColumns: "150px 1fr", gap: 8, alignItems: "center", padding: "4px 10px" }}>
+                      <label title={`{{${f.token}}}`} style={{ fontSize: 10, fontFamily: M, color: C.t3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {f.label}{f.required && <span style={{ color: C.rd }}> *</span>}
+                      </label>
+                      {f.type === "currency" ? (
+                        <select {...common}>
+                          <option value="">—</option>
+                          {CURRENCY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
+                        </select>
+                      ) : (
+                        <input
+                          type={f.type === "date" ? "date" : f.type === "number" ? "number" : f.type === "email" ? "email" : "text"}
+                          placeholder={f.type === "text" ? `{{${f.token}}}` : undefined}
+                          {...common}
+                        />
+                      )}
+                    </div>
+                  );
+                })}
               </div>
               <div style={{ fontSize: 9, color: C.t4, fontFamily: M, marginTop: 4, lineHeight: 1.5 }}>
-                These fill the template's placeholders when the draft is created. Leave a field blank to keep its {"{{placeholder}}"} for later.
+                <span style={{ color: C.rd }}>*</span> required. These fill the template's placeholders when the draft is created; optional fields left blank keep their {"{{placeholder}}"} for later.
               </div>
             </div>
           )}
@@ -220,8 +241,8 @@ export function AuthorContractModal({ onClose, onCreated }) {
 
         <div style={{ display: "flex", gap: 8, marginTop: 18, justifyContent: "flex-end" }}>
           <button onClick={onClose} style={{ padding: "8px 14px", background: "transparent", color: C.t3, border: `1px solid ${C.br}`, borderRadius: 5, fontFamily: M, fontSize: 10.5, letterSpacing: .8, cursor: "pointer", textTransform: "uppercase" }}>Cancel</button>
-          <button disabled={busy} onClick={submit} style={{ padding: "8px 16px", background: C.bl, color: "#fff", border: "none", borderRadius: 5, fontFamily: M, fontSize: 10.5, letterSpacing: .8, fontWeight: 700, cursor: busy ? "default" : "pointer", textTransform: "uppercase", opacity: busy ? .6 : 1 }}>
-            {busy ? "Authoring…" : "Create draft →"}
+          <button disabled={busy || requiredRemaining > 0} title={requiredRemaining > 0 ? `${requiredRemaining} required template field${requiredRemaining === 1 ? "" : "s"} left` : undefined} onClick={submit} style={{ padding: "8px 16px", background: C.bl, color: "#fff", border: "none", borderRadius: 5, fontFamily: M, fontSize: 10.5, letterSpacing: .8, fontWeight: 700, cursor: (busy || requiredRemaining > 0) ? "default" : "pointer", textTransform: "uppercase", opacity: (busy || requiredRemaining > 0) ? .6 : 1 }}>
+            {busy ? "Authoring…" : requiredRemaining > 0 ? `Fill ${requiredRemaining} required →` : "Create draft →"}
           </button>
         </div>
         <div style={{ fontSize: 9.5, color: C.t4, fontFamily: M, marginTop: 12, lineHeight: 1.5 }}>
