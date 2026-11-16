@@ -1,6 +1,30 @@
 import { describe, it, expect } from "vitest";
 import { extractContractKnowledge } from "../src/internal/extract";
 
+describe("extractContractKnowledge — origin-aware deviation flagging", () => {
+  const uncapped = "Vendor's total liability shall be unlimited and uncapped. This Agreement is governed by the laws of England and Wales.";
+
+  it("THIRD_PARTY (default) flags deviations against the playbook", () => {
+    const { clauses } = extractContractKnowledge(uncapped, "MSA");
+    const liability = clauses.find((c) => c.type === "LIABILITY_CAP");
+    expect(liability?.deviation).toBe(true);
+    expect(liability?.risk).toBe("HIGH"); // bumped
+    const law = clauses.find((c) => c.type === "GOVERNING_LAW");
+    expect(law?.deviation).toBe(true); // foreign law flagged on inbound paper
+  });
+
+  it("OUR_PAPER captures clauses as standard — no deviations, no risk bump, no false foreign-law flag", () => {
+    const { clauses } = extractContractKnowledge(uncapped, "MSA", { origin: "OUR_PAPER" });
+    expect(clauses.length).toBeGreaterThan(0);
+    expect(clauses.every((c) => c.deviation === false)).toBe(true);
+    const liability = clauses.find((c) => c.type === "LIABILITY_CAP");
+    expect(liability?.risk).toBe("MEDIUM"); // base, not bumped
+    expect(liability?.summary).toMatch(/Standard position \(your paper\)/);
+    const law = clauses.find((c) => c.type === "GOVERNING_LAW");
+    expect(law?.deviation).toBe(false); // our chosen governing law is not a "deviation"
+  });
+});
+
 describe("extractContractKnowledge", () => {
   it("always tracks an attorney-sign-off obligation", () => {
     const { obligations } = extractContractKnowledge("Please review this vendor agreement.", "Master Services Agreement");

@@ -42,7 +42,10 @@ export async function extractAndPersistContractKnowledge(
   actor: Actor = { id: null, type: "AGENT" },
   opts?: { initialSnapshotLabel?: string },
 ): Promise<ContractExtractionResult> {
-  const { clauses, obligations } = extractContractKnowledge(sourceText, contractType);
+  // Origin-aware extraction: our own authored paper is captured as standard,
+  // not deviation-reviewed against the playbook (that is for third-party paper).
+  const originRow = await prisma.contract.findUnique({ where: { id: contractId }, select: { origin: true } });
+  const { clauses, obligations } = extractContractKnowledge(sourceText, contractType, { origin: originRow?.origin });
   const agentActor = { id: actor.id, type: "AGENT" as const };
   const now = Date.now();
   const day = 86_400_000;

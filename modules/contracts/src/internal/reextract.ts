@@ -46,7 +46,7 @@ export async function reExtractContractClauses(
 ): Promise<ReExtractResult> {
   const contract = await prisma.contract.findFirst({
     where: { id: contractId, organizationId },
-    select: { id: true, type: true },
+    select: { id: true, type: true, origin: true },
   });
   if (!contract) throw new Error("Contract not found");
   if (!sourceText || !sourceText.trim()) throw new Error("No contract text provided to extract from");
@@ -57,7 +57,7 @@ export async function reExtractContractClauses(
 
   // Replace the clause analysis from the amended text.
   await prisma.contractClause.deleteMany({ where: { contractId } });
-  const { clauses } = extractContractKnowledge(sourceText, contract.type);
+  const { clauses } = extractContractKnowledge(sourceText, contract.type, { origin: contract.origin });
   for (const c of clauses) await addClause(organizationId, contractId, c, actor);
 
   const after = await snapshotContractVersion(

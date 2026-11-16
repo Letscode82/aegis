@@ -84,9 +84,24 @@ function sentenceFor(text: string, re: RegExp): string {
  * type-specific baselines (e.g. an NDA always tracks a return/destroy
  * obligation) so even a terse request yields a useful skeleton.
  */
-export function extractContractKnowledge(sourceText: string, contractType: string): ExtractedKnowledge {
+export interface ExtractOptions {
+  /**
+   * Whose paper this is. "THIRD_PARTY" (default) runs full deviation detection
+   * against our playbook — the point of reviewing INBOUND paper. "OUR_PAPER"
+   * suppresses deviation flagging: a contract we authored from an approved
+   * template IS our standard, so "deviates from our playbook" is not a
+   * meaningful judgment on it (and the playbook is US-centric, so it would
+   * falsely flag e.g. a correct non-US governing law). Our paper is captured as
+   * standard; grading our own paper against the playbook stays available
+   * on-demand through the explicit review flow.
+   */
+  origin?: "OUR_PAPER" | "THIRD_PARTY";
+}
+
+export function extractContractKnowledge(sourceText: string, contractType: string, opts?: ExtractOptions): ExtractedKnowledge {
   const text = (sourceText || "").trim();
   const type = (contractType || "").toLowerCase();
+  const ownPaper = opts?.origin === "OUR_PAPER";
   const clauses: ExtractedClause[] = [];
   const seen = new Set<string>();
 
@@ -94,13 +109,15 @@ export function extractContractKnowledge(sourceText: string, contractType: strin
     if (seen.has(rule.type)) continue;
     if (!rule.match.test(text)) continue;
     seen.add(rule.type);
-    const deviates = rule.deviation.test(text);
+    const deviates = !ownPaper && rule.deviation.test(text);
     const risk = deviates ? bump(rule.baseRisk) : rule.baseRisk;
     const sentence = sentenceFor(text, rule.match);
     clauses.push({
       type: rule.type,
       text: sentence || `${rule.type.replace(/_/g, " ")} referenced in the request — confirm the exact language against the full document.`,
-      summary: deviates
+      summary: ownPaper
+        ? `Standard position (your paper) — ${rule.playbook}`
+        : deviates
         ? `Possible deviation from playbook — ${rule.playbook}`
         : `Within playbook expectations — ${rule.playbook}`,
       risk,
