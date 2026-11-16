@@ -540,10 +540,15 @@ export {
   humanizePlaceholder,
   inferTemplateFieldSpec,
   inferTemplateFields,
+  resolveTemplateFields,
+  isTemplateFieldVisible,
   AUTO_FILLED_PLACEHOLDERS,
   CURRENCY_OPTIONS,
   type TemplateFieldType,
   type TemplateFieldSpec,
+  type TemplateFieldDef,
+  type TemplateFieldShowIf,
+  type ResolvedTemplateField,
 } from "./src/internal/template-vars";
 
 // Dynamic clause insertion (C-7) — assemble a draft body from a template +
