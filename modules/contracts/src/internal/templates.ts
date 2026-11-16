@@ -26,6 +26,7 @@
  */
 import { prisma, logAudit } from "@aegis/db";
 import type { KnowledgeItem } from "@aegis/db";
+import type { TemplateFieldDef } from "./template-vars";
 
 /** The kinds of draft template. Formerly the `TemplateKind` Prisma enum;
  *  now a plain union since templates live in oKF KnowledgePacks (the legacy
@@ -42,6 +43,8 @@ export interface TemplateDTO {
   version: number;
   active: boolean;
   sortOrder: number;
+  /** Per-template guided-fill field schema (type/required/options/help/group/showIf). */
+  fieldSchema: TemplateFieldDef[];
 }
 
 export interface UpsertTemplateInput {
@@ -52,6 +55,7 @@ export interface UpsertTemplateInput {
   description?: string | null;
   active?: boolean;
   sortOrder?: number;
+  fieldSchema?: TemplateFieldDef[] | null;
 }
 
 type Actor = { id: string | null; type?: "USER" | "AGENT" | "SYSTEM" };
@@ -85,6 +89,7 @@ const toDTO = (it: KnowledgeItem, packKey: string): TemplateDTO => {
     version: typeof d.version === "number" ? d.version : 1,
     active: it.active,
     sortOrder: it.sortOrder,
+    fieldSchema: Array.isArray(d.fieldSchema) ? (d.fieldSchema as TemplateFieldDef[]) : [],
   };
 };
 
@@ -171,6 +176,44 @@ export async function getDefaultTemplateForKind(organizationId: string, kind: Te
 
 /** Upsert on (org, key) within the kind's pack; chain-sealed; bumps version
  *  on body change. A kind change moves the item to the new kind's pack. */
+const FIELD_TYPES = new Set(["text", "textarea", "date", "number", "currency", "email", "select"]);
+
+/** Validate + normalize an incoming field schema to safe, storable shapes. */
+export function sanitizeFieldSchema(input: unknown): TemplateFieldDef[] {
+  if (!Array.isArray(input)) return [];
+  const out: TemplateFieldDef[] = [];
+  const seen = new Set<string>();
+  for (const raw of input) {
+    if (!raw || typeof raw !== "object") continue;
+    const r = raw as Record<string, unknown>;
+    const token = typeof r.token === "string" ? r.token.trim() : "";
+    if (!token || seen.has(token)) continue;
+    seen.add(token);
+    const def: TemplateFieldDef = { token };
+    if (typeof r.label === "string" && r.label.trim()) def.label = r.label.trim().slice(0, 120);
+    if (typeof r.type === "string" && FIELD_TYPES.has(r.type)) def.type = r.type as TemplateFieldDef["type"];
+    if (typeof r.required === "boolean") def.required = r.required;
+    if (Array.isArray(r.options)) {
+      const opts = r.options.map((o) => String(o).trim()).filter((o) => o !== "").slice(0, 40);
+      if (opts.length) def.options = opts;
+    }
+    if (typeof r.help === "string" && r.help.trim()) def.help = r.help.trim().slice(0, 400);
+    if (typeof r.group === "string" && r.group.trim()) def.group = r.group.trim().slice(0, 60);
+    if (r.showIf && typeof r.showIf === "object") {
+      const s = r.showIf as Record<string, unknown>;
+      const gtoken = typeof s.token === "string" ? s.token.trim() : "";
+      if (gtoken && gtoken !== token) {
+        const showIf: NonNullable<TemplateFieldDef["showIf"]> = { token: gtoken };
+        if (typeof s.equals === "string" && s.equals.trim()) showIf.equals = s.equals.trim().slice(0, 120);
+        if (Array.isArray(s.in)) { const inv = s.in.map((x) => String(x).trim()).filter(Boolean).slice(0, 20); if (inv.length) showIf.in = inv; }
+        def.showIf = showIf;
+      }
+    }
+    out.push(def);
+  }
+  return out.slice(0, 100);
+}
+
 export async function upsertTemplate(
   organizationId: string,
   input: UpsertTemplateInput,
@@ -194,10 +237,18 @@ export async function upsertTemplate(
   const bodyChanged = !!existing && existing.bodyMarkdown !== input.body;
   const version = existing ? (bodyChanged ? prevVersion + 1 : prevVersion) : 1;
 
+  // Preserve an existing field schema on body-only edits; replace it when the
+  // caller passes one (the admin Fields editor), and sanitize to known shapes.
+  const fieldSchema = input.fieldSchema !== undefined
+    ? sanitizeFieldSchema(input.fieldSchema)
+    : Array.isArray(prevData.fieldSchema)
+    ? (prevData.fieldSchema as TemplateFieldDef[])
+    : [];
   const dataJson = {
     templateKind: input.kind,
     description: input.description?.trim() || null,
     version,
+    fieldSchema,
   };
   const base = {
     kind: "TEMPLATE" as const,

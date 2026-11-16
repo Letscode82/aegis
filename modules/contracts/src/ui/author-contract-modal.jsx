@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { C, F, M, SR } from "@aegis/ui";
-import { extractTemplatePlaceholders, inferTemplateFields, CURRENCY_OPTIONS } from "../internal/template-vars";
+import { resolveTemplateFields, isTemplateFieldVisible, CURRENCY_OPTIONS } from "../internal/template-vars";
 
 // ── Author a new contract from a template (CLM Phase 4a) ─────────────
 //
@@ -63,7 +63,7 @@ export function AuthorContractModal({ onClose, onCreated }) {
   const pickTemplate = (key) => {
     setTemplateKey(key);
     const t = templates.find((x) => x.key === key);
-    setFields(t ? inferTemplateFields(extractTemplatePlaceholders(t.body || "")) : []);
+    setFields(t ? resolveTemplateFields(t.body || "", t.fieldSchema) : []);
     setTemplateVars({});
     if (t) {
       if (!title.trim()) setTitle(t.name);
@@ -73,8 +73,13 @@ export function AuthorContractModal({ onClose, onCreated }) {
     }
   };
   const setVar = (token, v) => setTemplateVars((prev) => ({ ...prev, [token]: v }));
-  const filledCount = fields.filter((f) => (templateVars[f.token] || "").trim()).length;
-  const requiredRemaining = fields.filter((f) => f.required && !(templateVars[f.token] || "").trim()).length;
+  // Only fields currently visible (conditional show/hide) count toward progress + gating.
+  const visibleFields = fields.filter((f) => isTemplateFieldVisible(f, templateVars));
+  const filledCount = visibleFields.filter((f) => (templateVars[f.token] || "").trim()).length;
+  const requiredRemaining = visibleFields.filter((f) => f.required && !(templateVars[f.token] || "").trim()).length;
+  // Group the visible fields, preserving first-seen group order (null group last-less: shown first, unlabeled).
+  const groupOrder = [];
+  for (const f of visibleFields) { const g = f.group || ""; if (!groupOrder.includes(g)) groupOrder.push(g); }
 
   const submit = async () => {
     if (!title.trim()) { setErr("Title is required."); return; }
@@ -91,10 +96,10 @@ export function AuthorContractModal({ onClose, onCreated }) {
           value: value === "" ? null : Number(value),
           currency, governingLaw: governingLaw.trim() || null,
           clauses: Object.entries(selectedClauses).map(([clauseType, variant]) => ({ clauseType, variant })),
-          // Only send filled template fields — unfilled tokens stay as {{...}}
-          // in the draft so they can be completed later.
+          // Only send filled, currently-visible fields — unfilled or hidden
+          // (conditional) tokens stay as {{...}} in the draft for later.
           variables: Object.fromEntries(
-            fields.map((f) => [f.token, (templateVars[f.token] || "").trim()]).filter(([, v]) => v !== ""),
+            visibleFields.map((f) => [f.token, (templateVars[f.token] || "").trim()]).filter(([, v]) => v !== ""),
           ),
         }),
       });
@@ -161,39 +166,45 @@ export function AuthorContractModal({ onClose, onCreated }) {
             </div>
           </div>
 
-          {/* Guided template fill — the template's {{placeholders}} as typed fields */}
-          {fields.length > 0 && (
+          {/* Guided template fill — the template's {{placeholders}} as typed,
+              grouped, conditional fields (schema-driven, inference fallback) */}
+          {visibleFields.length > 0 && (
             <div>
               <label style={lbl}>
                 Template fields
-                <span style={{ color: filledCount === fields.length ? C.gn : C.bl, marginLeft: 6 }}>· {filledCount}/{fields.length} filled</span>
+                <span style={{ color: filledCount === visibleFields.length ? C.gn : C.bl, marginLeft: 6 }}>· {filledCount}/{visibleFields.length} filled</span>
                 {requiredRemaining > 0 && <span style={{ color: C.am, marginLeft: 6 }}>· {requiredRemaining} required left</span>}
               </label>
-              <div style={{ border: `1px solid ${C.br}`, borderRadius: 5, maxHeight: 240, overflowY: "auto", background: C.bg, padding: "4px 0" }}>
-                {fields.map((f) => {
-                  const val = templateVars[f.token] || "";
-                  const missing = f.required && !val.trim();
-                  const common = { value: val, onChange: (e) => setVar(f.token, e.target.value), style: { ...field, padding: "6px 8px", fontSize: 11, borderColor: missing ? `${C.am}99` : C.br } };
-                  return (
-                    <div key={f.token} style={{ display: "grid", gridTemplateColumns: "150px 1fr", gap: 8, alignItems: "center", padding: "4px 10px" }}>
-                      <label title={`{{${f.token}}}`} style={{ fontSize: 10, fontFamily: M, color: C.t3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {f.label}{f.required && <span style={{ color: C.rd }}> *</span>}
-                      </label>
-                      {f.type === "currency" ? (
-                        <select {...common}>
-                          <option value="">—</option>
-                          {CURRENCY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                      ) : (
-                        <input
-                          type={f.type === "date" ? "date" : f.type === "number" ? "number" : f.type === "email" ? "email" : "text"}
-                          placeholder={f.type === "text" ? `{{${f.token}}}` : undefined}
-                          {...common}
-                        />
-                      )}
-                    </div>
-                  );
-                })}
+              <div style={{ border: `1px solid ${C.br}`, borderRadius: 5, maxHeight: 280, overflowY: "auto", background: C.bg, padding: "4px 0" }}>
+                {groupOrder.map((g) => (
+                  <div key={g || "_"}>
+                    {g && <div style={{ fontSize: 9, fontFamily: M, letterSpacing: 1, textTransform: "uppercase", color: C.bl, padding: "8px 10px 3px", fontWeight: 700 }}>{g}</div>}
+                    {visibleFields.filter((f) => (f.group || "") === g).map((f) => {
+                      const val = templateVars[f.token] || "";
+                      const missing = f.required && !val.trim();
+                      const common = { value: val, onChange: (e) => setVar(f.token, e.target.value), style: { ...field, padding: "6px 8px", fontSize: 11, borderColor: missing ? `${C.am}99` : C.br } };
+                      return (
+                        <div key={f.token} style={{ padding: "4px 10px" }}>
+                          <div style={{ display: "grid", gridTemplateColumns: "150px 1fr", gap: 8, alignItems: f.type === "textarea" ? "start" : "center" }}>
+                            <label title={`{{${f.token}}}`} style={{ fontSize: 10, fontFamily: M, color: C.t3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", paddingTop: f.type === "textarea" ? 6 : 0 }}>
+                              {f.label}{f.required && <span style={{ color: C.rd }}> *</span>}
+                            </label>
+                            {f.type === "select" ? (
+                              <select {...common}><option value="">—</option>{f.options.map((o) => <option key={o} value={o}>{o}</option>)}</select>
+                            ) : f.type === "currency" ? (
+                              <select {...common}><option value="">—</option>{CURRENCY_OPTIONS.map((c) => <option key={c} value={c}>{c}</option>)}</select>
+                            ) : f.type === "textarea" ? (
+                              <textarea {...common} rows={2} style={{ ...common.style, resize: "vertical" }} />
+                            ) : (
+                              <input type={f.type === "date" ? "date" : f.type === "number" ? "number" : f.type === "email" ? "email" : "text"} placeholder={f.type === "text" ? `{{${f.token}}}` : undefined} {...common} />
+                            )}
+                          </div>
+                          {f.help && <div style={{ fontSize: 8.5, color: C.t4, fontFamily: M, margin: "2px 0 0 158px", lineHeight: 1.4 }}>{f.help}</div>}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
               <div style={{ fontSize: 9, color: C.t4, fontFamily: M, marginTop: 4, lineHeight: 1.5 }}>
                 <span style={{ color: C.rd }}>*</span> required. These fill the template's placeholders when the draft is created; optional fields left blank keep their {"{{placeholder}}"} for later.

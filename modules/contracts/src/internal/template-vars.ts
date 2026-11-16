@@ -64,13 +64,48 @@ export function humanizePlaceholder(token: string): string {
 // input, currency gets a dropdown, and the template's fields block creation
 // until the required ones are filled (matching Conga/SpotDraft field behavior).
 
-export type TemplateFieldType = "text" | "date" | "number" | "currency" | "email";
+export type TemplateFieldType = "text" | "textarea" | "date" | "number" | "currency" | "email" | "select";
 
 export interface TemplateFieldSpec {
   token: string;
   label: string;
   type: TemplateFieldType;
   required: boolean;
+}
+
+/** A condition that hides a field until another field has a value. */
+export interface TemplateFieldShowIf {
+  /** The token whose value gates this field. */
+  token: string;
+  /** Show when the gating value equals this. */
+  equals?: string;
+  /** Show when the gating value is one of these. */
+  in?: string[];
+}
+
+/** A per-template field definition (stored in the template's dataJson.fieldSchema).
+ *  Every property is optional — an absent one falls back to inference. */
+export interface TemplateFieldDef {
+  token: string;
+  label?: string;
+  type?: TemplateFieldType;
+  required?: boolean;
+  options?: string[];
+  help?: string;
+  group?: string;
+  showIf?: TemplateFieldShowIf;
+}
+
+/** A fully-resolved field the author form renders (schema merged over inference). */
+export interface ResolvedTemplateField {
+  token: string;
+  label: string;
+  type: TemplateFieldType;
+  required: boolean;
+  options: string[];
+  help: string | null;
+  group: string | null;
+  showIf: TemplateFieldShowIf | null;
 }
 
 /** Currency codes offered when a field is inferred as a currency selector. */
@@ -104,4 +139,39 @@ export function inferTemplateFieldSpec(token: string): TemplateFieldSpec {
 /** Infer field specs for a list of placeholder tokens, in order. Pure. */
 export function inferTemplateFields(tokens: string[]): TemplateFieldSpec[] {
   return (Array.isArray(tokens) ? tokens : []).map(inferTemplateFieldSpec);
+}
+
+/**
+ * Resolve the fields the author form should render for a template body: every
+ * `{{placeholder}}` in the body, in order, enriched by the per-template schema
+ * where present and inference otherwise. Pure. This is the single source of
+ * truth both the author form and the admin editor build on.
+ */
+export function resolveTemplateFields(body: string, schema?: TemplateFieldDef[] | null): ResolvedTemplateField[] {
+  const byToken = new Map<string, TemplateFieldDef>();
+  for (const d of Array.isArray(schema) ? schema : []) if (d && d.token) byToken.set(d.token, d);
+  return extractTemplatePlaceholders(body).map((token) => {
+    const inferred = inferTemplateFieldSpec(token);
+    const def = byToken.get(token);
+    return {
+      token,
+      label: (def?.label && def.label.trim()) || inferred.label,
+      type: def?.type ?? inferred.type,
+      required: typeof def?.required === "boolean" ? def.required : inferred.required,
+      options: Array.isArray(def?.options) ? def!.options.map(String).filter((s) => s.trim() !== "") : [],
+      help: (def?.help && def.help.trim()) || null,
+      group: (def?.group && def.group.trim()) || null,
+      showIf: def?.showIf && def.showIf.token ? def.showIf : null,
+    };
+  });
+}
+
+/** Whether a field is currently visible given the entered values (conditional logic). Pure. */
+export function isTemplateFieldVisible(field: Pick<ResolvedTemplateField, "showIf">, values: Record<string, string>): boolean {
+  const c = field.showIf;
+  if (!c || !c.token) return true;
+  const v = String(values?.[c.token] ?? "").trim();
+  if (Array.isArray(c.in)) return c.in.map(String).includes(v);
+  if (c.equals != null && c.equals !== "") return v === String(c.equals);
+  return v !== ""; // bare showIf: visible once the gating field has any value
 }
