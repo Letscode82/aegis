@@ -534,6 +534,13 @@ export {
   type AuthorContractResult,
 } from "./src/internal/author";
 
+// Template placeholder helpers (guided fill) — pure, also used by the author UI.
+export {
+  extractTemplatePlaceholders,
+  humanizePlaceholder,
+  AUTO_FILLED_PLACEHOLDERS,
+} from "./src/internal/template-vars";
+
 // Dynamic clause insertion (C-7) — assemble a draft body from a template +
 // the org clause library ({{clause:CODE}} markers + author-selected clauses).
 // Pure; the authored body flows through the same extract path.

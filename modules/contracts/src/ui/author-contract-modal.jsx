@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { C, F, M, SR } from "@aegis/ui";
+import { extractTemplatePlaceholders, humanizePlaceholder } from "../internal/template-vars";
 
 // ── Author a new contract from a template (CLM Phase 4a) ─────────────
 //
@@ -29,6 +30,8 @@ export function AuthorContractModal({ onClose, onCreated }) {
   const [value, setValue] = useState("");
   const [currency, setCurrency] = useState("USD");
   const [governingLaw, setGoverningLaw] = useState("");
+  const [placeholders, setPlaceholders] = useState([]); // tokens the chosen template needs
+  const [templateVars, setTemplateVars] = useState({}); // token -> value
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState(null);
 
@@ -55,10 +58,13 @@ export function AuthorContractModal({ onClose, onCreated }) {
   });
   const setClauseVariant = (clauseType, variant) => setSelectedClauses((prev) => ({ ...prev, [clauseType]: variant }));
 
-  // When a template is chosen, default the title/type from it if still blank.
+  // When a template is chosen, default the title/type from it if still blank,
+  // and parse its {{placeholders}} into a guided fill form.
   const pickTemplate = (key) => {
     setTemplateKey(key);
     const t = templates.find((x) => x.key === key);
+    setPlaceholders(t ? extractTemplatePlaceholders(t.body || "") : []);
+    setTemplateVars({});
     if (t) {
       if (!title.trim()) setTitle(t.name);
       if (t.kind === "NDA") setType("NDA");
@@ -66,6 +72,8 @@ export function AuthorContractModal({ onClose, onCreated }) {
       else if (t.kind === "NOTICE") setType("Notice");
     }
   };
+  const setVar = (token, v) => setTemplateVars((prev) => ({ ...prev, [token]: v }));
+  const filledCount = placeholders.filter((p) => (templateVars[p] || "").trim()).length;
 
   const submit = async () => {
     if (!title.trim()) { setErr("Title is required."); return; }
@@ -81,6 +89,11 @@ export function AuthorContractModal({ onClose, onCreated }) {
           value: value === "" ? null : Number(value),
           currency, governingLaw: governingLaw.trim() || null,
           clauses: Object.entries(selectedClauses).map(([clauseType, variant]) => ({ clauseType, variant })),
+          // Only send filled template fields — unfilled tokens stay as {{...}}
+          // in the draft so they can be completed later.
+          variables: Object.fromEntries(
+            placeholders.map((p) => [p, (templateVars[p] || "").trim()]).filter(([, v]) => v !== ""),
+          ),
         }),
       });
       const d = await r.json();
@@ -145,6 +158,27 @@ export function AuthorContractModal({ onClose, onCreated }) {
               <input value={governingLaw} onChange={(e) => setGoverningLaw(e.target.value)} placeholder="Delaware" style={field} />
             </div>
           </div>
+
+          {/* Guided template fill — the template's {{placeholders}} as fields */}
+          {placeholders.length > 0 && (
+            <div>
+              <label style={lbl}>
+                Template fields
+                <span style={{ color: filledCount === placeholders.length ? C.gn : C.bl, marginLeft: 6 }}>· {filledCount}/{placeholders.length} filled</span>
+              </label>
+              <div style={{ border: `1px solid ${C.br}`, borderRadius: 5, maxHeight: 220, overflowY: "auto", background: C.bg, padding: "4px 0" }}>
+                {placeholders.map((p) => (
+                  <div key={p} style={{ display: "grid", gridTemplateColumns: "150px 1fr", gap: 8, alignItems: "center", padding: "4px 10px" }}>
+                    <label title={`{{${p}}}`} style={{ fontSize: 10, fontFamily: M, color: C.t3, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{humanizePlaceholder(p)}</label>
+                    <input value={templateVars[p] || ""} onChange={(e) => setVar(p, e.target.value)} placeholder={`{{${p}}}`} style={{ ...field, padding: "6px 8px", fontSize: 11 }} />
+                  </div>
+                ))}
+              </div>
+              <div style={{ fontSize: 9, color: C.t4, fontFamily: M, marginTop: 4, lineHeight: 1.5 }}>
+                These fill the template's placeholders when the draft is created. Leave a field blank to keep its {"{{placeholder}}"} for later.
+              </div>
+            </div>
+          )}
 
           {/* Dynamic clause insertion from the library (C-7) */}
           {clauseLib.length > 0 && (
