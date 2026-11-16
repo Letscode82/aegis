@@ -15,6 +15,7 @@ import {
   Paragraph,
   TextRun,
 } from "docx";
+import { parseMarkdownBlocks, renderBlocksToParagraphs } from "./markdown-blocks";
 
 const NAVY = "1B2A4A";
 const GREY = "5B6472";
@@ -52,16 +53,10 @@ const body = (text: string): Paragraph =>
 const kv = (label: string, value: string): Paragraph =>
   new Paragraph({ spacing: { after: 40 }, children: [new TextRun({ text: `${label}:  `, bold: true, size: 20, color: GREY }), new TextRun({ text: value, size: 21 })] });
 
-// Split prose (\n\n paragraphs, \n line breaks) into docx paragraphs.
+// Render a Markdown body (headings, bold/italic, numbered clauses, bullets,
+// horizontal rules) into professionally formatted docx paragraphs.
 function multiline(text: string): Paragraph[] {
-  const blocks = String(text || "").split(/\n{2,}/).map((b) => b.trim()).filter(Boolean);
-  if (blocks.length === 0) return [];
-  return blocks.map((block) =>
-    new Paragraph({
-      spacing: { after: 120 },
-      children: block.split(/\n/).flatMap((line, i) => (i === 0 ? [new TextRun({ text: line, size: 21 })] : [new TextRun({ text: line, size: 21, break: 1 })])),
-    }),
-  );
+  return renderBlocksToParagraphs(parseMarkdownBlocks(String(text || "")));
 }
 
 const money = (v: number | null | undefined, ccy?: string | null): string =>

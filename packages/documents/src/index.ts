@@ -25,6 +25,16 @@ export {
   type MarkdownDocInput,
 } from "./markdown-docx";
 
+// Shared Markdown → Word block model (CW-6) — the pure parser + renderer both
+// contract and free-form .docx renderers use.
+export {
+  parseInlineSpans,
+  parseMarkdownBlocks,
+  renderBlocksToParagraphs,
+  type InlineSpan,
+  type MdBlock,
+} from "./markdown-blocks";
+
 // Redline (track-changes) .docx — real Word revisions from redline segments (C-1).
 export {
   renderRedlineDocx,
