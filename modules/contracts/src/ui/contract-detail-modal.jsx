@@ -269,9 +269,20 @@ export function ContractDetailModal({ contractId, canManage, onClose, onChanged 
             <div style={{ padding: "14px 18px", borderBottom: `1px solid ${C.br}` }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 10 }}>
                 <div style={{ fontSize: 10, fontFamily: M, color: C.t3, letterSpacing: 1.2, textTransform: "uppercase", fontWeight: 600 }}>
-                  Clause analysis <span style={{ color: C.t4 }}>· {c.clauses.length} extracted · {c.deviationCount} deviating</span>
+                  Clause analysis <span style={{ color: C.t4 }}>· {c.clauses.length} {c.origin === "THIRD_PARTY" ? "extracted" : "captured"}{c.origin === "THIRD_PARTY" ? ` · ${c.deviationCount} deviating` : ""}</span>
                 </div>
-                {c.riskScore && (
+                {c.origin !== "THIRD_PARTY" ? (
+                  // Our own paper, authored from an approved template, is captured
+                  // as standard — not deviation-scored against the playbook (that
+                  // is the inbound third-party review surface). Grade-on-demand
+                  // stays available via the Review flow.
+                  <span
+                    title="This is your own paper (authored from an approved template). It is captured as your standard position rather than reviewed for deviations — that review is for inbound third-party paper. Use the Review flow to grade it against the playbook on demand."
+                    style={{ marginLeft: "auto", fontSize: 9.5, fontFamily: M, fontWeight: 700, letterSpacing: .5, padding: "3px 9px", borderRadius: 4, color: C.gn, border: `1px solid ${C.gn}55` }}
+                  >
+                    ✓ YOUR PAPER · STANDARD
+                  </span>
+                ) : c.riskScore && (
                   <span
                     title={c.riskScore.score != null
                       ? `Deterministic clause-derived risk score. Drivers: ${(c.riskScore.drivers || []).map((d) => `${d.type.replace(/_/g, " ")}${d.deviation ? " (deviates)" : ""}`).join(", ") || "none"}`
